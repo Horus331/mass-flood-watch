@@ -786,6 +786,28 @@ function checkExtra(){ const VR=(D.validation||{}).roads; let s='';
   return s; }
 /* ================= District 3 road segment graph ================= */
 let GSEG = null, GLIVE = null, GREP = null, GRES = null, GHR = null, GEXP = null, gLoading = null;
+// ---------- knock-on effects on the road network: segments that are dry but cut off, and roads that take the detour traffic ----------
+let GNET = null;
+function gNet(){ if (GNET) return GNET; const n = GSEG.n, deg = new Int32Array(n + 1); for (const [a, b] of GSEG.links){ deg[a + 1]++; deg[b + 1]++; }
+  for (let i = 0; i < n; i++) deg[i + 1] += deg[i]; const nb = new Int32Array(deg[n]), fill = deg.slice(0, n);
+  for (const [a, b] of GSEG.links){ nb[fill[a]++] = b; nb[fill[b]++] = a; }
+  const major = Uint8Array.from(GSEG.P.cls, c => c >= 1 ? 1 : 0);
+  GNET = {n, off: deg, nb, major}; GNET.base = reach(new Uint8Array(n)); return GNET; }
+function reach(blocked){ const {n, off, nb, major} = GNET, seen = new Uint8Array(n), q = new Int32Array(n); let h = 0, t = 0;   // every dry segment that can still reach a numbered route
+  for (let i = 0; i < n; i++) if (major[i] && !blocked[i]){ seen[i] = 1; q[t++] = i; }
+  while (h < t){ const i = q[h++]; for (let j = off[i]; j < off[i + 1]; j++){ const v = nb[j]; if (!seen[v] && !blocked[v]){ seen[v] = 1; q[t++] = v; } } }
+  return seen; }
+function cascade(flooded){ const G = gNet(), {n, off, nb} = G, now = reach(flooded), cut = new Uint8Array(n), extra = new Float32Array(n), A = GSEG.P.aadt;
+  let nCut = 0, kmCut = 0, moved = 0, top = -1;
+  for (let i = 0; i < n; i++) if (!flooded[i] && G.base[i] && !now[i]){ cut[i] = 1; nCut++; kmCut += GSEG.P.len[i] / 1000; }
+  for (let i = 0; i < n; i++){ if (!flooded[i]) continue; const a = A[i] || 0; moved += a;          // traffic on a flooded segment spills onto the dry roads around it (1 and 2 links away)
+    if (top < 0 || a > (A[top] || 0)) top = i;
+    const h1 = []; for (let j = off[i]; j < off[i + 1]; j++){ const v = nb[j]; if (!flooded[v]) h1.push(v); }
+    for (const v of h1) extra[v] += 0.6 * a / h1.length;
+    const h2 = []; for (const v of h1) for (let j = off[v]; j < off[v + 1]; j++){ const u = nb[j]; if (!flooded[u] && u !== i) h2.push(u); }
+    for (const u of h2) extra[u] += 0.4 * a / h2.length; }
+  let nBusy = 0; for (let i = 0; i < n; i++) if (extra[i] >= 1000 && !cut[i]) nBusy++;
+  return {cut, extra, nCut, kmCut, moved, nBusy, top}; }
 async function loadGraph(){
   if (GSEG) return; if (gLoading) return gLoading;
   gLoading = (async () => {
@@ -940,8 +962,9 @@ async function mWater(){
     <div class="ctl"><span class="lbl">Time</span><div class="wtime" id="wtime"></div><input type="range" id="wbar" min="0" max="${(m.n - 1) * 20}" step="1" value="${Math.round(st.f * 20)}" aria-label="Simulation time">
     <div class="wplay"><button class="btn" id="wplay">▶ Play</button><select id="wspd" aria-label="Speed" style="width:auto"><option value="2">slow</option><option value="4">normal</option><option value="8">fast</option></select>
     <label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wmax"> highest water</label></div>
-    <div class="wplay">${m.rain_frames || m.rainTiles ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrain"> radar rain</label>' : ''}${m.roads ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wroads"> flooded roads</label>' : ''}${m.vel_step ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wflow"> moving streaks</label>' : ''}${simDay(m) ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrank"> model ranking that day</label>' : ''}</div><span class="note" id="wload"></span></div>`;
+    <div class="wplay">${m.rain_frames || m.rainTiles ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrain"> radar rain</label>' : ''}${m.roads ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wroads"> flooded roads</label>' : ''}${m.vel_step ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wflow"> moving streaks</label>' : ''}${m.roads && m.roads.kind === 'graph' ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wknock"> knock-on effects</label>' : ''}${simDay(m) ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrank"> model ranking that day</label>' : ''}</div><span class="note" id="wload"></span></div>`;
   if ($('#wrain')){ $('#wrain').checked = st.rain; $('#wrain').onchange = e => { st.rain = e.target.checked; mWater(); }; }
+  if ($('#wknock')){ $('#wknock').checked = st.knock !== false; $('#wknock').onchange = e => { st.knock = e.target.checked; mWater(); }; }
   if ($('#wflow')){ $('#wflow').checked = st.flow !== false; $('#wflow').onchange = e => { st.flow = e.target.checked; }; }
   if (m.vel_step) flowStart();
   if ($('#wrank')){ $('#wrank').checked = !!st.rank; $('#wrank').onchange = e => { st.rank = e.target.checked; mWater(); }; }
@@ -975,17 +998,23 @@ async function mWater(){
   const on = i => { if (!m.rf || m.rf[i] < 0) return false; if (st.showMax) return true; const k = Math.round(st.f); return m.rf[i] <= k && m.rl[i] >= k; };
   const roadInfo = i => `<br>under 30 cm+ of water from ${etFmt(simTime(m, m.rf[i])).replace(/^\w+, /, '')} to ${etFmt(simTime(m, m.rl[i])).replace(/^\w+, /, '')}<br>deepest: <b>${fmt(m.rp[i], 1)} m</b>`;
   if (m.roads && st.roads && m.roads.kind === 'coastal'){ layer.roadColor = i => on(i) ? C.r4 : null; layer.roadTip = i => roadTipBase(i, roadInfo(i)); }
-  if (m.roads && st.roads && m.roads.kind === 'graph' && GSEG){ layer.segColor = i => on(i) ? C.r4 : null; layer.segTip = i => segName(i) + (m.rf[i] >= 0 ? roadInfo(i) : ''); }
+  const CUT = '#7b3fb5';
+  const casc = () => { const k = st.showMax ? 'max' : Math.round(st.f); if (st._ck !== k || st._cm !== m.id){ const fl = new Uint8Array(GSEG.n); for (let i = 0; i < GSEG.n; i++) fl[i] = on(i) ? 1 : 0; st._cc = cascade(fl); st._ck = k; st._cm = m.id; } return st._cc; };
+  if (m.roads && st.roads && m.roads.kind === 'graph' && GSEG){
+    if (st.knock !== false){ layer.segColor = i => { if (on(i)) return C.r4; const c = casc(); return c.cut[i] ? CUT : c.extra[i] >= 3000 ? C.r2 : c.extra[i] >= 1000 ? C.r1 : null; };
+      layer.segTip = i => { const c = casc(); return segName(i) + (on(i) ? roadInfo(i) : c.cut[i] ? '<br><b>Not flooded, but cut off</b>: every way out to a numbered route crosses a flooded segment' : c.extra[i] >= 1000 ? `<br><b>Likely detour traffic</b>: about ${fmt(Math.round(c.extra[i] / 100) * 100)} extra vehicles/day pushed here from flooded roads nearby` : (m.rf[i] >= 0 ? roadInfo(i) : '')); }; }
+    else { layer.segColor = i => on(i) ? C.r4 : null; layer.segTip = i => segName(i) + (m.rf[i] >= 0 ? roadInfo(i) : ''); } }
   const rkDay = st.rank && simDay(m), RK = rkDay && GREP && GREP[rkDay] && (GREP[rkDay].ranks.GNN || GREP[rkDay].ranks.ML);
   if (RK && GSEG){ layer.segColor = i => rankColor(RK[i]); if (st.roads) Object.defineProperty(layer, 'segRing', {get: () => { const out = []; for (let i = 0; i < GSEG.n; i++) if (on(i)) out.push(i); return out; }, configurable: true});
     layer.segTip = i => segName(i) + `<br>graph network that day: ${RK[i] ? 'top ' + Math.max(1, 100 - RK[i]) + '% of wet segments' : 'not in the wet area'}` + (m.rf[i] >= 0 ? roadInfo(i) : ''); }
-  legend(`<b>Water depth</b><div class="ramp">${m.colors.map(c => `<span style="background:rgba(${c[1][0]},${c[1][1]},${c[1][2]},${(c[1][3] / 255).toFixed(2)})"></span>`).join('')}</div><div class="rampl"><span>${Math.round(m.show_m * 100)} cm</span><span>30 cm</span><span>1 m</span><span>2.5 m</span><span>5 m+</span></div>${st.roads && m.roads ? `<div><span class="sw" style="background:${C.r4}"></span>road under 30 cm or more</div>` : ''}${(m.rain_frames || m.rainTiles) && st.rain ? `<b style="margin-top:6px;display:block">Radar rain (mm per hour)</b><div class="ramp">${m.rain_colors.map(c => `<span style="background:rgba(${c[1][0]},${c[1][1]},${c[1][2]},${Math.min(1, c[1][3] / 180).toFixed(2)})"></span>`).join('')}</div><div class="rampl">${m.rain_colors.map(c => `<span>${c[0]}</span>`).join('')}</div>` : ''}`);
+  legend(`<b>Water depth</b><div class="ramp">${m.colors.map(c => `<span style="background:rgba(${c[1][0]},${c[1][1]},${c[1][2]},${(c[1][3] / 255).toFixed(2)})"></span>`).join('')}</div><div class="rampl"><span>${Math.round(m.show_m * 100)} cm</span><span>30 cm</span><span>1 m</span><span>2.5 m</span><span>5 m+</span></div>${st.roads && m.roads ? `<div><span class="sw" style="background:${C.r4}"></span>road under 30 cm or more</div>` : ''}${st.roads && m.roads && m.roads.kind === 'graph' && st.knock !== false ? `<div><span class="sw" style="background:#7b3fb5"></span>dry but cut off (every way out is flooded)</div><div><span class="sw" style="background:${C.r2}"></span>detour traffic, 3,000+ vehicles/day</div><div><span class="sw" style="background:${C.r1}"></span>detour traffic, 1,000–3,000</div>` : ''}${(m.rain_frames || m.rainTiles) && st.rain ? `<b style="margin-top:6px;display:block">Radar rain (mm per hour)</b><div class="ramp">${m.rain_colors.map(c => `<span style="background:rgba(${c[1][0]},${c[1][1]},${c[1][2]},${Math.min(1, c[1][3] / 180).toFixed(2)})"></span>`).join('')}</div><div class="rampl">${m.rain_colors.map(c => `<span>${c[0]}</span>`).join('')}</div>` : ''}`);
   if (RK) $('#legend').insertAdjacentHTML('beforeend', `<b style="margin-top:6px;display:block">Graph network's rank that day</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>top 10%</span><span>5%</span><span>2%</span><span>1%</span></div><div class="note">White outline: under 30 cm+ of water in the simulation at this moment</div>`);
   engine(m.mosaic ? `2-D local-inertial model in ${m.tiles.length} tiles · ${fmt(m.shape[0] / 1e6, 1)} million cells (${fmt(m.cell_m)}–${fmt(Math.max(...m.tiles.map(t => t.cell_m)))} m) · ${fmt(m.steps)} time steps · ${fmt(m.runtime_s / 60, 0)} min of GitHub Actions time` : `2-D local-inertial model · ${m.shape[1]}×${m.shape[0]} cells of ${fmt(m.cell_m)} m · ${fmt(m.steps)} time steps · computed on GitHub Actions in ${fmt(m.runtime_s / 60, 0)} min · ${isF ? 'NOAA MRMS rain, USGS 3DEP terrain' : 'NOAA tide gauge ' + m.station + ', USGS 3DEP terrain'}`);
   $('#readout').innerHTML = `<h2>${isF ? 'Flash flood' : 'Coastal flood'}</h2><p class="note">${m.title}</p>
     <div class="stats"><div class="stat"><b id="ws1"></b><span id="ws1l"></span></div><div class="stat"><b id="ws2"></b><span>under water (${Math.round(m.show_m * 100)} cm or more)</span></div>
     <div class="stat"><b id="ws3"></b><span>deeper than 50 cm</span></div><div class="stat"><b id="ws4"></b><span>${m.roads && m.roads.kind === 'graph' ? 'road segments' : 'road points'} under 30 cm+</span></div>${isF && m.frames[0].soaked_mm != null ? '<div class="stat"><b id="ws5"></b><span>soaked into the ground so far (average)</span></div>' : ''}</div>
     ${base2018 ? `<span class="lbl">Same storm, higher sea vs. what really happened in 2018</span><div class="stats"><div class="stat"><b>${fmt(Math.max(...m.frames.map(f => f.wet_km2)), 1)} vs ${fmt(Math.max(...base2018.frames.map(f => f.wet_km2)), 1)} km²</b><span>peak area under water, +${m.sea_rise_m} m sea vs 2018</span></div><div class="stat"><b>${fmt(Object.keys(m.roads.first).length)} vs ${fmt(Object.keys(base2018.roads.first).length)}</b><span>road points under 30 cm+ (${fmt(Object.keys(m.roads.first).length / Math.max(1, Object.keys(base2018.roads.first).length), 1)}× as many)</span></div></div>` : ''}
+    ${m.roads && m.roads.kind === 'graph' && st.knock !== false ? `<span class="lbl">Knock-on effects on the road network, at this moment</span><div class="stats"><div class="stat"><b id="wk1">–</b><span>dry segments cut off (no way out to a numbered route)</span></div><div class="stat"><b id="wk2">–</b><span id="wk2l">busiest flooded road (vehicles/day that must go elsewhere)</span></div><div class="stat"><b id="wk3">–</b><span>dry segments taking 1,000+ extra vehicles/day</span></div></div>` : ''}
     <span class="lbl">The whole storm</span>${wChart(m)}
     ${m.roads ? '<span class="lbl">Streets in the order the water reaches them</span><div id="wstreets"></div>' : ''}
     ${m.compare ? `<span class="lbl">Forecast vs radar rain (same storm)</span><div class="stats"><div class="stat"><b>${Math.round(m.compare.caught_share * 100)}%</b><span>of the ${fmt(m.compare.ref_roads)} road segments flooded in the radar-rain run also flood here</span></div><div class="stat"><b>${fmt(m.compare.fcst_peak_km2, 0)} vs ${fmt(m.compare.ref_peak_km2, 0)} km²</b><span>peak area under water: forecast vs radar rain</span></div></div><p class="note">${Math.round(m.compare.false_share * 100)}% of the roads flooded in this forecast run stayed dry with the real rain. ${m.issued ? 'Forecast issued ' + etFmt(new Date(m.issued.replace('Z', ':00Z'))).replace(/^\w+, /, '') + '.' : ''}</p>` : ''}
@@ -1020,6 +1049,9 @@ function wUpdate(){ const st = state.water, m = WSIM[st.id]; if (!m || state.mod
     $('#ws2').textContent = `${fmt(show.wet_km2, 1)} km²`; $('#ws3').textContent = `${fmt(show.deep_km2, 1)} km²`; $('#ws4').textContent = show.roads_wet == null ? '–' : fmt(show.roads_wet); }
   const cur = $('#wcur'); if (cur){ const x = 30 + 240 * st.f / (m.n - 1); cur.setAttribute('x1', x); cur.setAttribute('x2', x); }
   if (m.roads && (st._sk !== k || st._sm !== st.showMax)){ st._sk = k; st._sm = st.showMax; streetList(m); }
+  if ($('#wk1') && m.roads && m.roads.kind === 'graph' && GSEG && m.rf){ const on_ = i => m.rf[i] >= 0 && (st.showMax || (m.rf[i] <= k && m.rl[i] >= k)), key = (st.showMax ? 'max' : k) + m.id;
+    if (st._wk !== key){ st._wk = key; const fl = new Uint8Array(GSEG.n); for (let i = 0; i < GSEG.n; i++) fl[i] = on_(i) ? 1 : 0; const c = cascade(fl); st._cc = c; st._ck = st.showMax ? 'max' : k; st._cm = m.id;
+      $('#wk1').textContent = `${fmt(c.nCut)} (${fmt(c.kmCut, 1)} km)`; $('#wk2').textContent = c.top >= 0 ? fmt(GSEG.P.aadt[c.top]) : '0'; $('#wk2l').textContent = c.top >= 0 ? `busiest flooded road: ${titleCase(GSEG.P.road[c.top] || 'road segment')}, ${titleCase(GSEG.P.town[c.top] || '')} (vehicles/day that must go elsewhere)` : 'no road under water right now'; $('#wk3').textContent = fmt(c.nBusy); } }
   scheduleDraw(true); }
 function wStart(){ const st = state.water, m = WSIM[st.id]; if (!m) return; if (st.f >= m.n - 1.01) st.f = 0; st.showMax = false; if ($('#wmax')) $('#wmax').checked = false;
   $('#wplay').textContent = '❚❚ Pause'; let last = performance.now();
