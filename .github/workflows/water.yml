@@ -1,9 +1,13 @@
-name: Water movement simulation (runs when sim/ changes)
+name: Water movement simulation (run by hand)
 on:
-  push:
-    branches: [main]
-    paths: ["sim/**", ".github/workflows/water.yml"]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Scenarios as a JSON list, e.g. ["forecast"]'
+        default: '["flash","boston","southshore","coastal"]'
+      forecast_min_mm:
+        description: 'Rain threshold for the forecast scenario (0 = always simulate, for testing)'
+        default: '20'
 permissions:
   contents: write
 concurrency:
@@ -15,10 +19,11 @@ jobs:
     timeout-minutes: 300
     env:
       PYTHONUNBUFFERED: "1"
+      FORECAST_MIN_MM: ${{ github.event.inputs.forecast_min_mm || '20' }}
     strategy:
       fail-fast: false
       matrix:
-        scenario: [flash, boston, southshore, coastal]
+        scenario: ${{ fromJSON(github.event.inputs.only || '["flash","boston","southshore","coastal"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
