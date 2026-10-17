@@ -25,6 +25,10 @@ SCEN = {
                   bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0,
                   t0='2023-09-11T17:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
                   f0=30.0, fc=3.0, Fk=40.0, drain=2.0),          # Horton infiltration (mm/h, mm) on ponded water all the time + a light storm-drain sink
+    'attleboro': dict(title='Flash flood · Sept 11, 2023 (North Attleborough, Attleboro, Plainville)', kind='flash',
+                      bbox=(-71.45, 41.88, -71.20, 42.06), res=30.0,
+                      t0='2023-09-11T16:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
+                      f0=30.0, fc=3.0, Fk=40.0, drain=2.0),
     'forecast': dict(title='Forecast · next 30 hours of NOAA HRRR rain over District 3', kind='flash', source='hrrr',
                      bbox=(-72.35, 41.98, -71.35, 42.74), res=80.0, hours=30, frame_min=30, manning=0.06, show_m=0.10,
                      f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=20.0),

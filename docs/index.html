@@ -743,7 +743,7 @@ async function mGraph(){
   scheduleDraw(true);
 }
 /* ================= water movement simulation (Water tab) ================= */
-const WSIM = {}, SIM_IDS = ['forecast', 'flash', 'boston', 'southshore', 'coastal'], SIM_LABEL = {forecast: 'Forecast · next 30 h (live, NOAA HRRR)', flash: 'Flash flood · Sept 11, 2023 · Leominster', boston: "Coastal · Jan 4, 2018 · Boston Harbor (zoomed)", southshore: "Coastal · Jan 4, 2018 · South Shore (zoomed)", coastal: "Coastal · Jan 4, 2018 · whole coast (overview)"}; let wTimer = 0;
+const WSIM = {}, SIM_IDS = ['forecast', 'flash', 'attleboro', 'boston', 'southshore', 'coastal'], SIM_LABEL = {attleboro: 'Flash flood · Sept 11, 2023 · North Attleborough', forecast: 'Forecast · next 30 h (live, NOAA HRRR)', flash: 'Flash flood · Sept 11, 2023 · Leominster', boston: "Coastal · Jan 4, 2018 · Boston Harbor (zoomed)", southshore: "Coastal · Jan 4, 2018 · South Shore (zoomed)", coastal: "Coastal · Jan 4, 2018 · whole coast (overview)"}; let wTimer = 0;
 async function loadSim(id){ if (WSIM[id]) return WSIM[id]; const m = await getJSON('sim/' + id + '/meta.json'); m.img = new Array(m.n); m.ver = m.runtime_s + '-' + m.steps; WSIM[id] = m; if (m.rain_frames) m.rain_frames = m.rain_frames.map(([t, file]) => ({ms: Date.parse(t.replace('Z', ':00Z')), file}));
   if (m.roads){ const N = m.roads.kind === 'coastal' ? R.lat.length : 60000; m.rf = new Int16Array(N).fill(-1); m.rl = new Int16Array(N).fill(-1); m.rp = new Float32Array(N);
     for (const [i, v] of Object.entries(m.roads.first)) m.rf[+i] = v; for (const [i, v] of Object.entries(m.roads.last||{})) m.rl[+i] = v; for (const [i, v] of Object.entries(m.roads.peak||{})) m.rp[+i] = v[0]; }
