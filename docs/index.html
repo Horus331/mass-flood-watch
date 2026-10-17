@@ -79,6 +79,11 @@ canvas#map:active{cursor:grabbing}
 .credit{position:absolute;right:max(8px,env(safe-area-inset-right,0px));bottom:calc(2px + env(safe-area-inset-bottom,0px));font-size:10px;color:var(--muted);z-index:2;pointer-events:none;text-shadow:0 0 3px var(--halo)}
 .lbl{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .ctl{display:flex;flex-direction:column;gap:6px}
+.subtabs{display:flex;flex-wrap:wrap;gap:6px}
+.readout a,.rail a{color:var(--accent);font-weight:600}
+details.more{border-top:1px solid var(--line);padding-top:8px}details.more>summary{cursor:pointer;font:600 12.5px var(--body);color:var(--accent);margin-bottom:8px}details.more[open]{display:flex;flex-direction:column;gap:12px}.subtabs:empty{display:none}
+.subtabs button{font:600 12.5px var(--body);padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.subtabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .wplay{display:flex;gap:8px;align-items:center}.wplay .btn{min-width:74px}.wtime{font:600 15px var(--mono);letter-spacing:.02em}
 .wchart{width:100%;height:120px;display:block;margin-top:4px}.wchart text{font:10px var(--mono);fill:var(--muted)}
 select,input[type=range],input[type=search]{width:100%}
@@ -145,15 +150,10 @@ h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spa
   <header>
     <div class="brand"><h1>Mass Flood Watch</h1><small>Road flooding from rain and the sea · MassDOT Districts 3–6</small></div>
     <div class="tabs" role="group" aria-label="View">
-      <button class="tab" data-mode="live" aria-pressed="true" id="t-live">Live now</button>
-      <button class="tab" data-mode="coastal" aria-pressed="false" id="t-coastal">Coastal</button>
-      <button class="tab" data-mode="inland" aria-pressed="false" id="t-inland">Rain</button>
-      <button class="tab" data-mode="traffic" aria-pressed="false" id="t-traffic">Traffic</button>
-      <button class="tab" data-mode="future" aria-pressed="false" id="t-future">Long-term</button>
-      <button class="tab" data-mode="tsunami" aria-pressed="false" id="t-tsunami">Tsunami</button>
-      <button class="tab" data-mode="graph" aria-pressed="false" id="t-graph">Road graph</button>
-      <button class="tab" data-mode="water" aria-pressed="false" id="t-water">Water</button>
-      <button class="tab" data-mode="check" aria-pressed="false" id="t-check">Model check</button>
+      <button class="tab" data-tab="now" aria-pressed="true" id="t-now">Now</button>
+      <button class="tab" data-tab="replay" aria-pressed="false" id="t-replay">Replay a storm</button>
+      <button class="tab" data-tab="future" aria-pressed="false" id="t-future">Future</button>
+      <button class="tab" data-tab="check" aria-pressed="false" id="t-check">How good is it</button>
     </div>
     <div class="status">
       <span class="livechip" id="livechip"><span class="dot ok" id="livedot"></span><span id="livetxt">Loading…</span></span>
@@ -166,6 +166,7 @@ h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spa
     <canvas id="map" aria-label="Map of Massachusetts roads, towns and flood model results"></canvas>
     <div id="gmarks"></div>
     <aside class="card rail" aria-label="Controls">
+      <div class="subtabs" id="subtabs" role="group" aria-label="View"></div>
       <div class="ctl"><label class="lbl" for="find">Go to a town</label><input type="search" id="find" list="townlist" placeholder="e.g. Quincy" autocomplete="off"><datalist id="townlist"></datalist></div>
       <div id="controls"></div>
       <div class="ctl"><span class="lbl">How to read it</span><p class="note" id="howto"></p></div>
@@ -197,7 +198,7 @@ try {
 } catch(e){ $('#loading').textContent = 'Map data could not be loaded. Refresh the page; if it keeps happening, a data file is missing from the published page.'; return; }
 performance.mark('fetched'); try { MAN = await getJSON('manifest.json'); } catch(e){}
 try { const L = await getJSON('live.json'); if (L && L.asof) D.live = L; } catch(e){}
-getJSON('findings.json').then(F => { window.__findings = F; if (state.mode === 'check') setMode('check'); }).catch(() => {});
+getJSON('findings.json').then(F => { window.__findings = F; if (state.mode === 'check' && typeof goTab === 'function') goTab('check'); }).catch(() => {});
 
 /* ================= projection: world = (lon, -mercator(lat)) in degrees ================= */
 const RAD = Math.PI/180, mY = lat => -Math.log(Math.tan(Math.PI/4 + lat*RAD/2))/RAD, iY = y => (2*Math.atan(Math.exp(-y*RAD)) - Math.PI/2)/RAD;
@@ -484,9 +485,20 @@ function tideChart(k, g){ const cv = g.curve; if (!cv || !cv.pred || !cv.pred.le
 
 /* ================= views ================= */
 const state = {mode:'live', liveLayer:'chance', coastal:{pick:'2018-01-04', rp:10}, inland:{pick:'slider', rain:60, wet:'now'}, traffic:{pick:Object.keys(D.closures||{})[0]}, future:{year:2050}, tsunami:{amp:2, runup:'1'}};
-try { const m = localStorage.getItem('mfw-mode'); if (m) state.mode = m; } catch(e){}
-const HASH_MODES = ['live','coastal','inland','traffic','future','tsunami','check','graph','water']; { const h = location.hash.slice(1).toLowerCase(); if (HASH_MODES.includes(h)) state.mode = h; }
-window.addEventListener('hashchange', ()=>{ const h = location.hash.slice(1).toLowerCase(); if (HASH_MODES.includes(h) && typeof MODES !== 'undefined' && MODES[h]) setMode(h); });
+/* four tabs, each with a few views (the old tab names still work as links) */
+const TABS = {
+  now:    {views: [['overview', 'Overview'], ['segments', 'Road segments'], ['water', 'Water forecast']]},
+  replay: {views: [['water', 'Water moving'], ['segments', 'Road segments'], ['rain', 'Rain by town'], ['coastal', 'Coastal roads'], ['traffic', 'Traffic']]},
+  future: {views: [['sea', 'Sea level 2030–2070'], ['tsunami', 'Tsunami what-if']]},
+  check:  {views: [['check', 'Results']]}};
+const VIEW_MODE = {'now/overview': 'live', 'now/segments': 'graph', 'now/water': 'water', 'replay/water': 'water', 'replay/segments': 'graph', 'replay/rain': 'inland',
+  'replay/coastal': 'coastal', 'replay/traffic': 'traffic', 'future/sea': 'future', 'future/tsunami': 'tsunami', 'check/check': 'check'};
+const OLD_HASH = {live: 'now/overview', graph: 'now/segments', water: 'replay/water', coastal: 'replay/coastal', inland: 'replay/rain', traffic: 'replay/traffic', future: 'future/sea', tsunami: 'future/tsunami', check: 'check/check'};
+state.tab = 'now'; state.view = {now: 'overview', replay: 'water', future: 'sea', check: 'check'};
+function readHash(){ let h = location.hash.slice(1).toLowerCase(); if (OLD_HASH[h]) h = OLD_HASH[h]; const [t, v] = h.split('/');
+  if (TABS[t]){ state.tab = t; if (v && TABS[t].views.some(x => x[0] === v)) state.view[t] = v; return true; } return false; }
+if (!readHash()) { try { const m = JSON.parse(localStorage.getItem('mfw-tab') || 'null'); if (m && TABS[m.t]){ state.tab = m.t; Object.assign(state.view, m.v || {}); } } catch(e){} }
+window.addEventListener('hashchange', ()=>{ if (readHash() && typeof MODES !== 'undefined') goTab(state.tab); });
 
 function mLive(){
   const L = D.live || {gauges:{}, towns_qpf24:{}, alerts:[], tsunami:[]};
@@ -506,14 +518,23 @@ function mLive(){
     return `<div class="g"><h4>${(GA[k]||{}).name||k}</h4>${rarityPill(v.aep)}${tideChart(k,v)}<span class="m">now ${fmt(v.now,2)} m · surge ${v.surge_now>=0?'+':''}${fmt(v.surge_now,2)} m · next 48 h peak ${fmt(v.next48_max,2)} m${v.stofs_next48!=null && v.stofs_next48>=v.next48_max-0.005?' (NOAA surge model)':' (tide + current surge)'}${v.stofs_next48!=null?` · STOFS ${fmt(v.stofs_next48,2)} m`:''}</span>${wc!=null?`<span class="m">with ${fmt(bw.hs_m,1)} m waves offshore: ${fmt(100*wc, wc<0.1?1:0)}% chance of coastal flood reports in this area</span>`:''}</div>`; }).join('') || '<p class="empty">No gauge data in this refresh.</p>';
   const ranked = [...ch.entries()].sort((a,b)=>b[1]-a[1]), best = ranked[0]||['–',0]; const top = ranked.slice(0,10).filter(x=>x[1]>=0.005);
   const wet = [...Object.entries(L.towns_qpf24||{})].filter(x=>x[1]!=null).sort((a,b)=>b[1]-a[1]).slice(0,3);
-  $('#readout').innerHTML = `<h2>Right now</h2>
-   <div class="stats"><div class="stat"><b>${fmt(s.n/10,1)} km</b><span>coastal road at risk, next 48 h</span></div><div class="stat"><b>${fmt(100*best[1], best[1]<0.1?1:0)}%</b><span>top town flood chance (${titleCase(best[0])})</span></div></div>
+  $('#readout').innerHTML = `<h2>What to watch</h2>
+   <div class="stats"><div class="stat"><b>${fmt(s.n/10,1)} km</b><span>coastal road at risk, next 48 h</span></div><div class="stat"><b>${fmt(100*best[1], best[1]<0.1?1:0)}%</b><span>top town flood chance (${titleCase(best[0])})</span></div>
+     <div class="stat"><b id="ov-rep">–</b><span>flooded-road reports expected, District 3 segments (24 h)</span></div><div class="stat"><b id="ov-water">–</b><span id="ov-water-l">water forecast</span></div></div>
    <p class="note">Wettest forecast: ${wet.map(w=>`${titleCase(w[0])} ${fmt(w[1],0)} mm`).join(', ')||'no rain in the forecast'}.</p>
+   <span class="lbl">NWS alerts</span>${(L.alerts||[]).length? '<ul>'+L.alerts.slice(0,8).map(a=>`<li><b>${a.event}</b> · ${a.area}</li>`).join('')+'</ul>' : '<p class="empty">No active alerts for Massachusetts.</p>'}
+   <span class="lbl">Towns to watch</span>${townTable(top, [['Town',r=>titleCase(r[0])],['Chance',r=>fmt(100*r[1],1)+'%','n'],['Rain 24 h',r=>fmt((L.towns_qpf24||{})[r[0]],0)+' mm','n']], r=>r[0])}
+   <div id="ov-segs"></div>
+   <details class="more"><summary>Tide gauges, waves and tsunami messages</summary>
    <span class="lbl">Tide gauges · observed (solid) · tide table (dashed) · NOAA surge forecast (red)</span><div class="gauges">${gcards}</div>
    <span class="lbl">Offshore waves · NOAA buoys</span>${Object.keys(L.waves||{}).length ? townTable(Object.values(L.waves), [['Buoy',r=>r.name],['Wave height',r=>fmt(r.hs_m,1)+' m','n'],['Period',r=>r.period_s? fmt(r.period_s,0)+' s':'–','n']]) : '<p class="empty">No buoy data in this refresh.</p>'}
-   <span class="lbl">NWS alerts</span>${(L.alerts||[]).length? '<ul>'+L.alerts.slice(0,8).map(a=>`<li><b>${a.event}</b> · ${a.area}</li>`).join('')+'</ul>' : '<p class="empty">No active alerts for Massachusetts.</p>'}
-   <span class="lbl">Tsunami warning center (Atlantic)</span>${(L.tsunami||[]).length? '<ul>'+L.tsunami.map(t=>`<li>${t.title} <span class="note">${(t.updated||'').slice(0,10)}</span></li>`).join('')+'</ul>':'<p class="empty">No messages.</p>'}
-   <span class="lbl">Towns to watch</span>${townTable(top, [['Town',r=>titleCase(r[0])],['Chance',r=>fmt(100*r[1],1)+'%','n'],['Rain 24 h',r=>fmt((L.towns_qpf24||{})[r[0]],0)+' mm','n']], r=>r[0])}`;
+   <span class="lbl">Tsunami warning center (Atlantic)</span>${(L.tsunami||[]).length? '<ul>'+L.tsunami.map(t=>`<li>${t.title} <span class="note">${(t.updated||'').slice(0,10)}</span></li>`).join('')+'</ul>':'<p class="empty">No messages.</p>'}</details>`;
+  getJSON('graph_live.json').then(G => { if (state.mode !== 'live') return; const e = $('#ov-rep'); if (e) e.textContent = G.expected_reports != null ? fmt(G.expected_reports, 1) : fmt(G.n_scored);
+    const sc = G.scale || 1000, top = (G.top || []).slice(0, 5);
+    $('#ov-segs').innerHTML = `<span class="lbl">Road segments most at risk (District 3)</span>` + (top.length ? `<div class="tblwrap"><table><tbody>${top.map(([i, q, rd, tw]) => `<tr><td>${rd || 'Road segment ' + i}${tw ? `<br><span class="note">${tw}</span>` : ''}</td><td class="n">${fmt(q / sc * 100, 2)}%</td></tr>`).join('')}</tbody></table></div><p class="note"><a href="#now/segments">Open the road segments view</a> to see them on the map.</p>` : `<p class="empty">No segment is forecast to get 20 mm of rain.</p>`); }).catch(() => {});
+  getJSON('sim/forecast/meta.json').then(F => { if (state.mode !== 'live') return; const e = $('#ov-water'), l = $('#ov-water-l'); if (!e) return;
+    if (F.status === 'dry' || !F.n){ e.textContent = 'No heavy rain'; l.textContent = `water forecast: most rain ${fmt(F.max_rain_mm, 0)} mm in 30 h`; }
+    else { const pk = Math.max(...F.frames.map(f => f.wet_km2)); e.textContent = fmt(pk, 0) + ' km²'; l.innerHTML = `peak area under water in the <a href="#now/water">water forecast</a>`; } }).catch(() => {});
   wireGo(); setTitle('Live · ' + (L.asof||''), 'Flood outlook, next 24–48 hours', 'Town flood chance from the NWS rain forecast and a model trained on 2002–2026 flood reports; coastal roads from NOAA tide gauges.');
 }
 
@@ -704,11 +725,13 @@ async function mGraph(){
   try { await loadGraph(); } catch(e){ $('#readout').innerHTML = '<h2>Road segment graph</h2><p class="empty">The graph files are not published yet.</p>'; return; }
   if (state.mode !== 'graph') return;
   const st = state.graph || (state.graph = {view: 'live', day: Object.keys(GREP||{})[0], model: 'ML'});
+  if (state.lock === 'now') st.view = 'live'; else if (state.lock === 'replay' && Object.keys(GREP||{}).length) st.view = 'replay';
   const days = Object.keys(GREP||{});
   $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="gview">Show</label><select id="gview"><option value="live">Live: next 24 hours (NOAA forecast)</option>${days.length ? '<option value="replay">Replay a past storm</option>' : ''}</select></div>
     <div class="ctl" id="greplay" ${st.view==='replay'?'':'hidden'}><label class="lbl" for="gday">Storm</label><select id="gday">${days.map(d=>`<option value="${d}">${new Date(d+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})} · ${GREP[d].floods.length} flooded segments</option>`).join('')}</select>
     <label class="lbl" for="gmodel" style="margin-top:8px">Model</label><select id="gmodel">${Object.entries(MODEL_NAMES).filter(([k])=>GREP[days[0]]?.ranks[k]).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>`;
   $('#gview').value = st.view; if (st.day) $('#gday').value = st.day; $('#gmodel').value = st.model;
+  if (state.lock) $('#gview').closest('.ctl').hidden = true;
   $('#gview').onchange = e => { st.view = e.target.value; mGraph(); scheduleDraw(true); };
   if ($('#gday')) $('#gday').onchange = e => { st.day = e.target.value; mGraph(); scheduleDraw(true); };
   if ($('#gmodel')) $('#gmodel').onchange = e => { st.model = e.target.value; mGraph(); scheduleDraw(true); };
@@ -778,11 +801,13 @@ function wChart(m){ const w = 300, h = 120, pl = 30, pr = 30, pt = 8, pb = 18, X
 async function mWater(){
   setTitle('Water movement simulation', 'Watch the water move', 'A 2-D flow model routes real radar rain over lidar terrain, and pushes a real storm tide over the coast.');
   layer = {}; legend('<b>Loading the simulation…</b>');
+  const IDS = state.lock === 'now' ? ['forecast'] : state.lock === 'replay' ? SIM_IDS.filter(i => i !== 'forecast') : SIM_IDS;
   const st = state.water || (state.water = {id: (location.search.match(/sim=(\w+)/)||[])[1] || 'flash', f: 0, speed: 4, showMax: false, rain: true, roads: true});
+  if (!IDS.includes(st.id)) { st.id = IDS[0]; st.f = 0; }
   let m; try { m = await loadSim(st.id); } catch(e){ $('#readout').innerHTML = '<h2>Water</h2><p class="empty">The simulation frames are still being computed. Check back in a little while.</p>'; $('#controls').innerHTML = ''; legend(''); return; }
   if (state.mode !== 'water') return;
   if (m.status === 'dry' || !m.n){
-    $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${SIM_IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>`;
+    $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>`;
     $('#wsc').value = st.id; $('#wsc').onchange = e => { wStop(); st.id = e.target.value; st.f = 0; mWater().then(() => { const mm = WSIM[st.id]; if (mm && mm.n) wFly(mm); }); };
     layer = {}; legend(''); $('#howto').textContent = 'Every 6 hours the map checks NOAA\'s HRRR rain forecast. When 20 mm or more is forecast anywhere in District 3, the same 2-D water model runs on the forecast rain and this scene shows where the water is expected to collect over the next 30 hours.';
     engine(`Forecast check: NOAA HRRR ${m.issued || '–'} · ${m.built || ''}`);
@@ -790,7 +815,7 @@ async function mWater(){
     scheduleDraw(true); return; }
   if (m.roads && m.roads.kind === 'graph') { try { await loadGraph(); } catch(e){} if (state.mode !== 'water') return; }
   st.f = Math.min(st.f, m.n - 1);
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${SIM_IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>
     <div class="ctl"><span class="lbl">Time</span><div class="wtime" id="wtime"></div><input type="range" id="wbar" min="0" max="${(m.n - 1) * 20}" step="1" value="${Math.round(st.f * 20)}" aria-label="Simulation time">
     <div class="wplay"><button class="btn" id="wplay">▶ Play</button><select id="wspd" aria-label="Speed" style="width:auto"><option value="2">slow</option><option value="4">normal</option><option value="8">fast</option></select>
     <label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wmax"> highest water</label></div>
@@ -852,9 +877,17 @@ function wStart(){ const st = state.water, m = WSIM[st.id]; if (!m) return; if (
   wTimer = requestAnimationFrame(tickW); }
 function wStop(){ if (wTimer) cancelAnimationFrame(wTimer); wTimer = 0; const b = $('#wplay'); if (b) b.textContent = '▶ Play'; }
 const MODES = {water:mWater, graph:mGraph, check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
-function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function') wStop(); state.mode = m; try{ history.replaceState(null, '', '#' + m); }catch(e){} try{ localStorage.setItem('mfw-mode', m); }catch(e){}
-  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===m))); $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function') wStop(); state.mode = m;
+  $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
+function goTab(t, v){ if (!TABS[t]) t = 'now'; state.tab = t; if (v) state.view[t] = v; const view = state.view[t];
+  state.lock = t === 'now' ? 'now' : t === 'replay' ? 'replay' : null;              // the road graph and water views show live or past storms depending on the tab
+  try { history.replaceState(null, '', '#' + t + (TABS[t].views.length > 1 ? '/' + view : '')); } catch(e){}
+  try { localStorage.setItem('mfw-tab', JSON.stringify({t, v: state.view})); } catch(e){}
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tab === t)));
+  const vs = TABS[t].views; $('#subtabs').innerHTML = vs.length > 1 ? vs.map(([k, nm]) => `<button data-view="${k}" aria-pressed="${k === view}">${nm}</button>`).join('') : '';
+  document.querySelectorAll('#subtabs button').forEach(b => b.onclick = () => goTab(t, b.dataset.view));
+  setMode(VIEW_MODE[t + '/' + view]); }
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
 
 /* ================= live status bar ================= */
 function liveStatus(){ const L = D.live; if (!L){ $('#livetxt').textContent = 'No live data yet'; return; }
@@ -878,9 +911,9 @@ document.addEventListener('keydown', e=>{ if (e.key==='Escape' && $('#app').clas
 /* ================= start ================= */
 performance.mark('before-start'); readColors(); liveStatus();
 new ResizeObserver(resize).observe(stage);
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ readColors(); setMode(state.mode); });
-new MutationObserver(()=>{ readColors(); setMode(state.mode); }).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
-resize(); setMode(MODES[state.mode]? state.mode : 'live');
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ readColors(); goTab(state.tab); });
+new MutationObserver(()=>{ readColors(); goTab(state.tab); }).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+resize(); goTab(state.tab);
 $('#loading').hidden = true; performance.mark('ready'); setTimeout(()=>{ buildWater(); performance.mark('water'); }, 60);
 })();
 </script>
