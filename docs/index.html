@@ -949,9 +949,11 @@ async function mWater(){
       if (okImg(A)){ ctx.globalAlpha = 0.5; ctx.drawImage(A, x, y, w, h); } if (a > 0.02 && i + 1 < RF.length && okImg(B)){ ctx.globalAlpha = 0.5 * a; ctx.drawImage(B, x, y, w, h); } ctx.globalAlpha = 1; }
     const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 1.0 ? poolImg : simImg;   // zoomed out: blocks that keep their deepest cell
     if (cellPx > 3) ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`;   // zoomed in: soften the grid
-    if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) ctx.drawImage(im, x, y, w, h); }
+    const pooled = img === poolImg; if (pooled) ctx.filter = 'saturate(1.8) brightness(0.72)';   // zoomed out: darker so thin water reads at state scale
+    const put = (im, al) => { ctx.globalAlpha = al; ctx.drawImage(im, x, y, w, h); if (pooled){ ctx.drawImage(im, x, y, w, h); } };
+    if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) put(im, 1); }
     else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k), B = img(tm, Math.min(k + 1, tm.n - 1));
-      if (okImg(A)) ctx.drawImage(A, x, y, w, h); if (a > 0.02 && okImg(B)){ ctx.globalAlpha = a; ctx.drawImage(B, x, y, w, h); } }
+      if (okImg(A)) put(A, 1); if (a > 0.02 && okImg(B)) put(B, a); }
     ctx.restore(); };
   let VB = [-1e9, -1e9, 1e9, 1e9];
   layer.water = () => { VB = viewBB(0); if (m.mosaic){ for (const t of m.tiles) drawOne(t, !!m.rainTiles); } else drawOne(m, true); };
