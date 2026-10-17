@@ -29,6 +29,9 @@ SCEN = {
                       bbox=(-71.45, 41.88, -71.20, 42.06), res=30.0,
                       t0='2023-09-11T16:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
                       f0=30.0, fc=3.0, Fk=40.0, drain=2.0),
+    'flash_fcst': dict(title='Forecast test · Sept 11, 2023 storm from the NOAA HRRR forecast issued that morning (8 am ET)', kind='flash', source='hrrr', issue='2023-09-11T12:00Z',
+                       bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0, hours=30, frame_min=20, manning=0.06, show_m=0.10,
+                       f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, compare='flash'),
     'forecast': dict(title='Forecast · next 30 hours of NOAA HRRR rain over District 3', kind='flash', source='hrrr',
                      bbox=(-72.35, 41.98, -71.35, 42.74), res=80.0, hours=30, frame_min=30, manning=0.06, show_m=0.10,
                      f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=20.0),
@@ -301,7 +304,7 @@ def run(name):
             os.remove(os.path.join(out, f))
     shutil.rmtree(os.path.join(out, 'rain'), ignore_errors=True)
     if S.get('source') == 'hrrr':                                      # live forecast: check the rain first, simulate only when heavy rain is coming
-        issue = hrrr_latest()
+        issue = pd.Timestamp(S['issue']).tz_localize(None) if S.get('issue') else hrrr_latest()
         if issue is None:
             write_dry(out, name, S, None, 0.0); return
         lon0_, lat0_, lon1_, lat1_ = S['bbox']; la_ = np.linspace(lat1_, lat0_, 60); lo_ = np.linspace(lon0_, lon1_, 80)
@@ -313,7 +316,7 @@ def run(name):
         RG0 = HrrrRegrid(next(iter(G1.values())), la_, lo_); tot = sum(RG0(g) for g in G1.values())
         if tot.max() < float(os.environ.get('FORECAST_MIN_MM', S['min_rain_mm'])):
             write_dry(out, name, S, issue, tot.max()); return
-        S = dict(S, t0=f'{issue:%Y-%m-%dT%H:%MZ}', title=f'Forecast · NOAA HRRR issued {issue:%b %d %H}Z · next {S["hours"]} h over District 3')
+        S = dict(S, t0=f'{issue:%Y-%m-%dT%H:%MZ}', title=S['title'] if S.get('issue') else f'Forecast · NOAA HRRR issued {issue:%b %d %H}Z · next {S["hours"]} h over District 3')
     Z, dx, lats, lons = dem_3dep(S['bbox'], S['res'])
     ny, nx = Z.shape
     t0 = pd.Timestamp(S['t0']); nfr = int(S['hours'] * 60 / S['frame_min']) + 1
@@ -441,6 +444,14 @@ def run(name):
         if rk == 'coastal':
             D = json.load(open(os.path.join(ROOT, 'docs', 'data.json')))['coastal_roads']
             meta['roads']['names'] = {str(i): [D['street'][i] or '', D['town'][i] or ''] for i in road_first}
+    if S.get('compare') and RS:                                       # forecast vs the radar-rain run of the same storm: which flooded roads did the forecast catch?
+        cp = os.path.join(OUTROOT, S['compare'], 'meta.json')
+        if os.path.exists(cp):
+            ref = json.load(open(cp)); a_ = set(ref.get('roads', {}).get('first', {})); b_ = set(meta['roads']['first'])
+            meta['compare'] = dict(ref=S['compare'], ref_roads=len(a_), fcst_roads=len(b_), both=len(a_ & b_),
+                                   caught_share=round(len(a_ & b_) / max(len(a_), 1), 3), false_share=round(len(b_ - a_) / max(len(b_), 1), 3),
+                                   ref_peak_km2=max(f['wet_km2'] for f in ref['frames']), fcst_peak_km2=max(f['wet_km2'] for f in meta_frames))
+            print('compare:', meta['compare'])
     json.dump(meta, open(os.path.join(out, 'meta.json'), 'w'), separators=(',', ':'))
     print(f'done {name}: {len(meta_frames)} frames, {steps} solver steps, {time.time() - t_start:.0f}s')
 
