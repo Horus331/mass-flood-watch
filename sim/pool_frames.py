@@ -22,6 +22,7 @@ def pool(path_in, path_out):
     out = np.take_along_axis(b, k[..., None, None], 2)[:, :, 0].copy()
     frac = (b[..., 3] > 0).mean(-1)                       # share of the block that is wet: one wet cell gives a faint block, a full block a solid one
     out[..., 3] = (out[..., 3] * np.clip(np.sqrt(frac) * 1.6, 0, 1)).astype(np.uint8)
+    out[..., :3] = (out[..., :3] * 0.72).astype(np.uint8)          # a little darker: thin water has to read at state scale without a costly filter in the browser
     Image.fromarray(out, 'RGBA').save(path_out, optimize=True)
 
 
