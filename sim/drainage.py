@@ -11,6 +11,7 @@ Writes docs/drain/flow.png  (one byte per cell: direction code 1..8 (N NE E SE S
 """
 import io, os, json, math, time
 import numpy as np, requests, tifffile
+if not hasattr(np, 'in1d'): np.in1d = np.isin          # pysheds still calls the old name
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 OUT = os.path.join(ROOT, 'docs', 'drain'); os.makedirs(OUT, exist_ok=True)
@@ -68,8 +69,8 @@ def main():
     d = Raster(Zs, viewfinder=vf); g = Grid.from_raster(d)
     fl = g.resolve_flats(g.fill_depressions(g.fill_pits(d)))
     dirmap = (64, 128, 1, 2, 4, 8, 16, 32)                       # N NE E SE S SW W NW
-    fd = np.asarray(g.flowdir(fl, dirmap=dirmap)).astype(np.int32)
-    acc = np.asarray(g.accumulation(g.flowdir(fl, dirmap=dirmap), dirmap=dirmap)).astype(np.float64)
+    fdr = g.flowdir(fl, dirmap=dirmap); fd = np.asarray(fdr).astype(np.int32)
+    acc = np.asarray(g.accumulation(fdr, dirmap=dirmap)).astype(np.float64)
     code = np.zeros((ny, nx), np.uint8)
     for i, v in enumerate(dirmap): code[fd == v] = i + 1
     code[sea] = 0
