@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Mass Flood Watch</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -306,8 +307,6 @@ function draw(){
   // water on land
   if (G0.water){ ctx.fillStyle = C.lake; for (const p of G0.areas) ctx.fill(p, 'evenodd'); for (const p of G0.lakes) ctx.fill(p, 'evenodd');
     if (m < 260){ ctx.lineWidth = (m < 40 ? 1.6 : 0.9)/k; ctx.strokeStyle = C.river; for (const p of G0.rivers) ctx.stroke(p); } }
-  // simulated water (Water tab)
-  if (layer.water) layer.water();
   // town lines
   ctx.lineWidth = (m < 60 ? 1 : 0.6)/k; ctx.strokeStyle = C.townline; for (const g of townGeo.values()) ctx.stroke(g.path);
   // roads
@@ -324,6 +323,8 @@ function draw(){
   SR('c3', w3+1.6, C['art-case']); SR('c2', w2+1.8, C['art-case']); SR('c1', w1+2, C['hwy-case']);
   if (m < 140) SR('c4', w4, C.road); if (m < 60) SR('ramp', wr, C.hwy);
   SR('c3', w3, C.art); SR('c2', w2, C.art); SR('c1', w1, C.hwy);
+  // simulated water (Water tab), over the roads so flooded streets disappear under it
+  if (layer.water) layer.water();
   // hazard: closures
   if (layer.closures){ const set = closureGeo[layer.closures]||[]; const mx = d3.max(set, s=>s.f.properties.veh_hours_joint)||1;
     for (const s of set){ const w = 2.5 + 7*Math.sqrt((s.f.properties.veh_hours_joint||0)/mx); strokeW(s.p, w+3, C['flood-ring']); strokeW(s.p, w, C.r3); } }
