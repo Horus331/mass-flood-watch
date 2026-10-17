@@ -663,7 +663,17 @@ function relPlot(pts, maxv){ const w=300, h=210, m=34, X=v=>m+(w-m-10)*Math.sqrt
   ${tk.map(t=>`<text x="${X(t)}" y="${h-m+14}" font-size="9" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${Math.round(t*100)}%</text><text x="${m-4}" y="${Y(t)+3}" font-size="9" text-anchor="end" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${Math.round(t*100)}%</text>`).join('')}
   <text x="${(w+m)/2}" y="${h-4}" font-size="9.5" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Sans,sans-serif">model said</text><text x="10" y="${(h-m)/2}" font-size="9.5" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Sans,sans-serif" transform="rotate(-90 10 ${(h-m)/2})">really happened</text>
   ${pts.map(p=>`<circle cx="${X(Math.min(p.p,maxv))}" cy="${Y(Math.min(p.o,maxv))}" r="${3+Math.min(6,Math.log10(p.n))}" fill="${p.c}" fill-opacity=".8" stroke="${C.panel}"/>`).join('')}</svg>`; }
-function mCheck(){
+function mCheckSeg(){
+  Promise.all(['graph_results.json', 'graph_experiments.json', 'graph_replay_hrrr.json', 'graph_transfer.json'].map(u => getJSON(u).catch(() => null))).then(([R_, X_, H_, T_]) => {
+    const el = $('#chk-seg'); if (!el || state.mode !== 'check') return; let h = '';
+    if (R_ && R_.results) h += `<span class="lbl">Road segment models · District 3 · test storms 2017–2026</span><div class="tblwrap" style="max-height:none"><table><thead><tr><th>Model</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${R_.results.map(r => `<tr><td>${r.model.replace(/^\d+[ab]?\. /, '')}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct * 100)}%</td></tr>`).join('')}</tbody></table></div>`;
+    if (T_ && T_.results) h += `<span class="lbl">Across districts: same features, never-seen region</span><div class="tblwrap" style="max-height:none"><table><thead><tr><th>Trained → tested</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${T_.results.filter(r => r.days).map(r => `<tr><td>${r.model}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct * 100)}%</td></tr>`).join('')}</tbody></table></div><p class="note">${T_.note || ''}</p>`;
+    if (H_ && H_.summary){ const v = (k, m) => H_.summary[k] && H_.summary[k].average && H_.summary[k].average[m] ? H_.summary[k].average[m].mean : null;
+      h += `<span class="lbl">With only the NOAA forecast · ${H_.days} storm days</span><div class="tblwrap" style="max-height:none"><table><tbody>${[['obs', 'Measured rain (hindsight)'], ['same_day', 'Forecast from the evening before'], ['day_ahead', 'Forecast ~16 h earlier']].map(([k, nm]) => `<tr><td>${nm}</td><td class="n">${fmt(v(k, 'auc_wet'), 3)}</td><td class="n">${v(k, 'top5_all') == null ? '–' : Math.round(v(k, 'top5_all') * 100) + '%'}</td></tr>`).join('')}</tbody></table></div>`; }
+    if (X_ && X_.rows) h += `<span class="lbl">Upgrades tried</span><div class="tblwrap" style="max-height:none"><table><tbody>${X_.rows.map(r => `<tr><td>${r.name}</td><td class="n">${r.auc.toFixed(3)}</td></tr>`).join('')}</tbody></table></div>`;
+    el.innerHTML = h; });
+}
+function mCheck(){ setTimeout(mCheckSeg, 0);
   layer = {townFill: n=>{ const p=tprops.get(n); if (!p) return null; return String(p.district)==='3' ? C.shallow : C.accent; }, townTip: n=>{ const p=tprops.get(n); return `<b>${titleCase(n)}</b><br>${p? (String(p.district)==='3'?'District 3: used as an unseen test region, then added to training':'Districts 4–6: original training region') : 'outside the model area'}`; }};
   legend(`<b>Rain model coverage</b><div><span class="sw" style="background:${C.accent}"></span>Districts 4–6 (original training)</div><div><span class="sw" style="background:${C.shallow}"></span>District 3 (tested blind, then added)</div>`);
   $('#controls').innerHTML = `<p class="note">Every score here comes from leave-one-year-out testing: the model is trained without a year, then scored on that year, for every year. Ranges are 95% bootstrap intervals over storm days.</p>`;
@@ -674,6 +684,7 @@ function mCheck(){
   const FD = window.__findings || [];
   $('#readout').innerHTML = `<h2>How good is it?</h2>
    ${FD.length ? `<span class="lbl">Findings so far</span><div class="tblwrap" style="max-height:none"><table><tbody>${FD.map(f => `<tr><td><b>${f.t}</b> <span style="font-family:var(--mono);color:var(--accent);white-space:nowrap">${f.v}</span><br><span class="note">${f.n}</span></td></tr>`).join('')}</tbody></table></div>` : ''}
+   <div id="chk-seg"></div>
    <span class="lbl">Rain flooding · town-days ${fmt((VI.combined_all||{}).rows)} tested, ${fmt((VI.combined_all||{}).floods)} with a flood</span>
    ${ciBars([['Districts 4–6', (VI.east_D46||{}).AUC||0, (VI.east_D46||{}).AUC_95CI], ['District 3, never seen', (VI.transfer_D3||{}).AUC||0, (VI.transfer_D3||{}).AUC_95CI, C.shallow], ['All, combined model', (VI.combined_all||{}).AUC||0, (VI.combined_all||{}).AUC_95CI]])}
    <p class="note">Trained only on Districts 4–6, the model ranked floods in District 3 towns as well as at home. The map now uses one model trained on all four districts.</p>
