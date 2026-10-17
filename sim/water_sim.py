@@ -64,6 +64,30 @@ SCEN = {
                        t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
 }
 
+# ---- mosaics: the same storm run tile by tile over the whole area, so every town gets moving water ----
+# flash: Sept 11, 2023 radar rain over all of Districts 3-6, 50 m cells, 0.4 x 0.3 degree tiles (same clock in every tile)
+FLASH_TILES = [[-72.4, 41.82, -72.0, 42.12], [-72.4, 42.12, -72.0, 42.42], [-72.4, 42.42, -72.0, 42.72], [-72.0, 41.82, -71.6, 42.12], [-72.0, 42.12, -71.6, 42.42], [-72.0, 42.42, -71.6, 42.72], [-72.0, 42.72, -71.6, 43.02], [-71.6, 41.52, -71.2, 41.82], [-71.6, 41.82, -71.2, 42.12], [-71.6, 42.12, -71.2, 42.42], [-71.6, 42.42, -71.2, 42.72], [-71.6, 42.72, -71.2, 43.02], [-71.2, 41.22, -70.8, 41.52], [-71.2, 41.52, -70.8, 41.82], [-71.2, 41.82, -70.8, 42.12], [-71.2, 42.12, -70.8, 42.42], [-71.2, 42.42, -70.8, 42.72], [-71.2, 42.72, -70.8, 43.02], [-70.8, 41.22, -70.4, 41.52], [-70.8, 41.52, -70.4, 41.82], [-70.8, 41.82, -70.4, 42.12], [-70.8, 42.12, -70.4, 42.42], [-70.8, 42.42, -70.4, 42.72], [-70.4, 41.22, -70.0, 41.52], [-70.4, 41.52, -70.0, 41.82], [-70.4, 41.82, -70.0, 42.12], [-70.0, 41.22, -69.6, 41.52], [-70.0, 41.52, -69.6, 41.82], [-70.0, 41.82, -69.6, 42.12]]
+for _i, _b in enumerate(FLASH_TILES):
+    SCEN[f'fm{_i:02d}'] = dict(title=f'Flash flood · Sept 11, 2023 · tile {_i + 1} of {len(FLASH_TILES)}', kind='flash', mosaic='flash_mosaic',
+                               bbox=tuple(_b), res=50.0, t0='2023-09-11T16:00Z', hours=36, frame_min=30, manning=0.06, show_m=0.10,
+                               f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True)
+# coast: Jan 4, 2018 nor'easter along the rest of the Massachusetts coast, each tile driven by its nearest NOAA tide gauge
+COAST_TILES = {
+    'cm_plymouth': ((-70.75, 41.73, -70.45, 42.07), 30.0, '8443970'),   # Plymouth, Kingston, Duxbury Bay (Cape Cod Bay tide ~ Boston)
+    'cm_ccbay':    ((-70.45, 41.66, -70.08, 41.86), 30.0, '8443970'),   # bay side of the Cape: Sandwich to Brewster
+    'cm_outer':    ((-70.12, 41.62, -69.92, 42.08), 30.0, '8447435'),   # outer Cape: Chatham gauge
+    'cm_southcape':((-70.65, 41.52, -70.00, 41.70), 30.0, '8447930'),   # Falmouth to Harwich, Nantucket Sound side: Woods Hole gauge
+    'cm_buzzards': ((-71.00, 41.50, -70.60, 41.80), 30.0, '8447930'),   # New Bedford, Fairhaven, Wareham, Bourne
+    'cm_fallriver':((-71.25, 41.62, -71.00, 41.80), 30.0, '8447386'),   # Fall River, Somerset, Swansea: Fall River gauge
+    'cm_vineyard': ((-70.85, 41.30, -70.43, 41.50), 30.0, '8447930'),   # Martha's Vineyard
+    'cm_nantucket':((-70.25, 41.23, -69.95, 41.40), 30.0, '8449130'),   # Nantucket gauge
+}
+for _k, (_b, _r, _st) in COAST_TILES.items():
+    SCEN[_k] = dict(title=f"Coastal flood · Jan 4, 2018 nor'easter · {_k[3:]}", kind='coastal', mosaic='coast_mosaic', bbox=_b, res=_r,
+                    t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station=_st)
+for _k in ('boston', 'southshore', 'northshore'):
+    SCEN[_k]['mosaic'] = 'coast_mosaic'
+
 
 def merc(lon, lat):
     return R_EARTH * np.radians(lon), R_EARTH * np.log(np.tan(np.pi / 4 + np.radians(lat) / 2))
