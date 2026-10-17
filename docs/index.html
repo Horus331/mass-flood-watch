@@ -674,18 +674,18 @@ function checkExtra(){ const VR=(D.validation||{}).roads; let s='';
    <p class="note">Each day's 12 UTC STOFS-2D-Global run (public NOAA archive), levelled to each gauge on the 6 hours before issue, scored on the next 48 h. High-water day = the ${O6.threshold} or higher. The live tab now takes the higher of STOFS and the old shortcut, and draws the STOFS curve on each tide chart (red line).</p>`;
   return s; }
 /* ================= District 3 road segment graph ================= */
-let GSEG = null, GLIVE = null, GREP = null, GRES = null, gLoading = null;
+let GSEG = null, GLIVE = null, GREP = null, GRES = null, GHR = null, gLoading = null;
 async function loadGraph(){
   if (GSEG) return; if (gLoading) return gLoading;
   gLoading = (async () => {
-    const [S_, L_, R_, X_] = await Promise.all(['graph_segments.json', 'graph_live.json', 'graph_replays.json', 'graph_results.json'].map(u => getJSON(u).catch(() => null)));
+    const [S_, L_, R_, X_, H_] = await Promise.all(['graph_segments.json', 'graph_live.json', 'graph_replays.json', 'graph_results.json', 'graph_replay_hrrr.json'].map(u => getJSON(u).catch(() => null)));
     if (!S_) throw new Error('graph data missing');
     const geo = [], bb = [], mid = [];
     for (const parts of S_.geo){ const segs = []; let b = [1e9,1e9,-1e9,-1e9];
       for (const d of parts){ const out = new Float32Array(d.length); let x = 0, y = 0; for (let j=0;j<d.length;j+=2){ x += d[j]; y += d[j+1]; out[j] = x/1e5; out[j+1] = mY(y/1e5); b[0]=Math.min(b[0],out[j]); b[2]=Math.max(b[2],out[j]); b[1]=Math.min(b[1],out[j+1]); b[3]=Math.max(b[3],out[j+1]); } segs.push(out); }
       geo.push(segs); bb.push(b); const c = segs[0], h = Math.floor(c.length/4)*2; mid.push(c.length ? [c[h], c[h+1]] : [0,0]); }
     GSEG = {n: S_.n, geo, bb, mid, links: S_.links, P: S_.props}; GSEG.quad = d3.quadtree().x(i=>mid[i][0]).y(i=>mid[i][1]).addAll(d3.range(S_.n));
-    GLIVE = L_; GREP = R_ || {}; GRES = X_;
+    GLIVE = L_; GREP = R_ || {}; GRES = X_; GHR = H_;
   })();
   return gLoading;
 }
@@ -709,6 +709,10 @@ async function mGraph(){
   $('#howto').textContent = st.view==='live' ? 'Coloured segments are where the model expects a reported road flood in the next 24 hours, from the latest NOAA HRRR rain forecast (refreshed every 6 hours). Zoom in to see the graph itself: dots are segments, grey lines join segments that meet at a junction.' : 'Colours show where the chosen model ranked each segment that day (top 10%, 5%, 2%, 1% of segments that got 20 mm or more). Outlined segments are where a flood was actually recorded. A good model puts the outlines inside the dark colours.';
   const res = (GRES && GRES.results) || [];
   const table = res.length ? `<div class="tblwrap"><table><thead><tr><th>Model, test storms 2017–2026</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${res.map(r=>`<tr><td>${r.model.replace(/^\d+[ab]?\. /,'')}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct*100)}%</td></tr>`).join('')}</tbody></table></div><p class="note">AUC: chance a flooded segment is ranked above a dry one on the same storm day (0.5 = coin flip). Top 5%: share of recorded floods inside the day's top 5% of segments. Trained on 2002–2016 only.</p>` : '';
+  const hs = GHR && GHR.summary, hv = (k, mo, m) => hs && hs[k] && hs[k][mo] && hs[k][mo][m] ? hs[k][mo][m].mean : null;
+  const ftable = hs ? `<span class="lbl">Forecast test: the model fed only NOAA's HRRR forecast</span><div class="tblwrap"><table><thead><tr><th>${GHR.days} storm days, 2018–2026</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>
+    ${[['obs', 'Observed rain (hindsight)'], ['same_day', 'Forecast issued the evening before'], ['day_ahead', 'Forecast issued ~16 h before']].map(([k, nm]) => `<tr><td>${nm}</td><td class="n">${fmt(hv(k, 'average', 'auc_wet'), 3)}</td><td class="n">${hv(k, 'average', 'top5_all') == null ? '–' : Math.round(hv(k, 'average', 'top5_all') * 100) + '%'}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note">Average of trees and graph network. AUC on segments that really got 20 mm or more; Top 5%: recorded floods inside the day's top 5% of all District 3 segments. Recorded floods where HRRR forecast 20 mm or more: ${fmt(GHR.floods_where_hrrr_forecast_20mm.same_day)} of ${fmt(GHR.floods_total)}.</p>` : '';
   if (st.view === 'live'){
     const L = GLIVE || {p1000: []}, P = L.p1000;
     layer = {segColor: i => riskColor((P[i]||0)/1000), segTip: i => segName(i) + `<br>flood chance next 24 h: <b>${fmt((P[i]||0)/10, 1)}%</b>`};
@@ -718,7 +722,7 @@ async function mGraph(){
     $('#readout').innerHTML = `<h2>Next 24 hours</h2>
       <div class="stats"><div class="stat"><b>${fmt(L.max_rain_1h_mm,1)} mm</b><span>heaviest 1-hour rain forecast in District 3</span></div><div class="stat"><b>${fmt(L.n_scored)}</b><span>segments forecast to get 20 mm or more</span></div></div>
       <span class="lbl">Segments most at risk</span>${top.length ? `<div class="tblwrap"><table><tbody>${top.map(([i,q])=>`<tr class="go" data-seg="${i}"><td>${GSEG.P.road[i]||'Road'}<br><span class="note">${GSEG.P.town[i]}</span></td><td class="n">${fmt(q/10,1)}%</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No segment is forecast to get 20 mm of rain. Dry spell: nothing to flag.</p>'}
-      <span class="lbl">How the four models compare</span>${table}`;
+      <span class="lbl">How the four models compare</span>${table}${ftable}`;
   } else {
     const rp = GREP[st.day], rk = (rp.ranks[st.model] || []);
     const rec = new Set(rp.floods);
