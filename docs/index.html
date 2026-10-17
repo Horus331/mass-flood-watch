@@ -850,9 +850,9 @@ SIM_LABEL.boston = 'Coastal · Jan 4, 2018 · Boston Harbor (zoomed)';
 SIM_IDS.push('northshore', 'boston_slr05', 'boston_slr10');
 const MOSAIC = {flash_mosaic: Array.from({length: 29}, (_, i) => 'fm' + String(i).padStart(2, '0')), dec_mosaic: Array.from({length: 29}, (_, i) => 'dm' + String(i).padStart(2, '0')),
   coast_mosaic: ['northshore', 'southshore', 'cm_plymouth', 'cm_ccbay', 'cm_outer', 'cm_southcape', 'cm_buzzards', 'cm_fallriver', 'cm_vineyard', 'cm_nantucket', 'boston']};
-Object.assign(SIM_LABEL, {dec_mosaic: 'Statewide rain · Dec 18, 2023 · all of Districts 3–6 (paved ground + wet soil)', flash_mosaic: 'All of Districts 3–6 · Sept 11, 2023 (every town, 50 m)', coast_mosaic: 'Whole Massachusetts coast · Jan 4, 2018 (every harbor)'});
-SIM_IDS.push('flash_mosaic', 'coast_mosaic', 'dec_mosaic');
-const SIM_GROUPS = {now: ['forecast'], 'replay/water': ['dec_mosaic', 'flash_mosaic', 'flash_state', 'flash', 'attleboro', 'flash_fcst', 'flash_fcst18'], 'replay/coastal': ['coast_mosaic', 'coastal', 'boston', 'northshore', 'southshore'], 'future/seawater': ['boston_slr05', 'boston_slr10', 'boston']};
+Object.assign(SIM_LABEL, {dec_state: 'Statewide rain · Dec 18, 2023 · one connected model (rivers, 100 m)', dec_mosaic: 'Statewide rain · Dec 18, 2023 · all of Districts 3–6 (paved ground + wet soil)', flash_mosaic: 'All of Districts 3–6 · Sept 11, 2023 (every town, 50 m)', coast_mosaic: 'Whole Massachusetts coast · Jan 4, 2018 (every harbor)'});
+SIM_IDS.push('flash_mosaic', 'coast_mosaic', 'dec_mosaic', 'dec_state');
+const SIM_GROUPS = {now: ['forecast'], 'replay/water': ['dec_mosaic', 'dec_state', 'flash_mosaic', 'flash_state', 'flash', 'attleboro', 'flash_fcst', 'flash_fcst18'], 'replay/coastal': ['coast_mosaic', 'coastal', 'boston', 'northshore', 'southshore'], 'future/seawater': ['boston_slr05', 'boston_slr10', 'boston']};
 // a mosaic is many tiles of the same storm on the same clock, drawn together as one scene
 async function loadMosaic(id){ const got = await Promise.all(MOSAIC[id].map(t => loadSim(t).catch(() => null)));
   const T = got.filter(t => t && t.status !== 'dry' && t.n); if (!T.length) throw new Error('no tiles yet');
