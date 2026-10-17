@@ -111,11 +111,14 @@ if 'graph' in VER.get('best', '') and os.path.exists(os.path.join(MD, 'gnn.pt'))
         if 'average' in VER['best']: p = 0.5 * p + 0.5 * pg; MODEL_NAME = 'average of trees and graph neural network'
         else: p = pg; MODEL_NAME = VER['best']
     except Exception as ex: print('GNN scoring failed, trees used:', repr(ex)[:160])
+CALP = os.path.join(MD, 'calibration.json'); calibrated = False
+if os.path.exists(CALP) and 'average' in MODEL_NAME:                 # isotonic map fitted on the test storms (Colab, Graph step 4b)
+    CAL = json.load(open(CALP)); raw = p.copy(); p = np.where(p > 0, np.interp(p, CAL['x'], CAL['y']), 0.0); calibrated = True
 q = np.round(np.clip(p, 0, 1) * 1000).astype(int)
-top = np.argsort(-p)[:25]
+top = np.argsort(-(p + 1e-9 * (raw if calibrated else p)))[:25]          # ties on the calibrated steps broken by the raw score
 out = dict(asof=pd.Timestamp.now(tz='America/New_York').strftime('%Y-%m-%d %H:%M ET'), hrrr_latest=f'{issue:%Y-%m-%d %H}Z', runs=len(probs),
            window=[f'{win0:%Y-%m-%dT%H}Z', f'{win1:%Y-%m-%dT%H}Z'], wetness=api_note, model=MODEL_NAME,
            max_rain_1h_mm=round(float(max(m_[:, 0].max() for m_ in MEM)) if MEM else 0, 1), max_rain_24h_mm=round(float(max(m_[:, 3].max() for m_ in MEM)) if MEM else 0, 1),
-           n_scored=int((p > 0).sum()), p1000=q.tolist(), top=[[int(i), int(q[i])] for i in top if q[i] > 0])
+           n_scored=int((p > 0).sum()), calibrated=calibrated, p1000=q.tolist(), top=[[int(i), int(q[i])] for i in top if q[i] > 0])
 json.dump(out, open(os.path.join(ROOT, 'docs', 'graph_live.json'), 'w'), separators=(',', ':'))
 print(f'graph live: {out["n_scored"]:,} segments with >= 20 mm forecast | top chance {p.max():.1%} | {time.time() - t0:.0f}s')
