@@ -882,6 +882,9 @@ function simImg(m, k){ if (m.mosaic){ m.tiles.forEach(t => simImg(t, k)); return
   if (k === 'max'){ if (!m.maxImg){ m.maxImg = new Image(); m.maxImg.onload = () => { if (state.mode === 'water') scheduleDraw(true); }; m.maxImg.src = `sim/${m.id}/max.png?v=${m.ver}`; } return m.maxImg; }
   if (!m.img[k]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); wLoaded(m); }; im.src = `sim/${m.id}/f${String(k).padStart(3, '0')}.png?v=${m.ver}`; m.img[k] = im; } return m.img[k]; }
 const okImg = im => im && im.complete && im.naturalWidth > 0;
+function poolImg(m, k){ m.oimg = m.oimg || {}; if (!m.oimg[k]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); };
+  im.src = `sim/${m.id}/o${k === 'max' ? 'max' : String(k).padStart(3, '0')}.png?v=${m.ver}`; m.oimg[k] = im; }
+  const im = m.oimg[k]; return okImg(im) ? im : simImg(m, k); }
 const simDay = m => m && m.kind === 'flash' && m.frames && m.frames.length && m.roads && m.roads.kind === 'graph' ? (() => { const d = new Date(Date.parse(m.frames[0].t.replace('Z', ':00Z'))).toLocaleDateString('en-CA', {timeZone: 'America/New_York'}); return GREP && GREP[d] ? d : null; })() : null;
 const simMs = (m, f) => { const k = Math.min(m.n - 1, Math.floor(f)), a = f - k, t0 = Date.parse(m.frames[k].t.replace('Z', ':00Z')); return t0 + a * m.frame_min * 60000; };
 function rainImg(m, i){ m.rimg = m.rimg || []; if (!m.rimg[i]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); }; im.src = `sim/${m.id}/${m.rain_frames[i].file}?v=${m.ver}`; m.rimg[i] = im; } return m.rimg[i]; }
@@ -944,10 +947,10 @@ async function mWater(){
     if (rainOn && tm.rain_frames && st.rain && !st.showMax){ const t = simMs(tm, st.f), RF = tm.rain_frames; let i = RF.findIndex(r => r.ms >= t - 1); if (i < 0) i = RF.length - 1;
       const a = Math.max(0, Math.min(1, 1 - (RF[i].ms - t) / 3.6e6)), A = rainImg(tm, i), B = rainImg(tm, Math.min(i + 1, RF.length - 1));
       if (okImg(A)){ ctx.globalAlpha = 0.5; ctx.drawImage(A, x, y, w, h); } if (a > 0.02 && i + 1 < RF.length && okImg(B)){ ctx.globalAlpha = 0.5 * a; ctx.drawImage(B, x, y, w, h); } ctx.globalAlpha = 1; }
-    { const im0 = simImg(tm, Math.floor(st.f)), cell = okImg(im0) ? ps()*w/im0.naturalWidth : 0;   // soften the grid when one cell is many pixels wide
-      if (cell > 3) ctx.filter = `blur(${Math.min(10, cell*0.4*dpr).toFixed(1)}px)`; }
-    if (st.showMax){ const im = simImg(tm, 'max'); if (okImg(im)) ctx.drawImage(im, x, y, w, h); }
-    else { const k = Math.floor(st.f), a = st.f - k, A = simImg(tm, k), B = simImg(tm, Math.min(k + 1, tm.n - 1));
+    const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 1.0 ? poolImg : simImg;   // zoomed out: blocks that keep their deepest cell
+    if (cellPx > 3) ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`;   // zoomed in: soften the grid
+    if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) ctx.drawImage(im, x, y, w, h); }
+    else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k), B = img(tm, Math.min(k + 1, tm.n - 1));
       if (okImg(A)) ctx.drawImage(A, x, y, w, h); if (a > 0.02 && okImg(B)){ ctx.globalAlpha = a; ctx.drawImage(B, x, y, w, h); } }
     ctx.restore(); };
   let VB = [-1e9, -1e9, 1e9, 1e9];
