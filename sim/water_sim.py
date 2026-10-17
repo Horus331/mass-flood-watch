@@ -26,7 +26,7 @@ SCEN = {
                   t0='2023-09-11T17:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
                   f0=30.0, fc=3.0, Fk=40.0, drain=2.0),          # Horton infiltration (mm/h, mm) on ponded water all the time + a light storm-drain sink
     'dec_state': dict(title='Statewide rain · Dec 18, 2023 · one connected model of all of Districts 3–6 (rivers can grow)', kind='flash',
-                      bbox=(-72.35, 41.48, -69.92, 42.90), res=100.0, sea_sink=True, landcover=True, wet_start_mm=25.0,
+                      bbox=(-72.35, 41.48, -69.92, 42.90), res=100.0, sea_sink=True, landcover=True, wet_start_mm=120.0,
                       t0='2023-12-17T22:00Z', hours=48, frame_min=30, manning=0.05, show_m=0.10,
                       f0=30.0, fc=3.0, Fk=40.0, drain=2.0),
     'flash_state': dict(title='Flash flood · Sept 11, 2023 · whole project area (MassDOT Districts 3–6)', kind='flash',
@@ -75,11 +75,12 @@ for _i, _b in enumerate(FLASH_TILES):
     SCEN[f'fm{_i:02d}'] = dict(title=f'Flash flood · Sept 11, 2023 · tile {_i + 1} of {len(FLASH_TILES)}', kind='flash', mosaic='flash_mosaic',
                                bbox=tuple(_b), res=50.0, t0='2023-09-11T16:00Z', hours=36, frame_min=30, manning=0.06, show_m=0.10,
                                f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True)
-# Dec 18, 2023: 2-4 inches of rain over the whole state on wet, partly snow-covered ground (rivers flooded in many towns)
+# Dec 18, 2023: 2-4 inches of rain over the whole state on saturated, partly snow-covered ground (rivers flooded in many towns);
+# wet_start_mm=120 puts the soil near its slowest soaking rate from the start, as it was after a very wet fall and snowmelt
 for _i, _b in enumerate(FLASH_TILES):
     SCEN[f'dm{_i:02d}'] = dict(title=f'Statewide rain · Dec 18, 2023 · tile {_i + 1} of {len(FLASH_TILES)}', kind='flash', mosaic='dec_mosaic',
                                bbox=tuple(_b), res=50.0, t0='2023-12-17T22:00Z', hours=36, frame_min=30, manning=0.06, show_m=0.10,
-                               f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True, landcover=True, wet_start_mm=25.0)
+                               f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True, landcover=True, wet_start_mm=120.0)
 # coast: Jan 4, 2018 nor'easter along the rest of the Massachusetts coast, each tile driven by its nearest NOAA tide gauge
 COAST_TILES = {
     'cm_plymouth': ((-70.75, 41.73, -70.45, 42.07), 30.0, '8443970'),   # Plymouth, Kingston, Duxbury Bay (Cape Cod Bay tide ~ Boston)
@@ -450,7 +451,7 @@ def run(name):
             except Exception as e:
                 print('  NLCD impervious unavailable:', e)
         f_scale = (1.0 - 0.9 * IMP) if IMP is not None else 1.0           # paved ground soaks up almost nothing
-        drain_mmph = (S['drain'] + 8.0 * IMP) if IMP is not None else S['drain']   # but paved areas have storm drains
+        drain_mmph = (S['drain'] + 5.0 * IMP) if IMP is not None else S['drain']   # but paved areas have storm drains
         lost_mm = 0.0
         P = np.zeros((ny, nx), np.float32)
         extra = dict(rain_frames=rain_frames, rain_colors=RAIN_STOPS, rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(f0=S['f0'], fc=S['fc'], Fk=S['Fk'], drain=S['drain'], landcover='NLCD 2021 impervious' if IMP is not None else None, wet_start_mm=S.get('wet_start_mm', 0.0)))
