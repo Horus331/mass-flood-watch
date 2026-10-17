@@ -1,0 +1,678 @@
+<title>Mass Flood Watch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed nautical-chart map; floating control card (left) and readout drawer (right); slim status bar on top. Stacks under the map on phones.
+   Palette: chart-paper sea and land, MassDOT-style road hierarchy, a hazard ramp kept apart from the basemap hues. */
+:root{
+  --bg:#e9eef1; --panel:#ffffff; --panel2:#f5f7f8; --ink:#13222c; --muted:#5a6a75; --line:#d6dee3; --accent:#0d5d88; --accent-ink:#ffffff;
+  --sea:#c3d9e6; --sea-edge:#a9c7d8; --land:#f3f2ee; --land-out:#e6e5df; --townline:#cbc6bb; --lake:#b7d3e3; --river:#93bed8;
+  --road:#ffffff; --road-case:#c8c4ba; --art:#fff1bf; --art-case:#d6b45c; --hwy:#f6b45f; --hwy-case:#b4702a; --path:#cfcac0;
+  --label:#2f3b44; --halo:#f3f2ee; --townlabel:#54493d; --water-label:#3f6f8e;
+  --r1:#f2c14e; --r2:#e8833a; --r3:#c8322b; --r4:#7a1022; --deep:#1450a8; --shallow:#35a4d8; --flood-ring:#ffffff;
+  --ok:#2f7d4f; --warn:#c77c11; --bad:#b3261e; --shadow:0 6px 24px rgba(15,35,50,.16);
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0a131a; --panel:#111c24; --panel2:#0e171e; --ink:#e2eaef; --muted:#93a5b1; --line:#23333e; --accent:#5fb3e3; --accent-ink:#06131b;
+  --sea:#08121a; --sea-edge:#0e1d28; --land:#17222b; --land-out:#121b22; --townline:#2b3a45; --lake:#0c1c28; --river:#1b3a50;
+  --road:#2d3b47; --road-case:#0c141b; --art:#4b4733; --art-case:#1b1d15; --hwy:#8a6430; --hwy-case:#2b1e0e; --path:#2a3640;
+  --label:#c7d3db; --halo:#17222b; --townlabel:#a3b3bf; --water-label:#6ea3c4;
+  --r1:#e9c25a; --r2:#f0924a; --r3:#ff5c4d; --r4:#ff9aa8; --deep:#3d8cff; --shallow:#5fd0ff; --flood-ring:#08121a;
+  --ok:#5cc28a; --warn:#e7a94a; --bad:#ff6b5e; --shadow:0 6px 28px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a131a; --panel:#111c24; --panel2:#0e171e; --ink:#e2eaef; --muted:#93a5b1; --line:#23333e; --accent:#5fb3e3; --accent-ink:#06131b;
+  --sea:#08121a; --sea-edge:#0e1d28; --land:#17222b; --land-out:#121b22; --townline:#2b3a45; --lake:#0c1c28; --river:#1b3a50;
+  --road:#2d3b47; --road-case:#0c141b; --art:#4b4733; --art-case:#1b1d15; --hwy:#8a6430; --hwy-case:#2b1e0e; --path:#2a3640;
+  --label:#c7d3db; --halo:#17222b; --townlabel:#a3b3bf; --water-label:#6ea3c4;
+  --r1:#e9c25a; --r2:#f0924a; --r3:#ff5c4d; --r4:#ff9aa8; --deep:#3d8cff; --shallow:#5fd0ff; --flood-ring:#08121a;
+  --ok:#5cc28a; --warn:#e7a94a; --bad:#ff6b5e; --shadow:0 6px 28px rgba(0,0,0,.5); color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;position:relative}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--panel);border-bottom:1px solid var(--line);z-index:5}
+.brand{display:flex;flex-direction:column;line-height:1.05}
+h1{font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:.06em;margin:0;text-transform:uppercase}
+.brand small{color:var(--muted);font-size:11px;letter-spacing:.02em}
+.tabs{display:flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:3px;flex-wrap:wrap}
+.tab{font:600 12.5px var(--body);padding:6px 9px;border:0;background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.status{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+@media (max-width:1480px){.clock{display:none}}
+.livechip{display:flex;align-items:center;gap:8px;font:500 12.5px var(--body);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 8px;background:var(--panel2)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);position:relative;flex:none}
+.dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid currentColor;color:inherit;opacity:0;animation:ping 2.4s infinite}
+.dot.ok{color:var(--ok)} .dot.warn{background:var(--warn);color:var(--warn)} .dot.bad{background:var(--bad);color:var(--bad)}
+@keyframes ping{0%{transform:scale(.6);opacity:.8}100%{transform:scale(2.1);opacity:0}}
+.clock{font:500 12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.btn{font:600 12.5px var(--body);padding:6px 11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:7px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.tab:focus-visible,select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage{position:relative;min-height:0;background:var(--sea);overflow:hidden}
+canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+canvas#map:active{cursor:grabbing}
+.card{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:3}
+.rail{left:max(14px,env(safe-area-inset-left,0px));top:14px;width:292px;max-height:calc(100% - 28px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.readout{right:max(14px,env(safe-area-inset-right,0px));top:14px;width:356px;max-height:calc(100% - 28px);overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.legend{left:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));padding:9px 11px;font-size:12px;display:flex;flex-direction:column;gap:5px;max-width:300px}
+.legend b{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mapctl{position:absolute;right:calc(386px + env(safe-area-inset-right,0px));top:14px;display:flex;flex-direction:column;gap:6px;z-index:3}
+.mapctl button{width:34px;height:34px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:600 17px var(--body);cursor:pointer;box-shadow:var(--shadow)}
+.scalebar{position:absolute;right:calc(386px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:flex-end;gap:10px;pointer-events:none}
+.scalebar .bar{height:7px;border:1.5px solid var(--ink);border-top:0;font:500 11px var(--mono);color:var(--ink);position:relative}
+.scalebar .bar span{position:absolute;bottom:9px;right:0;white-space:nowrap;text-shadow:0 0 3px var(--halo),0 0 3px var(--halo)}
+.north{width:26px;height:34px}
+.credit{position:absolute;right:max(8px,env(safe-area-inset-right,0px));bottom:calc(2px + env(safe-area-inset-bottom,0px));font-size:10px;color:var(--muted);z-index:2;pointer-events:none;text-shadow:0 0 3px var(--halo)}
+.lbl{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ctl{display:flex;flex-direction:column;gap:6px}
+select,input[type=range],input[type=search]{width:100%}
+select,input[type=search]{font:14px var(--body);padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink)}
+input[type=range]{accent-color:var(--accent)}
+.val{font-family:var(--mono);font-size:13px}
+.note{color:var(--muted);font-size:12.5px;margin:0}
+.engine{font:500 11.5px var(--mono);color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.engine b{color:var(--ok);font-weight:500}
+.tip{position:absolute;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px;max-width:270px;box-shadow:var(--shadow);z-index:6}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:7px;vertical-align:-2px}
+.sw.dotsw{border-radius:50%;box-shadow:0 0 0 1.5px var(--flood-ring) inset}
+.ramp{display:flex;gap:0;margin-top:2px}.ramp span{flex:1;height:9px}.ramp span:first-child{border-radius:3px 0 0 3px}.ramp span:last-child{border-radius:0 3px 3px 0}
+.rampl{display:flex;justify-content:space-between;font:500 10.5px var(--mono);color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font:600 24px var(--display);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+th{font:600 10.5px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--line);padding:4px}
+td{padding:4px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{text-align:right;font-family:var(--mono)}
+tr.go{cursor:pointer} tr.go:hover td{background:var(--panel2)}
+.tblwrap{overflow-x:auto}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font:600 11px var(--body);border:1px solid currentColor;white-space:nowrap}
+.p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)}
+.gauges{display:flex;flex-direction:column;gap:8px}
+.g{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.g h4{margin:0;font:600 14px var(--body)} .g .m{font-family:var(--mono);font-size:11.5px;color:var(--muted);grid-column:1/-1}
+.g svg{grid-column:1/-1;width:100%;height:66px;display:block}
+ul{margin:0;padding-left:18px}
+h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spacing:.04em;text-transform:uppercase;text-wrap:balance}
+.empty{color:var(--muted);font-style:italic}
+.gmark{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);z-index:2;pointer-events:none}
+.gmark::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--accent);animation:ping 2.8s infinite}
+.gmark.warn{background:var(--warn)} .gmark.warn::after{border-color:var(--warn)} .gmark.bad{background:var(--bad)} .gmark.bad::after{border-color:var(--bad)}
+.titlecard{left:max(18px,env(safe-area-inset-left,0px));top:18px;padding:14px 18px;max-width:520px}
+.titlecard h3{font:700 30px/1 var(--display);letter-spacing:.05em;text-transform:uppercase;margin:0}
+.titlecard p{margin:6px 0 0;color:var(--muted);font-size:13.5px}
+.titlecard .kick{font:600 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:7;background:var(--sea);font:500 13px var(--mono);color:var(--muted)}
+.app.present{grid-template-rows:1fr}
+.app.present header,.app.present .rail,.app.present .readout,.app.present .mapctl{display:none}
+.app.present .scalebar{right:max(18px,env(safe-area-inset-right,0px))}
+.app.present .legend{left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+.exitpresent{position:absolute;right:max(14px,env(safe-area-inset-right,0px));top:14px;z-index:4;opacity:.25}
+.exitpresent:hover,.exitpresent:focus-visible{opacity:1}
+@media (max-width:1100px){.readout{width:320px}.mapctl,.scalebar{right:calc(350px + env(safe-area-inset-right,0px))}}
+@media (max-width:820px){
+  .app{display:flex;flex-direction:column;height:auto;min-height:100%}
+  header{gap:10px}.status{margin-left:0}
+  .stage{height:auto;flex:none;overflow:visible;padding-top:64vh;display:flex;flex-direction:column}
+  canvas#map{height:64vh;bottom:auto}
+  .scalebar{bottom:auto;top:calc(64vh - 52px)} .credit{bottom:auto;top:calc(64vh - 15px)}
+  .legend{position:static;max-width:none;box-shadow:none;border-radius:0;border-left:0;border-right:0;order:-1}
+  .rail,.readout{position:static;width:auto;max-height:none;box-shadow:none;border-radius:0;border-left:0;border-right:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .mapctl,.scalebar{right:max(12px,env(safe-area-inset-right,0px))}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="app" id="app">
+  <header>
+    <div class="brand"><h1>Mass Flood Watch</h1><small>Road flooding from rain and the sea · MassDOT Districts 3–6</small></div>
+    <div class="tabs" role="group" aria-label="View">
+      <button class="tab" data-mode="live" aria-pressed="true" id="t-live">Live now</button>
+      <button class="tab" data-mode="coastal" aria-pressed="false" id="t-coastal">Coastal storm</button>
+      <button class="tab" data-mode="inland" aria-pressed="false" id="t-inland">Inland rain</button>
+      <button class="tab" data-mode="traffic" aria-pressed="false" id="t-traffic">Traffic cascade</button>
+      <button class="tab" data-mode="future" aria-pressed="false" id="t-future">Long-term</button>
+      <button class="tab" data-mode="tsunami" aria-pressed="false" id="t-tsunami">Tsunami what-if</button>
+      <button class="tab" data-mode="check" aria-pressed="false" id="t-check">Model check</button>
+    </div>
+    <div class="status">
+      <span class="livechip" id="livechip"><span class="dot ok" id="livedot"></span><span id="livetxt">Loading…</span></span>
+      <span class="clock" id="clock"></span>
+      <button class="btn" id="present">Presentation view</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="map" aria-label="Map of Massachusetts roads, towns and flood model results"></canvas>
+    <div id="gmarks"></div>
+    <aside class="card rail" aria-label="Controls">
+      <div class="ctl"><label class="lbl" for="find">Go to a town</label><input type="search" id="find" list="townlist" placeholder="e.g. Quincy" autocomplete="off"><datalist id="townlist"></datalist></div>
+      <div id="controls"></div>
+      <div class="ctl"><span class="lbl">How to read it</span><p class="note" id="howto"></p></div>
+      <div class="engine" id="engine"></div>
+    </aside>
+    <aside class="card readout" aria-label="Results" id="readout"></aside>
+    <div class="mapctl"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Reset view">⌂</button></div>
+    <div class="card legend" id="legend"></div>
+    <div class="scalebar"><svg class="north" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 2 L21 28 L13 22 L5 28 Z" fill="var(--ink)"/><path d="M13 2 L13 22 L5 28 Z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1"/><text x="13" y="34" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="8" font-weight="600" fill="var(--ink)">N</text></svg><div class="bar" id="scale"><span></span></div></div>
+    <div class="credit">Roads: MassGIS/MassDOT · Water: USGS NHD · Towns: MassGIS · Model: Mo Eldokla, WPI</div>
+    <div class="card titlecard" id="titlecard" hidden><div class="kick" id="tc-kick"></div><h3 id="tc-title"></h3><p id="tc-sub"></p></div>
+    <button class="btn exitpresent" id="exitpresent" hidden>Exit presentation (Esc)</button>
+    <div class="tip" id="tip" hidden></div>
+    <div class="loading" id="loading">Loading map data…</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(async function(){
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const getJSON = async u => { const r = await fetch(u, {cache: u.startsWith('live') ? 'no-store' : 'default'}); if (!r.ok) throw new Error(u); return r.json(); };
+let D, BM, TW, WA, NB, MAN = {tiles:[]};
+try {
+  [D, BM, TW, WA, NB] = await Promise.all(['data.json','major.json','towns.json','water.json','neighbors.json'].map(getJSON));
+} catch(e){ $('#loading').textContent = 'Map data could not be loaded. Refresh the page; if it keeps happening, a data file is missing from the published page.'; return; }
+performance.mark('fetched'); try { MAN = await getJSON('manifest.json'); } catch(e){}
+try { const L = await getJSON('live.json'); if (L && L.asof) D.live = L; } catch(e){}
+
+/* ================= projection: world = (lon, -mercator(lat)) in degrees ================= */
+const RAD = Math.PI/180, mY = lat => -Math.log(Math.tan(Math.PI/4 + lat*RAD/2))/RAD, iY = y => (2*Math.atan(Math.exp(-y*RAD)) - Math.PI/2)/RAD;
+const [OX, OY, Q] = BM.origin;
+function decode(arr, start){ const n = (arr.length - start)/2, out = new Float32Array(n*2); let x=0, y=0;
+  for (let i=0;i<n;i++){ x += arr[start+2*i]; y += arr[start+2*i+1]; out[2*i] = OX + x/Q; out[2*i+1] = mY(OY + y/Q); } return out; }
+function addLine(p, c){ p.moveTo(c[0], c[1]); for (let i=2;i<c.length;i+=2) p.lineTo(c[i], c[i+1]); }
+function addRing(p, c){ addLine(p, c); p.closePath(); }
+const VIEW0 = [-72.35, mY(42.88), -69.9, mY(41.22)];
+
+/* ================= build basemap geometry ================= */
+const G0 = {};
+G0.neigh = new Path2D(); for (const pl of NB.polys) addRing(G0.neigh, decode(pl.r, 0));
+G0.land = new Path2D(); const townGeo = new Map();
+for (const t of TW.towns){ const p = new Path2D(); let bb=[1e9,1e9,-1e9,-1e9];
+  for (const poly of t.p) for (const ring of poly){ const c = decode(ring, 0); addRing(p, c); for (let i=0;i<c.length;i+=2){ bb[0]=Math.min(bb[0],c[i]); bb[2]=Math.max(bb[2],c[i]); bb[1]=Math.min(bb[1],c[i+1]); bb[3]=Math.max(bb[3],c[i+1]); } }
+  townGeo.set(t.n, {path:p, bb, label:[t.l[0], mY(t.l[1])], area:t.a}); }
+G0.water = false;                                                    // lakes and rivers are built right after the first paint
+function chunked(rings, start, close){ const out = []; let p = null; rings.forEach((r,i)=>{ if (i % 200 === 0){ p = new Path2D(); out.push(p); } const c = decode(r, start); close ? addRing(p, c) : addLine(p, c); }); return out; }   // many small shapes build ~100x faster than one giant one
+function buildWater(){ G0.lakes = chunked(WA.lakes||[], 0, true); G0.areas = chunked(WA.areas||[], 0, true); G0.rivers = chunked(WA.rivers||[], 1, false); G0.water = true; scheduleDraw(true); }
+const BIG = new Set(['BOSTON','WORCESTER','CAMBRIDGE','QUINCY','LOWELL','BROCKTON','NEW BEDFORD','FALL RIVER','LYNN','PLYMOUTH','BARNSTABLE','FRAMINGHAM','SALEM','TAUNTON','GLOUCESTER','PROVINCETOWN','NANTUCKET','CHATHAM','NEWBURYPORT','FITCHBURG','LEOMINSTER','MARLBOROUGH','HAVERHILL','LAWRENCE','FALMOUTH','ATTLEBORO','NEWTON','WALTHAM','EDGARTOWN','HYANNIS']);
+const US_RT = new Set(['1','3','5','6','7','20','44','202']), I_RT = new Set(['84','90','91','93','95','190','195','290','291','295','391','395','495']);
+const ROADS = [];
+function bbox(c){ let a=1e9,b=1e9,cc=-1e9,d=-1e9; for (let i=0;i<c.length;i+=2){ if(c[i]<a)a=c[i]; if(c[i]>cc)cc=c[i]; if(c[i+1]<b)b=c[i+1]; if(c[i+1]>d)d=c[i+1]; } return [a,b,cc,d]; }
+const BCELL = 0.08, BK = new Map();                                 // spatial buckets: draw and label only what is on screen
+for (const r of BM.roads){ const c = decode(r, 4), cls = r[0], ramp = /\bramp\b/i.test(BM.names[r[1]]||'') ? 1 : 0;
+  const key = ramp ? 'ramp' : cls<=1 ? 'c1' : cls===2 ? 'c2' : cls===3 ? 'c3' : 'c4';
+  const rec = {c, cls, ramp, name: BM.names[r[1]]||'', rt: r[2]>=0 ? BM.names[r[2]] : '', bb: bbox(c)}; ROADS.push(rec);
+  const bk = Math.floor((rec.bb[0]+rec.bb[2])/2/BCELL)+'_'+Math.floor((rec.bb[1]+rec.bb[3])/2/BCELL);
+  let b = BK.get(bk); if (!b){ b = {bb:[1e9,1e9,-1e9,-1e9], k:{c1:[], c2:[], c3:[], c4:[], ramp:[]}, p:{}, recs:[]}; BK.set(bk, b); }
+  b.k[key].push(c); b.recs.push(rec); b.bb[0]=Math.min(b.bb[0],rec.bb[0]); b.bb[1]=Math.min(b.bb[1],rec.bb[1]); b.bb[2]=Math.max(b.bb[2],rec.bb[2]); b.bb[3]=Math.max(b.bb[3],rec.bb[3]); }
+const BKS = [...BK.values()];
+function bpath(b, key){ let p = b.p[key]; if (!p){ p = new Path2D(); for (const c of b.k[key]) addLine(p, c); b.p[key] = p; } return p; }   // built the first time it is needed
+performance.mark('basemap-built'); const TILES = new Map(), tileSet = new Set(MAN.tiles||[]);
+async function loadTile(k){ if (TILES.has(k)) return; TILES.set(k, null);
+  try { const t = await getJSON('t/'+k+'.json'); const p5 = new Path2D(), p6 = new Path2D(), recs = [];
+    for (const r of t.roads){ const c = decode(r, 4); addLine(r[0]>=6 ? p6 : p5, c); recs.push({c, cls:r[0], name:t.names[r[1]]||'', rt:'', bb:bbox(c)}); }
+    TILES.set(k, {p5, p6, recs}); scheduleDraw(true); } catch(e){ TILES.delete(k); } }
+
+/* ================= model data ================= */
+const R = D.coastal_roads, GA = D.gauges, M = D.inland_model;
+const tprops = new Map((D.towns.features||[]).map(f=>[f.properties.name, f.properties]));
+const RW = new Float32Array(R.lat.length*2); for (let i=0;i<R.lat.length;i++){ RW[2*i]=R.lon[i]; RW[2*i+1]=mY(R.lat[i]); }
+const rquad = d3.quadtree().x(i=>RW[2*i]).y(i=>RW[2*i+1]).addAll(d3.range(R.lat.length));
+performance.mark('model-data'); const TOPR = (D.top_roads||[]).map(r=>({town:r[0], x:r[2], y:mY(r[1]), street:r[3], pct:r[4]}));
+const tquad = d3.quadtree().x(r=>r.x).y(r=>r.y).addAll(TOPR);
+const closureGeo = {};
+for (const [k,v] of Object.entries(D.closures||{})) closureGeo[k] = v.geo.features.map(f=>{ const p = new Path2D(); const g = f.geometry;
+  const lines = g.type==='LineString' ? [g.coordinates] : g.type==='MultiLineString' ? g.coordinates : [];
+  for (const ln of lines){ ln.forEach(([x,y],j)=> j? p.lineTo(x, mY(y)) : p.moveTo(x, mY(y))); } return {p, f}; });
+const sig = x => 1/(1+Math.exp(-x));
+function inlandChance(p, rain, api, month){
+  const f = {rain_max:rain, rain_mean:rain*0.8, api, month_sin:Math.sin(2*Math.PI*month/12), month_cos:Math.cos(2*Math.PI*month/12),
+    n:p.n, sags:p.sags, sag_density:p.sag_density, sag_depth_mean:p.sag_depth_mean, major_frac:p.major_frac, elev_p10:p.elev_p10, elev_med:p.elev_med};
+  let z = M.intercept; M.features.forEach((k,j)=>{ let x = +f[k]||0; if (j<3 || j>=5) x = Math.log1p(Math.max(0,x)); z += M.coef[j]*(x-M.mu[j])/M.sd[j]; }); return sig(z);
+}
+function floodedRoads(aepByGauge){ const out = new Uint8Array(R.lat.length); const fb = Math.min(...Object.values(aepByGauge).filter(Number.isFinite), 1);
+  for (let i=0;i<out.length;i++){ const a = aepByGauge[R.gauge[i]]; const aa = Number.isFinite(a)? a : fb; if (R.thr[i]!=null && aa < 0.95 && aa <= R.thr[i]) out[i]=1; } return out; }
+const yrs = a => a>=0.999 ? '<1' : Math.round(1/Math.max(a,1e-4)).toLocaleString();
+const WZ = (D.validation&&D.validation.coastal||{}).zone_wave_model;
+const BUOY_FOR = {'8443970':'44013','8447386':'44097','8447435':'44020','8447930':'44020'};
+const waveChance = (aep, hs) => (!WZ || aep==null || hs==null) ? null : sig(WZ.intercept + WZ.coef[0]*Math.log1p(-Math.log10(Math.min(Math.max(aep,1e-4),1))) + WZ.coef[1]*Math.log1p(Math.max(hs,0)));
+const rarityPill = a => `<span class="pill ${a<=0.02?'p-bad':a<=0.2?'p-warn':'p-ok'}">1-in-${yrs(a)} yr</span>`;
+const fmt = (x,d=0) => x==null||!isFinite(x) ? '–' : x.toLocaleString(undefined,{maximumFractionDigits:d, minimumFractionDigits:d});
+const titleCase = s => (s==null || s!==s ? '' : String(s)).toLowerCase().replace(/(^|[\s\-\/'(])(\w)/g,(m,a,b)=>a+b.toUpperCase());
+const month = new Date().getMonth()+1;
+function engine(txt){ $('#engine').innerHTML = txt; }
+function timed(fn){ const t = performance.now(); const r = fn(); return [r, performance.now()-t]; }
+
+/* ================= view ================= */
+const stage = $('#stage'), canvas = $('#map'), ctx = canvas.getContext('2d');
+let W=0, H=0, dpr=1, base={s:1,x:0,y:0}, T = d3.zoomIdentity, C = {};
+function readColors(){ ['--sea','--sea-edge','--land','--land-out','--townline','--lake','--river','--road','--road-case','--art','--art-case','--hwy','--hwy-case','--path','--label','--halo','--townlabel','--water-label','--r1','--r2','--r3','--r4','--deep','--shallow','--flood-ring','--accent','--ink','--panel','--muted'].forEach(k=>C[k.slice(2)] = css(k)); }
+function fit(){ const [x0,y0,x1,y1] = VIEW0, padL = W>820? 300:16, padR = W>820? 370:16;
+  const s = Math.max(1, Math.min((W-padL-padR-20)/(x1-x0), (H-30)/(y1-y0))); base = {s, x: padL + (W-padL-padR - s*(x1-x0))/2 - s*x0, y: (H - s*(y1-y0))/2 - s*y0}; }
+const ps = () => T.k*base.s;                                    // screen pixels per world degree
+const toScreen = (wx,wy) => [T.x + T.k*(base.x + base.s*wx), T.y + T.k*(base.y + base.s*wy)];
+const toWorld = (sx,sy) => [((sx - T.x)/T.k - base.x)/base.s, ((sy - T.y)/T.k - base.y)/base.s];
+const mpp = () => 111320*Math.cos(42.2*RAD)/ps();                 // metres per pixel
+function setWorld(){ ctx.setTransform(dpr*ps(),0,0,dpr*ps(), dpr*(T.x+T.k*base.x), dpr*(T.y+T.k*base.y)); }
+function resize(){ const r = canvas.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio||1, 2); W = r.width; H = r.height;
+  canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr); fit(); scheduleDraw(true); }
+
+/* ================= layers set by the active view ================= */
+let layer = {};
+const riskColor = p => p==null||p<0.02 ? null : p<0.05 ? C.r1 : p<0.15 ? C.r2 : p<0.35 ? C.r3 : C.r4;
+
+/* ================= drawing ================= */
+let settled = true, rafId = 0, settleTimer = 0, T0 = null; const snap = document.createElement('canvas'), sctx = snap.getContext('2d');
+function scheduleDraw(full){ cancelAnimationFrame(rafId); if (full) settled = true; rafId = requestAnimationFrame(full || !T0 ? draw : drawQuick); }
+function drawQuick(){                                               // while dragging or zooming: move the last sharp picture
+  const s = T.k/T0.k; ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = C.sea; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(snap, (T.x - T0.x*s)*dpr, (T.y - T0.y*s)*dpr, snap.width*s, snap.height*s);
+  placeGauges(); updateScale(); }
+function viewBB(pad){ const [a,b] = toWorld(-pad,-pad), [c,d] = toWorld(W+pad,H+pad); return [a,b,c,d]; }
+const meets = (bb, v) => bb[2]>=v[0] && bb[0]<=v[2] && bb[3]>=v[1] && bb[1]<=v[3];
+function strokeW(path, px, color){ ctx.lineWidth = px/ps(); ctx.strokeStyle = color; ctx.stroke(path); }
+function visibleTiles(){ const [a,b] = toWorld(0,0), [c,d] = toWorld(W,H); const lon0=a, lon1=c, lat1=iY(b), lat0=iY(d), out=[];
+  for (let i=Math.floor((lon0-OX)/0.2); i<=Math.floor((lon1-OX)/0.2); i++) for (let j=Math.floor((lat0-OY)/0.2); j<=Math.floor((lat1-OY)/0.2); j++){ const k = i+'_'+j; if (!tileSet.size || tileSet.has(k)) out.push(k); } return out; }
+function draw(){
+  if (W < 20 || H < 20) return;
+  const m = mpp(), k = ps();
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle = C.sea; ctx.fillRect(0,0,W,H);
+  setWorld(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // land
+  ctx.fillStyle = C['land-out']; ctx.fill(G0.neigh); strokeW(G0.neigh, 0.8, C.townline);
+  ctx.lineWidth = 3.2/k; ctx.strokeStyle = C['sea-edge']; for (const g of townGeo.values()) ctx.stroke(g.path);
+  ctx.fillStyle = C.land; for (const g of townGeo.values()) ctx.fill(g.path);
+  // hazard fill on towns
+  if (layer.townFill){ ctx.globalAlpha = 0.62; for (const [n,g] of townGeo){ const col = layer.townFill(n); if (col){ ctx.fillStyle = col; ctx.fill(g.path); } } ctx.globalAlpha = 1; }
+  // water on land
+  if (G0.water){ ctx.fillStyle = C.lake; for (const p of G0.areas) ctx.fill(p, 'evenodd'); for (const p of G0.lakes) ctx.fill(p, 'evenodd');
+    if (m < 260){ ctx.lineWidth = (m < 40 ? 1.6 : 0.9)/k; ctx.strokeStyle = C.river; for (const p of G0.rivers) ctx.stroke(p); } }
+  // town lines
+  ctx.lineWidth = (m < 60 ? 1 : 0.6)/k; ctx.strokeStyle = C.townline; for (const g of townGeo.values()) ctx.stroke(g.path);
+  // roads
+  const local = m < 26, tiles = local ? visibleTiles() : [];
+  if (local) tiles.forEach(t=>{ if (!TILES.has(t)) loadTile(t); });
+  const z = (lo,hi,a,b) => m>=a ? lo : m<=b ? hi : lo + (hi-lo)*(a-m)/(a-b);       // width by zoom
+  if (local){ const wl = z(0.6, 7, 26, 1.2);
+    for (const t of tiles){ const g = TILES.get(t); if (!g) continue; ctx.setLineDash([3/k,3/k]); strokeW(g.p6, Math.max(0.6, wl*0.35), C.path); ctx.setLineDash([]); strokeW(g.p5, wl+1.4, C['road-case']); }
+    for (const t of tiles){ const g = TILES.get(t); if (g) strokeW(g.p5, wl, C.road); } }
+  const w4 = z(0.5, 9, 140, 1.2), w3 = z(0.9, 11, 260, 1.2), w2 = z(1.1, 12, 300, 1.2), w1 = z(1.6, 14, 400, 1.2), wr = z(0.4, 6, 60, 1.2);
+  const vb = viewBB(40), vis = BKS.filter(b=>meets(b.bb, vb));
+  const SR = (key, px, col) => { ctx.lineWidth = px/k; ctx.strokeStyle = col; for (const b of vis) if (b.k[key].length) ctx.stroke(bpath(b, key)); };
+  if (m < 140) SR('c4', w4+1.4, C['road-case']); if (m < 60) SR('ramp', wr+1.2, C['hwy-case']);
+  SR('c3', w3+1.6, C['art-case']); SR('c2', w2+1.8, C['art-case']); SR('c1', w1+2, C['hwy-case']);
+  if (m < 140) SR('c4', w4, C.road); if (m < 60) SR('ramp', wr, C.hwy);
+  SR('c3', w3, C.art); SR('c2', w2, C.art); SR('c1', w1, C.hwy);
+  // hazard: closures
+  if (layer.closures){ const set = closureGeo[layer.closures]||[]; const mx = d3.max(set, s=>s.f.properties.veh_hours_joint)||1;
+    for (const s of set){ const w = 2.5 + 7*Math.sqrt((s.f.properties.veh_hours_joint||0)/mx); strokeW(s.p, w+3, C['flood-ring']); strokeW(s.p, w, C.r3); } }
+  // hazard: road pieces
+  if (layer.roadColor){ const rr = Math.min(6.5, Math.max(2.4, 0.00025*k))/k, groups = new Map();
+    for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
+      let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } p.moveTo(x+rr, y); p.arc(x, y, rr, 0, 6.2832); }
+    for (const [col, p] of groups){ strokeW(p, 2.6, C['flood-ring']); ctx.fillStyle = col; ctx.fill(p); } }
+  // most flood-prone roads in towns at risk (diamonds), only when zoomed in
+  if (layer.topTown && m < 140){ const sz = 4.5/k, ring = 1.6/k, P1 = new Path2D(), P2 = new Path2D();
+    for (const r of TOPR){ if (r.x<vb[0]||r.x>vb[2]||r.y<vb[1]||r.y>vb[3] || !layer.topTown(r.town)) continue;
+      P1.moveTo(r.x, r.y-sz-ring); P1.lineTo(r.x+sz+ring, r.y); P1.lineTo(r.x, r.y+sz+ring); P1.lineTo(r.x-sz-ring, r.y); P1.closePath();
+      P2.moveTo(r.x, r.y-sz); P2.lineTo(r.x+sz, r.y); P2.lineTo(r.x, r.y+sz); P2.lineTo(r.x-sz, r.y); P2.closePath(); }
+    ctx.fillStyle = C['flood-ring']; ctx.fill(P1); ctx.fillStyle = C.r4; ctx.fill(P2); }
+  // labels (after the view settles)
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawLabels(m, tiles);
+  placeGauges(); updateScale();
+  if (snap.width !== canvas.width || snap.height !== canvas.height){ snap.width = canvas.width; snap.height = canvas.height; }
+  sctx.setTransform(1,0,0,1,0,0); sctx.clearRect(0,0,snap.width,snap.height); sctx.drawImage(canvas, 0, 0); T0 = T;
+}
+/* ---------- labels ---------- */
+let boxes = [];
+const hit = (b) => { for (const o of boxes) if (b[0]<o[2] && b[2]>o[0] && b[1]<o[3] && b[3]>o[1]) return true; return false; };
+function haloText(t, x, y){ ctx.strokeText(t, x, y); ctx.fillText(t, x, y); }
+function shield(rt, x, y){ const isI = I_RT.has(rt), isUS = US_RT.has(rt); ctx.font = '700 10.5px "IBM Plex Sans",sans-serif'; const w = Math.max(18, ctx.measureText(rt).width + 9), h = 16;
+  const b = [x-w/2-2, y-h/2-2, x+w/2+2, y+h/2+2]; if (hit(b)) return; boxes.push(b);
+  ctx.beginPath(); if (isI){ ctx.moveTo(x-w/2, y-h/2); ctx.lineTo(x+w/2, y-h/2); ctx.lineTo(x+w/2, y+h/4); ctx.quadraticCurveTo(x+w/2, y+h/2+2, x, y+h/2+3); ctx.quadraticCurveTo(x-w/2, y+h/2+2, x-w/2, y+h/4); ctx.closePath(); }
+  else ctx.roundRect(x-w/2, y-h/2, w, h, isUS?2:8);
+  ctx.fillStyle = isI ? '#1d4f9c' : '#ffffff'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = isI ? '#ffffff' : '#222'; ctx.stroke();
+  if (isI){ ctx.fillStyle = '#c8202f'; ctx.fillRect(x-w/2+1, y-h/2+1, w-2, 3.5); }
+  ctx.fillStyle = isI ? '#ffffff' : '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(rt, x, y+ (isI?1.5:0.5)); }
+function lineLabel(rec, text, minLen){
+  const c = rec.c; let best = null, run = [], len = 0, ang0 = null;
+  const pts = []; for (let i=0;i<c.length;i+=2) pts.push(toScreen(c[i], c[i+1]));
+  for (let i=1;i<pts.length;i++){ const dx = pts[i][0]-pts[i-1][0], dy = pts[i][1]-pts[i-1][1], L = Math.hypot(dx,dy), a = Math.atan2(dy,dx);
+    if (ang0==null || Math.abs(((a-ang0+3*Math.PI)%(2*Math.PI))-Math.PI) < 0.35){ run.push([pts[i-1],pts[i]]); len += L; ang0 = ang0==null? a : ang0; }
+    else { run = [[pts[i-1],pts[i]]]; len = L; ang0 = a; }
+    if (len >= minLen && (!best || len > best.len)) best = {len, a: Math.atan2(run[run.length-1][1][1]-run[0][0][1], run[run.length-1][1][0]-run[0][0][0]), p0: run[0][0], p1: run[run.length-1][1]}; }
+  if (!best) return false;
+  const cx = (best.p0[0]+best.p1[0])/2, cy = (best.p0[1]+best.p1[1])/2; if (cx<0||cy<0||cx>W||cy>H) return false;
+  let a = best.a; if (a > Math.PI/2) a -= Math.PI; if (a < -Math.PI/2) a += Math.PI;
+  const w = ctx.measureText(text).width, h = 12, ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+  const bw = w*ca + h*sa, bh = w*sa + h*ca, b = [cx-bw/2, cy-bh/2, cx+bw/2, cy+bh/2]; if (hit(b)) return false; boxes.push(b);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(a); haloText(text, 0, 0); ctx.restore(); return true; }
+function drawLabels(m, tiles){
+  boxes = []; const [wx0, wy0] = toWorld(-50,-50), [wx1, wy1] = toWorld(W+50,H+50);
+  const inView = bb => bb[2]>=wx0 && bb[0]<=wx1 && bb[3]>=wy0 && bb[1]<=wy1;
+  // panels reserve space so labels do not hide under them
+  if (W > 820 && !$('#app').classList.contains('present')){ boxes.push([0,0,320,H],[W-386,0,W,H]); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  // towns first (big places win)
+  const tl = [...townGeo.entries()].filter(([n,g])=>{ const [x,y]=toScreen(...g.label); return x>-40&&y>-20&&x<W+40&&y<H+20; }).sort((a,b)=>(BIG.has(b[0])-BIG.has(a[0])) || b[1].area-a[1].area);
+  ctx.strokeStyle = C.halo; ctx.lineWidth = 3.5;
+  for (const [n,g] of tl){ const pxArea = g.area*1e6/(m*m), big = BIG.has(n); if (!big && pxArea < 1800 && m > 20) continue;
+    const size = Math.max(big ? 12 : 10, Math.min(m < 8 ? 18 : 15, 8 + Math.log10(pxArea)*1.6 + (big ? 1.5 : 0))); ctx.font = `600 ${size.toFixed(1)}px "Barlow Condensed","Arial Narrow",sans-serif`;
+    const t = titleCase(n).toUpperCase().split('').join(String.fromCharCode(8202)); const w = ctx.measureText(t).width; const [x,y] = toScreen(...g.label);
+    const b = [x-w/2-3, y-size/2-2, x+w/2+3, y+size/2+2]; if (hit(b)) continue; boxes.push(b); ctx.fillStyle = C.townlabel; haloText(t, x, y); }
+  // route shields
+  const visRecs = []; { const v = viewBB(50); for (const b of BKS) if (meets(b.bb, v)) for (const r of b.recs) visRecs.push(r); }
+  if (m < 160){ const seen = []; for (const r of visRecs){ if (!r.rt || r.ramp || !inView(r.bb)) continue; const c = r.c, mid = Math.floor(c.length/4)*2; const [x,y] = toScreen(c[mid], c[mid+1]);
+      if (x<8||y<8||x>W-8||y>H-8) continue; if (seen.some(s=>s[0]===r.rt && Math.hypot(s[1]-x, s[2]-y) < (m<20?260:190))) continue; const before = boxes.length; shield(r.rt, x, y); if (boxes.length>before) seen.push([r.rt,x,y]); } }
+  // street names
+  if (m < 22){ ctx.font = '500 11px "IBM Plex Sans",sans-serif'; ctx.fillStyle = C.label; ctx.strokeStyle = C.halo; ctx.lineWidth = 3; const named = new Map();
+    const tryRec = (r, minLen) => { if (!r.name || r.name.length < 2 || !inView(r.bb)) return; const prev = named.get(r.name)||[];
+      const c = r.c, mid = Math.floor(c.length/4)*2, [x,y] = toScreen(c[mid], c[mid+1]); if (prev.some(p=>Math.hypot(p[0]-x,p[1]-y) < 320)) return;
+      ctx.font = r.cls<=3 ? '600 11px "IBM Plex Sans",sans-serif' : '500 11px "IBM Plex Sans",sans-serif'; const w = ctx.measureText(r.name).width;
+      if (lineLabel(r, r.name, Math.max(minLen, w + 10))){ prev.push([x,y]); named.set(r.name, prev); } };
+    for (const r of visRecs) if (!r.ramp && r.cls >= 2) tryRec(r, 40);
+    if (m < 7) for (const t of tiles){ const g = TILES.get(t); if (g) for (const r of g.recs) if (r.cls < 6) tryRec(r, 30); } }
+  // water names: big lakes need no extra data; label the ocean
+  ctx.font = 'italic 500 13px "IBM Plex Sans",sans-serif'; ctx.fillStyle = C['water-label']; ctx.strokeStyle = C.sea; ctx.lineWidth = 3;
+  [['Massachusetts Bay', -70.62, 42.33], ['Cape Cod Bay', -70.33, 41.86], ['Buzzards Bay', -70.83, 41.56], ['Nantucket Sound', -70.25, 41.47], ['Atlantic Ocean', -70.05, 42.62], ['Vineyard Sound', -70.78, 41.43], ['Narragansett Bay', -71.33, 41.62]]
+    .forEach(([t,lo,la])=>{ const [x,y] = toScreen(lo, mY(la)); const w = ctx.measureText(t).width; const b = [x-w/2, y-8, x+w/2, y+8]; if (x>0&&x<W&&y>0&&y<H && !hit(b)){ boxes.push(b); haloText(t, x, y); } });
+}
+/* ---------- gauges as live DOM markers ---------- */
+function placeGauges(){ const box = $('#gmarks'); if (!layer.gauges){ box.innerHTML=''; return; }
+  if (!box.children.length) box.innerHTML = Object.keys(GA).map(k=>`<span class="gmark" data-g="${k}"></span>`).join('');
+  for (const el of box.children){ const g = GA[el.dataset.g]; const [x,y] = toScreen(g.lon, mY(g.lat)); el.style.left = x+'px'; el.style.top = y+'px';
+    const a = layer.gauges[el.dataset.g]; el.className = 'gmark' + (a!=null && a<=0.02 ? ' bad' : a!=null && a<=0.2 ? ' warn' : ''); } }
+function updateScale(){ const m = mpp(); const target = 110*m; const steps = [10,20,50,100,200,500,1000,2000,5000,10000,20000,50000];
+  const v = steps.find(s=>s>=target*0.5) || 50000; const px = v/m; const el = $('#scale'); el.style.width = px+'px'; el.firstChild.textContent = v>=1000 ? (v/1000)+' km' : v+' m'; }
+
+/* ================= interaction ================= */
+const zoom = d3.zoom().scaleExtent([0.7, 400]).on('zoom', e=>{ T = e.transform; tip.hidden = true; scheduleDraw(false); clearTimeout(settleTimer); settleTimer = setTimeout(()=>scheduleDraw(true), 160); });
+d3.select(canvas).call(zoom).on('dblclick.zoom', null);
+canvas.addEventListener('dblclick', ev=>{ const r = canvas.getBoundingClientRect(); d3.select(canvas).transition().duration(350).call(zoom.scaleBy, 2.2, [ev.clientX-r.left, ev.clientY-r.top]); });
+$('#zin').onclick = ()=>d3.select(canvas).transition().duration(280).call(zoom.scaleBy, 2);
+$('#zout').onclick = ()=>d3.select(canvas).transition().duration(280).call(zoom.scaleBy, 0.5);
+$('#zreset').onclick = ()=>d3.select(canvas).transition().duration(450).call(zoom.transform, d3.zoomIdentity);
+function flyTo(bb, maxMpp){ const [x0,y0,x1,y1] = bb; const kx = (W*0.5)/((x1-x0)*base.s||1), ky = (H*0.6)/((y1-y0)*base.s||1);
+  let kk = Math.min(kx, ky, 400); const cx = base.x + base.s*(x0+x1)/2, cy = base.y + base.s*(y0+y1)/2;
+  const t = d3.zoomIdentity.translate(W/2 - kk*cx + (W>820? -30:0), H/2 - kk*cy).scale(kk); d3.select(canvas).transition().duration(900).call(zoom.transform, t); }
+$('#townlist').innerHTML = [...townGeo.keys()].sort().map(n=>`<option value="${titleCase(n)}">`).join('');
+$('#find').addEventListener('change', e=>{ const g = townGeo.get(e.target.value.trim().toUpperCase()); if (g) flyTo(g.bb); });
+const tip = $('#tip');
+let hoverRaf = 0;
+canvas.addEventListener('mousemove', ev0=>{ if (ev0.buttons) return; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(()=>hover(ev0)); });
+function hover(ev){ const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top; const [wx,wy] = toWorld(sx,sy); let html = null;
+  if (layer.roadColor){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
+  if (!html && layer.topTown && mpp() < 140){ const r = tquad.find(wx, wy, 8/ps()); if (r && layer.topTown(r.town)) html = `<b>${titleCase(r.street)||'Road'}</b><br>${titleCase(r.town)}<br>one of the town's most flood-prone road spots (top ${Math.max(1,Math.round((1-r.pct)*100))}% by terrain: low, in a dip, below its surroundings)`; }
+  if (!html && layer.closures){ setWorld(); ctx.lineWidth = 10/ps(); const s = (closureGeo[layer.closures]||[]).find(s=>ctx.isPointInStroke(s.p, sx*dpr, sy*dpr)); if (s) html = layer.closureTip(s.f.properties); ctx.setTransform(dpr,0,0,dpr,0,0); }
+  if (!html){ setWorld(); let name = null; for (const [n,g] of townGeo){ if (wx>=g.bb[0]&&wx<=g.bb[2]&&wy>=g.bb[1]&&wy<=g.bb[3] && ctx.isPointInPath(g.path, sx*dpr, sy*dpr)){ name = n; break; } } ctx.setTransform(dpr,0,0,dpr,0,0);
+    if (name) html = layer.townTip ? layer.townTip(name) : `<b>${titleCase(name)}</b>`; }
+  if (html){ tip.innerHTML = html; tip.hidden = false; tip.style.left = Math.min(sx+14, W-285)+'px'; tip.style.top = Math.min(sy+14, H-110)+'px'; } else tip.hidden = true; }
+canvas.addEventListener('mouseleave', ()=> tip.hidden = true);
+
+/* ================= legend helpers ================= */
+function legend(html){ $('#legend').innerHTML = html; }
+const rampLegend = title => `<b>${title}</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2%</span><span>5%</span><span>15%</span><span>35%+</span></div>`;
+const dotLegend = (col, t) => `<div><span class="sw dotsw" style="background:${col}"></span>${t}</div>`;
+function townTable(rows, cols, goKey){ if (!rows.length) return '<p class="empty">Nothing above the lowest band.</p>';
+  return `<div class="tblwrap"><table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr${goKey?` class="go" data-town="${goKey(r)}"`:''}>${cols.map(c=>`<td class="${c[2]||''}">${c[1](r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
+function wireGo(){ document.querySelectorAll('#readout tr.go').forEach(tr=>tr.onclick=()=>{ const g = townGeo.get(tr.dataset.town); if (g) flyTo(g.bb); }); }
+function roadSummary(fl){ const byTown = {}; let n=0; for (let i=0;i<fl.length;i++) if (fl[i]){ n++; byTown[R.town[i]] = (byTown[R.town[i]]||0)+1; }
+  return {n, towns:Object.keys(byTown).length, top:Object.entries(byTown).sort((a,b)=>b[1]-a[1]).slice(0,12)}; }
+function streetsOf(fl){ const s = {}; for (let i=0;i<fl.length;i++) if (fl[i] && R.street[i]) { const k = titleCase(R.street[i])+' · '+titleCase(R.town[i]); s[k]=(s[k]||0)+1; } return Object.entries(s).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>x[0]); }
+const roadTipBase = (i, extra='') => `<b>${titleCase(R.street[i])||'Unnamed road'}</b>${R.rt[i]&&R.rt[i]!=='0'&&R.rt[i]!=='nan'?' · Route '+R.rt[i]:''}<br>${titleCase(R.town[i])}<br>road surface ${fmt(R.elev[i],1)} m above sea datum · floods ${R.thr[i]>=0.999?'about every year':'about once in '+yrs(R.thr[i])+' years'} at 2030 sea level${extra}`;
+const scen = k => { const m = /^(\d{4})_(\d\d)_(\d\d)_(.*)$/.exec(k); if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T12:00`).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) + ' · ' + titleCase(m[4].replace(/_/g,' ')).replace('Nor Easter',"Nor'easter");
+  const f = /mc_frm_1_storm_(\d{4})/.exec(k); if (f) return `1%-per-year storm at ${f[1]} sea level`; return titleCase(k.replace(/_/g,' ')); };
+function setTitle(kick, title, sub){ $('#tc-kick').textContent = kick; $('#tc-title').textContent = title; $('#tc-sub').textContent = sub; }
+
+/* ================= tide chart ================= */
+function tideChart(k, g){ const cv = g.curve; if (!cv || !cv.pred || !cv.pred.length) return '';
+  const n = cv.pred.length, t0 = Date.parse(cv.t0), now = Date.now(), gi = GA[k]||{};
+  const vals = cv.pred.concat(cv.obs.filter(v=>v!=null), (cv.stofs||[]).filter(v=>v!=null)); const yr = gi.mu; let lo = Math.min(...vals), hi = Math.max(...vals, yr!=null? yr+0.05 : -9);
+  const w = 300, h = 66, pad = 4, X = i => pad + (w-2*pad)*i/(n-1), Y = v => h-12 - (h-20)*(v-lo)/((hi-lo)||1);
+  const line = arr => arr.map((v,i)=> v==null? null : [X(i),Y(v)]).reduce((s,p,i,a)=> p? s + (i && a[i-1]? 'L':'M') + p[0].toFixed(1)+','+p[1].toFixed(1) : s, '');
+  const nowI = (now - t0)/3.6e6; const nx = nowI>=0 && nowI<=n-1 ? X(nowI) : null;
+  const area = 'M'+X(0)+','+(h-12)+' '+cv.pred.map((v,i)=>'L'+X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')+' L'+X(n-1)+','+(h-12)+'Z';
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Tide at ${gi.name}: observed and predicted water level">
+    <path d="${area}" fill="${C.accent}" opacity=".09"/>
+    ${yr!=null && yr<=hi ? `<line x1="${pad}" x2="${w-pad}" y1="${Y(yr)}" y2="${Y(yr)}" stroke="${C.r3}" stroke-dasharray="3 3" stroke-width="1"/><text x="${w-pad}" y="${Y(yr)-3}" text-anchor="end" font-size="9" fill="${C.r3}" font-family="IBM Plex Mono,monospace">typical yearly high ${fmt(yr,2)} m</text>`:''}
+    <path d="${line(cv.pred)}" fill="none" stroke="${C.muted}" stroke-width="1.2" stroke-dasharray="2 2"/>
+    ${cv.stofs? `<path d="${line(cv.stofs.map((v,i)=> i>=nowI-1? v : null))}" fill="none" stroke="${C.r3}" stroke-width="1.6"/>` : ''}
+    <path d="${line(cv.obs)}" fill="none" stroke="${C.accent}" stroke-width="2"/>
+    ${nx!=null? `<line x1="${nx}" x2="${nx}" y1="2" y2="${h-12}" stroke="${C.ink}" stroke-width="1" opacity=".5"/><text x="${nx+3}" y="${h-2}" font-size="9" fill="${C.muted}" font-family="IBM Plex Mono,monospace">now</text>`:''}
+    <text x="${pad}" y="${h-2}" font-size="9" fill="${C.muted}" font-family="IBM Plex Mono,monospace">−26 h</text><text x="${w-pad}" y="${h-2}" text-anchor="end" font-size="9" fill="${C.muted}" font-family="IBM Plex Mono,monospace">+48 h</text></svg>`; }
+
+/* ================= views ================= */
+const state = {mode:'live', liveLayer:'chance', coastal:{pick:'2018-01-04', rp:10}, inland:{pick:'slider', rain:60, wet:'now'}, traffic:{pick:Object.keys(D.closures||{})[0]}, future:{year:2050}, tsunami:{amp:2, runup:'1'}};
+try { const m = localStorage.getItem('mfw-mode'); if (m) state.mode = m; } catch(e){}
+const HASH_MODES = ['live','coastal','inland','traffic','future','tsunami','check','graph']; { const h = location.hash.slice(1).toLowerCase(); if (HASH_MODES.includes(h)) state.mode = h; }
+window.addEventListener('hashchange', ()=>{ const h = location.hash.slice(1).toLowerCase(); if (HASH_MODES.includes(h) && typeof MODES !== 'undefined' && MODES[h]) setMode(h); });
+
+function mLive(){
+  const L = D.live || {gauges:{}, towns_qpf24:{}, alerts:[], tsunami:[]};
+  const aep = {}; for (const [k,v] of Object.entries(L.gauges||{})) aep[k]=v.aep;
+  const [res, ms] = timed(()=>{ const fl = floodedRoads(aep); const ch = new Map([...tprops].map(([n,p])=>[n, inlandChance(p, (L.towns_qpf24||{})[n]||0, p.api_now||0, month)])); return {fl, ch}; });
+  const {fl, ch} = res, s = roadSummary(fl);
+  const qcol = mm => mm==null||mm<2 ? null : mm<10 ? C.r1 : mm<25 ? C.r2 : mm<50 ? C.r3 : C.r4;
+  layer = {gauges: aep, roadColor: i=>fl[i]? C.deep : null, roadTip: i=>roadTipBase(i), topTown: n=> (ch.get(n)||0) >= 0.05,
+    townFill: n => state.liveLayer==='rain' ? qcol((L.towns_qpf24||{})[n]) : riskColor(ch.get(n)),
+    townTip: n => tprops.has(n) ? `<b>${titleCase(n)}</b><br>rain forecast, next 24 h: ${fmt((L.towns_qpf24||{})[n],1)} mm<br>chance of a reported road flood: ${fmt(100*ch.get(n),1)}%` : `<b>${titleCase(n)}</b><br><span class="note">outside the inland model area (MassDOT Districts 3–6)</span>`};
+  legend((state.liveLayer==='rain' ? `<b>Rain forecast, next 24 h</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2 mm</span><span>10</span><span>25</span><span>50+</span></div>` : rampLegend('Chance of a reported road flood, next 24 h')) + dotLegend(C.deep, 'coastal road the next high tides would flood'));
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="livelayer">Color towns by</label><select id="livelayer"><option value="chance">Flood chance (model)</option><option value="rain">Rain forecast (NWS)</option></select></div>`;
+  $('#livelayer').value = state.liveLayer; $('#livelayer').onchange = e=>{ state.liveLayer = e.target.value; mLive(); scheduleDraw(true); };
+  $('#howto').textContent = 'Every town is scored by the flood model running in this page, using the National Weather Service rain forecast and how wet the ground already is. Blue dots are coastal road pieces the predicted tide plus today\'s storm surge would put under water.';
+  engine(`Model run in your browser: <b>${tprops.size} towns</b> + <b>${R.lat.length.toLocaleString()} coastal road pieces</b> in ${ms.toFixed(1)} ms`);
+  const gcards = Object.entries(L.gauges||{}).map(([k,v])=>{ const bw = (L.waves||{})[BUOY_FOR[k]]; const wc = bw ? waveChance(v.aep, bw.hs_m) : null;
+    return `<div class="g"><h4>${(GA[k]||{}).name||k}</h4>${rarityPill(v.aep)}${tideChart(k,v)}<span class="m">now ${fmt(v.now,2)} m · surge ${v.surge_now>=0?'+':''}${fmt(v.surge_now,2)} m · next 48 h peak ${fmt(v.next48_max,2)} m${v.stofs_next48!=null && v.stofs_next48>=v.next48_max-0.005?' (NOAA surge model)':' (tide + current surge)'}${v.stofs_next48!=null?` · STOFS ${fmt(v.stofs_next48,2)} m`:''}</span>${wc!=null?`<span class="m">with ${fmt(bw.hs_m,1)} m waves offshore: ${fmt(100*wc, wc<0.1?1:0)}% chance of coastal flood reports in this area</span>`:''}</div>`; }).join('') || '<p class="empty">No gauge data in this refresh.</p>';
+  const ranked = [...ch.entries()].sort((a,b)=>b[1]-a[1]), best = ranked[0]||['–',0]; const top = ranked.slice(0,10).filter(x=>x[1]>=0.005);
+  const wet = [...Object.entries(L.towns_qpf24||{})].filter(x=>x[1]!=null).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  $('#readout').innerHTML = `<h2>Right now</h2>
+   <div class="stats"><div class="stat"><b>${fmt(s.n/10,1)} km</b><span>coastal road at risk, next 48 h</span></div><div class="stat"><b>${fmt(100*best[1], best[1]<0.1?1:0)}%</b><span>top town flood chance (${titleCase(best[0])})</span></div></div>
+   <p class="note">Wettest forecast: ${wet.map(w=>`${titleCase(w[0])} ${fmt(w[1],0)} mm`).join(', ')||'no rain in the forecast'}.</p>
+   <span class="lbl">Tide gauges · observed (solid) · tide table (dashed) · NOAA surge forecast (red)</span><div class="gauges">${gcards}</div>
+   <span class="lbl">Offshore waves · NOAA buoys</span>${Object.keys(L.waves||{}).length ? townTable(Object.values(L.waves), [['Buoy',r=>r.name],['Wave height',r=>fmt(r.hs_m,1)+' m','n'],['Period',r=>r.period_s? fmt(r.period_s,0)+' s':'–','n']]) : '<p class="empty">No buoy data in this refresh.</p>'}
+   <span class="lbl">NWS alerts</span>${(L.alerts||[]).length? '<ul>'+L.alerts.slice(0,8).map(a=>`<li><b>${a.event}</b> · ${a.area}</li>`).join('')+'</ul>' : '<p class="empty">No active alerts for Massachusetts.</p>'}
+   <span class="lbl">Tsunami warning center (Atlantic)</span>${(L.tsunami||[]).length? '<ul>'+L.tsunami.map(t=>`<li>${t.title} <span class="note">${(t.updated||'').slice(0,10)}</span></li>`).join('')+'</ul>':'<p class="empty">No messages.</p>'}
+   <span class="lbl">Towns to watch</span>${townTable(top, [['Town',r=>titleCase(r[0])],['Chance',r=>fmt(100*r[1],1)+'%','n'],['Rain 24 h',r=>fmt((L.towns_qpf24||{})[r[0]],0)+' mm','n']], r=>r[0])}`;
+  wireGo(); setTitle('Live · ' + (L.asof||''), 'Flood outlook, next 24–48 hours', 'Town flood chance from the NWS rain forecast and a model trained on 2002–2026 flood reports; coastal roads from NOAA tide gauges.');
+}
+
+function mCoastal(){
+  const reps = Object.keys(D.coastal_replays||{});
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="cpick">Storm</label><select id="cpick">${reps.map(d=>`<option value="${d}">${d} (replay)</option>`).join('')}<option value="rp">Pick a storm strength</option></select></div>
+   <div class="ctl" id="rpbox"><label class="lbl" for="rp">Storm strength (same rarity at every gauge)</label><input type="range" id="rp" min="0" max="100" step="1"><span class="val" id="rpv"></span></div>`;
+  const sel = $('#cpick'), rp = $('#rp'); sel.value = state.coastal.pick;
+  const toRp = v => Math.round(Math.pow(10, v/100*2.7)); rp.value = Math.round(Math.log10(state.coastal.rp)/2.7*100);
+  const go = ()=>{ state.coastal.pick = sel.value; state.coastal.rp = toRp(+rp.value); $('#rpbox').hidden = sel.value!=='rp'; $('#rpv').textContent = `1-in-${state.coastal.rp} year storm`;
+    let aep = {}, info = '';
+    if (sel.value==='rp'){ for (const k in GA) aep[k] = 1/state.coastal.rp; info = `Every gauge at a 1-in-${state.coastal.rp} year water level.`; }
+    else { const r = D.coastal_replays[sel.value]; const hs = (D.coastal_replay_waves||{})[sel.value]; for (const [k,v] of Object.entries(r)) aep[k]=v.aep;
+      info = Object.entries(r).map(([k,v])=>`${(GA[k]||{}).name||k}: ${fmt(v.wl,2)} m ${rarityPill(v.aep)}`).join('<br>') + (hs? `<br>Biggest offshore waves that day: ${fmt(hs,1)} m (NOAA buoys). With them, the chance of coastal flood reports near Boston was ${fmt(100*waveChance(r['8443970']&&r['8443970'].aep, hs),0)}%.`:''); }
+    const [fl, ms] = timed(()=>floodedRoads(aep)); const s = roadSummary(fl);
+    layer = {gauges: aep, roadColor: i=>fl[i]? (R.d30[i]!=null && R.d30[i]>=0.3 ? C.deep : C.shallow) : null, roadTip: i=>roadTipBase(i, R.d30[i]!=null?`<br>depth in a 1% storm: ${fmt(R.d30[i],2)} m`:'')};
+    legend(`<b>Coastal road under water</b>${dotLegend(C.shallow,'shallow (under 30 cm in a 1% storm)')}${dotLegend(C.deep,'deeper')}`);
+    engine(`Model run in your browser: <b>${R.lat.length.toLocaleString()} road pieces</b> checked against 4 tide gauges in ${ms.toFixed(1)} ms`);
+    const title = sel.value==='rp' ? `1-in-${state.coastal.rp} year storm` : new Date(sel.value+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+    $('#readout').innerHTML = `<h2>${title}</h2><p class="note">${info}</p>
+      <div class="stats"><div class="stat"><b>${fmt(s.n/10,1)} km</b><span>road under water</span></div><div class="stat"><b>${s.towns}</b><span>towns with flooded roads</span></div></div>
+      <span class="lbl">Streets with the most flooded length</span><ul>${streetsOf(fl).map(x=>`<li>${x}</li>`).join('')||'<li class="empty">none</li>'}</ul>
+      <span class="lbl">By town</span>${townTable(s.top, [['Town',r=>titleCase(r[0])],['Road under water',r=>fmt(r[1]/10,1)+' km','n']], r=>r[0])}
+      <p class="note">A road piece floods when the day's water at its nearest tide gauge is at least as rare as that piece's yearly flood chance in the state coastal model (MC-FRM, 2030 sea level). Tested on NOAA coastal flood reports since 1996: AUC 0.83. Storm waves are part of MC-FRM's flood chances on average; how rough one particular storm's waves were is not.</p>`;
+    wireGo(); setTitle('Coastal storm' + (sel.value==='rp'?'':' replay'), title, `${fmt(s.n/10,1)} km of coastal road under water in ${s.towns} towns`); scheduleDraw(true); };
+  sel.onchange = go; rp.oninput = go; go();
+  $('#howto').textContent = 'Replay a past storm, or set a storm strength and watch the water spread. Each dot is a 100 m road piece the sea reaches; hover for the street and how often it floods.';
+}
+
+function mInland(){
+  const reps = Object.keys(D.inland_replays||{});
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="ipick">Rain</label><select id="ipick"><option value="slider">Set the rain</option>${reps.map(d=>`<option value="${d}">${d} (replay)</option>`).join('')}</select></div>
+   <div class="ctl" id="rbox"><label class="lbl" for="rain">Rain in 24 hours, every town</label><input type="range" id="rain" min="0" max="200" step="5"><span class="val" id="rainv"></span>
+   <label class="lbl" for="wet">Ground wetness (rain of the past days)</label><select id="wet"><option value="now">As it is now</option><option value="dry">Dry (0 mm)</option><option value="wet">Soaked (80 mm)</option></select></div>`;
+  const sel=$('#ipick'), rain=$('#rain'), wet=$('#wet'); sel.value=state.inland.pick; rain.value=state.inland.rain; wet.value=state.inland.wet;
+  const go=()=>{ state.inland.pick=sel.value; state.inland.rain=+rain.value; state.inland.wet=wet.value; $('#rbox').hidden = sel.value!=='slider'; $('#rainv').textContent = `${rain.value} mm (${(rain.value/25.4).toFixed(1)} in)`;
+    const rp = sel.value==='slider'? null : D.inland_replays[sel.value]; const mo = rp? +sel.value.slice(5,7) : month;
+    const [ch, ms] = timed(()=>new Map([...tprops].map(([n,p])=>{ let r, a; if (rp){ const v = rp[n]; if (!v) return [n, null]; r = v.rain; a = v.api; } else { r = +rain.value; a = wet.value==='now'? p.api_now : wet.value==='dry'? 0 : 80; } return [n, inlandChance(p, r, a, mo)]; })));
+    const rec = rp? Object.entries(rp).filter(x=>x[1].rec).map(x=>x[0]) : [];
+    layer = {topTown: n=> (ch.get(n)||0) >= 0.05, townFill: n=>riskColor(ch.get(n)), townTip: n=>{ if (!tprops.has(n)) return `<b>${titleCase(n)}</b><br><span class="note">outside the inland model area</span>`; const v = rp&&rp[n]; if (rp && !v) return `<b>${titleCase(n)}</b><br><span class="note">no rain record for this replay (replays cover Districts 4–6)</span>`; return `<b>${titleCase(n)}</b><br>chance: ${fmt(100*ch.get(n),1)}%${v?`<br>rain ${fmt(v.rain,0)} mm · ${v.rec?'flood recorded':'no flood record'}`:''}`; }};
+    legend(rampLegend('Chance of a reported road flood') + (TOPR.length? `<div><span class="sw" style="background:${C.r4};transform:rotate(45deg) scale(.8)"></span>most flood-prone road spots (zoom in; towns at 5%+)</div>` : '') +(rec.length? `<div class="note">${rec.length} towns had a recorded flood that day</div>`:''));
+    engine(`Model run in your browser: <b>${tprops.size} towns</b> scored in ${ms.toFixed(1)} ms`);
+    const top=[...ch.entries()].filter(x=>x[1]!=null).sort((a,b)=>b[1]-a[1]).slice(0,15);
+    const title = rp? new Date(sel.value+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : rain.value+' mm in 24 hours';
+    $('#readout').innerHTML = `<h2>${title}</h2>
+      ${rp? `<p class="note">Towns with a recorded flood that day: ${rec.map(titleCase).join(', ')||'none'}. The model never saw this year while learning.</p>`:''}
+      ${townTable(top, [['Town',r=>titleCase(r[0])+(rec.includes(r[0])?' <span class="pill p-bad">recorded</span>':'')],['Chance',r=>fmt(100*r[1],1)+'%','n']], r=>r[0])}
+      <p class="note">Town-day model trained on ${M.trained_on}. Tested one year at a time on years it never saw: AUC ${fmt(VI.combined_all?VI.combined_all.AUC:0.874,2)} (95% range ${VI.combined_all?VI.combined_all.AUC_95CI.join('–'):'–'}). A version trained only on Districts 4–6 scored ${VI.transfer_D3?VI.transfer_D3.AUC:'–'} on District 3 towns it had never seen. Ground wetness as of ${D.inland_api_asof}.</p>`;
+    wireGo(); setTitle(rp?'Inland rain replay':'Inland rain what-if', title, 'Chance that at least one road in each town floods badly enough to be reported'); scheduleDraw(true); };
+  sel.onchange=go; rain.oninput=go; wet.onchange=go; go();
+  $('#howto').textContent = 'Drag the rain slider and the model rescores every town instantly. Replays show real storms the model never saw while learning, with the towns that actually reported floods.';
+}
+
+function mTraffic(){
+  const ks = Object.keys(D.closures||{});
+  if (!ks.length){ $('#controls').innerHTML='<p class="empty">No traffic scenarios computed yet.</p>'; $('#readout').innerHTML=''; layer={}; return; }
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="tpick">Scenario</label><select id="tpick">${ks.map(k=>`<option value="${k}">${scen(k)}</option>`).join('')}</select></div>`;
+  const sel=$('#tpick'); if (state.traffic.pick && ks.includes(state.traffic.pick)) sel.value = state.traffic.pick;
+  const go=()=>{ state.traffic.pick=sel.value; const c = D.closures[sel.value];
+    const ctip = p => `<b>${titleCase(p.street)||'Road'}</b>${p.rt&&p.rt!=='0'?' · Route '+p.rt:''}<br>${titleCase(p.town)}<br>${fmt(p.aadt)} cars a day · ${(p.cluster_extra_min??p.extra_min_joint)>=60?'cut off, no detour within an hour':'detour +'+fmt(p.cluster_extra_min??p.extra_min_joint,0)+' min'}<br>${fmt(p.veh_hours_joint)} vehicle-hours lost`;
+    layer = {closures: sel.value, closureTip: ctip};
+    legend(`<b>Closed by flooding</b><div><span class="sw" style="background:${C.r3}"></span>line width = vehicle-hours lost</div>`);
+    engine(`Detours computed on the MassDOT road graph (${fmt(c.units)} closed stretches)`);
+    const grp = new Map(); for (const f of c.geo.features){ const p=f.properties; const k=(p.street||'–')+'|'+p.town; const g=grp.get(k);
+      if (!g || (p.veh_hours_joint||0) > (g.veh_hours_joint||0)) grp.set(k, Object.assign({}, p, {pieces:(g?g.pieces:0)+1})); else g.pieces++; }
+    const rows = [...grp.values()].sort((a,b)=>b.veh_hours_joint-a.veh_hours_joint).slice(0,15);
+    const mult = c.total_veh_hours_alone? c.total_veh_hours_joint/c.total_veh_hours_alone : null;
+    $('#readout').innerHTML = `<h2>${scen(sel.value)}</h2>
+      <div class="stats"><div class="stat"><b>${fmt(c.total_veh_hours_joint)}</b><span>vehicle-hours lost in a day, closures together</span></div><div class="stat"><b>${mult?fmt(mult,1)+'×':'–'}</b><span>cascade: together vs one at a time (${fmt(c.total_veh_hours_alone)})</span></div></div>
+      ${townTable(rows, [['Road',r=>`${titleCase(r.street)||'–'}${r.rt&&r.rt!=='0'?' · Rt '+r.rt:''}<br><span class="note">${titleCase(r.town)}</span>`],['Cars/day',r=>fmt(r.aadt),'n'],['Detour',r=>{const m = r.cluster_extra_min ?? r.extra_min_joint; return m>=60?'cut off':fmt(m,0)+' min';},'n'],['Veh-h',r=>fmt(r.veh_hours_joint),'n']], r=>r.town)}
+      <p class="note">${fmt(c.units)} closed stretches (${fmt(c.km,1)} km) in ${c.clusters??'–'} flooded areas; ${c.cut_off??'–'} are cut off with no way around within an hour. Detours run on the MassDOT road network at posted speeds. One stretch at a time, the same closures would cost ${fmt(c.total_veh_hours_alone)} vehicle-hours.</p>`;
+    wireGo(); setTitle('Traffic cascade', scen(sel.value), `${fmt(c.total_veh_hours_joint)} vehicle-hours lost together vs ${fmt(c.total_veh_hours_alone)} one at a time (${mult?fmt(mult,1)+'×':''})`); scheduleDraw(true); };
+  sel.onchange=go; go();
+  $('#howto').textContent = 'Closing many roads at once costs far more than the same closures one at a time, because the detours are flooded too. That gap is the cascade.';
+}
+
+function mFuture(){
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="yr">Sea level year</label><select id="yr"><option>2030</option><option>2050</option><option>2070</option></select></div>`;
+  const sel=$('#yr'); sel.value = state.future.year;
+  const go=()=>{ state.future.year=+sel.value; const dd = R['d'+String(sel.value).slice(2)];
+    layer = {roadColor: i=>dd[i]!=null&&dd[i]>0? (dd[i]>=0.3? C.deep : C.shallow) : null, roadTip: i=>roadTipBase(i, `<br>${sel.value} 1% storm depth: ${fmt(dd[i],2)} m`)};
+    legend(`<b>${sel.value} · 1%-per-year storm</b>${dotLegend(C.shallow,'under water, less than 30 cm')}${dotLegend(C.deep,'30 cm or deeper')}`);
+    const rows = (D.longterm||[]).filter(r=>r.year===+sel.value); const lt = rows.slice().sort((a,b)=>b.km_in_1pct_zone-a.km_in_1pct_zone).slice(0,12);
+    const tot = rows.reduce((s,r)=>s+r.km_in_1pct_zone,0); const fx = (D.fixes||[]).slice(0,10);
+    engine(`Depths from the state coastal flood model (MC-FRM) at ${R.lat.length.toLocaleString()} road pieces`);
+    $('#readout').innerHTML = `<h2>Sea level ${sel.value}</h2>
+      <div class="stats"><div class="stat"><b>${fmt(tot)} km</b><span>road inside the 1%-per-year flood zone</span></div><div class="stat"><b>${fmt(rows.reduce((s,r)=>s+r.expected_km_flooded_per_year,0),0)} km</b><span>road expected to flood each year</span></div></div>
+      ${townTable(lt, [['Town',r=>titleCase(r.town)],['In 1% zone',r=>fmt(r.km_in_1pct_zone,1)+' km','n'],['Deeper than 30 cm',r=>fmt(r.km_deeper_30cm,1)+' km','n']], r=>r.town)}
+      <span class="lbl">Fix screening · raise the road above the 2050 1% flood</span>
+      ${fx.length? townTable(fx, [['Road',r=>`${titleCase(r.street)||'–'}<br><span class="note">${titleCase(r.town)}</span>`],['Raise',r=>fmt(r.raise_m,1)+' m','n'],['Benefit ÷ cost',r=>`${fmt(r.bcr_high_cost,1)}–${fmt(r.bcr_low_cost,1)}`,'n']], r=>r.town) : '<p class="empty">Run the scenarios step to fill this table.</p>'}
+      <p class="note">Screening level only: unit costs are assumed ranges, and the benefit counts only avoided traffic delay.</p>`;
+    wireGo(); setTitle('Long-term · sea level rise', `${sel.value}: ${fmt(tot)} km of road in the 1% flood zone`, 'Coastal flood depth in a 1%-per-year storm, from the state MC-FRM model'); scheduleDraw(true); };
+  sel.onchange=go; go();
+  $('#howto').textContent = 'Flood depths come from the state coastal flood model (MC-FRM) for a 1%-per-year storm at each sea level year.';
+}
+
+function mTsunami(){
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="amp">Wave height at the coast, above normal high tide</label><input type="range" id="amp" min="0.5" max="5" step="0.5"><span class="val" id="ampv"></span></div>
+    <div class="ctl"><label class="lbl" for="runup">Run-up on land</label><select id="runup"><option value="1">1× · water stays at wave height (flat)</option><option value="1.5">1.5× · typical run-up</option><option value="2">2× · steep or funnel-shaped shore</option></select></div>
+    <p class="note">What-if only. The state rates tsunami likelihood in Massachusetts as very low. This shows where water would reach, not a forecast.</p>`;
+  const sel=$('#amp'), ru=$('#runup'); sel.value = state.tsunami.amp; ru.value = state.tsunami.runup||'1';
+  const go=()=>{ state.tsunami.amp=+sel.value; state.tsunami.runup=ru.value; const f=+ru.value, a0=+sel.value, a=a0*f; $('#ampv').textContent = `${a0} m (${(a0*3.28).toFixed(0)} ft)`;
+    const [fl, ms] = timed(()=>{ const o = new Uint8Array(R.lat.length); for (let i=0;i<o.length;i++){ const g=GA[R.gauge[i]]; const mm = g&&g.mhhw_navd!=null? g.mhhw_navd : 1.0; if (R.elev[i]!=null && R.elev[i] < mm + a) o[i]=1; } return o; });
+    layer = {roadColor: i=>fl[i]? C.r3 : null, roadTip: i=>roadTipBase(i, `<br>water depth in this what-if: ${fmt(((GA[R.gauge[i]]||{}).mhhw_navd??1)+a-R.elev[i],1)} m`)};
+    legend(`<b>${a0} m wave${f>1?' × '+f+' run-up = '+fmt(a,1)+' m':''} on top of high tide</b>${dotLegend(C.r3,'road under water')}`);
+    engine(`Model run in your browser: <b>${R.lat.length.toLocaleString()} road pieces</b> in ${ms.toFixed(1)} ms`);
+    const n = fl.reduce((s,v)=>s+v,0); const near = [1,2,3,5].reduce((p,c)=>Math.abs(c-a)<Math.abs(p-a)?c:p, 1);
+    const tt = (D.tsunami||[]).filter(r=>r.wave_m===near).sort((x,y)=>y.km-x.km).slice(0,14);
+    $('#readout').innerHTML = `<h2>${fmt(a,1)} m above high tide</h2>${f>1?`<p class="note">${a0} m wave climbing to ${fmt(a,1)} m on land (${f}× run-up).</p>`:''}
+      <div class="stats"><div class="stat"><b>${fmt(n/10,1)} km</b><span>mapped coastal road under water</span></div><div class="stat"><b>${fmt((D.tsunami||[]).filter(r=>r.wave_m===near).reduce((s,r)=>s+r.km,0),0)} km</b><span>all roads the sea reaches (${near} m run)</span></div></div>
+      ${townTable(tt, [['Town',r=>titleCase(r.town)],['Road under water',r=>fmt(r.km,1)+' km','n'],['Median depth',r=>fmt(r.median_depth_m,1)+' m','n']], r=>r.town)}
+      <p class="note">Real tsunami waves climb higher on land than their height at the shore: about 1–2× on most coasts, more where the shore funnels the water. The run-up setting raises the water to cover that. Bending around headlands and draining back are not modelled.</p>`;
+    wireGo(); setTitle('Tsunami what-if', `${a0} m wave${f>1?', '+f+'× run-up':''} on top of high tide`, `${fmt(n/10,1)} km of mapped coastal road under water`); scheduleDraw(true); };
+  sel.oninput=go; ru.onchange=go; go();
+  $('#howto').textContent = 'Raises the sea by the chosen height wherever the sea can reach and marks roads below that level.';
+}
+
+const VI = (D.validation||{}).inland||{}, VC = (D.validation||{}).coastal||{};
+/* ---------- model check ---------- */
+function ciBars(rows, lo=0.6, hi=1){ const w=320, rh=30, h=rows.length*rh+30, x=v=>110+(w-120)*(v-lo)/(hi-lo);
+  const ticks=[0.4,0.5,0.6,0.7,0.8,0.9,1.0].filter(t=>t>=lo&&t<=hi);
+  return `<svg viewBox="0 0 ${w} ${h}" style="display:block;width:100%;aspect-ratio:${w}/${h};flex:none" role="img" aria-label="AUC with 95% ranges">${ticks.map(t=>`<line x1="${x(t)}" x2="${x(t)}" y1="4" y2="${h-16}" stroke="${C.muted}" stroke-opacity=".25"/><text x="${x(t)}" y="${h-4}" font-size="9" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${t.toFixed(1)}</text>`).join('')}
+  ${rows.map((r,i)=>{ const y=i*rh+22; return `<text x="0" y="${y+4}" font-size="10.5" fill="${C.ink}" font-family="IBM Plex Sans,sans-serif">${r[0]}</text>${r[2]?`<line x1="${x(r[2][0])}" x2="${x(r[2][1])}" y1="${y}" y2="${y}" stroke="${r[3]||C.accent}" stroke-width="3" stroke-opacity=".45" stroke-linecap="round"/>`:''}<circle cx="${x(r[1])}" cy="${y}" r="4.5" fill="${r[3]||C.accent}"/><text x="${x(r[1])}" y="${y-8}" font-size="9.5" text-anchor="middle" fill="${C.ink}" font-family="IBM Plex Mono,monospace">${r[1].toFixed(3)}</text>`; }).join('')}</svg>`; }
+function relPlot(pts, maxv){ const w=300, h=210, m=34, X=v=>m+(w-m-10)*Math.sqrt(v/maxv), Y=v=>h-m+((m+6)-(h-m))*Math.sqrt(v/maxv), tk=[0.01,0.05,0.2,0.5].filter(t=>t<=maxv);
+  return `<svg viewBox="0 0 ${w} ${h}" style="display:block;width:100%;aspect-ratio:${w}/${h};flex:none" role="img" aria-label="Predicted against observed flood rate"><line x1="${X(0)}" y1="${Y(0)}" x2="${X(maxv)}" y2="${Y(maxv)}" stroke="${C.muted}" stroke-dasharray="4 3"/>
+  ${tk.map(t=>`<text x="${X(t)}" y="${h-m+14}" font-size="9" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${Math.round(t*100)}%</text><text x="${m-4}" y="${Y(t)+3}" font-size="9" text-anchor="end" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${Math.round(t*100)}%</text>`).join('')}
+  <text x="${(w+m)/2}" y="${h-4}" font-size="9.5" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Sans,sans-serif">model said</text><text x="10" y="${(h-m)/2}" font-size="9.5" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Sans,sans-serif" transform="rotate(-90 10 ${(h-m)/2})">really happened</text>
+  ${pts.map(p=>`<circle cx="${X(Math.min(p.p,maxv))}" cy="${Y(Math.min(p.o,maxv))}" r="${3+Math.min(6,Math.log10(p.n))}" fill="${p.c}" fill-opacity=".8" stroke="${C.panel}"/>`).join('')}</svg>`; }
+function mCheck(){
+  layer = {townFill: n=>{ const p=tprops.get(n); if (!p) return null; return String(p.district)==='3' ? C.shallow : C.accent; }, townTip: n=>{ const p=tprops.get(n); return `<b>${titleCase(n)}</b><br>${p? (String(p.district)==='3'?'District 3: used as an unseen test region, then added to training':'Districts 4–6: original training region') : 'outside the model area'}`; }};
+  legend(`<b>Rain model coverage</b><div><span class="sw" style="background:${C.accent}"></span>Districts 4–6 (original training)</div><div><span class="sw" style="background:${C.shallow}"></span>District 3 (tested blind, then added)</div>`);
+  $('#controls').innerHTML = `<p class="note">Every score here comes from leave-one-year-out testing: the model is trained without a year, then scored on that year, for every year. Ranges are 95% bootstrap intervals over storm days.</p>`;
+  $('#howto').textContent = 'AUC is the chance the model ranks a real flood above a non-flood (0.5 = coin flip, 1 = perfect). The reliability chart checks whether a forecast of X% comes true X% of the time: dots on the dashed line are perfectly calibrated.';
+  engine('Validation numbers computed overnight in Colab from the saved training tables');
+  const rc = (VI.reliability_combined||[]).map(r=>({p:r.predicted,o:r.observed,n:r.n,c:C.accent})), rco = (VC.reliability||[]).map(r=>({p:r[2],o:r[3],n:r[1],c:C.r2}));
+  const cm = VC.models||[], hw = VC.hwm||{}, sy = VC.same_years_check||{};
+  $('#readout').innerHTML = `<h2>How good is it?</h2>
+   <span class="lbl">Rain flooding · town-days ${fmt((VI.combined_all||{}).rows)} tested, ${fmt((VI.combined_all||{}).floods)} with a flood</span>
+   ${ciBars([['Districts 4–6', (VI.east_D46||{}).AUC||0, (VI.east_D46||{}).AUC_95CI], ['District 3, never seen', (VI.transfer_D3||{}).AUC||0, (VI.transfer_D3||{}).AUC_95CI, C.shallow], ['All, combined model', (VI.combined_all||{}).AUC||0, (VI.combined_all||{}).AUC_95CI]])}
+   <p class="note">Trained only on Districts 4–6, the model ranked floods in District 3 towns as well as at home. The map now uses one model trained on all four districts.</p>
+   <span class="lbl">Coastal flooding · ${fmt(VC.zone_days)} zone-days, ${fmt(VC.reports)} with NOAA reports</span>
+   ${ciBars(cm.filter(r=>r[1]==='lr'||r[0].includes('waves')).map(r=>[r[0].replace(' (current)','')+(r[1]==='trees'?' (trees)':''), r[2], r[3], r[0].includes('waves')?C.r2:C.accent]), 0.6, 1)}
+   <p class="note">Adding the day's biggest offshore wave height (NOAA buoys) lifts the score from ${sy.lr?sy.lr[0]:'–'} to ${sy.lr?sy.lr[1]:'–'} on the same ${sy.years||''} days. Waves alone score ${sy.waves_alone||'–'}.</p>
+   <span class="lbl">Reliability · does X% happen X% of the time?</span>
+   ${relPlot(rc.concat(rco), 0.7)}
+   <p class="note"><span class="sw" style="background:${C.accent}"></span>rain model &nbsp; <span class="sw" style="background:${C.r2}"></span>coastal model (with waves). Bigger dots = more days.</p>
+   <span class="lbl">Checked against USGS high-water marks</span>
+   <div class="stats"><div class="stat"><b>${hw.detection_2018_01?hw.detection_2018_01[0]+' of '+hw.detection_2018_01[1]:'–'}</b><span>Jan 2018 marks near roads (water above the road surface) where the model had the road under water</span></div><div class="stat"><b>+${fmt((hw.local_minus_gauge_m||{}).median,2)} m</b><span>median: water at the marks above water at the nearest tide gauge (waves and wind push)</span></div></div>
+   <p class="note">${fmt(hw.marks)} USGS marks in eastern Massachusetts from 6 storms (1978–2018). The road check uses the January 2018 nor'easter, the one storm both on the map's replay list and surveyed by USGS. Marks only exist where water was, so this measures misses, not false alarms.</p>${checkExtra()}`;
+}
+function checkExtra(){ const VR=(D.validation||{}).roads; let s='';
+  if (VR) s += `<span class="lbl">Which roads in a town flood first · ${fmt(VR.town_days)} flooded town-days</span>
+   ${ciBars([['Lowest roads first', VR.baseline||0.5, null, C.muted], ['Road model', VR.mean_auc||0.5, VR.ci||null, C.r2]], 0.4, 1)}
+   <div class="stats"><div class="stat"><b>${Math.round((VR.share_top10||0)*100)}%</b><span>of reported flooded roads were in the model's top 10% of that town's roads</span></div></div>
+   <p class="note">Each road piece was scored from lidar terrain: how low it sits compared with roads around it (250 m and 600 m) and within its town. It beats "lowest roads first" but is <b>not shown on the map yet</b>: many top-ranked streets sit on hills, a sign that report locations (often placed at a town centre or a crossroads) are too rough to teach street-level detail. Needs exact flood locations (311 calls, MassDOT closure logs) before it can be trusted.</p>`;
+  const O4=(D.validation||{}).forecast_o4, O6=(D.validation||{}).forecast_stofs;
+  if (O4) s += `<span class="lbl">Can the live tab see a storm coming? (48 h ahead)</span>
+   <table><thead><tr><th>Gauge, 1996–2026</th><th>Storms</th><th>Tide table + current surge</th></tr></thead><tbody>${Object.entries(O4).map(([k,v])=>`<tr><td>${k}</td><td>${v.storm_days}</td><td>${v.tide_plus_surge_pos.storms_caught.split('/')[0]} caught · peak ${fmt(-v.tide_plus_surge_pos.bias_storm_cm,0)} cm too low</td></tr>`).join('')}</tbody></table>
+   <p class="note">Keeping today's surge constant misses almost every storm: the surge has not arrived when the forecast is made. "Storm" = the next 48 h reached a 1-in-2-year level.</p>`;
+  if (O6) s += `<span class="lbl">Fix: NOAA's STOFS surge model · ${O6.forecast_days} forecasts ${O6.period}</span>
+   <table><thead><tr><th>Forecast</th><th>High-water days caught</th><th>False alarms</th></tr></thead><tbody>${O6.rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
+   <p class="note">Each day's 12 UTC STOFS-2D-Global run (public NOAA archive), levelled to each gauge on the 6 hours before issue, scored on the next 48 h. High-water day = the ${O6.threshold} or higher. The live tab now takes the higher of STOFS and the old shortcut, and draws the STOFS curve on each tide chart (red line).</p>`;
+  return s; }
+const MODES = {check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
+function setMode(m){ if (!MODES[m]) m = 'live'; state.mode = m; try{ history.replaceState(null, '', '#' + m); }catch(e){} try{ localStorage.setItem('mfw-mode', m); }catch(e){}
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===m))); $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+
+/* ================= live status bar ================= */
+function liveStatus(){ const L = D.live; if (!L){ $('#livetxt').textContent = 'No live data yet'; return; }
+  const m = /(\d{4}-\d\d-\d\d) (\d\d):(\d\d)/.exec(L.asof||''); let ago = '';
+  if (m){ const off = new Date().toLocaleString('en-US',{timeZone:'America/New_York',timeZoneName:'shortOffset'}).match(/GMT([+-]\d+)/); const tz = off? (+off[1]) : -4;
+    const t = Date.parse(`${m[1]}T${m[2]}:${m[3]}:00${tz<0?'-':'+'}${String(Math.abs(tz)).padStart(2,'0')}:00`); const h = (Date.now()-t)/3.6e6;
+    ago = h < 1 ? `${Math.max(1,Math.round(h*60))} min ago` : h < 48 ? `${Math.round(h)} h ago` : `${Math.round(h/24)} days ago`; }
+  const g = Object.values(L.gauges||{}); const minA = Math.min(1, ...g.map(x=>x.aep)); const alerts = (L.alerts||[]).length;
+  const level = minA <= 0.2 || alerts ? (minA <= 0.02 ? 'bad' : 'warn') : 'ok';
+  $('#livedot').className = 'dot ' + level;
+  $('#livetxt').textContent = `${level==='ok'?'Calm':level==='warn'?'Watch':'Flooding likely'} · updated ${ago || L.asof}`;
+  $('#livechip').title = `Data refreshed automatically each morning (${L.asof}). Sources: NOAA tide gauges, NWS forecast grid, NWS alerts, NTWC.`; }
+function tick(){ $('#clock').textContent = new Date().toLocaleTimeString('en-US',{timeZone:'America/New_York', hour:'numeric', minute:'2-digit', second:'2-digit'}) + ' ET'; }
+setInterval(tick, 1000); tick(); setInterval(liveStatus, 60000);
+
+/* ================= presentation view ================= */
+function present(on){ $('#app').classList.toggle('present', on); $('#titlecard').hidden = !on; $('#exitpresent').hidden = !on; setTimeout(()=>{ resize(); }, 30); }
+$('#present').onclick = ()=>present(true); $('#exitpresent').onclick = ()=>present(false);
+document.addEventListener('keydown', e=>{ if (e.key==='Escape' && $('#app').classList.contains('present')) present(false); });
+
+/* ================= start ================= */
+performance.mark('before-start'); readColors(); liveStatus();
+new ResizeObserver(resize).observe(stage);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ readColors(); setMode(state.mode); });
+new MutationObserver(()=>{ readColors(); setMode(state.mode); }).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+resize(); setMode(MODES[state.mode]? state.mode : 'live');
+$('#loading').hidden = true; performance.mark('ready'); setTimeout(()=>{ buildWater(); performance.mark('water'); }, 60);
+})();
+</script>
