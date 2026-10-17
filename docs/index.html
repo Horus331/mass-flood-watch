@@ -742,7 +742,7 @@ async function mGraph(){
   scheduleDraw(true);
 }
 /* ================= water movement simulation (Water tab) ================= */
-const WSIM = {}, SIM_IDS = ['flash', 'coastal']; let wTimer = 0;
+const WSIM = {}, SIM_IDS = ['flash', 'boston', 'southshore', 'coastal'], SIM_LABEL = {flash: 'Flash flood · Sept 11, 2023 · Leominster', boston: "Coastal · Jan 4, 2018 · Boston Harbor (zoomed)", southshore: "Coastal · Jan 4, 2018 · South Shore (zoomed)", coastal: "Coastal · Jan 4, 2018 · whole coast (overview)"}; let wTimer = 0;
 async function loadSim(id){ if (WSIM[id]) return WSIM[id]; const m = await getJSON('sim/' + id + '/meta.json'); m.img = new Array(m.n); m.ver = m.runtime_s + '-' + m.steps; WSIM[id] = m; if (m.rain_frames) m.rain_frames = m.rain_frames.map(([t, file]) => ({ms: Date.parse(t.replace('Z', ':00Z')), file}));
   if (m.roads){ const N = m.roads.kind === 'coastal' ? R.lat.length : 60000; m.rf = new Int16Array(N).fill(-1); m.rl = new Int16Array(N).fill(-1); m.rp = new Float32Array(N);
     for (const [i, v] of Object.entries(m.roads.first)) m.rf[+i] = v; for (const [i, v] of Object.entries(m.roads.last||{})) m.rl[+i] = v; for (const [i, v] of Object.entries(m.roads.peak||{})) m.rp[+i] = v[0]; }
@@ -771,12 +771,12 @@ function wChart(m){ const w = 300, h = 120, pl = 30, pr = 30, pt = 8, pb = 18, X
 async function mWater(){
   setTitle('Water movement simulation', 'Watch the water move', 'A 2-D flow model routes real radar rain over lidar terrain, and pushes a real storm tide over the coast.');
   layer = {}; legend('<b>Loading the simulation…</b>');
-  const st = state.water || (state.water = {id: 'flash', f: 0, speed: 4, showMax: false, rain: true, roads: true});
+  const st = state.water || (state.water = {id: (location.search.match(/sim=(\w+)/)||[])[1] || 'flash', f: 0, speed: 4, showMax: false, rain: true, roads: true});
   let m; try { m = await loadSim(st.id); } catch(e){ $('#readout').innerHTML = '<h2>Water</h2><p class="empty">The simulation frames are still being computed. Check back in a little while.</p>'; $('#controls').innerHTML = ''; legend(''); return; }
   if (state.mode !== 'water') return;
   if (m.roads && m.roads.kind === 'graph') { try { await loadGraph(); } catch(e){} if (state.mode !== 'water') return; }
   st.f = Math.min(st.f, m.n - 1);
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${SIM_IDS.map(i => `<option value="${i}">${i === 'flash' ? 'Flash flood · Sept 11, 2023 · Leominster' : "Coastal · Jan 4, 2018 nor'easter · Boston"}</option>`).join('')}</select></div>
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${SIM_IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>
     <div class="ctl"><span class="lbl">Time</span><div class="wtime" id="wtime"></div><input type="range" id="wbar" min="0" max="${(m.n - 1) * 20}" step="1" value="${Math.round(st.f * 20)}" aria-label="Simulation time">
     <div class="wplay"><button class="btn" id="wplay">▶ Play</button><select id="wspd" aria-label="Speed" style="width:auto"><option value="2">slow</option><option value="4">normal</option><option value="8">fast</option></select>
     <label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wmax"> highest water</label></div>
@@ -790,7 +790,7 @@ async function mWater(){
   $('#wspd').onchange = e => { st.speed = +e.target.value; };
   $('#wmax').onchange = e => { st.showMax = e.target.checked; wUpdate(); };
   const isF = m.kind === 'flash';
-  $('#howto').innerHTML = isF ? `Drag the bar or press play. Blue is water deeper than ${Math.round(m.show_m * 100)} cm: rain from NOAA's MRMS radar (1 km, every hour) falls on USGS lidar terrain, soaks in by the SCS curve-number rule, and the rest flows downhill and pools, computed every few seconds with a 2-D shallow-water model (local-inertial, as in LISFLOOD-FP). Red roads are District 3 road segments under 30 cm or more of water at that moment.`
+  $('#howto').innerHTML = isF ? `Drag the bar or press play. Blue is water deeper than ${Math.round(m.show_m * 100)} cm: rain from NOAA's MRMS radar (1 km, every hour) falls on USGS lidar terrain, flows downhill and pools, and keeps soaking into the ground (Horton infiltration, fast at first, slower once the soil is wet) with a light storm-drain sink, so after the rain the flooded area shrinks as water soaks in and drains away. Everything is computed every few seconds with a 2-D shallow-water model (local-inertial, as in LISFLOOD-FP). Red roads are District 3 road segments under 30 cm or more of water at that moment.`
     : `Drag the bar or press play. The sea follows the real Boston tide gauge record (6-minute readings), and a 2-D shallow-water model lets the water flow over the lidar ground and drain back with the tide, so low ground far from an opening floods less than a "bathtub" fill would show. Blue is water on ground that is normally dry (above the average higher high tide). Red dots are road points under 30 cm or more.`;
   layer.water = () => { const [lon0, lat0, lon1, lat1] = m.bounds, x = lon0, y = mY(lat1), w = lon1 - lon0, h = mY(lat0) - mY(lat1);
     ctx.save(); ctx.imageSmoothingEnabled = true;
@@ -809,7 +809,7 @@ async function mWater(){
   engine(`2-D local-inertial model · ${m.shape[1]}×${m.shape[0]} cells of ${fmt(m.cell_m)} m · ${fmt(m.steps)} time steps · computed on GitHub Actions in ${fmt(m.runtime_s / 60, 0)} min · ${isF ? 'NOAA MRMS rain, USGS 3DEP terrain' : 'NOAA tide gauge ' + m.station + ', USGS 3DEP terrain'}`);
   $('#readout').innerHTML = `<h2>${isF ? 'Flash flood' : 'Coastal flood'}</h2><p class="note">${m.title}</p>
     <div class="stats"><div class="stat"><b id="ws1"></b><span id="ws1l"></span></div><div class="stat"><b id="ws2"></b><span>under water (${Math.round(m.show_m * 100)} cm or more)</span></div>
-    <div class="stat"><b id="ws3"></b><span>deeper than 50 cm</span></div><div class="stat"><b id="ws4"></b><span>${m.roads && m.roads.kind === 'graph' ? 'road segments' : 'road points'} under 30 cm+</span></div></div>
+    <div class="stat"><b id="ws3"></b><span>deeper than 50 cm</span></div><div class="stat"><b id="ws4"></b><span>${m.roads && m.roads.kind === 'graph' ? 'road segments' : 'road points'} under 30 cm+</span></div>${isF && m.frames[0].soaked_mm != null ? '<div class="stat"><b id="ws5"></b><span>soaked into the ground so far (average)</span></div>' : ''}</div>
     <span class="lbl">The whole storm</span>${wChart(m)}
     ${isF ? `<p class="note">Storm total: up to ${fmt(m.rain_total_max_mm)} mm in the box (district average ${fmt(m.rain_total_mean_mm)} mm). Rivers start dry and water entering from outside the box is not included, so big rivers (the Nashua) look smaller than they were; small streams, low streets and ponds behind road embankments are what to watch.</p>`
           : `<p class="note">Peak at the gauge: ${fmt(m.peak_navd_m, 2)} m NAVD88 (${etFmt(new Date(m.peak_utc.replace(' ', 'T'))).replace(/^\w+, /, '')}), ${fmt(m.peak_navd_m - m.mhhw_navd_m, 2)} m above the average higher high tide. One gauge drives the whole coast and waves are left out, so wave-exposed beaches (Scituate, Marshfield) flooded more than shown.</p>`}`;
@@ -824,7 +824,7 @@ function wUpdate(){ const st = state.water, m = WSIM[st.id]; if (!m || state.mod
   const show = st.showMax ? {wet_km2: Math.max(...m.frames.map(f => f.wet_km2)), deep_km2: Math.max(...m.frames.map(f => f.deep_km2)), roads_wet: m.rf ? m.rf.reduce((a, v) => a + (v >= 0), 0) : null} : fr;
   if ($('#wtime')) $('#wtime').textContent = st.showMax ? 'Highest water, whole storm' : etFmt(simTime(m, st.f));
   if ($('#wbar') && document.activeElement !== $('#wbar')) $('#wbar').value = Math.round(st.f * 20);
-  if ($('#ws1')){ $('#ws1').textContent = isF ? `${fmt(fr.rain_max_mmph, 0)} mm/h` : `${fmt(fr.level_navd_m, 2)} m`; $('#ws1l').textContent = isF ? 'heaviest rain this hour (MRMS radar)' : 'Boston tide gauge, NAVD88';
+  if ($('#ws1')){ $('#ws1').textContent = isF ? `${fmt(fr.rain_max_mmph, 0)} mm/h` : `${fmt(fr.level_navd_m, 2)} m`; $('#ws1l').textContent = isF ? 'heaviest rain this hour (MRMS radar)' : 'Boston tide gauge, NAVD88'; if ($('#ws5')) $('#ws5').textContent = fr.soaked_mm != null ? `${fmt(fr.soaked_mm, 0)} mm` : '–';
     $('#ws2').textContent = `${fmt(show.wet_km2, 1)} km²`; $('#ws3').textContent = `${fmt(show.deep_km2, 1)} km²`; $('#ws4').textContent = show.roads_wet == null ? '–' : fmt(show.roads_wet); }
   const cur = $('#wcur'); if (cur){ const x = 30 + 240 * st.f / (m.n - 1); cur.setAttribute('x1', x); cur.setAttribute('x2', x); }
   scheduleDraw(true); }
