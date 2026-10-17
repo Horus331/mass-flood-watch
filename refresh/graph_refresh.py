@@ -71,18 +71,50 @@ def storm_ari(r):                                                    # r: segmen
         a = np.exp(np.log(ARI)[idx - 1] + np.clip((lx[:, 0] - lo) / np.maximum(hi - lo, 1e-6), -3, 1) * (np.log(ARI)[idx] - np.log(ARI)[idx - 1]))
         a = np.where(d < Dk[:, 0], d / Dk[:, 0], a); best = np.maximum(best, a.astype(np.float32))
     return best
-m = now.month; probs = []
+m = now.month; probs = []; XS = []
 for Mc in MEM:
     r = Mc[cell]; ari = storm_ari(r)
     HF = np.interp(np.log10(np.maximum(ari, 1e-3)), np.log10([1, 2, 5, 10, 25, 50, 100]), [0.25, 0.5, 1, 2, 3, 4, 5], left=0, right=5).astype(np.float32)
     X = np.column_stack([Xs, r, np.log1p(r), api, np.log1p(ari), HF, np.full(nS, np.sin(2 * np.pi * m / 12)), np.full(nS, np.cos(2 * np.pi * m / 12)), np.log1p(hist)]).astype(np.float32)
     p = T['GB'].predict_proba(X)[:, 1]; p[r[:, 3] < 20] = 0.0            # as in training: only segments with >= 20 mm are scored
-    probs.append(p)
+    probs.append(p); XS.append((X, p.copy()))
 p = np.mean(probs, 0) if probs else np.zeros(nS)
+MODEL_NAME = 'segment-only ML (boosted trees)'
+# graph neural network (used when it won the comparison): same features, messages passed between connected segments
+if 'graph' in VER.get('best', '') and os.path.exists(os.path.join(MD, 'gnn.pt')) and probs:
+    try:
+        import torch
+        from scipy import sparse
+        CK = torch.load(os.path.join(MD, 'gnn.pt'), map_location='cpu', weights_only=False); cfg = CK['cfg']
+        A = sparse.csr_matrix((np.ones(len(Z['adj_r'])), (Z['adj_r'], Z['adj_c'])), shape=(nS, nS)); deg = np.asarray(A.sum(1)).ravel()
+        An = (sparse.diags(1 / np.maximum(deg, 1)) @ A).tocoo(); At = torch.sparse_coo_tensor(np.vstack([An.row, An.col]), An.data.astype(np.float32), (nS, nS)).coalesce()
+        class SAGE(torch.nn.Module):
+            def __init__(s, fin, h=64, L=3, p=0.3):
+                super().__init__(); s.inp = torch.nn.Linear(fin, h); s.self_ = torch.nn.ModuleList([torch.nn.Linear(h, h) for _ in range(L)]); s.nb = torch.nn.ModuleList([torch.nn.Linear(h, h) for _ in range(L)])
+                s.norm = torch.nn.ModuleList([torch.nn.LayerNorm(h) for _ in range(L)]); s.out = torch.nn.Linear(h, 1); s.p = p
+            def forward(s, x):
+                h = torch.relu(s.inp(x))
+                for a, b, n in zip(s.self_, s.nb, s.norm): h = h + torch.relu(n(a(h) + b(torch.sparse.mm(At, h))))
+                return s.out(h).squeeze(-1)
+        use2 = 'top of trees' in VER['best'] and CK.get('nets2')
+        nets = []
+        for sd_ in (CK['nets2'] if use2 else CK['nets']):
+            net = SAGE(len(CK['FEATS']) + (1 if use2 else 0), cfg.get('h', 64), cfg.get('L', 3)); net.load_state_dict(sd_); net.eval(); nets.append(net)
+        gp = []
+        for X, pt in XS:
+            Xn = np.nan_to_num((X - CK['mu']) / CK['sd'])
+            if use2:
+                lg = np.log(np.clip(pt, 1e-6, 1 - 1e-6)) - np.log1p(-np.clip(pt, 1e-6, 1 - 1e-6)); lg = (lg - CK['lg_mu']) / CK['lg_sd']; Xn = np.column_stack([Xn, lg])
+            with torch.no_grad(): q_ = np.mean([torch.sigmoid(n(torch.tensor(Xn, dtype=torch.float32))).numpy() for n in nets], 0)
+            q_[X[:, len(Xs[0]) + 3] < 20] = 0.0; gp.append(q_)
+        pg = np.mean(gp, 0)
+        if 'average' in VER['best']: p = 0.5 * p + 0.5 * pg; MODEL_NAME = 'average of trees and graph neural network'
+        else: p = pg; MODEL_NAME = VER['best']
+    except Exception as ex: print('GNN scoring failed, trees used:', repr(ex)[:160])
 q = np.round(np.clip(p, 0, 1) * 1000).astype(int)
 top = np.argsort(-p)[:25]
 out = dict(asof=pd.Timestamp.now(tz='America/New_York').strftime('%Y-%m-%d %H:%M ET'), hrrr_latest=f'{issue:%Y-%m-%d %H}Z', runs=len(probs),
-           window=[f'{win0:%Y-%m-%dT%H}Z', f'{win1:%Y-%m-%dT%H}Z'], wetness=api_note, model='segment-only ML (boosted trees)',
+           window=[f'{win0:%Y-%m-%dT%H}Z', f'{win1:%Y-%m-%dT%H}Z'], wetness=api_note, model=MODEL_NAME,
            max_rain_1h_mm=round(float(max(m_[:, 0].max() for m_ in MEM)) if MEM else 0, 1), max_rain_24h_mm=round(float(max(m_[:, 3].max() for m_ in MEM)) if MEM else 0, 1),
            n_scored=int((p > 0).sum()), p1000=q.tolist(), top=[[int(i), int(q[i])] for i in top if q[i] > 0])
 json.dump(out, open(os.path.join(ROOT, 'docs', 'graph_live.json'), 'w'), separators=(',', ':'))
