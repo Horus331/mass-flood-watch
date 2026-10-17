@@ -23,10 +23,17 @@ UA = {'User-Agent': 'mass-flood-watch research map (github.com/Horus331/mass-flo
 SCEN = {
     'flash': dict(title='Flash flood · Sept 11, 2023 (Leominster, Fitchburg)', kind='flash',
                   bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0,
-                  t0='2023-09-11T17:00Z', hours=16, frame_min=15, manning=0.06, cn=80, show_m=0.15),
-    'coastal': dict(title="Coastal flood · Jan 4, 2018 nor'easter (Boston Harbor to the South Shore)", kind='coastal',
+                  t0='2023-09-11T17:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
+                  f0=30.0, fc=3.0, Fk=40.0, drain=2.0),          # Horton infiltration (mm/h, mm) on ponded water all the time + a light storm-drain sink
+    'boston': dict(title="Coastal flood · Jan 4, 2018 nor'easter · Boston Harbor (Revere to Quincy)", kind='coastal',
+                   bbox=(-71.10, 42.29, -70.95, 42.43), res=15.0,
+                   t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
+    'southshore': dict(title="Coastal flood · Jan 4, 2018 nor'easter · South Shore (Hull to Marshfield)", kind='coastal',
+                       bbox=(-70.94, 42.06, -70.62, 42.31), res=20.0,
+                       t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
+    'coastal': dict(title="Coastal flood · Jan 4, 2018 nor'easter (Cape Ann to Duxbury, overview)", kind='coastal',
                     bbox=(-71.20, 41.98, -70.56, 42.72), res=60.0,
-                    t0='2018-01-04T08:00Z', hours=18, frame_min=15, manning=0.045, show_m=0.05, station='8443970'),
+                    t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.045, show_m=0.05, station='8443970'),
 }
 
 
@@ -254,10 +261,10 @@ def run(name):
             for c in range(4): img[..., c][mm] = np.interp(r3[mm], xs_, cs_[:, c]).astype(np.uint8)
             fn = f'rain/h{ts:%m%d%H}.png'; save_png(img, os.path.join(out, fn)); rain_frames.append([ts.strftime('%Y-%m-%dT%H:%MZ'), fn])
         tot = sum(RAIN.values()); print(f'storm total max {tot.max():.0f} mm, mean {tot.mean():.0f} mm')
-        Smax = 25400.0 / S['cn'] - 254.0; Ia = 0.2 * Smax
-        Q = lambda P: np.where(P > Ia, (P - Ia) ** 2 / (P + 0.8 * Smax), 0.0)
+        Finf = np.zeros((ny, nx), np.float32)                          # water soaked in so far (mm), drives the Horton decay
+        lost_mm = 0.0
         P = np.zeros((ny, nx), np.float32)
-        extra = dict(rain_frames=rain_frames, rain_colors=RAIN_STOPS, rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), curve_number=S['cn'])
+        extra = dict(rain_frames=rain_frames, rain_colors=RAIN_STOPS, rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(f0=S['f0'], fc=S['fc'], Fk=S['Fk'], drain=S['drain']))
     else:
         st = S['station']; DT = datums(st)
         lvl = coops(st, t0 - pd.Timedelta(hours=1), t0 + pd.Timedelta(hours=S['hours'] + 1))
@@ -301,6 +308,7 @@ def run(name):
             if S['kind'] == 'flash':
                 hr = frame_t[k].ceil('h') if frame_t[k].ceil('h') in RAIN else None
                 fm['rain_mmph'] = round(float(RAIN[hr].mean()), 2) if hr is not None else 0.0
+                fm['soaked_mm'] = round(float(Finf.mean()), 1); fm['volume_m3'] = round(float(sim.h.sum()) * dx * dx)
                 fm['rain_max_mmph'] = round(float(RAIN[hr].max()), 1) if hr is not None else 0.0
             else:
                 fm['level_navd_m'] = round(lvl_t(frame_t[k]), 2)
@@ -324,12 +332,12 @@ def run(name):
         if S['kind'] == 'flash':
             hr = (t + pd.Timedelta(seconds=1)).ceil('h')
             if hr in RAIN:
-                dP = RAIN[hr] * (dt / 3600.0)
-                src = (Q(P + dP) - Q(P)) / 1000.0 / dt
-                P += dP
-                sim.step(dt, source=src.astype(np.float32))
+                P += RAIN[hr] * (dt / 3600.0)
+                sim.step(dt, source=(RAIN[hr] / 3.6e6).astype(np.float32))   # all rain lands; the ground takes its share below
             else:
                 sim.step(dt)
+            fcap = (S['fc'] + (S['f0'] - S['fc']) * np.exp(-Finf / S['Fk']) + S['drain']) / 3.6e6 * dt   # m this step
+            loss = np.minimum(sim.h, fcap); sim.h -= loss; Finf += loss * 1000.0
         else:
             sim.step(dt, level=lvl_t(t))
         t = t + pd.Timedelta(seconds=dt); steps += 1
