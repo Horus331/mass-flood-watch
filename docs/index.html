@@ -367,14 +367,14 @@ function draw(){
     const c2 = clusterDraw(it, k, 'report', m > 6 ? 1 : 0); CLU = (CLU || []).concat(c2); }
   // segment graph (District 3): coloured road segments, links between connected segments when zoomed in
   if (layer.segColor && GSEG){ const v = viewBB(40), groups = new Map();
-    if (m < 30){ ctx.lineWidth = 1/k; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; const LP = new Path2D();
+    if (m < 30 && state.mode === 'graph'){ ctx.lineWidth = 1/k; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; const LP = new Path2D();
       for (const [a,b] of GSEG.links){ const A = GSEG.mid[a], B = GSEG.mid[b]; if ((A[0]<v[0]&&B[0]<v[0])||(A[0]>v[2]&&B[0]>v[2])||(A[1]<v[1]&&B[1]<v[1])||(A[1]>v[3]&&B[1]>v[3])) continue; LP.moveTo(A[0],A[1]); LP.lineTo(B[0],B[1]); }
       ctx.stroke(LP); ctx.globalAlpha = 1;
       const NP = new Path2D(), rr = 2.2/k; for (let i=0;i<GSEG.n;i++){ const A = GSEG.mid[i]; if (A[0]<v[0]||A[0]>v[2]||A[1]<v[1]||A[1]>v[3]) continue; NP.moveTo(A[0]+rr, A[1]); NP.arc(A[0], A[1], rr, 0, 6.2832); }
       ctx.fillStyle = C.muted; ctx.fill(NP); }
     for (let i=0;i<GSEG.n;i++){ const bb = GSEG.bb[i]; if (bb[2]<v[0]||bb[0]>v[2]||bb[3]<v[1]||bb[1]>v[3]) continue; const col = layer.segColor(i); if (!col) continue;
       let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } for (const c of GSEG.geo[i]) addLine(p, c); }
-    const ww = Math.min(6, Math.max(1.4, 0.0004*k));
+    const ww = Math.min(4, Math.max(1.2, 0.0003*k));
     for (const [col, p] of groups){ strokeW(p, ww+2.4, C['flood-ring']); strokeW(p, ww, col); }
     if (layer.segRing){ const P = new Path2D(); for (const i of layer.segRing){ for (const c of GSEG.geo[i]) addLine(P, c); } strokeW(P, ww+7, C.ink); strokeW(P, ww+3, C.panel); }
   }
@@ -913,6 +913,8 @@ async function mWater(){
     if (m.rain_frames && st.rain && !st.showMax){ const t = simMs(m, st.f), RF = m.rain_frames; let i = RF.findIndex(r => r.ms >= t - 1); if (i < 0) i = RF.length - 1;
       const a = Math.max(0, Math.min(1, 1 - (RF[i].ms - t) / 3.6e6)), A = rainImg(m, i), B = rainImg(m, Math.min(i + 1, RF.length - 1));
       if (okImg(A)){ ctx.globalAlpha = 0.5; ctx.drawImage(A, x, y, w, h); } if (a > 0.02 && i + 1 < RF.length && okImg(B)){ ctx.globalAlpha = 0.5 * a; ctx.drawImage(B, x, y, w, h); } ctx.globalAlpha = 1; }
+    { const im0 = simImg(m, Math.floor(st.f)), cell = okImg(im0) ? ps()*w/im0.naturalWidth : 0;   // soften the grid when one cell is many pixels wide
+      if (cell > 3) ctx.filter = `blur(${Math.min(10, cell*0.4*dpr).toFixed(1)}px)`; }
     if (st.showMax){ const im = simImg(m, 'max'); if (okImg(im)) ctx.drawImage(im, x, y, w, h); }
     else { const k = Math.floor(st.f), a = st.f - k, A = simImg(m, k), B = simImg(m, Math.min(k + 1, m.n - 1));
       if (okImg(A)) ctx.drawImage(A, x, y, w, h); if (a > 0.02 && okImg(B)){ ctx.globalAlpha = a; ctx.drawImage(B, x, y, w, h); } }
