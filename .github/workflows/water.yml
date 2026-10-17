@@ -34,6 +34,8 @@ jobs:
       - run: pip install -r sim/requirements.txt
       - name: Simulate ${{ matrix.scenario }}
         run: python sim/water_sim.py ${{ matrix.scenario }}
+      - name: Overview copies for zoomed-out maps
+        run: python sim/pool_frames.py ${{ matrix.scenario }}
       - name: Commit frames
         run: |
           git config user.name "flood-watch-bot"
