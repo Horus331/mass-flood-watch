@@ -51,6 +51,17 @@ SCEN = {
     'coastal': dict(title="Coastal flood · Jan 4, 2018 nor'easter (Cape Ann to Duxbury, overview)", kind='coastal',
                     bbox=(-71.20, 41.98, -70.56, 42.72), res=60.0,
                     t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.045, show_m=0.05, station='8443970'),
+    # the same storm tide on a higher sea: every gauge reading raised by sea_rise (NOAA 2022 intermediate scenario for Boston is about
+    # +0.5 m around 2050-2060 and +1.0 m around 2080-2090, relative to the 2018 sea)
+    'boston_slr05': dict(title="Jan 4, 2018 nor'easter on a sea 0.5 m higher (about 2050-2060) · Boston Harbor", kind='coastal',
+                         bbox=(-71.10, 42.29, -70.95, 42.43), res=15.0, sea_rise=0.5,
+                         t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
+    'boston_slr10': dict(title="Jan 4, 2018 nor'easter on a sea 1.0 m higher (about 2080-2090) · Boston Harbor", kind='coastal',
+                         bbox=(-71.10, 42.29, -70.95, 42.43), res=15.0, sea_rise=1.0,
+                         t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
+    'northshore': dict(title="Coastal flood · Jan 4, 2018 nor'easter · North Shore (Revere to Gloucester)", kind='coastal',
+                       bbox=(-71.02, 42.40, -70.60, 42.70), res=25.0,
+                       t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
 }
 
 
@@ -383,6 +394,7 @@ def run(name):
     else:
         st = S['station']; DT = datums(st)
         lvl = coops(st, t0 - pd.Timedelta(hours=1), t0 + pd.Timedelta(hours=S['hours'] + 1))
+        if S.get('sea_rise'): lvl = lvl + S['sea_rise']; print(f"sea raised by {S['sea_rise']} m")
         mhhw = DT.get('MHHW', 1.4); print('datums NAVD88 m:', {k: round(v, 2) for k, v in DT.items() if k in ('MHHW', 'MHW', 'MSL', 'MLLW')}, '| peak', lvl.max(), lvl.idxmax())
         nod = np.isnan(Z)
         print('elevation percentiles (valid):', np.nanpercentile(Z, [1, 5, 10, 25, 50]).round(2).tolist())
@@ -402,7 +414,7 @@ def run(name):
         # start from the sea at the starting tide: fill low connected ground below that level
         L0 = lvl_t(t0)
         sim.h[sea] = np.maximum(L0 - Z[sea], 0)
-        extra = dict(station=st, mhhw_navd_m=round(mhhw, 2), peak_navd_m=round(float(lvl.max()), 2), peak_utc=str(lvl.idxmax()))
+        extra = dict(station=st, sea_rise_m=S.get('sea_rise', 0.0), mhhw_navd_m=round(mhhw, 2), peak_navd_m=round(float(lvl.max()), 2), peak_utc=str(lvl.idxmax()))
     RS = road_samples(S['kind'], S['bbox'])
     if RS:
         rk, rid, rlo, rla = RS
