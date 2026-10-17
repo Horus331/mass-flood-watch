@@ -7,7 +7,7 @@ html = requests.get('https://www.wpi.edu/', headers={'User-Agent': 'Mozilla/5.0 
 svgs = re.findall(r'<svg[^>]*viewBox="0 0 300\.06 97\.03"[^>]*>.*?</svg>', html, re.S) or [s for s in re.findall(r'<svg.*?</svg>', html, re.S) if 'ac2b37' in s.lower() and len(s) > 10000]
 if not svgs: raise SystemExit('logo not found on wpi.edu')
 svg = svgs[0]
-svg = re.sub(r'(<path d="(?:m299\.62 16\.6|M257\.08 16\.49)[^"]*")\s+class="cls-4"', r'\1 class="wm"', svg)       # the I and the WP letters
+svg = re.sub(r'(d="(?:m299\.62 16\.6|M257\.08 16\.49)[^"]*"\s+)class="cls-4"', r'\1class="wm"', svg)       # the I and the WP letters
 svg = re.sub(r'\sid="[^"]*"', '', svg); svg = svg.replace('<svg ', '<svg aria-hidden="true" ', 1)
 svg = re.sub(r'\.cls-(\d)', r'.wpi\1', svg).replace('class="cls-', 'class="wpi')                        # avoid clashing with page CSS
 open(OUT, 'w').write(svg); print('saved', OUT, len(svg), 'bytes; letters recoloured:', svg.count('class="wm"'))
