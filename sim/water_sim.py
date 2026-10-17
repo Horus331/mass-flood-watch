@@ -25,6 +25,9 @@ SCEN = {
                   bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0,
                   t0='2023-09-11T17:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
                   f0=30.0, fc=3.0, Fk=40.0, drain=2.0),          # Horton infiltration (mm/h, mm) on ponded water all the time + a light storm-drain sink
+    'forecast': dict(title='Forecast · next 30 hours of NOAA HRRR rain over District 3', kind='flash', source='hrrr',
+                     bbox=(-72.35, 41.98, -71.35, 42.74), res=80.0, hours=30, frame_min=30, manning=0.06, show_m=0.10,
+                     f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=20.0),
     'boston': dict(title="Coastal flood · Jan 4, 2018 nor'easter · Boston Harbor (Revere to Quincy)", kind='coastal',
                    bbox=(-71.10, 42.29, -70.95, 42.43), res=15.0,
                    t0='2018-01-04T02:00Z', hours=30, frame_min=15, manning=0.035, show_m=0.05, station='8443970'),
@@ -124,6 +127,62 @@ def datums(station):
     js = get(f'https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station}/datums.json?units=metric').json()
     d = {x['name']: float(x['value']) for x in js['datums'] if x.get('value') not in (None, '')}
     return {k: d[k] - d['NAVD88'] for k in d if 'NAVD88' in d}      # each datum in NAVD88 metres
+
+
+HB = 'https://noaa-hrrr-bdp-pds.s3.amazonaws.com'
+
+
+def hrrr_latest():
+    import pandas as pd
+    now = pd.Timestamp.now(tz='UTC').tz_localize(None).floor('h')
+    for h in range(0, 30):
+        t = now - pd.Timedelta(hours=h)
+        if t.hour % 6 == 0:
+            try:
+                if requests.head(f'{HB}/hrrr.{t:%Y%m%d}/conus/hrrr.t{t:%H}z.wrfsfcf36.grib2.idx', timeout=30).status_code == 200:
+                    return t
+            except Exception:
+                pass
+    return None
+
+
+def hrrr_apcp(init, fh):
+    import pygrib
+    u = f'{HB}/hrrr.{init:%Y%m%d}/conus/hrrr.t{init:%H}z.wrfsfcf{fh:02d}.grib2'
+    lines = get(u + '.idx').text.strip().split('\n'); tag = f':APCP:surface:{fh - 1}-{fh} hour acc'
+    for i, ln in enumerate(lines):
+        if tag in ln:
+            st = int(ln.split(':')[1]); en = int(lines[i + 1].split(':')[1]) - 1 if i + 1 < len(lines) else ''
+            r = requests.get(u, headers={**UA, 'Range': f'bytes={st}-{en}'}, timeout=120)
+            return pygrib.fromstring(r.content)
+    return None
+
+
+class HrrrRegrid:
+    """3 km HRRR -> simulation grid, inverse-distance from the 4 nearest HRRR points."""
+    def __init__(self, g, lats, lons):
+        from scipy.spatial import cKDTree
+        HL, HO = g.latlons(); m = (HL > lats.min() - 0.2) & (HL < lats.max() + 0.2) & (HO > lons.min() - 0.2) & (HO < lons.max() + 0.2)
+        self.wh = np.where(m.ravel())[0]
+        LA, LO = np.meshgrid(lats, lons, indexing='ij'); k = np.cos(np.radians(lats.mean()))
+        d, self.i = cKDTree(np.c_[HL.ravel()[self.wh], HO.ravel()[self.wh] * k]).query(np.c_[LA.ravel(), LO.ravel() * k], k=4)
+        w = 1 / np.maximum(d, 1e-6) ** 2; self.w = (w / w.sum(1, keepdims=True)).astype(np.float32); self.shape = LA.shape
+
+    def __call__(self, g):
+        v = np.ma.filled(g.values, 0).ravel()[self.wh].astype(np.float32)
+        return np.maximum((v[self.i] * self.w).sum(1), 0).reshape(self.shape)
+
+
+def write_dry(out, name, S, issue, mx):
+    import pandas as pd
+    for f in os.listdir(out):
+        p_ = os.path.join(out, f)
+        if f.endswith('.png'): os.remove(p_)
+    import shutil; shutil.rmtree(os.path.join(out, 'rain'), ignore_errors=True)
+    json.dump(dict(id=name, title=S['title'], kind=S['kind'], status='dry', issued=f'{issue:%Y-%m-%d %H}Z' if issue is not None else None,
+                   max_rain_mm=round(float(mx), 1), threshold_mm=S['min_rain_mm'], n=0, frames=[],
+                   built=pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%d %H:%M UTC')), open(os.path.join(out, 'meta.json'), 'w'))
+    print(f'forecast: dry (max {mx:.1f} mm in the next {S["hours"]} h) - no simulation needed')
 
 
 class LocalInertial:
@@ -237,6 +296,20 @@ def run(name):
         if f.endswith('.png'):
             os.remove(os.path.join(out, f))
     shutil.rmtree(os.path.join(out, 'rain'), ignore_errors=True)
+    if S.get('source') == 'hrrr':                                      # live forecast: check the rain first, simulate only when heavy rain is coming
+        issue = hrrr_latest()
+        if issue is None:
+            write_dry(out, name, S, None, 0.0); return
+        lon0_, lat0_, lon1_, lat1_ = S['bbox']; la_ = np.linspace(lat1_, lat0_, 60); lo_ = np.linspace(lon0_, lon1_, 80)
+        G1 = {}; tot = 0
+        for fh in range(1, S['hours'] + 1):
+            g = hrrr_apcp(issue, fh)
+            if g is None: break
+            G1[fh] = g
+        RG0 = HrrrRegrid(next(iter(G1.values())), la_, lo_); tot = sum(RG0(g) for g in G1.values())
+        if tot.max() < float(os.environ.get('FORECAST_MIN_MM', S['min_rain_mm'])):
+            write_dry(out, name, S, issue, tot.max()); return
+        S = dict(S, t0=f'{issue:%Y-%m-%dT%H:%MZ}', title=f'Forecast · NOAA HRRR issued {issue:%b %d %H}Z · next {S["hours"]} h over District 3')
     Z, dx, lats, lons = dem_3dep(S['bbox'], S['res'])
     ny, nx = Z.shape
     t0 = pd.Timestamp(S['t0']); nfr = int(S['hours'] * 60 / S['frame_min']) + 1
@@ -248,12 +321,17 @@ def run(name):
         sim = LocalInertial(Z, dx, S['manning'])
         hours = [t0 + pd.Timedelta(hours=k + 1) for k in range(S['hours'])]
         RAIN = {}
+        if S.get('source') == 'hrrr':
+            RG = HrrrRegrid(next(iter(G1.values())), lats, lons)
+            for fh, g in G1.items(): RAIN[t0 + pd.Timedelta(hours=fh)] = RG(g)
+            hours = []
         for ts in hours:
             try:
                 RAIN[ts] = mrms_hour(ts, lats, lons)
             except Exception as e:
                 print('  no MRMS for', ts, e); RAIN[ts] = np.zeros((ny, nx), np.float32)
             print(f'  MRMS {ts:%m-%d %H}Z: max {RAIN[ts].max():.0f} mm/h, mean {RAIN[ts].mean():.1f}')
+        for ts in [k_ for k_ in RAIN if S.get('source') == 'hrrr']: print(f'  HRRR {ts:%m-%d %H}Z: max {RAIN[ts].max():.0f} mm/h')
         os.makedirs(os.path.join(out, 'rain'), exist_ok=True); rain_frames = []
         xs_ = np.array([q[0] for q in RAIN_STOPS]); cs_ = np.array([q[1] for q in RAIN_STOPS], float)
         for ts, rr_ in RAIN.items():                                     # radar picture of each hour (1 km data, drawn at a third of the grid)
@@ -350,7 +428,7 @@ def run(name):
         hm[~land] = 0
     save_png(to_rgba(hm, S['show_m']), os.path.join(out, 'max.png'))
     lon0, lat0, lon1, lat1 = S['bbox']
-    meta = dict(id=name, title=S['title'], kind=S['kind'], bounds=[lon0, lat0, lon1, lat1], shape=[ny, nx], cell_m=round(dx, 1),
+    meta = dict(id=name, title=S['title'], kind=S['kind'], status='ok', issued=S.get('t0') if S.get('source') == 'hrrr' else None, source=S.get('source', 'mrms'), bounds=[lon0, lat0, lon1, lat1], shape=[ny, nx], cell_m=round(dx, 1),
                 frame_min=S['frame_min'], show_m=S['show_m'], frames=meta_frames, n=len(meta_frames), steps=steps,
                 runtime_s=round(time.time() - t_start), colors=STOPS, **extra)
     if RS:

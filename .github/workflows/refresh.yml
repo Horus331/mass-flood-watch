@@ -11,7 +11,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,9 +27,14 @@ jobs:
       - name: District 3 road segment graph (live flood chance per segment)
         run: if [ -f refresh/graph_model/static.npz ]; then pip install -r refresh/requirements-graph.txt && python refresh/graph_refresh.py; else echo 'graph model not published yet'; fi
         continue-on-error: true
+      - name: Water forecast (simulates only when the HRRR forecast has 20 mm or more over District 3)
+        run: pip install -q -r sim/requirements.txt && python sim/water_sim.py forecast
+        continue-on-error: true
+        env:
+          PYTHONUNBUFFERED: "1"
       - name: Commit the new data
         run: |
           git config user.name "flood-watch-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/*.json docs/*.svg 2>/dev/null || true; git add docs/*.json
+          git add docs/*.json docs/*.svg 2>/dev/null || true; git add docs/*.json; git add -A docs/sim/forecast 2>/dev/null || true
           git diff --cached --quiet && echo "no change" || (git commit -m "Live refresh $(date -u +'%Y-%m-%d %H:%M UTC')" && git push)
