@@ -308,7 +308,10 @@ def run(name):
             print(f'frame {k:3d} {fm["t"]} wet {fm["wet_km2"]:7.2f} km2  max {fm["max_depth_m"]:5.2f} m  roads {fm.get("roads_wet", "-")}  steps {steps}  ({time.time() - t_start:.0f}s)', flush=True)
             k += 1
             continue
-        dt = min(sim.stable_dt(), (frame_t[k] - t).total_seconds())
+        rem = (frame_t[k] - t).total_seconds()
+        if rem < 0.5:                                                   # clock rounding: snap to the frame time
+            t = frame_t[k]; continue
+        dt = round(min(sim.stable_dt(), rem), 3)
         if S['kind'] == 'flash':
             hr = (t + pd.Timedelta(seconds=1)).ceil('h')
             if hr in RAIN:
