@@ -272,7 +272,7 @@ function timed(fn){ const t = performance.now(); const r = fn(); return [r, perf
 
 /* ================= view ================= */
 const stage = $('#stage'), canvas = $('#map'), ctx = canvas.getContext('2d');
-let W=0, H=0, dpr=1, base={s:1,x:0,y:0}, T = d3.zoomIdentity, C = {};
+let W=0, H=0, dpr=1, base={s:1,x:0,y:0}, T = d3.zoomIdentity, C = {}, CLU = null;
 function readColors(){ ['--sea','--sea-edge','--land','--land-out','--townline','--lake','--river','--road','--road-case','--art','--art-case','--hwy','--hwy-case','--path','--label','--halo','--townlabel','--water-label','--r1','--r2','--r3','--r4','--deep','--shallow','--flood-ring','--accent','--ink','--panel','--muted'].forEach(k=>C[k.slice(2)] = css(k)); }
 function fit(){ const [x0,y0,x1,y1] = VIEW0, padL = W>820? 300:16, padR = W>820? 370:16;
   const s = Math.max(1, Math.min((W-padL-padR-20)/(x1-x0), (H-30)/(y1-y0))); base = {s, x: padL + (W-padL-padR - s*(x1-x0))/2 - s*x0, y: (H - s*(y1-y0))/2 - s*y0}; }
@@ -336,10 +336,25 @@ function draw(){
   if (layer.closures){ const set = closureGeo[layer.closures]||[]; const mx = d3.max(set, s=>s.f.properties.veh_hours_joint)||1;
     for (const s of set){ const w = 2.5 + 7*Math.sqrt((s.f.properties.veh_hours_joint||0)/mx); strokeW(s.p, w+3, C['flood-ring']); strokeW(s.p, w, C.r3); } }
   // hazard: road pieces
+  CLU = null;
   if (layer.roadColor){ const rr = Math.min(6.5, Math.max(2.4, 0.00025*k))/k, groups = new Map();
+    if (m > 22){ // zoomed out: merge dots that would overlap into one bubble (size = how many, colour = the worst one inside)
+      const cell = 34/k, bins = new Map(), sev = c => { const o = [C.r4, C.r3, C.deep, C.r2, C.shallow, C.r1]; const j = o.indexOf(c); return j < 0 ? 9 : j; };
+      for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
+        const key = Math.floor(x/cell) + ',' + Math.floor(y/cell); let b = bins.get(key); if (!b){ b = {x:0, y:0, n:0, col, s:9, i}; bins.set(key, b); }
+        b.x += x; b.y += y; b.n++; const s = sev(col); if (s < b.s){ b.s = s; b.col = col; } }
+      const rad = n => n === 1 ? 3.4 : Math.min(15, 5 + 1.7*Math.sqrt(n)), acc = [];
+      for (const b of [...bins.values()].map(b => ({x: b.x/b.n, y: b.y/b.n, n: b.n, col: b.col, s: b.s, i: b.i})).sort((a, b) => b.n - a.n)){
+        const hit = acc.find(a => Math.hypot(a.x - b.x, a.y - b.y)*k < (rad(a.n) + rad(b.n))*0.95);   // still overlapping -> merge
+        if (hit){ hit.n += b.n; if (b.s < hit.s){ hit.s = b.s; hit.col = b.col; } } else acc.push(b); }
+      CLU = acc.sort((a, b) => a.n - b.n);
+      for (const b of CLU){ const r = rad(b.n)/k; b.r = r*k;
+        ctx.beginPath(); ctx.arc(b.x, b.y, r + 1.6/k, 0, 6.2832); ctx.fillStyle = C['flood-ring']; ctx.fill();
+        ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.globalAlpha = b.n === 1 ? 1 : 0.85; ctx.fillStyle = b.col; ctx.fill(); ctx.globalAlpha = 1; }
+    } else {
     for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
       let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } p.moveTo(x+rr, y); p.arc(x, y, rr, 0, 6.2832); }
-    for (const [col, p] of groups){ strokeW(p, 2.6, C['flood-ring']); ctx.fillStyle = col; ctx.fill(p); } }
+    for (const [col, p] of groups){ strokeW(p, 2.6, C['flood-ring']); ctx.fillStyle = col; ctx.fill(p); } } }
   // segment graph (District 3): coloured road segments, links between connected segments when zoomed in
   if (layer.segColor && GSEG){ const v = viewBB(40), groups = new Map();
     if (m < 30){ ctx.lineWidth = 1/k; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; const LP = new Path2D();
@@ -362,6 +377,9 @@ function draw(){
   // labels (after the view settles)
   ctx.setTransform(dpr,0,0,dpr,0,0);
   drawLabels(m, tiles);
+  if (CLU){ ctx.font = '700 10.5px "IBM Plex Sans",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const b of CLU){ if (b.n < 3 || b.r < 9) continue; const [sx, sy] = toScreen(b.x, b.y); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.strokeText(b.n > 999 ? Math.round(b.n/100)/10 + 'k' : b.n, sx, sy); ctx.fillStyle = '#fff'; ctx.fillText(b.n > 999 ? Math.round(b.n/100)/10 + 'k' : b.n, sx, sy); }
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic'; }
   placeGauges(); updateScale();
   if (snap.width !== canvas.width || snap.height !== canvas.height){ snap.width = canvas.width; snap.height = canvas.height; }
   sctx.setTransform(1,0,0,1,0,0); sctx.clearRect(0,0,snap.width,snap.height); sctx.drawImage(canvas, 0, 0); T0 = T;
@@ -442,9 +460,14 @@ $('#townlist').innerHTML = [...townGeo.keys()].sort().map(n=>`<option value="${t
 $('#find').addEventListener('change', e=>{ const g = townGeo.get(e.target.value.trim().toUpperCase()); if (g) flyTo(g.bb); });
 const tip = $('#tip');
 let hoverRaf = 0;
+canvas.addEventListener('click', ev=>{ if (!CLU || ev.defaultPrevented) return; const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top;
+  const b = CLU.find(b => b.n > 1 && Math.hypot(toScreen(b.x, b.y)[0] - sx, toScreen(b.x, b.y)[1] - sy) <= b.r + 3); if (!b) return;
+  const h = 60/ps(); flyTo([b.x - h, b.y - h, b.x + h, b.y + h]); });
 canvas.addEventListener('mousemove', ev0=>{ if (ev0.buttons) return; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(()=>hover(ev0)); });
 function hover(ev){ const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top; const [wx,wy] = toWorld(sx,sy); let html = null;
-  if (layer.roadColor){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
+  if (layer.roadColor && CLU){ let best = null, bd = 1e9; for (const b of CLU){ const [bx, by] = toScreen(b.x, b.y), d = Math.hypot(bx - sx, by - sy); if (d <= b.r + 3 && d < bd){ bd = d; best = b; } }
+    if (best) html = best.n === 1 ? layer.roadTip(best.i) : `<b>${best.n.toLocaleString()} road spots here</b><br>colour = the worst of them<br><span class="muted">scroll in to split this bubble into single roads</span>`; }
+  else if (layer.roadColor){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
   if (!html && layer.segColor && GSEG){ const i = GSEG.quad.find(wx, wy, 9/ps()); if (i!=null && (layer.segColor(i) || mpp() < 30)) html = layer.segTip(i); }
   if (!html && layer.topTown && mpp() < 140){ const r = tquad.find(wx, wy, 8/ps()); if (r && layer.topTown(r.town)) html = `<b>${titleCase(r.street)||'Road'}</b><br>${titleCase(r.town)}<br>one of the town's most flood-prone road spots (top ${Math.max(1,Math.round((1-r.pct)*100))}% by terrain: low, in a dip, below its surroundings)`; }
   if (!html && layer.closures){ setWorld(); ctx.lineWidth = 10/ps(); const s = (closureGeo[layer.closures]||[]).find(s=>ctx.isPointInStroke(s.p, sx*dpr, sy*dpr)); if (s) html = layer.closureTip(s.f.properties); ctx.setTransform(dpr,0,0,dpr,0,0); }
