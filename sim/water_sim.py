@@ -85,7 +85,7 @@ COAST_TILES = {
     'cm_buzzards': ((-71.00, 41.50, -70.60, 41.80), 30.0, '8447930'),   # New Bedford, Fairhaven, Wareham, Bourne
     'cm_fallriver':((-71.25, 41.62, -71.00, 41.80), 30.0, '8447386'),   # Fall River, Somerset, Swansea: Fall River gauge
     'cm_vineyard': ((-70.85, 41.30, -70.43, 41.50), 30.0, '8447930'),   # Martha's Vineyard
-    'cm_nantucket':((-70.25, 41.23, -69.95, 41.40), 30.0, '8449130'),   # Nantucket gauge
+    'cm_nantucket':((-70.25, 41.23, -69.95, 41.40), 30.0, '8447930'),   # Nantucket (its own gauge has gaps in Jan 2018; Woods Hole used)
 }
 for _k, (_b, _r, _st) in COAST_TILES.items():
     SCEN[_k] = dict(title=f"Coastal flood · Jan 4, 2018 nor'easter · {_k[3:]}", kind='coastal', mosaic='coast_mosaic', bbox=_b, res=_r,
