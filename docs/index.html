@@ -59,6 +59,7 @@ canvas#map:active{cursor:grabbing}
 .card{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:3}
 .rail{left:max(14px,env(safe-area-inset-left,0px));top:14px;width:292px;max-height:calc(100% - 28px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
 .readout{right:max(14px,env(safe-area-inset-right,0px));top:14px;width:356px;max-height:calc(100% - 112px);overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.readout>*{flex-shrink:0}
 .legend{left:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));padding:9px 11px;font-size:12px;display:flex;flex-direction:column;gap:5px;max-width:300px}
 .legend b{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .mapctl{position:absolute;right:calc(386px + env(safe-area-inset-right,0px));top:14px;display:flex;flex-direction:column;gap:6px;z-index:3}
@@ -194,6 +195,7 @@ try {
 } catch(e){ $('#loading').textContent = 'Map data could not be loaded. Refresh the page; if it keeps happening, a data file is missing from the published page.'; return; }
 performance.mark('fetched'); try { MAN = await getJSON('manifest.json'); } catch(e){}
 try { const L = await getJSON('live.json'); if (L && L.asof) D.live = L; } catch(e){}
+getJSON('findings.json').then(F => { window.__findings = F; if (state.mode === 'check') setMode('check'); }).catch(() => {});
 
 /* ================= projection: world = (lon, -mercator(lat)) in degrees ================= */
 const RAD = Math.PI/180, mY = lat => -Math.log(Math.tan(Math.PI/4 + lat*RAD/2))/RAD, iY = y => (2*Math.atan(Math.exp(-y*RAD)) - Math.PI/2)/RAD;
@@ -646,7 +648,9 @@ function mCheck(){
   engine('Validation numbers computed overnight in Colab from the saved training tables');
   const rc = (VI.reliability_combined||[]).map(r=>({p:r.predicted,o:r.observed,n:r.n,c:C.accent})), rco = (VC.reliability||[]).map(r=>({p:r[2],o:r[3],n:r[1],c:C.r2}));
   const cm = VC.models||[], hw = VC.hwm||{}, sy = VC.same_years_check||{};
+  const FD = window.__findings || [];
   $('#readout').innerHTML = `<h2>How good is it?</h2>
+   ${FD.length ? `<span class="lbl">Findings so far</span><div class="tblwrap" style="max-height:none"><table><tbody>${FD.map(f => `<tr><td><b>${f.t}</b> <span style="font-family:var(--mono);color:var(--accent);white-space:nowrap">${f.v}</span><br><span class="note">${f.n}</span></td></tr>`).join('')}</tbody></table></div>` : ''}
    <span class="lbl">Rain flooding · town-days ${fmt((VI.combined_all||{}).rows)} tested, ${fmt((VI.combined_all||{}).floods)} with a flood</span>
    ${ciBars([['Districts 4–6', (VI.east_D46||{}).AUC||0, (VI.east_D46||{}).AUC_95CI], ['District 3, never seen', (VI.transfer_D3||{}).AUC||0, (VI.transfer_D3||{}).AUC_95CI, C.shallow], ['All, combined model', (VI.combined_all||{}).AUC||0, (VI.combined_all||{}).AUC_95CI]])}
    <p class="note">Trained only on Districts 4–6, the model ranked floods in District 3 towns as well as at home. The map now uses one model trained on all four districts.</p>
