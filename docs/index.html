@@ -866,7 +866,7 @@ async function loadMosaic(id){ const got = await Promise.all(MOSAIC[id].map(t =>
     bounds: [Math.min(...tiles.map(t => t.bounds[0])), Math.min(...tiles.map(t => t.bounds[1])), Math.max(...tiles.map(t => t.bounds[2])), Math.max(...tiles.map(t => t.bounds[3]))],
     shape: [tiles.reduce((a, t) => a + t.shape[0] * t.shape[1], 0), 1], cell_m: Math.min(...tiles.map(t => t.cell_m)), steps: tiles.reduce((a, t) => a + t.steps, 0), runtime_s: tiles.reduce((a, t) => a + t.runtime_s, 0),
     rain_total_max_mm: Math.max(...tiles.map(t => t.rain_total_max_mm || 0)), rain_total_mean_mm: tiles.reduce((a, t) => a + (t.rain_total_mean_mm || 0), 0) / tiles.length,
-    station: isF ? null : [...new Set(tiles.map(t => t.station))].join(', '), peak_navd_m: gauge.peak_navd_m, mhhw_navd_m: gauge.mhhw_navd_m, peak_utc: gauge.peak_utc, vel_step: 0, rain_frames: null, rainTiles: isF, rain_colors: ref.rain_colors};
+    station: isF ? null : [...new Set(tiles.map(t => t.station))].join(', '), peak_navd_m: gauge.peak_navd_m, mhhw_navd_m: gauge.mhhw_navd_m, peak_utc: gauge.peak_utc, vel_step: tiles.some(t => t.vel_step) ? 3 : 0, rain_frames: null, rainTiles: isF, rain_colors: ref.rain_colors};
   const withRoads = tiles.filter(t => t.roads); if (withRoads.length){ const N = withRoads[0].rf.length; m.rf = new Int16Array(N).fill(-1); m.rl = new Int16Array(N).fill(-1); m.rp = new Float32Array(N);
     m.roads = {kind: withRoads[0].roads.kind, first: {}, names: {}};
     for (const t of withRoads){ for (const [i, v] of Object.entries(t.roads.first)){ if (m.rf[+i] < 0 || v < m.rf[+i]) m.rf[+i] = v; m.roads.first[i] = m.rf[+i]; } Object.assign(m.roads.names, t.roads.names || {});
@@ -1025,14 +1025,18 @@ function flowTick(){
   const st = state.water, m = st && WSIM[st.id];
   if (state.mode !== 'water' || !m || !m.vel_step || st.showMax || st.flow === false){ fctx.clearRect(0, 0, flowC.width, flowC.height); return; }
   fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.10)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
-  const k = Math.round(st.f), V = velData(m, k); if (!V || !V.wet.length) return;
-  const N = Math.min(2500, V.wet.length * 2);
-  const spawn = p => { const i = V.wet[(Math.random() * V.wet.length) | 0]; p.x = (i % V.w) + Math.random(); p.y = ((i / V.w) | 0) + Math.random(); p.age = (Math.random() * 60) | 0; return p; };
-  if (!FP || FP.length !== N || FPk !== m.id){ FP = Array.from({length: N}, () => spawn({})); FPk = m.id; }
-  const [lon0, lat0, lon1, lat1] = m.bounds, y0w = mY(lat1), hw = mY(lat0) - y0w, ww = lon1 - lon0;
-  const scr = (x, y) => toScreen(lon0 + x / V.w * ww, y0w + y / V.h * hw);
+  const k = Math.round(st.f), vb = viewBB(0);
+  const S = (m.mosaic ? m.tiles : [m]).filter(t => t.vel_step && !(t.bounds[0] > vb[2] || t.bounds[2] < vb[0] || mY(t.bounds[1]) < vb[1] || mY(t.bounds[3]) > vb[3]))
+    .map(t => ({t, V: velData(t, k)})).filter(o => o.V && o.V.wet.length);
+  if (!S.length) return;
+  const Wt = S.reduce((a, o) => a + o.V.wet.length, 0), N = Math.min(3000, Wt * 2), key = m.id + ':' + k + ':' + S.map(o => o.t.id).join(',');
+  const spawn = p => { let r = Math.random() * Wt, j = 0; while (j < S.length - 1 && r >= S[j].V.wet.length){ r -= S[j].V.wet.length; j++; } const V = S[j].V, i = V.wet[(Math.random() * V.wet.length) | 0];
+    p.j = j; p.x = (i % V.w) + Math.random(); p.y = ((i / V.w) | 0) + Math.random(); p.age = (Math.random() * 60) | 0; return p; };
+  if (!FP || FP.length !== N || FPk !== key){ if (!FP || FPk.split(':')[0] !== m.id || FP.length !== N) FP = Array.from({length: N}, () => spawn({})); else FP.forEach(p => { if (p.j >= S.length) spawn(p); }); FPk = key; }
+  const G = S.map(({t, V}) => { const [lon0, lat0, lon1, lat1] = t.bounds, y0w = mY(lat1); return {V, lon0, y0w, hw: mY(lat0) - y0w, ww: lon1 - lon0}; });
   fctx.strokeStyle = 'rgba(236,248,255,0.85)'; fctx.lineWidth = 1.3 * dpr; fctx.lineCap = 'round'; fctx.beginPath();
   for (const p of FP){
+    const g = G[p.j]; if (!g){ spawn(p); continue; } const V = g.V, scr = (x, y) => toScreen(g.lon0 + x / V.w * g.ww, g.y0w + y / V.h * g.hw);
     const ix = p.x | 0, iy = p.y | 0, i = iy * V.w + ix;
     if (ix < 0 || iy < 0 || ix >= V.w || iy >= V.h || V.d[i * 4 + 2] < 128 || ++p.age > 90){ spawn(p); p.age = 0; continue; }
     const u = (V.d[i * 4] - 128) / 64, v = (V.d[i * 4 + 1] - 128) / 64, sp = Math.hypot(u, v);
