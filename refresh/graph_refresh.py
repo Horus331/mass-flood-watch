@@ -59,7 +59,7 @@ try:
     last = max(i for i in range(len(days)) if np.isfinite(P[i]).mean() > 0.5)
     A = np.zeros(glat.size)
     for t in range(last + 1): A = 0.85 * A + np.nan_to_num(P[t].ravel())          # index for the day after the last PRISM day
-    api = A[gi].astype(np.float32); api_note = f'PRISM through {days[last]}'
+    api = (A[gi] * 1.484).astype(np.float32); api_note = f'PRISM through {days[last]}'   # x1.484: matches the stored training index (checked in Colab: correlation 0.98)
 except Exception as ex: print('ACIS:', repr(ex)[:120])
 # ---------------- 3. features exactly as in training, then the model ----------------
 ARI = np.array([1, 2, 5, 10, 25, 50, 100, 200, 500, 1000], float)
