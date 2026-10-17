@@ -357,6 +357,7 @@ function draw(){
   if (m < 140) SR('c4', w4, C.road); if (m < 60) SR('ramp', wr, C.hwy);
   SR('c3', w3, C.art); SR('c2', w2, C.art); SR('c1', w1, C.hwy);
   if (layer.prone) drawProne();
+  if (layer.drain) drawStreams();
   if (BASE.width !== canvas.width || BASE.height !== canvas.height){ BASE.width = canvas.width; BASE.height = canvas.height; }
   bctx.setTransform(1,0,0,1,0,0); bctx.clearRect(0, 0, BASE.width, BASE.height); bctx.drawImage(canvas, 0, 0); BASE_KEY = bkey; setWorld();
   }
@@ -556,11 +557,11 @@ function tideChart(k, g){ const cv = g.curve; if (!cv || !cv.pred || !cv.pred.le
 const state = {mode:'live', liveLayer:'chance', coastal:{pick:'2018-01-04', rp:10}, inland:{pick:'slider', rain:60, wet:'now'}, traffic:{pick:Object.keys(D.closures||{})[0]}, future:{year:2050}, tsunami:{amp:2, runup:'1'}};
 /* four tabs, each with a few views (the old tab names still work as links) */
 const TABS = {
-  now:    {views: [['overview', 'Overview'], ['segments', 'Road segments'], ['water', 'Water forecast']]},
+  now:    {views: [['overview', 'Overview'], ['segments', 'Road segments'], ['water', 'Water forecast'], ['drain', 'Where rain goes']]},
   replay: {views: [['water', 'Flash flood water'], ['coastal', 'Coastal water'], ['segments', 'Road segments'], ['rain', 'Rain by town'], ['traffic', 'Traffic']]},
   future: {views: [['seawater', 'Storm on a higher sea'], ['sea', 'Flood zones 2030–2070'], ['tsunami', 'Tsunami what-if']]},
   check:  {views: [['check', 'Results']]}};
-const VIEW_MODE = {'now/overview': 'live', 'now/segments': 'graph', 'now/water': 'water', 'replay/water': 'water', 'replay/segments': 'graph', 'replay/rain': 'inland',
+const VIEW_MODE = {'now/drain': 'drain', 'now/overview': 'live', 'now/segments': 'graph', 'now/water': 'water', 'replay/water': 'water', 'replay/segments': 'graph', 'replay/rain': 'inland',
   'replay/coastal': 'water', 'replay/traffic': 'traffic', 'future/seawater': 'water', 'future/sea': 'future', 'future/tsunami': 'tsunami', 'check/check': 'check'};
 const OLD_HASH = {live: 'now/overview', graph: 'now/segments', water: 'replay/water', coastal: 'replay/coastal', inland: 'replay/rain', traffic: 'replay/traffic', future: 'future/sea', tsunami: 'future/tsunami', check: 'check/check'};
 state.tab = 'now'; state.view = {now: 'overview', replay: 'water', future: 'seawater', check: 'check'};
@@ -1062,6 +1063,57 @@ function wStart(){ const st = state.water, m = WSIM[st.id]; if (!m) return; if (
     wUpdate(); if (st.f >= m.n - 1){ wStop(); return; } wTimer = requestAnimationFrame(tickW); };
   wTimer = requestAnimationFrame(tickW); }
 function wStop(){ if (wTimer) cancelAnimationFrame(wTimer); wTimer = 0; const b = $('#wplay'); if (b) b.textContent = '▶ Play'; }
+
+/* ---------- where rain goes: drainage network from 3DEP elevation, with water particles running downhill to the sea ---------- */
+let DRAIN = null, dRaf = 0, DP = null;
+async function loadDrain(){ if (DRAIN) return DRAIN; const meta = await getJSON('drain/meta.json'); const st = await getJSON('drain/streams.json');
+  const im = new Image(); im.src = 'drain/flow.png?v=' + encodeURIComponent(meta.built); await im.decode();
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+  const d = x.getImageData(0, 0, im.width, im.height).data, n = im.width * im.height, F = new Uint8Array(n); for (let i = 0; i < n; i++) F[i] = d[i * 4];
+  const land = []; for (let i = 0; i < n; i += 7) if (F[i]) land.push(i);
+  const lines = st.lines.map(([a, xy]) => { const out = new Float32Array(xy.length); for (let j = 0; j < xy.length; j += 2){ out[j] = xy[j]; out[j + 1] = mY(xy[j + 1]); } let b = [1e9, 1e9, -1e9, -1e9]; for (let j = 0; j < out.length; j += 2){ b[0] = Math.min(b[0], out[j]); b[2] = Math.max(b[2], out[j]); b[1] = Math.min(b[1], out[j + 1]); b[3] = Math.max(b[3], out[j + 1]); } return {a, c: out, bb: b}; }).sort((p, q) => p.a - q.a);
+  const [lon0, lat0, lon1, lat1] = meta.bounds; DRAIN = {meta, F, w: im.width, h: im.height, land, lines, lon0, ww: lon1 - lon0, y0: mY(lat1), hh: mY(lat0) - mY(lat1)}; return DRAIN; }
+function drawStreams(){ const D = DRAIN; if (!D) return; const k = ps(), vb = viewBB(20), minA = mpp() > 300 ? 200 : mpp() > 120 ? 50 : mpp() > 40 ? 15 : 0;
+  ctx.strokeStyle = C.river; ctx.lineCap = 'round';
+  for (const L of D.lines){ if (L.a < minA || L.bb[2] < vb[0] || L.bb[0] > vb[2] || L.bb[3] < vb[1] || L.bb[1] > vb[3]) continue;
+    ctx.lineWidth = Math.min(6, 0.5 + 0.7 * Math.log10(L.a)) / k * (mpp() < 40 ? 1.6 : 1); ctx.globalAlpha = Math.min(0.9, 0.35 + 0.15 * Math.log10(L.a));
+    ctx.beginPath(); ctx.moveTo(L.c[0], L.c[1]); for (let j = 2; j < L.c.length; j += 2) ctx.lineTo(L.c[j], L.c[j + 1]); ctx.stroke(); }
+  ctx.globalAlpha = 1; }
+const DSTEP = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];   // N NE E SE S SW W NW (x, y)
+function drainStart(){ if (dRaf) return; const loop = () => { dRaf = requestAnimationFrame(loop); drainTick(); }; dRaf = requestAnimationFrame(loop); }
+function drainStop(){ cancelAnimationFrame(dRaf); dRaf = 0; DP = null; fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, flowC.width, flowC.height); }
+function drainTick(){ const D = DRAIN; if (!D || state.mode !== 'drain') return;
+  if (flowC.width !== canvas.width || flowC.height !== canvas.height){ flowC.width = canvas.width; flowC.height = canvas.height; }
+  fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.06)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
+  const vb = viewBB(0), cx0 = Math.max(0, Math.floor((vb[0] - D.lon0) / D.ww * D.w)), cx1 = Math.min(D.w - 1, Math.ceil((vb[2] - D.lon0) / D.ww * D.w)),
+        cy0 = Math.max(0, Math.floor((vb[1] - D.y0) / D.hh * D.h)), cy1 = Math.min(D.h - 1, Math.ceil((vb[3] - D.y0) / D.hh * D.h));
+  if (cx1 <= cx0 || cy1 <= cy0) return;
+  const N = 5000, key = [cx0, cx1, cy0, cy1].join(',');
+  const spawn = p => { for (let t = 0; t < 30; t++){ const x = cx0 + Math.random() * (cx1 - cx0), y = cy0 + Math.random() * (cy1 - cy0), i = (y | 0) * D.w + (x | 0); if (D.F[i]){ p.x = x; p.y = y; p.age = 0; p.life = 120 + Math.random() * 200; return p; } } p.x = -1; p.age = 1e9; return p; };
+  if (!DP || DP.key !== key){ const old = DP; DP = Array.from({length: N}, (_, j) => old && old[j] && old[j].x >= cx0 && old[j].x <= cx1 && old[j].y >= cy0 && old[j].y <= cy1 ? old[j] : spawn({})); DP.key = key; }
+  const scr = (x, y) => toScreen(D.lon0 + x / D.w * D.ww, D.y0 + y / D.h * D.hh), cellPx = ps() * D.ww / D.w;
+  const sp0 = Math.min(0.9, Math.max(0.12, 1.4 / cellPx));                     // cells per frame: about 1-2 screen pixels per frame at any zoom
+  const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+  for (const p of DP){ if (p.x < 0 || ++p.age > p.life){ spawn(p); continue; }
+    const i = (p.y | 0) * D.w + (p.x | 0), v = D.F[i]; if (!v){ spawn(p); continue; }               // reached the sea or left the map
+    const dir = (v - 1) % 9, lvl = ((v - 1) / 9) | 0, [dx, dy] = DSTEP[dir];
+    const tx = (p.x | 0) + 0.5 + dx, ty = (p.y | 0) + 0.5 + dy, ex = tx - p.x, ey = ty - p.y, L = Math.hypot(ex, ey) || 1;
+    const sp = sp0 * (0.6 + lvl / 9);                                            // water moves faster once it is in a stream or river
+    const nx = p.x + ex / L * sp, ny = p.y + ey / L * sp;
+    const [a, b] = scr(p.x, p.y), [c, d] = scr(nx, ny), g = paths[lvl < 8 ? 0 : lvl < 13 ? 1 : lvl < 17 ? 2 : 3]; g.moveTo(a * dpr, b * dpr); g.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; }
+  const cols = ['rgba(120,180,230,0.55)', 'rgba(60,140,225,0.75)', 'rgba(25,100,210,0.9)', 'rgba(10,60,170,1)'];
+  fctx.lineCap = 'round'; paths.forEach((g, j) => { fctx.strokeStyle = cols[j]; fctx.lineWidth = (1 + j * 0.6) * dpr; fctx.stroke(g); }); }
+async function mDrain(){
+  setTitle('Where rain goes', 'Water running downhill to the sea', 'Every 50 m of Massachusetts drains to its steepest downhill neighbour; follow the water from the hills into streams, rivers and the ocean.');
+  layer = {}; legend('<b>Loading the drainage network…</b>'); $('#controls').innerHTML = '';
+  let D; try { D = await loadDrain(); } catch(e){ $('#readout').innerHTML = '<h2>Where rain goes</h2><p class="empty">The drainage network is still being computed. Check back in a little while.</p>'; legend(''); return; }
+  if (state.mode !== 'drain') return;
+  layer = {drain: true}; drainStart();
+  legend(`<b>Where rain goes</b><div><span class="sw" style="background:rgba(120,180,230,.9)"></span>water on the hillsides</div><div><span class="sw" style="background:rgba(60,140,225,1)"></span>small streams</div><div><span class="sw" style="background:rgba(25,100,210,1)"></span>brooks and rivers</div><div><span class="sw" style="background:rgba(10,60,170,1)"></span>large rivers</div>`);
+  $('#howto').textContent = 'Each moving streak is a drop of rain following the land downhill: from every 50 m cell to its steepest lower neighbour, until it reaches the sea or leaves the state. Drops speed up and turn darker as they join streams and rivers. Lines are channels that collect water from 4 km² or more. This is the terrain alone (where water would go), not a particular storm: the Replay tab shows how much water actually arrived in a storm.';
+  engine(`USGS 3DEP lidar elevation · ${D.w.toLocaleString()} × ${D.h.toLocaleString()} cells of ${D.meta.cell_m} m · pits filled, flats resolved, D8 flow directions · ${D.meta.streams.toLocaleString()} stream runs`);
+  $('#readout').innerHTML = `<h2>Where rain goes</h2><p class="note">${D.meta.source}</p><div class="stats"><div class="stat"><b>${fmt(D.meta.g_max_km2, 0)} km²</b><span>largest area draining through one point on the map</span></div><div class="stat"><b>${D.meta.streams.toLocaleString()}</b><span>stream runs drawn (4 km² or more upstream)</span></div></div><p class="note">Zoom in anywhere: the drops keep the same speed on screen, so you can follow water off a single street toward its brook.</p>`;
+  scheduleDraw(true); }
 /* ---------- animated flow streaks (water moving along the simulated currents) ---------- */
 const flowC = document.getElementById('flow'), fctx = flowC.getContext('2d'); let flowRaf = 0, FP = null, FPk = -1;
 function velData(m, k){ m.vd = m.vd || []; if (m.vd[k] !== undefined) return m.vd[k]; m.vd[k] = null; const im = new Image();
@@ -1078,7 +1130,7 @@ function flowTick(){
   fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.10)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
   const k = Math.round(st.f), vb = viewBB(0);
   const S = (m.mosaic ? m.tiles : [m]).filter(t => t.vel_step && !(t.bounds[0] > vb[2] || t.bounds[2] < vb[0] || mY(t.bounds[1]) < vb[1] || mY(t.bounds[3]) > vb[3]))
-    .filter((t, _, arr) => arr.length <= 6).map(t => ({t, V: velData(t, k)})).filter(o => o.V && o.V.wet.length);
+    .filter((t, _, arr) => arr.length <= (m.kind === 'coastal' ? 12 : 6)).map(t => ({t, V: velData(t, k)})).filter(o => o.V && o.V.wet.length);
   if (!S.length) return;
   const Wt = S.reduce((a, o) => a + o.V.wet.length, 0), N = Math.min(3000, Wt * 2), key = m.id + ':' + k + ':' + S.map(o => o.t.id).join(',');
   const spawn = p => { let r = Math.random() * Wt, j = 0; while (j < S.length - 1 && r >= S[j].V.wet.length){ r -= S[j].V.wet.length; j++; } const V = S[j].V, i = V.wet[(Math.random() * V.wet.length) | 0];
@@ -1095,8 +1147,8 @@ function flowTick(){
     const f = 0.22 / Math.max(0.6, Math.sqrt(sp)), nx = p.x + u * f, ny = p.y + v * f;
     const [a, b] = scr(p.x, p.y), [c, d] = scr(nx, ny); fctx.moveTo(a * dpr, b * dpr); fctx.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; }
   fctx.stroke(); }
-const MODES = {water:mWater, graph:mGraph, check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
-function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function'){ wStop(); flowStop(); } state.mode = m;
+const MODES = {drain:mDrain, water:mWater, graph:mGraph, check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
+function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function'){ wStop(); flowStop(); } if (m !== 'drain') drainStop(); state.mode = m;
   $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
 function goTab(t, v){ if (!TABS[t]) t = 'now'; state.tab = t; if (v) state.view[t] = v; const view = state.view[t];
   state.lock = t === 'now' ? 'now' : t === 'replay' ? 'replay' : null;              // the road graph and water views show live or past storms depending on the tab
