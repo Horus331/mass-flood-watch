@@ -722,7 +722,7 @@ async function mGraph(){
     engine(`Replay ${st.day} · ${fmt(rp.wet)} segments got 20 mm or more · heaviest rain cell ${fmt(rp.rain_max_mm)} mm`);
     $('#readout').innerHTML = `<h2>${new Date(st.day+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</h2>
       <span class="lbl">Recorded floods inside each model's top 5%</span>
-      <div class="tblwrap"><table><tbody>${Object.keys(MODEL_NAMES).filter(k=>rp.ranks[k]).map(k=>`<tr${k===st.model?' style="font-weight:600"':''}><td>${MODEL_NAMES[k]}</td><td class="n">${caught(k)} of ${rp.floods.length}</td></tr>`).join('')}</tbody></table></div>
+      <div class="tblwrap" style="max-height:none"><table><tbody>${Object.keys(MODEL_NAMES).filter(k=>rp.ranks[k]).map(k=>`<tr${k===st.model?' style="font-weight:600"':''}><td>${MODEL_NAMES[k]}</td><td class="n">${caught(k)} of ${rp.floods.length}</td></tr>`).join('')}</tbody></table></div>
       <span class="lbl">Flooded segments that day</span><div class="tblwrap"><table><tbody>${rp.floods.slice(0,15).map(i=>`<tr class="go" data-seg="${i}"><td>${GSEG.P.road[i]||'Road'}<br><span class="note">${GSEG.P.town[i]}</span></td><td class="n">top ${rk[i] ? Math.max(1, 100 - rk[i]) : '–'}%</td></tr>`).join('')}</tbody></table></div>
       <span class="lbl">All test storms</span>${table}`;
   }
