@@ -256,8 +256,8 @@ def run(name):
         nod = np.isnan(Z)
         print('elevation percentiles (valid):', np.nanpercentile(Z, [1, 5, 10, 25, 50]).round(2).tolist())
         from scipy import ndimage
-        # sea: no-data or below -1 m, connected to the domain edge (keeps inland ponds and low marsh behind dunes out)
-        lowsea = nod | (Z < -1.0)
+        # sea: no-data, flattened water or below -1 m, connected to the domain edge (keeps inland ponds and low marsh behind dunes out)
+        lowsea = nod | (Z < -1.0) | (np.abs(Z) < 0.005)                     # 3DEP open water is hydro-flattened to 0 m (or about -1.6 m)
         lab, nl = ndimage.label(lowsea)
         edge = np.unique(np.r_[lab[0], lab[-1], lab[:, 0], lab[:, -1]]); edge = edge[edge > 0]
         sea = np.isin(lab, edge)
