@@ -140,11 +140,12 @@ h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spa
     <div class="brand"><h1>Mass Flood Watch</h1><small>Road flooding from rain and the sea · MassDOT Districts 3–6</small></div>
     <div class="tabs" role="group" aria-label="View">
       <button class="tab" data-mode="live" aria-pressed="true" id="t-live">Live now</button>
-      <button class="tab" data-mode="coastal" aria-pressed="false" id="t-coastal">Coastal storm</button>
-      <button class="tab" data-mode="inland" aria-pressed="false" id="t-inland">Inland rain</button>
-      <button class="tab" data-mode="traffic" aria-pressed="false" id="t-traffic">Traffic cascade</button>
+      <button class="tab" data-mode="coastal" aria-pressed="false" id="t-coastal">Coastal</button>
+      <button class="tab" data-mode="inland" aria-pressed="false" id="t-inland">Rain</button>
+      <button class="tab" data-mode="traffic" aria-pressed="false" id="t-traffic">Traffic</button>
       <button class="tab" data-mode="future" aria-pressed="false" id="t-future">Long-term</button>
-      <button class="tab" data-mode="tsunami" aria-pressed="false" id="t-tsunami">Tsunami what-if</button>
+      <button class="tab" data-mode="tsunami" aria-pressed="false" id="t-tsunami">Tsunami</button>
+      <button class="tab" data-mode="graph" aria-pressed="false" id="t-graph">Road graph</button>
       <button class="tab" data-mode="check" aria-pressed="false" id="t-check">Model check</button>
     </div>
     <div class="status">
@@ -326,6 +327,19 @@ function draw(){
     for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
       let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } p.moveTo(x+rr, y); p.arc(x, y, rr, 0, 6.2832); }
     for (const [col, p] of groups){ strokeW(p, 2.6, C['flood-ring']); ctx.fillStyle = col; ctx.fill(p); } }
+  // segment graph (District 3): coloured road segments, links between connected segments when zoomed in
+  if (layer.segColor && GSEG){ const v = viewBB(40), groups = new Map();
+    if (m < 30){ ctx.lineWidth = 1/k; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; const LP = new Path2D();
+      for (const [a,b] of GSEG.links){ const A = GSEG.mid[a], B = GSEG.mid[b]; if ((A[0]<v[0]&&B[0]<v[0])||(A[0]>v[2]&&B[0]>v[2])||(A[1]<v[1]&&B[1]<v[1])||(A[1]>v[3]&&B[1]>v[3])) continue; LP.moveTo(A[0],A[1]); LP.lineTo(B[0],B[1]); }
+      ctx.stroke(LP); ctx.globalAlpha = 1;
+      const NP = new Path2D(), rr = 2.2/k; for (let i=0;i<GSEG.n;i++){ const A = GSEG.mid[i]; if (A[0]<v[0]||A[0]>v[2]||A[1]<v[1]||A[1]>v[3]) continue; NP.moveTo(A[0]+rr, A[1]); NP.arc(A[0], A[1], rr, 0, 6.2832); }
+      ctx.fillStyle = C.muted; ctx.fill(NP); }
+    for (let i=0;i<GSEG.n;i++){ const bb = GSEG.bb[i]; if (bb[2]<v[0]||bb[0]>v[2]||bb[3]<v[1]||bb[1]>v[3]) continue; const col = layer.segColor(i); if (!col) continue;
+      let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } for (const c of GSEG.geo[i]) addLine(p, c); }
+    const ww = Math.min(9, Math.max(2.2, 0.0006*k));
+    for (const [col, p] of groups){ strokeW(p, ww+2.4, C['flood-ring']); strokeW(p, ww, col); }
+    if (layer.segRing){ const P = new Path2D(); for (const i of layer.segRing){ for (const c of GSEG.geo[i]) addLine(P, c); } strokeW(P, ww+7, C.ink); strokeW(P, ww+3, C.panel); }
+  }
   // most flood-prone roads in towns at risk (diamonds), only when zoomed in
   if (layer.topTown && m < 140){ const sz = 4.5/k, ring = 1.6/k, P1 = new Path2D(), P2 = new Path2D();
     for (const r of TOPR){ if (r.x<vb[0]||r.x>vb[2]||r.y<vb[1]||r.y>vb[3] || !layer.topTown(r.town)) continue;
@@ -418,6 +432,7 @@ let hoverRaf = 0;
 canvas.addEventListener('mousemove', ev0=>{ if (ev0.buttons) return; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(()=>hover(ev0)); });
 function hover(ev){ const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top; const [wx,wy] = toWorld(sx,sy); let html = null;
   if (layer.roadColor){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
+  if (!html && layer.segColor && GSEG){ const i = GSEG.quad.find(wx, wy, 9/ps()); if (i!=null && (layer.segColor(i) || mpp() < 30)) html = layer.segTip(i); }
   if (!html && layer.topTown && mpp() < 140){ const r = tquad.find(wx, wy, 8/ps()); if (r && layer.topTown(r.town)) html = `<b>${titleCase(r.street)||'Road'}</b><br>${titleCase(r.town)}<br>one of the town's most flood-prone road spots (top ${Math.max(1,Math.round((1-r.pct)*100))}% by terrain: low, in a dip, below its surroundings)`; }
   if (!html && layer.closures){ setWorld(); ctx.lineWidth = 10/ps(); const s = (closureGeo[layer.closures]||[]).find(s=>ctx.isPointInStroke(s.p, sx*dpr, sy*dpr)); if (s) html = layer.closureTip(s.f.properties); ctx.setTransform(dpr,0,0,dpr,0,0); }
   if (!html){ setWorld(); let name = null; for (const [n,g] of townGeo){ if (wx>=g.bb[0]&&wx<=g.bb[2]&&wy>=g.bb[1]&&wy<=g.bb[3] && ctx.isPointInPath(g.path, sx*dpr, sy*dpr)){ name = n; break; } } ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -652,7 +667,69 @@ function checkExtra(){ const VR=(D.validation||{}).roads; let s='';
    <table><thead><tr><th>Forecast</th><th>High-water days caught</th><th>False alarms</th></tr></thead><tbody>${O6.rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
    <p class="note">Each day's 12 UTC STOFS-2D-Global run (public NOAA archive), levelled to each gauge on the 6 hours before issue, scored on the next 48 h. High-water day = the ${O6.threshold} or higher. The live tab now takes the higher of STOFS and the old shortcut, and draws the STOFS curve on each tide chart (red line).</p>`;
   return s; }
-const MODES = {check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
+/* ================= District 3 road segment graph ================= */
+let GSEG = null, GLIVE = null, GREP = null, GRES = null, gLoading = null;
+async function loadGraph(){
+  if (GSEG) return; if (gLoading) return gLoading;
+  gLoading = (async () => {
+    const [S_, L_, R_, X_] = await Promise.all(['graph_segments.json', 'graph_live.json', 'graph_replays.json', 'graph_results.json'].map(u => getJSON(u).catch(() => null)));
+    if (!S_) throw new Error('graph data missing');
+    const geo = [], bb = [], mid = [];
+    for (const parts of S_.geo){ const segs = []; let b = [1e9,1e9,-1e9,-1e9];
+      for (const d of parts){ const out = new Float32Array(d.length); let x = 0, y = 0; for (let j=0;j<d.length;j+=2){ x += d[j]; y += d[j+1]; out[j] = x/1e5; out[j+1] = mY(y/1e5); b[0]=Math.min(b[0],out[j]); b[2]=Math.max(b[2],out[j]); b[1]=Math.min(b[1],out[j+1]); b[3]=Math.max(b[3],out[j+1]); } segs.push(out); }
+      geo.push(segs); bb.push(b); const c = segs[0], h = Math.floor(c.length/4)*2; mid.push(c.length ? [c[h], c[h+1]] : [0,0]); }
+    GSEG = {n: S_.n, geo, bb, mid, links: S_.links, P: S_.props}; GSEG.quad = d3.quadtree().x(i=>mid[i][0]).y(i=>mid[i][1]).addAll(d3.range(S_.n));
+    GLIVE = L_; GREP = R_ || {}; GRES = X_;
+  })();
+  return gLoading;
+}
+const rankColor = r => r==null||r<90 ? null : r<95 ? C.r1 : r<98 ? C.r2 : r<99 ? C.r3 : C.r4;
+const MODEL_NAMES = {RF:'H-V-C risk index', SPR:'Rule-based spreading', ML:'Segment-only ML (trees)', GNN:'Graph neural network', GNN2:'Graph network on top of trees'};
+const segName = i => { const P = GSEG.P; return `<b>${P.road[i] || 'Road segment'}</b><br>${P.town[i]} · ${fmt(P.len[i])} m · ${P.aadt[i] ? fmt(P.aadt[i]) + ' vehicles/day' : ''}`; };
+async function mGraph(){
+  setTitle('District 3 · MassDOT road segments', 'Road segment graph', 'Every road segment is a node; segments that meet at a junction are linked. Four models rank which segments flood.');
+  legend('<b>Loading the road graph…</b>'); $('#readout').innerHTML = '<h2>Road segment graph</h2><p class="note">Loading 52,698 segments…</p>'; layer = {};
+  try { await loadGraph(); } catch(e){ $('#readout').innerHTML = '<h2>Road segment graph</h2><p class="empty">The graph files are not published yet.</p>'; return; }
+  if (state.mode !== 'graph') return;
+  const st = state.graph || (state.graph = {view: 'live', day: Object.keys(GREP||{})[0], model: 'ML'});
+  const days = Object.keys(GREP||{});
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="gview">Show</label><select id="gview"><option value="live">Live: next 24 hours (NOAA forecast)</option>${days.length ? '<option value="replay">Replay a past storm</option>' : ''}</select></div>
+    <div class="ctl" id="greplay" ${st.view==='replay'?'':'hidden'}><label class="lbl" for="gday">Storm</label><select id="gday">${days.map(d=>`<option value="${d}">${new Date(d+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})} · ${GREP[d].floods.length} flooded segments</option>`).join('')}</select>
+    <label class="lbl" for="gmodel" style="margin-top:8px">Model</label><select id="gmodel">${Object.entries(MODEL_NAMES).filter(([k])=>GREP[days[0]]?.ranks[k]).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>`;
+  $('#gview').value = st.view; if (st.day) $('#gday').value = st.day; $('#gmodel').value = st.model;
+  $('#gview').onchange = e => { st.view = e.target.value; mGraph(); scheduleDraw(true); };
+  if ($('#gday')) $('#gday').onchange = e => { st.day = e.target.value; mGraph(); scheduleDraw(true); };
+  if ($('#gmodel')) $('#gmodel').onchange = e => { st.model = e.target.value; mGraph(); scheduleDraw(true); };
+  $('#howto').textContent = st.view==='live' ? 'Coloured segments are where the model expects a reported road flood in the next 24 hours, from the latest NOAA HRRR rain forecast (refreshed every 6 hours). Zoom in to see the graph itself: dots are segments, grey lines join segments that meet at a junction.' : 'Colours show where the chosen model ranked each segment that day (top 10%, 5%, 2%, 1% of segments that got 20 mm or more). Outlined segments are where a flood was actually recorded. A good model puts the outlines inside the dark colours.';
+  const res = (GRES && GRES.results) || [];
+  const table = res.length ? `<div class="tblwrap"><table><thead><tr><th>Model, test storms 2017–2026</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${res.map(r=>`<tr><td>${r.model.replace(/^\d+[ab]?\. /,'')}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct*100)}%</td></tr>`).join('')}</tbody></table></div><p class="note">AUC: chance a flooded segment is ranked above a dry one on the same storm day (0.5 = coin flip). Top 5%: share of recorded floods inside the day's top 5% of segments. Trained on 2002–2016 only.</p>` : '';
+  if (st.view === 'live'){
+    const L = GLIVE || {p1000: []}, P = L.p1000;
+    layer = {segColor: i => riskColor((P[i]||0)/1000), segTip: i => segName(i) + `<br>flood chance next 24 h: <b>${fmt((P[i]||0)/10, 1)}%</b>`};
+    legend(rampLegend('Chance of a reported flood on the segment, next 24 h') + '<div class="note">Zoom in to see the graph links.</div>');
+    engine(`Model: ${L.model||'–'} · NOAA HRRR ${L.hrrr_latest||'–'} (${L.runs||0} runs) · ground wetness: ${L.wetness||'–'} · updated ${L.asof||'–'}`);
+    const top = (L.top||[]).slice(0, 12);
+    $('#readout').innerHTML = `<h2>Next 24 hours</h2>
+      <div class="stats"><div class="stat"><b>${fmt(L.max_rain_1h_mm,1)} mm</b><span>heaviest 1-hour rain forecast in District 3</span></div><div class="stat"><b>${fmt(L.n_scored)}</b><span>segments forecast to get 20 mm or more</span></div></div>
+      <span class="lbl">Segments most at risk</span>${top.length ? `<div class="tblwrap"><table><tbody>${top.map(([i,q])=>`<tr class="go" data-seg="${i}"><td>${GSEG.P.road[i]||'Road'}<br><span class="note">${GSEG.P.town[i]}</span></td><td class="n">${fmt(q/10,1)}%</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No segment is forecast to get 20 mm of rain. Dry spell: nothing to flag.</p>'}
+      <span class="lbl">How the four models compare</span>${table}`;
+  } else {
+    const rp = GREP[st.day], rk = (rp.ranks[st.model] || []);
+    const rec = new Set(rp.floods);
+    layer = {segColor: i => rankColor(rk[i]), segRing: rp.floods, segTip: i => segName(i) + `<br>${MODEL_NAMES[st.model]}: ${rk[i] ? 'top ' + Math.max(1, 100 - rk[i]) + '% of wet segments' : 'not in the wet area'}${rec.has(i) ? '<br><b>flood recorded here that day</b>' : ''}`};
+    legend(`<b>${MODEL_NAMES[st.model]}: rank that day</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>top 10%</span><span>5%</span><span>2%</span><span>1%</span></div><div><span class="sw" style="background:${C.panel};outline:2px solid ${C.ink}"></span>recorded flood</div>`);
+    const caught = k => { const r = rp.ranks[k]||[]; return rp.floods.filter(i => (r[i]||0) >= 95).length; };
+    engine(`Replay ${st.day} · ${fmt(rp.wet)} segments got 20 mm or more · heaviest rain cell ${fmt(rp.rain_max_mm)} mm`);
+    $('#readout').innerHTML = `<h2>${new Date(st.day+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</h2>
+      <span class="lbl">Recorded floods inside each model's top 5%</span>
+      <div class="tblwrap"><table><tbody>${Object.keys(MODEL_NAMES).filter(k=>rp.ranks[k]).map(k=>`<tr${k===st.model?' style="font-weight:600"':''}><td>${MODEL_NAMES[k]}</td><td class="n">${caught(k)} of ${rp.floods.length}</td></tr>`).join('')}</tbody></table></div>
+      <span class="lbl">Flooded segments that day</span><div class="tblwrap"><table><tbody>${rp.floods.slice(0,15).map(i=>`<tr class="go" data-seg="${i}"><td>${GSEG.P.road[i]||'Road'}<br><span class="note">${GSEG.P.town[i]}</span></td><td class="n">top ${rk[i] ? Math.max(1, 100 - rk[i]) : '–'}%</td></tr>`).join('')}</tbody></table></div>
+      <span class="lbl">All test storms</span>${table}`;
+  }
+  document.querySelectorAll('#readout tr[data-seg]').forEach(tr => tr.onclick = () => { const b = GSEG.bb[+tr.dataset.seg]; const pad = 0.004; flyTo([b[0]-pad, b[1]-pad, b[2]+pad, b[3]+pad]); });
+  scheduleDraw(true);
+}
+const MODES = {graph:mGraph, check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
 function setMode(m){ if (!MODES[m]) m = 'live'; state.mode = m; try{ history.replaceState(null, '', '#' + m); }catch(e){} try{ localStorage.setItem('mfw-mode', m); }catch(e){}
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===m))); $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
