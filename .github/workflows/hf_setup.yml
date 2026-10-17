@@ -1,0 +1,26 @@
+name: Hugging Face storage check (run by hand)
+on: workflow_dispatch
+jobs:
+  hf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q huggingface_hub
+      - name: Create the tiles dataset and upload a test file
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, io, time
+          from huggingface_hub import HfApi
+          tok = os.environ.get('HF_TOKEN')
+          assert tok, 'HF_TOKEN secret is missing'
+          api = HfApi(token=tok)
+          who = api.whoami()['name']; print('signed in as', who)
+          repo = f'{who}/mass-flood-watch-tiles'
+          api.create_repo(repo, repo_type='dataset', private=False, exist_ok=True)
+          api.upload_file(path_or_fileobj=io.BytesIO(f'ok {time.time()}'.encode()), path_in_repo='check.txt', repo_id=repo, repo_type='dataset', commit_message='storage check')
+          print('uploaded to', f'https://huggingface.co/datasets/{repo}/resolve/main/check.txt')
+          PY
