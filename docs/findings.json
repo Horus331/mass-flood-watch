@@ -2,12 +2,17 @@
  {
   "t": "Road-segment model (District 3, 52,698 segments)",
   "v": "AUC 0.940",
-  "n": "Average of boosted trees and a graph neural network; test storms 2017\u20132026 (108 days, 271 floods). Trees alone 0.930, graph network 0.941. Simple H-V-C index 0.543, rule-based spreading 0.541."
+  "n": "Average of boosted trees and a graph neural network; test storms 2017–2026 (108 days, 271 floods). Trees alone 0.930, graph network 0.941. Simple H-V-C index 0.543, rule-based spreading 0.541."
+ },
+ {
+  "t": "Never-seen districts (D3 model on Districts 4–6, 261,396 segments)",
+  "v": "AUC 0.77",
+  "n": "Trained only on District 3, scored on D4–6 storms 2017–2026 (183 days, 795 flooded segments): the top 5% of segments catch 28% of reports. The reverse (D4–6 model on District 3) reaches 0.90; one model trained on both gives 0.92 in D3 and 0.84 in D4–6."
  },
  {
   "t": "Places with no flood on record",
   "v": "AUC 0.937",
-  "n": "Floods on segments that never flooded in 2002\u20132016 (224 floods): the model is not just memorising past spots."
+  "n": "Floods on segments that never flooded in 2002–2016 (224 floods): the model is not just memorising past spots."
  },
  {
   "t": "Physical skill alone",
@@ -16,27 +21,27 @@
  },
  {
   "t": "With only the NOAA forecast",
-  "v": "AUC 0.909 \u00b7 62% in top 5%",
-  "n": "135 storms 2018\u20132026, HRRR runs up to the evening before. About 16 h ahead: 0.841. Hindsight with measured rain: 0.939."
+  "v": "AUC 0.909 · 62% in top 5%",
+  "n": "135 storms 2018–2026, HRRR runs up to the evening before. About 16 h ahead: 0.841. Hindsight with measured rain: 0.939."
  },
  {
   "t": "Calibrated chance",
-  "v": "raw scores ~100\u00d7 too high",
-  "n": "Isotonic fit on 2017\u20132021, checked on 2022\u20132026. A segment ranked in the top 1% on a stormy day has well under a 1% chance of a filed flood report; the live map colours by rank and shows the calibrated chance on hover."
+  "v": "raw scores ~100× too high",
+  "n": "Isotonic fit on 2017–2021, checked on 2022–2026. A segment ranked in the top 1% on a stormy day has well under a 1% chance of a filed flood report; the live map colours by rank and shows the calibrated chance on hover."
  },
  {
   "t": "Upgrades that did not help",
-  "v": "\u00b10.002",
+  "v": "±0.002",
   "n": "1-km AORC rain instead of 12 km cells (0.928 vs 0.930) and downhill-water links in the graph network (0.939 vs 0.941): both within noise. The limit is the flood-report labels, not the inputs."
  },
  {
   "t": "Water simulation, measured rain",
-  "v": "42 km\u00b2 peak \u00b7 368 roads",
-  "n": "Sept 11, 2023 Leominster: 2-D local-inertial model on lidar terrain with MRMS radar rain; water soaks in and drains, area shrinks to 19 km\u00b2 by 40 h. North Attleborough: 15 km\u00b2 peak. Coastal Jan 4, 2018: 6.5 km\u00b2 Boston Harbor, 10.5 km\u00b2 South Shore, 29 km\u00b2 whole coast."
+  "v": "42 km² peak · 368 roads",
+  "n": "Sept 11, 2023 Leominster: 2-D local-inertial model on lidar terrain with MRMS radar rain; water soaks in and drains, area shrinks to 19 km² by 40 h. North Attleborough: 15 km² peak. Coastal Jan 4, 2018: 6.5 km² Boston Harbor, 10.5 km² South Shore, 29 km² whole coast."
  },
  {
   "t": "Water simulation from the forecast",
-  "v": "2\u20134% of flooded roads",
-  "n": "Same storm from the HRRR forecast issued at 8 am / 2 pm: forecast rain peaked at 122\u2013126 mm vs 198 mm measured, so the forecast water map caught 8 and 16 of 368 flooded segments. The risk ranking is the warning tool; the water model explains and replays storms."
+  "v": "2–4% of flooded roads",
+  "n": "Same storm from the HRRR forecast issued at 8 am / 2 pm: forecast rain peaked at 122–126 mm vs 198 mm measured, so the forecast water map caught 8 and 16 of 368 flooded segments. The risk ranking is the warning tool; the water model explains and replays storms."
  }
 ]
