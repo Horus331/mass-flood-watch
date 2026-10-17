@@ -273,7 +273,7 @@ function timed(fn){ const t = performance.now(); const r = fn(); return [r, perf
 
 /* ================= view ================= */
 const stage = $('#stage'), canvas = $('#map'), ctx = canvas.getContext('2d');
-let W=0, H=0, dpr=1, base={s:1,x:0,y:0}, T = d3.zoomIdentity, C = {}, CLU = null;
+let W=0, H=0, dpr=1, base={s:1,x:0,y:0}, T = d3.zoomIdentity, C = {}, CLU = null, MA_CLIP = null;
 function readColors(){ ['--sea','--sea-edge','--land','--land-out','--townline','--lake','--river','--road','--road-case','--art','--art-case','--hwy','--hwy-case','--path','--label','--halo','--townlabel','--water-label','--r1','--r2','--r3','--r4','--deep','--shallow','--flood-ring','--accent','--ink','--panel','--muted'].forEach(k=>C[k.slice(2)] = css(k)); }
 function fit(){ const [x0,y0,x1,y1] = VIEW0, padL = W>820? 300:16, padR = W>820? 370:16;
   const s = Math.max(1, Math.min((W-padL-padR-20)/(x1-x0), (H-30)/(y1-y0))); base = {s, x: padL + (W-padL-padR - s*(x1-x0))/2 - s*x0, y: (H - s*(y1-y0))/2 - s*y0}; }
@@ -950,7 +950,8 @@ async function mWater(){
     const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 1.0 ? poolImg : simImg;   // zoomed out: blocks that keep their deepest cell
     if (cellPx > 3) ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`;   // zoomed in: soften the grid
     const pooled = img === poolImg; if (pooled) ctx.filter = 'saturate(1.8) brightness(0.72)';   // zoomed out: darker so thin water reads at state scale
-    const put = (im, al) => { ctx.globalAlpha = al; ctx.drawImage(im, x, y, w, h); if (pooled){ ctx.drawImage(im, x, y, w, h); } };
+    if (m.mosaic){ if (!MA_CLIP){ MA_CLIP = new Path2D(); for (const g of townGeo.values()) MA_CLIP.addPath(g.path); } ctx.clip(MA_CLIP); }   // stitched scenes: keep water on Massachusetts land and its own coast
+    const put = (im, al) => { ctx.globalAlpha = al; ctx.drawImage(im, x, y, w, h); };
     if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) put(im, 1); }
     else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k), B = img(tm, Math.min(k + 1, tm.n - 1));
       if (okImg(A)) put(A, 1); if (a > 0.02 && okImg(B)) put(B, a); }
