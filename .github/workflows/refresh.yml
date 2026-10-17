@@ -20,11 +20,13 @@ jobs:
           cache: pip
           cache-dependency-path: refresh/requirements.txt
       - run: pip install -r refresh/requirements.txt
+      - name: WPI logo for the credit card (only runs once)
+        run: python refresh/fetch_logo.py || true
       - name: Tides, NOAA surge forecast, rain forecast, buoys, alerts
         run: python refresh/live_refresh.py
       - name: Commit the new data
         run: |
           git config user.name "flood-watch-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/*.json
+          git add docs/*.json docs/*.svg 2>/dev/null || true; git add docs/*.json
           git diff --cached --quiet && echo "no change" || (git commit -m "Live refresh $(date -u +'%Y-%m-%d %H:%M UTC')" && git push)
