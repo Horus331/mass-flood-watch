@@ -25,6 +25,10 @@ SCEN = {
                   bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0,
                   t0='2023-09-11T17:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
                   f0=30.0, fc=3.0, Fk=40.0, drain=2.0),          # Horton infiltration (mm/h, mm) on ponded water all the time + a light storm-drain sink
+    'flash_state': dict(title='Flash flood · Sept 11, 2023 · whole project area (MassDOT Districts 3–6)', kind='flash',
+                        bbox=(-72.35, 41.48, -69.92, 42.90), res=100.0, sea_sink=True,
+                        t0='2023-09-11T16:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
+                        f0=30.0, fc=3.0, Fk=40.0, drain=2.0),
     'attleboro': dict(title='Flash flood · Sept 11, 2023 (North Attleborough, Attleboro, Plainville)', kind='flash',
                       bbox=(-71.45, 41.88, -71.20, 42.06), res=30.0,
                       t0='2023-09-11T16:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
@@ -238,6 +242,8 @@ class LocalInertial:
         if source is not None:
             h += source * dt
         np.maximum(h, 0, out=h)
+        if getattr(self, 'sink', None) is not None:                    # the sea takes whatever reaches it (statewide flash scene)
+            h[self.sink] = 0
         if self.fixed is None:                                         # open edges: water leaves the domain
             h[0, :] = h[-1, :] = 0; h[:, 0] = h[:, -1] = 0
         np.maximum(self.hmax, h, out=self.hmax)
@@ -329,6 +335,8 @@ def run(name):
     if S['kind'] == 'flash':
         Z = np.where(np.isnan(Z), np.nanmax(Z), Z)
         sim = LocalInertial(Z, dx, S['manning'])
+        if S.get('sea_sink'):
+            sim.sink = Z <= 0.3; print(f'sea / sea-level cells drained: {sim.sink.mean():.1%}')
         hours = [t0 + pd.Timedelta(hours=k + 1) for k in range(S['hours'])]
         RAIN = {}
         if S.get('source') == 'hrrr':
