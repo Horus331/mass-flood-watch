@@ -508,7 +508,7 @@ function drawProne(){ const P = PRONE; if (!P) return; const vb = viewBB(0), scr
   det.forEach((t, j) => { if (dIm[j]) put(t, dIm[j]); });
   ctx.globalAlpha = 1; }
 function proneLegend(){ if (!PRONE) return ''; const cs = PRONE.colours.map(c => `rgba(${c[1].slice(0, 3).join(',')},${(c[1][3]/255).toFixed(2)})`);
-  return `<div class="lsec"><b>Flood-prone roads, Districts 3–6</b><div class="ramp">${cs.slice(1).map(c => `<span style="background:${c}"></span>`).join('')}</div><div class="rampl"><span>typical</span><span>top 15%</span><span>top 1%</span></div><span class="note">same heavy storm on every road</span></div>`; }
+  return `<div class="lsec"><b>Flood-prone roads, Districts 3–6</b><div class="ramp">${cs.slice(1).map(c => `<span style="background:${c}"></span>`).join('')}</div><div class="rampl"><span>typical</span><span>top 10%</span><span>top 1%</span></div><span class="note">same heavy storm (45 mm in an hour) on every road; long segments rank a little high</span></div>`; }
 function legend(html){ $('#legend').innerHTML = html; }
 const rampLegend = title => `<b>${title}</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2%</span><span>5%</span><span>15%</span><span>35%+</span></div>`;
 const dotLegend = (col, t) => `<div><span class="sw dotsw" style="background:${col}"></span>${t}</div>`;
