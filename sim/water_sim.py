@@ -74,7 +74,7 @@ FLASH_TILES = [[-72.4, 41.82, -72.0, 42.12], [-72.4, 42.12, -72.0, 42.42], [-72.
 for _i, _b in enumerate(FLASH_TILES):
     SCEN[f'fm{_i:02d}'] = dict(title=f'Flash flood · Sept 11, 2023 · tile {_i + 1} of {len(FLASH_TILES)}', kind='flash', mosaic='flash_mosaic',
                                bbox=tuple(_b), res=50.0, t0='2023-09-11T16:00Z', hours=36, frame_min=30, manning=0.06, show_m=0.10,
-                               f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True)
+                               f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True, landcover=True)
 # Dec 18, 2023: 2-4 inches of rain over the whole state on saturated, partly snow-covered ground (rivers flooded in many towns);
 # wet_start_mm=120 puts the soil near its slowest soaking rate from the start, as it was after a very wet fall and snowmelt
 for _i, _b in enumerate(FLASH_TILES):
