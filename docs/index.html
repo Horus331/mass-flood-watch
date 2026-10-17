@@ -300,6 +300,23 @@ const meets = (bb, v) => bb[2]>=v[0] && bb[0]<=v[2] && bb[3]>=v[1] && bb[1]<=v[3
 function strokeW(path, px, color){ ctx.lineWidth = px/ps(); ctx.strokeStyle = color; ctx.stroke(path); }
 function visibleTiles(){ const [a,b] = toWorld(0,0), [c,d] = toWorld(W,H); const lon0=a, lon1=c, lat1=iY(b), lat0=iY(d), out=[];
   for (let i=Math.floor((lon0-OX)/0.2); i<=Math.floor((lon1-OX)/0.2); i++) for (let j=Math.floor((lat0-OY)/0.2); j<=Math.floor((lat1-OY)/0.2); j++){ const k = i+'_'+j; if (!tileSet.size || tileSet.has(k)) out.push(k); } return out; }
+// group nearby points into bubbles: size = how many, colour = most serious inside; minN=0 draws every point on its own
+const SEV = c => { const o = [C.r4, C.r3, C.deep, C.r2, C.shallow, C.r1]; const j = o.indexOf(c); return j < 0 ? 9 : j; };
+function clusterDraw(items, k, kind, minN = 1){
+  const rad = n => n === 1 ? 3.4 : Math.min(15, 5 + 1.7*Math.sqrt(n));
+  let out;
+  if (!minN) out = items.map(t => ({x: t.x, y: t.y, n: 1, col: t.col, s: SEV(t.col), i: t.i, ids: [t.i]}));
+  else { const cell = 34/k, bins = new Map();
+    for (const t of items){ const key = Math.floor(t.x/cell) + ',' + Math.floor(t.y/cell); let b = bins.get(key); if (!b){ b = {x:0, y:0, n:0, col: t.col, s: 9, i: t.i, ids: []}; bins.set(key, b); }
+      b.x += t.x; b.y += t.y; b.n++; b.ids.push(t.i); const sv = SEV(t.col); if (sv < b.s){ b.s = sv; b.col = t.col; } }
+    out = []; for (const b of [...bins.values()].map(b => ({...b, x: b.x/b.n, y: b.y/b.n})).sort((a, b) => b.n - a.n)){
+      const hit = out.find(a => Math.hypot(a.x - b.x, a.y - b.y)*k < (rad(a.n) + rad(b.n))*0.95);
+      if (hit){ hit.n += b.n; hit.ids = hit.ids.concat(b.ids); if (b.s < hit.s){ hit.s = b.s; hit.col = b.col; } } else out.push(b); } }
+  out.sort((a, b) => a.n - b.n);
+  for (const b of out){ const r = rad(b.n)/k; b.r = r*k; b.kind = kind;
+    ctx.beginPath(); ctx.arc(b.x, b.y, r + 1.6/k, 0, 6.2832); ctx.fillStyle = C['flood-ring']; ctx.fill();
+    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.globalAlpha = b.n === 1 ? 1 : 0.85; ctx.fillStyle = b.col; ctx.fill(); ctx.globalAlpha = 1; }
+  return out; }
 function draw(){
   if (W < 20 || H < 20) return;
   const m = mpp(), k = ps();
@@ -310,7 +327,7 @@ function draw(){
   ctx.lineWidth = 3.2/k; ctx.strokeStyle = C['sea-edge']; for (const g of townGeo.values()) ctx.stroke(g.path);
   ctx.fillStyle = C.land; for (const g of townGeo.values()) ctx.fill(g.path);
   // hazard fill on towns
-  if (layer.townFill){ ctx.globalAlpha = 0.62; for (const [n,g] of townGeo){ const col = layer.townFill(n); if (col){ ctx.fillStyle = col; ctx.fill(g.path); } } ctx.globalAlpha = 1; }
+  if (layer.townFill){ ctx.globalAlpha = layer.prone && PRONE ? 0.3 : 0.62; for (const [n,g] of townGeo){ const col = layer.townFill(n); if (col){ ctx.fillStyle = col; ctx.fill(g.path); } } ctx.globalAlpha = 1; }
   // water on land
   if (G0.water){ ctx.fillStyle = C.lake; for (const p of G0.areas) ctx.fill(p, 'evenodd'); for (const p of G0.lakes) ctx.fill(p, 'evenodd');
     if (m < 260){ ctx.lineWidth = (m < 40 ? 1.6 : 0.9)/k; ctx.strokeStyle = C.river; for (const p of G0.rivers) ctx.stroke(p); } }
@@ -330,6 +347,7 @@ function draw(){
   SR('c3', w3+0.9, C['art-case']); SR('c2', w2+1, C['art-case']); SR('c1', w1+1.1, C['hwy-case']);
   if (m < 140) SR('c4', w4, C.road); if (m < 60) SR('ramp', wr, C.hwy);
   SR('c3', w3, C.art); SR('c2', w2, C.art); SR('c1', w1, C.hwy);
+  if (layer.prone) drawProne();
   // simulated water (Water tab), over the roads so flooded streets disappear under it
   if (layer.water) layer.water();
   // hazard: closures
@@ -338,23 +356,15 @@ function draw(){
   // hazard: road pieces
   CLU = null;
   if (layer.roadColor){ const rr = Math.min(6.5, Math.max(2.4, 0.00025*k))/k, groups = new Map();
-    if (m > 22){ // zoomed out: merge dots that would overlap into one bubble (size = how many, colour = the worst one inside)
-      const cell = 34/k, bins = new Map(), sev = c => { const o = [C.r4, C.r3, C.deep, C.r2, C.shallow, C.r1]; const j = o.indexOf(c); return j < 0 ? 9 : j; };
-      for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
-        const key = Math.floor(x/cell) + ',' + Math.floor(y/cell); let b = bins.get(key); if (!b){ b = {x:0, y:0, n:0, col, s:9, i}; bins.set(key, b); }
-        b.x += x; b.y += y; b.n++; const s = sev(col); if (s < b.s){ b.s = s; b.col = col; } }
-      const rad = n => n === 1 ? 3.4 : Math.min(15, 5 + 1.7*Math.sqrt(n)), acc = [];
-      for (const b of [...bins.values()].map(b => ({x: b.x/b.n, y: b.y/b.n, n: b.n, col: b.col, s: b.s, i: b.i})).sort((a, b) => b.n - a.n)){
-        const hit = acc.find(a => Math.hypot(a.x - b.x, a.y - b.y)*k < (rad(a.n) + rad(b.n))*0.95);   // still overlapping -> merge
-        if (hit){ hit.n += b.n; if (b.s < hit.s){ hit.s = b.s; hit.col = b.col; } } else acc.push(b); }
-      CLU = acc.sort((a, b) => a.n - b.n);
-      for (const b of CLU){ const r = rad(b.n)/k; b.r = r*k;
-        ctx.beginPath(); ctx.arc(b.x, b.y, r + 1.6/k, 0, 6.2832); ctx.fillStyle = C['flood-ring']; ctx.fill();
-        ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.globalAlpha = b.n === 1 ? 1 : 0.85; ctx.fillStyle = b.col; ctx.fill(); ctx.globalAlpha = 1; }
+    if (m > 22){ const it = []; for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (col) it.push({x, y, col, i}); }
+      CLU = clusterDraw(it, k, 'road');
     } else {
     for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
       let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } p.moveTo(x+rr, y); p.arc(x, y, rr, 0, 6.2832); }
     for (const [col, p] of groups){ strokeW(p, 2.6, C['flood-ring']); ctx.fillStyle = col; ctx.fill(p); } } }
+  // past flood reports (always grouped, so they never pile up)
+  if (layer.reports && REPORTS){ const it = []; for (let i = 0; i < REPORTS.n; i++){ const x = REPORTS.x[i], y = REPORTS.y[i]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; it.push({x, y, col: REPORTS.col[i], i}); }
+    const c2 = clusterDraw(it, k, 'report', m > 6 ? 1 : 0); CLU = (CLU || []).concat(c2); }
   // segment graph (District 3): coloured road segments, links between connected segments when zoomed in
   if (layer.segColor && GSEG){ const v = viewBB(40), groups = new Map();
     if (m < 30){ ctx.lineWidth = 1/k; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; const LP = new Path2D();
@@ -465,9 +475,9 @@ canvas.addEventListener('click', ev=>{ if (!CLU || ev.defaultPrevented) return; 
   const h = 60/ps(); flyTo([b.x - h, b.y - h, b.x + h, b.y + h]); });
 canvas.addEventListener('mousemove', ev0=>{ if (ev0.buttons) return; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(()=>hover(ev0)); });
 function hover(ev){ const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top; const [wx,wy] = toWorld(sx,sy); let html = null;
-  if (layer.roadColor && CLU){ let best = null, bd = 1e9; for (const b of CLU){ const [bx, by] = toScreen(b.x, b.y), d = Math.hypot(bx - sx, by - sy); if (d <= b.r + 3 && d < bd){ bd = d; best = b; } }
-    if (best) html = best.n === 1 ? layer.roadTip(best.i) : `<b>${best.n.toLocaleString()} road spots here</b><br>colour = the worst of them<br><span class="muted">scroll in to split this bubble into single roads</span>`; }
-  else if (layer.roadColor){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
+  if (CLU && CLU.length){ let best = null, bd = 1e9; for (const b of CLU){ const [bx, by] = toScreen(b.x, b.y), d = Math.hypot(bx - sx, by - sy); if (d <= b.r + 3 && d < bd){ bd = d; best = b; } }
+    if (best) html = best.kind === 'report' ? reportTip(best) : best.n === 1 ? layer.roadTip(best.i) : `<b>${best.n.toLocaleString()} road spots here</b><br>colour = the worst of them<br><span class="muted">click or scroll in to split this bubble</span>`; }
+  if (!html && layer.roadColor && !(CLU||[]).some(b => b.kind === "road")){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
   if (!html && layer.segColor && GSEG){ const i = GSEG.quad.find(wx, wy, 9/ps()); if (i!=null && (layer.segColor(i) || mpp() < 30)) html = layer.segTip(i); }
   if (!html && layer.topTown && mpp() < 140){ const r = tquad.find(wx, wy, 8/ps()); if (r && layer.topTown(r.town)) html = `<b>${titleCase(r.street)||'Road'}</b><br>${titleCase(r.town)}<br>one of the town's most flood-prone road spots (top ${Math.max(1,Math.round((1-r.pct)*100))}% by terrain: low, in a dip, below its surroundings)`; }
   if (!html && layer.closures){ setWorld(); ctx.lineWidth = 10/ps(); const s = (closureGeo[layer.closures]||[]).find(s=>ctx.isPointInStroke(s.p, sx*dpr, sy*dpr)); if (s) html = layer.closureTip(s.f.properties); ctx.setTransform(dpr,0,0,dpr,0,0); }
@@ -477,6 +487,27 @@ function hover(ev){ const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.
 canvas.addEventListener('mouseleave', ()=> tip.hidden = true);
 
 /* ================= legend helpers ================= */
+// ---------- flood-prone roads across Districts 3-6 (pre-rendered picture of every road, coloured by the model) + past reports ----------
+let PRONE = null, REPORTS = null; const PIMG = new Map();
+getJSON('prone/flood_prone_meta.json').then(m => { PRONE = m; if (state.mode === 'live' && layer.prone){ mLive(); scheduleDraw(true); } }).catch(() => {});
+function loadReports(){ if (REPORTS) return; REPORTS = {n: 0}; getJSON('prone/flood_reports.json').then(j => { const r = j.rows, n = r.length, x = new Float64Array(n), y = new Float64Array(n), col = new Array(n);
+  r.forEach((v, i) => { x[i] = v[0]; y[i] = mY(v[1]); col[i] = v[3] === 'crash' ? C.r1 : C.r3; }); REPORTS = {n, x, y, col, rows: r}; scheduleDraw(true); }).catch(() => {}); }
+const SRC_NAME = {crash: 'police crash report coded "water on road"', storm_report: 'National Weather Service storm report', 'D3 report': 'flood report (District 3 record)'};
+function reportTip(b){ const R_ = REPORTS.rows, ids = b.ids.slice().sort((p, q) => R_[p][2] < R_[q][2] ? -1 : 1);
+  if (ids.length === 1){ const v = R_[ids[0]]; return `<b>Flooded road reported</b><br>${v[2]}<br><span class="muted">${SRC_NAME[v[3]] || v[3]}</span>`; }
+  const yrs = new Map(); for (const i of ids){ const y = R_[i][2].slice(0, 4); yrs.set(y, (yrs.get(y) || 0) + 1); } const topY = [...yrs].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  return `<b>${ids.length} flooded-road reports here</b><br>${R_[ids[0]][2].slice(0, 4)}–${R_[ids[ids.length - 1]][2].slice(0, 4)}<br>busiest years: ${topY.map(t => t[0] + ' (' + t[1] + ')').join(', ')}<br><span class="muted">click or scroll in to split</span>`; }
+function pimg(file){ let im = PIMG.get(file); if (!im){ im = new Image(); im.onload = () => scheduleDraw(true); im.src = 'prone/' + file; PIMG.set(file, im); } return im.complete && im.naturalWidth ? im : null; }
+function drawProne(){ const P = PRONE; if (!P) return; const vb = viewBB(0), scr = ps()*(P.bounds[2] - P.bounds[0]);
+  const vis = ts => ts.filter(t => { const [a, b, c, d] = t.bounds; return !(a > vb[2] || c < vb[0] || mY(d) > vb[3] || mY(b) < vb[1]); });
+  const put = (t, im) => { const [a, b, c, d] = t.bounds; ctx.drawImage(im, a, mY(d), c - a, mY(b) - mY(d)); };
+  ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.95;
+  const det = scr > P.overview.w*1.3 ? vis(P.detail.tiles) : [], dIm = det.map(t => pimg(t.file));
+  if (!det.length || dIm.some(x => !x)){ const o = P.overview.tiles[0], im = pimg(o.file); if (im) put(o, im); }
+  det.forEach((t, j) => { if (dIm[j]) put(t, dIm[j]); });
+  ctx.globalAlpha = 1; }
+function proneLegend(){ if (!PRONE) return ''; const cs = PRONE.colours.map(c => `rgba(${c[1].slice(0, 3).join(',')},${(c[1][3]/255).toFixed(2)})`);
+  return `<div class="lsec"><b>Flood-prone roads, Districts 3–6</b><div class="ramp">${cs.slice(1).map(c => `<span style="background:${c}"></span>`).join('')}</div><div class="rampl"><span>typical</span><span>top 15%</span><span>top 1%</span></div><span class="note">same heavy storm on every road</span></div>`; }
 function legend(html){ $('#legend').innerHTML = html; }
 const rampLegend = title => `<b>${title}</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2%</span><span>5%</span><span>15%</span><span>35%+</span></div>`;
 const dotLegend = (col, t) => `<div><span class="sw dotsw" style="background:${col}"></span>${t}</div>`;
@@ -531,11 +562,17 @@ function mLive(){
   const [res, ms] = timed(()=>{ const fl = floodedRoads(aep); const ch = new Map([...tprops].map(([n,p])=>[n, inlandChance(p, (L.towns_qpf24||{})[n]||0, p.api_now||0, month)])); return {fl, ch}; });
   const {fl, ch} = res, s = roadSummary(fl);
   const qcol = mm => mm==null||mm<2 ? null : mm<10 ? C.r1 : mm<25 ? C.r2 : mm<50 ? C.r3 : C.r4;
-  layer = {gauges: aep, roadColor: i=>fl[i]? C.deep : null, roadTip: i=>roadTipBase(i), topTown: n=> (ch.get(n)||0) >= 0.05,
+  if (state.prone == null) state.prone = true; if (state.reports) loadReports();
+  layer = {gauges: aep, prone: state.prone, reports: !!state.reports, roadColor: i=>fl[i]? C.deep : null, roadTip: i=>roadTipBase(i), topTown: n=> (ch.get(n)||0) >= 0.05,
     townFill: n => state.liveLayer==='rain' ? qcol((L.towns_qpf24||{})[n]) : riskColor(ch.get(n)),
     townTip: n => tprops.has(n) ? `<b>${titleCase(n)}</b><br>rain forecast, next 24 h: ${fmt((L.towns_qpf24||{})[n],1)} mm<br>chance of a reported road flood: ${fmt(100*ch.get(n),1)}%` : `<b>${titleCase(n)}</b><br><span class="note">outside the inland model area (MassDOT Districts 3–6)</span>`};
-  legend((state.liveLayer==='rain' ? `<b>Rain forecast, next 24 h</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2 mm</span><span>10</span><span>25</span><span>50+</span></div>` : rampLegend('Chance of a reported road flood, next 24 h')) + dotLegend(C.deep, 'coastal road the next high tides would flood'));
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="livelayer">Color towns by</label><select id="livelayer"><option value="chance">Flood chance (model)</option><option value="rain">Rain forecast (NWS)</option></select></div>`;
+  legend((state.liveLayer==='rain' ? `<b>Rain forecast, next 24 h</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2 mm</span><span>10</span><span>25</span><span>50+</span></div>` : rampLegend('Chance of a reported road flood, next 24 h')) + dotLegend(C.deep, 'coastal road the next high tides would flood') + (state.reports ? dotLegend(C.r3, 'past flooded-road report (NWS)') + dotLegend(C.r1, 'past crash on a flooded road') : '') + (state.prone ? proneLegend() : ''));
+  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="livelayer">Color towns by</label><select id="livelayer"><option value="chance">Flood chance (model)</option><option value="rain">Rain forecast (NWS)</option></select></div>
+    <div class="ctl"><span class="lbl">Show on the map</span><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lprone"> flood-prone roads, all of D3–6</label>
+    <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lrep"> every past flood report (2002–2026)</label></div>`;
+  $('#lprone').checked = state.prone; $('#lrep').checked = !!state.reports;
+  $('#lprone').onchange = e => { state.prone = e.target.checked; mLive(); scheduleDraw(true); };
+  $('#lrep').onchange = e => { state.reports = e.target.checked; mLive(); scheduleDraw(true); };
   $('#livelayer').value = state.liveLayer; $('#livelayer').onchange = e=>{ state.liveLayer = e.target.value; mLive(); scheduleDraw(true); };
   $('#howto').textContent = 'Every town is scored by the flood model running in this page, using the National Weather Service rain forecast and how wet the ground already is. Blue dots are coastal road pieces the predicted tide plus today\'s storm surge would put under water.';
   engine(`Model run in your browser: <b>${tprops.size} towns</b> + <b>${R.lat.length.toLocaleString()} coastal road pieces</b> in ${ms.toFixed(1)} ms`);
