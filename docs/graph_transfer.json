@@ -1,0 +1,85 @@
+{
+ "results": [
+  {
+   "model": "train D3 -> test D3 2017-2026 (in region)",
+   "mean_daily_auc": 0.931,
+   "ci95": [
+    0.913,
+    0.947
+   ],
+   "days": 116,
+   "floods": 287,
+   "top5pct": 0.662
+  },
+  {
+   "model": "train D3 -> test D4-6 2017-2026 (never seen)",
+   "mean_daily_auc": 0.774,
+   "ci95": [
+    0.745,
+    0.799
+   ],
+   "days": 183,
+   "floods": 795,
+   "top5pct": 0.282
+  },
+  {
+   "model": "train D3 -> test D4-6 all years 2002-2026 (never seen)",
+   "mean_daily_auc": 0.764,
+   "ci95": [
+    0.746,
+    0.781
+   ],
+   "days": 470,
+   "floods": 1936,
+   "top5pct": 0.289
+  },
+  {
+   "model": "train D4-6 -> test D4-6 2017-2026 (in region)",
+   "mean_daily_auc": 0.831,
+   "ci95": [
+    0.801,
+    0.857
+   ],
+   "days": 183,
+   "floods": 795,
+   "top5pct": 0.424
+  },
+  {
+   "model": "train D4-6 -> test D3 2017-2026 (never seen)",
+   "mean_daily_auc": 0.896,
+   "ci95": [
+    0.871,
+    0.92
+   ],
+   "days": 116,
+   "floods": 287,
+   "top5pct": 0.554
+  },
+  {
+   "model": "train both -> test D3 2017-2026",
+   "mean_daily_auc": 0.924,
+   "ci95": [
+    0.902,
+    0.944
+   ],
+   "days": 116,
+   "floods": 287,
+   "top5pct": 0.655
+  },
+  {
+   "model": "train both -> test D4-6 2017-2026",
+   "mean_daily_auc": 0.839,
+   "ci95": [
+    0.813,
+    0.864
+   ],
+   "days": 183,
+   "floods": 795,
+   "top5pct": 0.443
+  }
+ ],
+ "note": "Same features for every road segment in Districts 3-6 (10 m lidar terrain, 30 m streams, AORC rain, PRISM wetness, road class/traffic), trees model (gradient boosting), trained on 2002-2016 and scored per storm day on 2017-2026. A model that never saw Districts 4-6 still ranks their flooded segments well (AUC 0.77, top 5% of segments catch 28% of reports), and a D4-6 model transfers to District 3 at 0.90. D4-6 is harder in its own region (0.83) because its labels are noisier (crash reports coded 'water on road' plus NWS storm reports matched to the nearest named road) and its segments are about 5x shorter. Training on both regions keeps District 3 at 0.92 and lifts D4-6 to 0.84.",
+ "n_seg": {
+  "D456": 261396
+ }
+}
