@@ -848,11 +848,11 @@ const WSIM = {}, SIM_IDS = ['forecast', 'flash_state', 'flash', 'flash_fcst', 'f
 Object.assign(SIM_LABEL, {northshore: 'Coastal · Jan 4, 2018 · North Shore (zoomed)', boston_slr05: 'Same storm, sea +0.5 m (about 2050–60) · Boston', boston_slr10: 'Same storm, sea +1.0 m (about 2080–90) · Boston'});
 SIM_LABEL.boston = 'Coastal · Jan 4, 2018 · Boston Harbor (zoomed)';
 SIM_IDS.push('northshore', 'boston_slr05', 'boston_slr10');
-const MOSAIC = {flash_mosaic: Array.from({length: 29}, (_, i) => 'fm' + String(i).padStart(2, '0')),
+const MOSAIC = {flash_mosaic: Array.from({length: 29}, (_, i) => 'fm' + String(i).padStart(2, '0')), dec_mosaic: Array.from({length: 29}, (_, i) => 'dm' + String(i).padStart(2, '0')),
   coast_mosaic: ['northshore', 'southshore', 'cm_plymouth', 'cm_ccbay', 'cm_outer', 'cm_southcape', 'cm_buzzards', 'cm_fallriver', 'cm_vineyard', 'cm_nantucket', 'boston']};
-Object.assign(SIM_LABEL, {flash_mosaic: 'All of Districts 3–6 · Sept 11, 2023 (every town, 50 m)', coast_mosaic: 'Whole Massachusetts coast · Jan 4, 2018 (every harbor)'});
-SIM_IDS.push('flash_mosaic', 'coast_mosaic');
-const SIM_GROUPS = {now: ['forecast'], 'replay/water': ['flash_mosaic', 'flash_state', 'flash', 'attleboro', 'flash_fcst', 'flash_fcst18'], 'replay/coastal': ['coast_mosaic', 'coastal', 'boston', 'northshore', 'southshore'], 'future/seawater': ['boston_slr05', 'boston_slr10', 'boston']};
+Object.assign(SIM_LABEL, {dec_mosaic: 'Statewide rain · Dec 18, 2023 · all of Districts 3–6 (paved ground + wet soil)', flash_mosaic: 'All of Districts 3–6 · Sept 11, 2023 (every town, 50 m)', coast_mosaic: 'Whole Massachusetts coast · Jan 4, 2018 (every harbor)'});
+SIM_IDS.push('flash_mosaic', 'coast_mosaic', 'dec_mosaic');
+const SIM_GROUPS = {now: ['forecast'], 'replay/water': ['dec_mosaic', 'flash_mosaic', 'flash_state', 'flash', 'attleboro', 'flash_fcst', 'flash_fcst18'], 'replay/coastal': ['coast_mosaic', 'coastal', 'boston', 'northshore', 'southshore'], 'future/seawater': ['boston_slr05', 'boston_slr10', 'boston']};
 // a mosaic is many tiles of the same storm on the same clock, drawn together as one scene
 async function loadMosaic(id){ const got = await Promise.all(MOSAIC[id].map(t => loadSim(t).catch(() => null)));
   const T = got.filter(t => t && t.status !== 'dry' && t.n); if (!T.length) throw new Error('no tiles yet');
@@ -862,7 +862,7 @@ async function loadMosaic(id){ const got = await Promise.all(MOSAIC[id].map(t =>
     for (const t of tiles){ const g = t.frames[k]; o.wet_km2 += g.wet_km2 || 0; o.deep_km2 += g.deep_km2 || 0; o.roads_wet += g.roads_wet || 0; o.rain_max_mmph = Math.max(o.rain_max_mmph, g.rain_max_mmph || 0); o.rain_mmph += (g.rain_mmph || 0) / tiles.length; o.soaked_mm += (g.soaked_mm || 0) / tiles.length; }
     if (!isF) o.level_navd_m = gauge.frames[k].level_navd_m; if (ref.frames[k].soaked_mm == null) delete o.soaked_mm; return o; });
   const m = {id, mosaic: true, tiles: tiles.sort((a, b) => b.cell_m - a.cell_m), kind: ref.kind, status: 'ok', n: ref.n, frame_min: ref.frame_min, frames, colors: ref.colors, show_m: ref.show_m,
-    title: (isF ? 'Sept 11, 2023 radar rain over all of Districts 3–6' : "Jan 4, 2018 nor'easter along the whole Massachusetts coast") + ` · ${tiles.length} of ${MOSAIC[id].length} tiles ready`,
+    title: (isF ? (id === 'dec_mosaic' ? 'Dec 18, 2023 radar rain over all of Districts 3–6, with NLCD paved surfaces and ground already wet' : 'Sept 11, 2023 radar rain over all of Districts 3–6') : "Jan 4, 2018 nor'easter along the whole Massachusetts coast") + ` · ${tiles.length} of ${MOSAIC[id].length} tiles ready`,
     bounds: [Math.min(...tiles.map(t => t.bounds[0])), Math.min(...tiles.map(t => t.bounds[1])), Math.max(...tiles.map(t => t.bounds[2])), Math.max(...tiles.map(t => t.bounds[3]))],
     shape: [tiles.reduce((a, t) => a + t.shape[0] * t.shape[1], 0), 1], cell_m: Math.min(...tiles.map(t => t.cell_m)), steps: tiles.reduce((a, t) => a + t.steps, 0), runtime_s: tiles.reduce((a, t) => a + t.runtime_s, 0),
     rain_total_max_mm: Math.max(...tiles.map(t => t.rain_total_max_mm || 0)), rain_total_mean_mm: tiles.reduce((a, t) => a + (t.rain_total_mean_mm || 0), 0) / tiles.length,

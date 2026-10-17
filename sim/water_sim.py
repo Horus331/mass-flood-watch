@@ -71,6 +71,11 @@ for _i, _b in enumerate(FLASH_TILES):
     SCEN[f'fm{_i:02d}'] = dict(title=f'Flash flood · Sept 11, 2023 · tile {_i + 1} of {len(FLASH_TILES)}', kind='flash', mosaic='flash_mosaic',
                                bbox=tuple(_b), res=50.0, t0='2023-09-11T16:00Z', hours=36, frame_min=30, manning=0.06, show_m=0.10,
                                f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True)
+# Dec 18, 2023: 2-4 inches of rain over the whole state on wet, partly snow-covered ground (rivers flooded in many towns)
+for _i, _b in enumerate(FLASH_TILES):
+    SCEN[f'dm{_i:02d}'] = dict(title=f'Statewide rain · Dec 18, 2023 · tile {_i + 1} of {len(FLASH_TILES)}', kind='flash', mosaic='dec_mosaic',
+                               bbox=tuple(_b), res=50.0, t0='2023-12-17T22:00Z', hours=36, frame_min=30, manning=0.06, show_m=0.10,
+                               f0=30.0, fc=3.0, Fk=40.0, drain=2.0, min_rain_mm=0.0, sea_sink=True, landcover=True, wet_start_mm=25.0)
 # coast: Jan 4, 2018 nor'easter along the rest of the Massachusetts coast, each tile driven by its nearest NOAA tide gauge
 COAST_TILES = {
     'cm_plymouth': ((-70.75, 41.73, -70.45, 42.07), 30.0, '8443970'),   # Plymouth, Kingston, Duxbury Bay (Cape Cod Bay tide ~ Boston)
@@ -108,6 +113,27 @@ def get(url, **kw):
             print('  retry', k, e)
         time.sleep(3 + 5 * k)
     raise RuntimeError('download failed: ' + url)
+
+
+def nlcd_impervious(bbox, ny, nx):
+    """NLCD 2021 impervious surface (0-1) on the same Web-Mercator grid as the DEM (MRLC GeoServer WCS)."""
+    lon0, lat0, lon1, lat1 = bbox
+    x0, y0 = merc(lon0, lat0); x1, y1 = merc(lon1, lat1)
+    import tifffile
+    out = np.zeros((ny, nx), np.float32); step = 1500
+    for r0 in range(0, ny, step):
+        for c0 in range(0, nx, step):
+            r1, c1 = min(ny, r0 + step), min(nx, c0 + step)
+            bx0 = x0 + (x1 - x0) * c0 / nx; bx1 = x0 + (x1 - x0) * c1 / nx
+            by1 = y1 - (y1 - y0) * r0 / ny; by0 = y1 - (y1 - y0) * r1 / ny
+            url = ('https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=1.0.0&request=GetCoverage'
+                   f'&coverage=mrlc_download:NLCD_2021_Impervious_L48&CRS=EPSG:3857&BBOX={bx0},{by0},{bx1},{by1}&WIDTH={c1 - c0}&HEIGHT={r1 - r0}&FORMAT=GeoTIFF')
+            t = tifffile.imread(io.BytesIO(get(url).content)).astype(np.float32)
+            if t.ndim == 3: t = t[..., 0]
+            t[t > 100] = 0
+            out[r0:r1, c0:c1] = t[: r1 - r0, : c1 - c0] / 100.0
+    print(f'NLCD impervious: mean {out.mean() * 100:.1f}%, cells over 50% paved: {(out > 0.5).mean() * 100:.1f}%')
+    return out
 
 
 def dem_3dep(bbox, res):
@@ -412,9 +438,18 @@ def run(name):
             fn = f'rain/h{ts:%m%d%H}.png'; save_png(img, os.path.join(out, fn)); rain_frames.append([ts.strftime('%Y-%m-%dT%H:%MZ'), fn])
         tot = sum(RAIN.values()); print(f'storm total max {tot.max():.0f} mm, mean {tot.mean():.0f} mm')
         Finf = np.zeros((ny, nx), np.float32)                          # water soaked in so far (mm), drives the Horton decay
+        Finf += S.get('wet_start_mm', 0.0)                              # ground already wet before the storm (snowmelt, earlier rain)
+        IMP = None
+        if S.get('landcover'):
+            try:
+                IMP = nlcd_impervious(S['bbox'], ny, nx)
+            except Exception as e:
+                print('  NLCD impervious unavailable:', e)
+        f_scale = (1.0 - 0.9 * IMP) if IMP is not None else 1.0           # paved ground soaks up almost nothing
+        drain_mmph = (S['drain'] + 8.0 * IMP) if IMP is not None else S['drain']   # but paved areas have storm drains
         lost_mm = 0.0
         P = np.zeros((ny, nx), np.float32)
-        extra = dict(rain_frames=rain_frames, rain_colors=RAIN_STOPS, rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(f0=S['f0'], fc=S['fc'], Fk=S['Fk'], drain=S['drain']))
+        extra = dict(rain_frames=rain_frames, rain_colors=RAIN_STOPS, rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(f0=S['f0'], fc=S['fc'], Fk=S['Fk'], drain=S['drain'], landcover='NLCD 2021 impervious' if IMP is not None else None, wet_start_mm=S.get('wet_start_mm', 0.0)))
     else:
         st = S['station']; DT = datums(st)
         lvl = coops(st, t0 - pd.Timedelta(hours=1), t0 + pd.Timedelta(hours=S['hours'] + 1))
@@ -488,7 +523,7 @@ def run(name):
                 sim.step(dt, source=(RAIN[hr] / 3.6e6).astype(np.float32))   # all rain lands; the ground takes its share below
             else:
                 sim.step(dt)
-            fcap = (S['fc'] + (S['f0'] - S['fc']) * np.exp(-Finf / S['Fk']) + S['drain']) / 3.6e6 * dt   # m this step
+            fcap = ((S['fc'] + (S['f0'] - S['fc']) * np.exp(-Finf / S['Fk'])) * f_scale + drain_mmph) / 3.6e6 * dt   # m this step
             loss = np.minimum(sim.h, fcap); sim.h -= loss; Finf += loss * 1000.0
         else:
             sim.step(dt, level=lvl_t(t))
