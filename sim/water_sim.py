@@ -261,13 +261,32 @@ RAIN_STOPS = [(1.0, (120, 220, 120, 70)), (5.0, (60, 190, 70, 110)), (15.0, (245
 
 
 def to_rgba(depth, show):
+    """Depth -> colour; edges fade in between half the threshold and 1.5x it so the water has soft, natural margins."""
     d = np.where(np.isfinite(depth), depth, 0)
     xs = np.array([s[0] for s in STOPS]); cs = np.array([s[1] for s in STOPS], float)
     out = np.zeros(d.shape + (4,), np.uint8)
-    m = d >= show
-    for c in range(4):
+    m = d >= 0.5 * show
+    for c in range(3):
         out[..., c][m] = np.interp(d[m], xs, cs[:, c]).astype(np.uint8)
+    fade = np.clip((d[m] - 0.5 * show) / show, 0, 1)
+    out[..., 3][m] = (np.interp(d[m], xs, cs[:, 3]) * fade).astype(np.uint8)
     return out
+
+
+def vel_png(sim, show, step=3, mask=None):
+    """Water velocity on a coarser grid for the animated flow streaks: R,G = east and south speed (-2..2 m/s), B = wet."""
+    h = sim.h; ny, nx = h.shape
+    qx = np.zeros((ny, nx), np.float32); qy = np.zeros((ny, nx), np.float32)
+    qx[:, :-1] += sim.qx; qx[:, 1:] += sim.qx; qx /= 2; qy[:-1, :] += sim.qy; qy[1:, :] += sim.qy; qy /= 2
+    wet = h >= 0.5 * show
+    if mask is not None: wet &= mask
+    hs = np.maximum(h, 0.05)
+    u = np.where(wet, qx / hs, 0); v = np.where(wet, qy / hs, 0)
+    sl = (slice(0, None, step), slice(0, None, step))
+    img = np.zeros(u[sl].shape + (4,), np.uint8)
+    img[..., 0] = np.clip(128 + u[sl] * 64, 0, 255); img[..., 1] = np.clip(128 + v[sl] * 64, 0, 255)
+    img[..., 2] = wet[sl] * 255; img[..., 3] = 255
+    return img
 
 
 def save_png(rgba, path):
@@ -398,6 +417,7 @@ def run(name):
             if S['kind'] == 'coastal':
                 d[~land] = 0
             save_png(to_rgba(d, S['show_m']), os.path.join(out, f'f{k:03d}.png'))
+            save_png(vel_png(sim, S['show_m'], mask=land if S['kind'] == 'coastal' else None), os.path.join(out, f'v{k:03d}.png'))
             vis = d >= S['show_m']
             fm = dict(t=frame_t[k].strftime('%Y-%m-%dT%H:%MZ'), wet_km2=round(float(vis.sum()) * dx * dx / 1e6, 2),
                       max_depth_m=round(float(d.max()), 2), deep_km2=round(float((d >= 0.5).sum()) * dx * dx / 1e6, 2))
@@ -446,7 +466,7 @@ def run(name):
         hm[~land] = 0
     save_png(to_rgba(hm, S['show_m']), os.path.join(out, 'max.png'))
     lon0, lat0, lon1, lat1 = S['bbox']
-    meta = dict(id=name, title=S['title'], kind=S['kind'], status='ok', issued=S.get('t0') if S.get('source') == 'hrrr' else None, source=S.get('source', 'mrms'), bounds=[lon0, lat0, lon1, lat1], shape=[ny, nx], cell_m=round(dx, 1),
+    meta = dict(id=name, title=S['title'], kind=S['kind'], status='ok', vel_step=3, issued=S.get('t0') if S.get('source') == 'hrrr' else None, source=S.get('source', 'mrms'), bounds=[lon0, lat0, lon1, lat1], shape=[ny, nx], cell_m=round(dx, 1),
                 frame_min=S['frame_min'], show_m=S['show_m'], frames=meta_frames, n=len(meta_frames), steps=steps,
                 runtime_s=round(time.time() - t_start), colors=STOPS, **extra)
     if RS:

@@ -57,6 +57,7 @@ h1{font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:.06e
 .stage{position:relative;min-height:0;background:var(--sea);overflow:hidden}
 canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
 canvas#map:active{cursor:grabbing}
+canvas#flow{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:1}
 .card{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:3}
 .rail{left:max(14px,env(safe-area-inset-left,0px));top:14px;width:292px;max-height:calc(100% - 28px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
 .readout{right:max(14px,env(safe-area-inset-right,0px));top:14px;width:356px;max-height:calc(100% - 112px);overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
@@ -136,7 +137,7 @@ h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spa
   .app{display:flex;flex-direction:column;height:auto;min-height:100%}
   header{gap:10px}.status{margin-left:0}
   .stage{height:auto;flex:none;overflow:visible;padding-top:64vh;display:flex;flex-direction:column}
-  canvas#map{height:64vh;bottom:auto}
+  canvas#map,canvas#flow{height:64vh;bottom:auto}
   .scalebar{bottom:auto;top:calc(64vh - 116px)} .credit{bottom:auto;top:calc(64vh - 15px)} .byline{bottom:auto;top:calc(64vh - 76px);width:auto;max-width:calc(100% - 24px);padding:6px 10px} .byline .logo svg{height:28px} .byline .who{font-size:12.5px}
   .legend{position:static;max-width:none;box-shadow:none;border-radius:0;border-left:0;border-right:0;order:-1}
   .rail{order:-2} .readout{order:-1} .legend{order:0!important}
@@ -164,6 +165,7 @@ h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spa
 
   <div class="stage" id="stage">
     <canvas id="map" aria-label="Map of Massachusetts roads, towns and flood model results"></canvas>
+    <canvas id="flow" aria-hidden="true"></canvas>
     <div id="gmarks"></div>
     <aside class="card rail" aria-label="Controls">
       <div class="subtabs" id="subtabs" role="group" aria-label="View"></div>
@@ -831,8 +833,10 @@ async function mWater(){
     <div class="ctl"><span class="lbl">Time</span><div class="wtime" id="wtime"></div><input type="range" id="wbar" min="0" max="${(m.n - 1) * 20}" step="1" value="${Math.round(st.f * 20)}" aria-label="Simulation time">
     <div class="wplay"><button class="btn" id="wplay">▶ Play</button><select id="wspd" aria-label="Speed" style="width:auto"><option value="2">slow</option><option value="4">normal</option><option value="8">fast</option></select>
     <label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wmax"> highest water</label></div>
-    <div class="wplay">${m.rain_frames ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrain"> radar rain</label>' : ''}${m.roads ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wroads"> flooded roads</label>' : ''}${simDay(m) ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrank"> model ranking that day</label>' : ''}</div><span class="note" id="wload"></span></div>`;
+    <div class="wplay">${m.rain_frames ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrain"> radar rain</label>' : ''}${m.roads ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wroads"> flooded roads</label>' : ''}${m.vel_step ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wflow"> moving streaks</label>' : ''}${simDay(m) ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrank"> model ranking that day</label>' : ''}</div><span class="note" id="wload"></span></div>`;
   if ($('#wrain')){ $('#wrain').checked = st.rain; $('#wrain').onchange = e => { st.rain = e.target.checked; mWater(); }; }
+  if ($('#wflow')){ $('#wflow').checked = st.flow !== false; $('#wflow').onchange = e => { st.flow = e.target.checked; }; }
+  if (m.vel_step) flowStart();
   if ($('#wrank')){ $('#wrank').checked = !!st.rank; $('#wrank').onchange = e => { st.rank = e.target.checked; mWater(); }; }
   if ($('#wroads')){ $('#wroads').checked = st.roads; $('#wroads').onchange = e => { st.roads = e.target.checked; mWater(); }; }
   $('#wsc').value = st.id; $('#wspd').value = String(st.speed); $('#wmax').checked = st.showMax;
@@ -893,8 +897,37 @@ function wStart(){ const st = state.water, m = WSIM[st.id]; if (!m) return; if (
     wUpdate(); if (st.f >= m.n - 1){ wStop(); return; } wTimer = requestAnimationFrame(tickW); };
   wTimer = requestAnimationFrame(tickW); }
 function wStop(){ if (wTimer) cancelAnimationFrame(wTimer); wTimer = 0; const b = $('#wplay'); if (b) b.textContent = '▶ Play'; }
+/* ---------- animated flow streaks (water moving along the simulated currents) ---------- */
+const flowC = document.getElementById('flow'), fctx = flowC.getContext('2d'); let flowRaf = 0, FP = null, FPk = -1;
+function velData(m, k){ m.vd = m.vd || []; if (m.vd[k] !== undefined) return m.vd[k]; m.vd[k] = null; const im = new Image();
+  im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+    const d = x.getImageData(0, 0, im.width, im.height).data, wet = []; for (let i = 0; i < im.width * im.height; i++) if (d[i * 4 + 2] > 128) wet.push(i); m.vd[k] = {w: im.width, h: im.height, d, wet}; };
+  im.src = `sim/${m.id}/v${String(k).padStart(3, '0')}.png?v=${m.ver}`; return null; }
+function flowStart(){ if (flowRaf) return; const loop = () => { flowRaf = requestAnimationFrame(loop); flowTick(); }; flowRaf = requestAnimationFrame(loop); }
+function flowStop(){ cancelAnimationFrame(flowRaf); flowRaf = 0; FP = null; fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, flowC.width, flowC.height); }
+function flowTick(){
+  if (flowC.width !== canvas.width || flowC.height !== canvas.height){ flowC.width = canvas.width; flowC.height = canvas.height; }
+  fctx.setTransform(1, 0, 0, 1, 0, 0);
+  const st = state.water, m = st && WSIM[st.id];
+  if (state.mode !== 'water' || !m || !m.vel_step || st.showMax || st.flow === false){ fctx.clearRect(0, 0, flowC.width, flowC.height); return; }
+  fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.10)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
+  const k = Math.round(st.f), V = velData(m, k); if (!V || !V.wet.length) return;
+  const N = Math.min(2500, V.wet.length * 2);
+  const spawn = p => { const i = V.wet[(Math.random() * V.wet.length) | 0]; p.x = (i % V.w) + Math.random(); p.y = ((i / V.w) | 0) + Math.random(); p.age = (Math.random() * 60) | 0; return p; };
+  if (!FP || FP.length !== N || FPk !== m.id){ FP = Array.from({length: N}, () => spawn({})); FPk = m.id; }
+  const [lon0, lat0, lon1, lat1] = m.bounds, y0w = mY(lat1), hw = mY(lat0) - y0w, ww = lon1 - lon0;
+  const scr = (x, y) => toScreen(lon0 + x / V.w * ww, y0w + y / V.h * hw);
+  fctx.strokeStyle = 'rgba(236,248,255,0.85)'; fctx.lineWidth = 1.3 * dpr; fctx.lineCap = 'round'; fctx.beginPath();
+  for (const p of FP){
+    const ix = p.x | 0, iy = p.y | 0, i = iy * V.w + ix;
+    if (ix < 0 || iy < 0 || ix >= V.w || iy >= V.h || V.d[i * 4 + 2] < 128 || ++p.age > 90){ spawn(p); p.age = 0; continue; }
+    const u = (V.d[i * 4] - 128) / 64, v = (V.d[i * 4 + 1] - 128) / 64, sp = Math.hypot(u, v);
+    if (sp < 0.03){ p.age += 6; continue; }
+    const f = 0.22 / Math.max(0.6, Math.sqrt(sp)), nx = p.x + u * f, ny = p.y + v * f;
+    const [a, b] = scr(p.x, p.y), [c, d] = scr(nx, ny); fctx.moveTo(a * dpr, b * dpr); fctx.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; }
+  fctx.stroke(); }
 const MODES = {water:mWater, graph:mGraph, check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
-function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function') wStop(); state.mode = m;
+function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function'){ wStop(); flowStop(); } state.mode = m;
   $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
 function goTab(t, v){ if (!TABS[t]) t = 'now'; state.tab = t; if (v) state.view[t] = v; const view = state.view[t];
   state.lock = t === 'now' ? 'now' : t === 'replay' ? 'replay' : null;              // the road graph and water views show live or past storms depending on the tab
