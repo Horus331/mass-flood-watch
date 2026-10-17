@@ -23,7 +23,7 @@ UA = {'User-Agent': 'mass-flood-watch research map (github.com/Horus331/mass-flo
 SCEN = {
     'flash': dict(title='Flash flood · Sept 11, 2023 (Leominster, Fitchburg)', kind='flash',
                   bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0,
-                  t0='2023-09-11T14:00Z', hours=17, frame_min=15, manning=0.06, cn=80, show_m=0.15),
+                  t0='2023-09-11T17:00Z', hours=16, frame_min=15, manning=0.06, cn=80, show_m=0.15),
     'coastal': dict(title="Coastal flood · Jan 4, 2018 nor'easter (Boston Harbor to the South Shore)", kind='coastal',
                     bbox=(-71.20, 41.98, -70.56, 42.72), res=60.0,
                     t0='2018-01-04T08:00Z', hours=18, frame_min=15, manning=0.045, show_m=0.05, station='8443970'),
@@ -263,6 +263,8 @@ def run(name):
         sea = np.isin(lab, edge)
         print(f'sea cells {sea.mean() * 100:.1f}%')
         Z = np.where(nod, -5.0, Z).astype(np.float32)
+        Z = np.where(~sea & (Z < -1.0), -1.0, Z).astype(np.float32)          # deep holes not open to the sea (quarries, dredged basins): cap their depth
+        print(f'non-sea cells below 0 m: {((~sea) & (Z < 0)).mean() * 100:.1f}%')
         sim = LocalInertial(Z, dx, S['manning'], fixed=sea)
         lvl_t = lambda ts: float(np.interp((ts - lvl.index[0]).total_seconds(), (lvl.index - lvl.index[0]).total_seconds(), lvl.values))
         land = (~sea) & (Z > mhhw)
@@ -319,6 +321,9 @@ def run(name):
         else:
             sim.step(dt, level=lvl_t(t))
         t = t + pd.Timedelta(seconds=dt); steps += 1
+        if steps % 3000 == 0:
+            hh = np.where(sim.fixed, 0, sim.h) if sim.fixed is not None else sim.h; j = int(np.argmax(hh))
+            print(f'   step {steps} t {t:%H:%M:%S} dt {dt:.2f}s hmax {hh.flat[j]:.2f} m at row {j // nx} col {j % nx} (z {Z.flat[j]:.2f})', flush=True)
     # max-extent image
     hm = sim.hmax.copy()
     if S['kind'] == 'coastal':
