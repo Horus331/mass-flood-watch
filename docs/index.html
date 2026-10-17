@@ -318,9 +318,18 @@ function clusterDraw(items, k, kind, minN = 1){
     ctx.beginPath(); ctx.arc(b.x, b.y, r + 1.6/k, 0, 6.2832); ctx.fillStyle = C['flood-ring']; ctx.fill();
     ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.globalAlpha = b.n === 1 ? 1 : 0.85; ctx.fillStyle = b.col; ctx.fill(); ctx.globalAlpha = 1; }
   return out; }
+// the map under the hazard layers (land, towns, rivers, roads, flood-prone picture) only changes when the view or the layer set changes,
+// so it is drawn once and reused while a simulation plays
+const BASE = document.createElement('canvas'), bctx = BASE.getContext('2d'); let BASE_KEY = '', LAYER_ID = 0; const LIDS = new WeakMap();
 function draw(){
   if (W < 20 || H < 20) return;
   const m = mpp(), k = ps();
+  if (!LIDS.has(layer)) LIDS.set(layer, ++LAYER_ID);
+  const bkey = [T.k, T.x, T.y, canvas.width, canvas.height, LIDS.get(layer), TILES.size, PRONE ? PIMG.size + ':' + [...PIMG.values()].filter(okImg).length : 0, state.liveLayer, C.sea, C.road].join('|');
+  const local = m < 26, tiles = local ? visibleTiles() : [];
+  if (bkey === BASE_KEY && BASE.width === canvas.width && BASE.height === canvas.height){
+    ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(BASE, 0, 0); setWorld(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  } else {
   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle = C.sea; ctx.fillRect(0,0,W,H);
   setWorld(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   // land
@@ -335,7 +344,6 @@ function draw(){
   // town lines
   ctx.lineWidth = (m < 60 ? 1 : 0.6)/k; ctx.strokeStyle = C.townline; for (const g of townGeo.values()) ctx.stroke(g.path);
   // roads
-  const local = m < 26, tiles = local ? visibleTiles() : [];
   if (local) tiles.forEach(t=>{ if (!TILES.has(t)) loadTile(t); });
   const z = (lo,hi,a,b) => m>=a ? lo : m<=b ? hi : lo + (hi-lo)*(a-m)/(a-b);       // width by zoom
   if (local){ const wl = z(0.4, 4, 26, 1.2);
@@ -349,6 +357,10 @@ function draw(){
   if (m < 140) SR('c4', w4, C.road); if (m < 60) SR('ramp', wr, C.hwy);
   SR('c3', w3, C.art); SR('c2', w2, C.art); SR('c1', w1, C.hwy);
   if (layer.prone) drawProne();
+  if (BASE.width !== canvas.width || BASE.height !== canvas.height){ BASE.width = canvas.width; BASE.height = canvas.height; }
+  bctx.setTransform(1,0,0,1,0,0); bctx.clearRect(0, 0, BASE.width, BASE.height); bctx.drawImage(canvas, 0, 0); BASE_KEY = bkey; setWorld();
+  }
+  const vb = viewBB(40);
   // simulated water (Water tab), over the roads so flooded streets disappear under it
   if (layer.water) layer.water();
   // hazard: closures
@@ -844,7 +856,7 @@ async function mGraph(){
   scheduleDraw(true);
 }
 /* ================= water movement simulation (Water tab) ================= */
-const WSIM = {}, SIM_IDS = ['forecast', 'flash_state', 'flash', 'flash_fcst', 'flash_fcst18', 'attleboro', 'boston', 'southshore', 'coastal'], SIM_LABEL = {flash_state: 'Flash flood · Sept 11, 2023 · whole area D3–6', flash_fcst18: 'Forecast test · Sept 11, 2023 · HRRR from 2 pm', flash_fcst: 'Forecast test · Sept 11, 2023 · HRRR from that morning', attleboro: 'Flash flood · Sept 11, 2023 · North Attleborough', forecast: 'Forecast · next 30 h (live, NOAA HRRR)', flash: 'Flash flood · Sept 11, 2023 · Leominster', boston: "Coastal · Jan 4, 2018 · Boston Harbor (zoomed)", southshore: "Coastal · Jan 4, 2018 · South Shore (zoomed)", coastal: "Coastal · Jan 4, 2018 · whole coast (overview)"}; let wTimer = 0;
+window.__W = () => ({WSIM, st: state.water}); const WSIM = {}, SIM_IDS = ['forecast', 'flash_state', 'flash', 'flash_fcst', 'flash_fcst18', 'attleboro', 'boston', 'southshore', 'coastal'], SIM_LABEL = {flash_state: 'Flash flood · Sept 11, 2023 · whole area D3–6', flash_fcst18: 'Forecast test · Sept 11, 2023 · HRRR from 2 pm', flash_fcst: 'Forecast test · Sept 11, 2023 · HRRR from that morning', attleboro: 'Flash flood · Sept 11, 2023 · North Attleborough', forecast: 'Forecast · next 30 h (live, NOAA HRRR)', flash: 'Flash flood · Sept 11, 2023 · Leominster', boston: "Coastal · Jan 4, 2018 · Boston Harbor (zoomed)", southshore: "Coastal · Jan 4, 2018 · South Shore (zoomed)", coastal: "Coastal · Jan 4, 2018 · whole coast (overview)"}; let wTimer = 0;
 Object.assign(SIM_LABEL, {northshore: 'Coastal · Jan 4, 2018 · North Shore (zoomed)', boston_slr05: 'Same storm, sea +0.5 m (about 2050–60) · Boston', boston_slr10: 'Same storm, sea +1.0 m (about 2080–90) · Boston'});
 SIM_LABEL.boston = 'Coastal · Jan 4, 2018 · Boston Harbor (zoomed)';
 SIM_IDS.push('northshore', 'boston_slr05', 'boston_slr10');
@@ -871,25 +883,26 @@ async function loadMosaic(id){ const got = await Promise.all(MOSAIC[id].map(t =>
     m.roads = {kind: withRoads[0].roads.kind, first: {}, names: {}};
     for (const t of withRoads){ for (const [i, v] of Object.entries(t.roads.first)){ if (m.rf[+i] < 0 || v < m.rf[+i]) m.rf[+i] = v; m.roads.first[i] = m.rf[+i]; } Object.assign(m.roads.names, t.roads.names || {});
       for (let i = 0; i < N; i++){ if (t.rl[i] > m.rl[i]) m.rl[i] = t.rl[i]; if (t.rp[i] > m.rp[i]) m.rp[i] = t.rp[i]; } } }
-  m.img = Array.from({length: m.n}, (_, k) => ({complete: true, get naturalWidth(){ return m.tiles.every(t => okImg(t.img[k])) ? 1 : 0; }}));
+  m.img = Array.from({length: m.n}, (_, k) => ({complete: true, get naturalWidth(){ return m.tiles.every(t => { const n = tileNeed(t); return n === 0 || (n === 2 ? okImg(t.img[k]) : okImg((t.oimg || {})[k])); }) ? 1 : 0; }}));
   m.maxProxy = {complete: true, get naturalWidth(){ return m.tiles.every(t => okImg(t.maxImg)) ? 1 : 0; }};
   m.partial = tiles.length < MOSAIC[id].length; m.at = Date.now(); return (WSIM[id] = m); }
 async function loadSim(id){ if (WSIM[id] && WSIM[id].partial && Date.now() - WSIM[id].at > 60000) delete WSIM[id]; if (WSIM[id]) return WSIM[id]; if (MOSAIC[id]) return loadMosaic(id); const m = await getJSON('sim/' + id + '/meta.json'); m.img = new Array(m.n); m.ver = m.runtime_s + '-' + m.steps; WSIM[id] = m; if (m.rain_frames) m.rain_frames = m.rain_frames.map(([t, file]) => ({ms: Date.parse(t.replace('Z', ':00Z')), file}));
   if (m.roads){ const N = m.roads.kind === 'coastal' ? R.lat.length : 60000; m.rf = new Int16Array(N).fill(-1); m.rl = new Int16Array(N).fill(-1); m.rp = new Float32Array(N);
     for (const [i, v] of Object.entries(m.roads.first)) m.rf[+i] = v; for (const [i, v] of Object.entries(m.roads.last||{})) m.rl[+i] = v; for (const [i, v] of Object.entries(m.roads.peak||{})) m.rp[+i] = v[0]; }
   return m; }
-function simImg(m, k){ if (m.mosaic){ m.tiles.forEach(t => simImg(t, k)); return k === 'max' ? m.maxProxy : m.img[k]; }
+function tileNeed(t){ const vb = viewBB(0), [a, b, c, d] = t.bounds; if (a > vb[2] || c < vb[0] || mY(b) < vb[1] || mY(d) > vb[3]) return 0; return t.pool && ps()*(c - a)/t.shape[1] < 2 ? 1 : 2; }   // 0 off screen, 1 small copy, 2 full frame
+function simImg(m, k){ if (m.mosaic){ m.tiles.forEach(t => { const n = tileNeed(t); if (n === 2) simImg(t, k); else if (n === 1) poolImg(t, k); }); return k === 'max' ? m.maxProxy : m.img[k]; }
   if (k === 'max'){ if (!m.maxImg){ m.maxImg = new Image(); m.maxImg.onload = () => { if (state.mode === 'water') scheduleDraw(true); }; m.maxImg.src = `sim/${m.id}/max.png?v=${m.ver}`; } return m.maxImg; }
   if (!m.img[k]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); wLoaded(m); }; im.src = `sim/${m.id}/f${String(k).padStart(3, '0')}.png?v=${m.ver}`; m.img[k] = im; } return m.img[k]; }
 const okImg = im => im && im.complete && im.naturalWidth > 0;
 function poolImg(m, k){ m.oimg = m.oimg || {}; if (!m.oimg[k]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); };
   im.src = `sim/${m.id}/o${k === 'max' ? 'max' : String(k).padStart(3, '0')}.png?v=${m.ver}`; m.oimg[k] = im; }
-  const im = m.oimg[k]; return okImg(im) ? im : simImg(m, k); }
+  return m.oimg[k]; }
 const simDay = m => m && m.kind === 'flash' && m.frames && m.frames.length && m.roads && m.roads.kind === 'graph' ? (() => { const d = new Date(Date.parse(m.frames[0].t.replace('Z', ':00Z'))).toLocaleDateString('en-CA', {timeZone: 'America/New_York'}); return GREP && GREP[d] ? d : null; })() : null;
-const simMs = (m, f) => { const k = Math.min(m.n - 1, Math.floor(f)), a = f - k, t0 = Date.parse(m.frames[k].t.replace('Z', ':00Z')); return t0 + a * m.frame_min * 60000; };
+const simMs = (m, f) => { const k = Math.max(0, Math.min(m.frames.length - 1, Math.floor(f))), a = f - k, t0 = Date.parse(m.frames[k].t.replace('Z', ':00Z')); return t0 + a * m.frame_min * 60000; };
 function rainImg(m, i){ m.rimg = m.rimg || []; if (!m.rimg[i]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); }; im.src = `sim/${m.id}/${m.rain_frames[i].file}?v=${m.ver}`; m.rimg[i] = im; } return m.rimg[i]; }
 function wLoaded(m){ const cur = state.water && WSIM[state.water.id]; if (cur && cur.mosaic && cur !== m) m = cur; const n = m.img.filter(okImg).length; const e = $('#wload'); if (e) e.textContent = n < m.n ? `Loading frames ${n}/${m.n}…` : ''; }
-const simTime = (m, f) => new Date(Date.parse(m.frames[Math.min(m.n - 1, Math.round(f))].t.replace('Z', ':00Z')));
+const simTime = (m, f) => new Date(Date.parse(m.frames[Math.max(0, Math.min(m.frames.length - 1, Math.round(f)))].t.replace('Z', ':00Z')));
 const etFmt = d => d.toLocaleString('en-US', {timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) + ' ET';
 function wChart(m){ const w = 300, h = 120, pl = 30, pr = 30, pt = 8, pb = 18, X = i => pl + (w - pl - pr) * i / (m.n - 1);
   const A = m.frames.map(f => f.wet_km2), amax = Math.max(1e-6, ...A), isF = m.kind === 'flash';
@@ -944,21 +957,21 @@ async function mWater(){
     : `Drag the bar or press play. The sea follows the real Boston tide gauge record (6-minute readings), and a 2-D shallow-water model lets the water flow over the lidar ground and drain back with the tide, so low ground far from an opening floods less than a "bathtub" fill would show. Blue is water on ground that is normally dry (above the average higher high tide). Dark red marks are streets under 30 cm or more at that moment; the list on the right gives every street in the order the water reaches it (click one to jump there).`;
   const drawOne = (tm, rainOn) => { const [lon0, lat0, lon1, lat1] = tm.bounds, x = lon0, y = mY(lat1), w = lon1 - lon0, h = mY(lat0) - mY(lat1);
     if (y > VB[3] || y + h < VB[1] || x > VB[2] || x + w < VB[0]) return;
-    ctx.save(); ctx.imageSmoothingEnabled = true;
     if (rainOn && tm.rain_frames && st.rain && !st.showMax){ const t = simMs(tm, st.f), RF = tm.rain_frames; let i = RF.findIndex(r => r.ms >= t - 1); if (i < 0) i = RF.length - 1;
-      const a = Math.max(0, Math.min(1, 1 - (RF[i].ms - t) / 3.6e6)), A = rainImg(tm, i), B = rainImg(tm, Math.min(i + 1, RF.length - 1));
-      if (okImg(A)){ ctx.globalAlpha = 0.5; ctx.drawImage(A, x, y, w, h); } if (a > 0.02 && i + 1 < RF.length && okImg(B)){ ctx.globalAlpha = 0.5 * a; ctx.drawImage(B, x, y, w, h); } ctx.globalAlpha = 1; }
-    const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 1.0 ? poolImg : simImg;   // zoomed out: blocks that keep their deepest cell
-    if (cellPx > 3) ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`;   // zoomed in: soften the grid
-    const pooled = img === poolImg; if (pooled) ctx.filter = 'saturate(1.8) brightness(0.72)';   // zoomed out: darker so thin water reads at state scale
-    if (m.mosaic || m.bounds[2] - m.bounds[0] > 1.5){ if (!MA_CLIP){ MA_CLIP = new Path2D(); for (const g of townGeo.values()) MA_CLIP.addPath(g.path); } ctx.clip(MA_CLIP); }   // stitched scenes: keep water on Massachusetts land and its own coast
-    const put = (im, al) => { ctx.globalAlpha = al; ctx.drawImage(im, x, y, w, h); };
-    if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) put(im, 1); }
-    else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k), B = img(tm, Math.min(k + 1, tm.n - 1));
-      if (okImg(A)) put(A, 1); if (a > 0.02 && okImg(B)) put(B, a); }
-    ctx.restore(); };
+      const A = rainImg(tm, i); if (okImg(A)){ ctx.globalAlpha = 0.5; ctx.drawImage(A, x, y, w, h); ctx.globalAlpha = 1; } }
+    const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 2 ? poolImg : simImg;   // zoomed out: small copies that keep each block's deepest cell
+    const soft = cellPx > 3 && !wTimer && !m.mosaic;                                       // zoomed in and paused: soften the grid (costly, so not while playing)
+    if (soft){ ctx.save(); ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`; }
+    if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) ctx.drawImage(im, x, y, w, h); }
+    else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k);
+      if (okImg(A)) ctx.drawImage(A, x, y, w, h);
+      if (!m.mosaic && a > 0.02){ const B = img(tm, Math.min(k + 1, tm.n - 1)); if (okImg(B)){ ctx.globalAlpha = a; ctx.drawImage(B, x, y, w, h); ctx.globalAlpha = 1; } } }
+    if (soft) ctx.restore(); };
   let VB = [-1e9, -1e9, 1e9, 1e9];
-  layer.water = () => { VB = viewBB(0); if (m.mosaic){ for (const t of m.tiles) drawOne(t, !!m.rainTiles); } else drawOne(m, true); };
+  layer.water = () => { VB = viewBB(0); ctx.save(); ctx.imageSmoothingEnabled = true;
+    if (m.mosaic || m.bounds[2] - m.bounds[0] > 1.5){ if (!MA_CLIP){ MA_CLIP = new Path2D(); for (const g of townGeo.values()) MA_CLIP.addPath(g.path); } ctx.clip(MA_CLIP); }   // keep statewide water on Massachusetts land
+    if (m.mosaic){ for (const t of m.tiles) drawOne(t, !!m.rainTiles); } else drawOne(m, true);
+    ctx.restore(); };
   const on = i => { if (!m.rf || m.rf[i] < 0) return false; if (st.showMax) return true; const k = Math.round(st.f); return m.rf[i] <= k && m.rl[i] >= k; };
   const roadInfo = i => `<br>under 30 cm+ of water from ${etFmt(simTime(m, m.rf[i])).replace(/^\w+, /, '')} to ${etFmt(simTime(m, m.rl[i])).replace(/^\w+, /, '')}<br>deepest: <b>${fmt(m.rp[i], 1)} m</b>`;
   if (m.roads && st.roads && m.roads.kind === 'coastal'){ layer.roadColor = i => on(i) ? C.r4 : null; layer.roadTip = i => roadTipBase(i, roadInfo(i)); }
@@ -998,7 +1011,7 @@ function streetList(m){ const el = $('#wstreets'); if (!el) return; const st = s
       return `<tr${s_} data-j="${j}" style="cursor:pointer"><td><b>${titleCase(r.nm)}</b><br><span class="muted">${titleCase(r.tw)}</span></td><td>${etFmt(simTime(m, r.f)).replace(/^\w+, /, '').replace(/^\w+ \d+, /, '').replace(' ET', '')}–${etFmt(simTime(m, r.l)).replace(/^\w+, /, '').replace(/^\w+ \d+, /, '').replace(' ET', '')}</td><td class="n">${fmt(r.pk, 1)} m</td></tr>`; }).join('')}</tbody></table></div>`;
   el.querySelectorAll('tr[data-j]').forEach(tr => tr.onclick = () => { const r = L[+tr.dataset.j], co = m.roads.kind === 'coastal'; const x = co ? RW[2*r.i] : GSEG.mid[r.i][0], y = co ? RW[2*r.i+1] : GSEG.mid[r.i][1], h = 0.014;
     wStop(); st.f = r.f; st.showMax = false; if ($('#wmax')) $('#wmax').checked = false; flyTo([x - h, y - h, x + h, y + h]); wUpdate(); }); }
-function wUpdate(){ const st = state.water, m = WSIM[st.id]; if (!m || state.mode !== 'water') return; const k = Math.round(st.f), fr = m.frames[k], isF = m.kind === 'flash';
+function wUpdate(){ const st = state.water, m = WSIM[st.id]; if (!m || state.mode !== 'water' || !m.frames) return; st.f = Math.max(0, Math.min(m.n - 1, st.f)); const k = Math.round(st.f), fr = m.frames[k], isF = m.kind === 'flash';
   const pk = m.frames.reduce((a, b) => b.wet_km2 > a.wet_km2 ? b : a, m.frames[0]);
   const show = st.showMax ? {wet_km2: Math.max(...m.frames.map(f => f.wet_km2)), deep_km2: Math.max(...m.frames.map(f => f.deep_km2)), roads_wet: m.rf ? m.rf.reduce((a, v) => a + (v >= 0), 0) : null} : fr;
   if ($('#wtime')) $('#wtime').textContent = st.showMax ? 'Highest water, whole storm' : etFmt(simTime(m, st.f));
@@ -1012,6 +1025,7 @@ function wStart(){ const st = state.water, m = WSIM[st.id]; if (!m) return; if (
   $('#wplay').textContent = '❚❚ Pause'; let last = performance.now();
   const tickW = now => { if (!wTimer) return; const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const k = Math.floor(st.f); const nextOk = okImg(m.img[Math.min(k + 1, m.n - 1)]);   // wait for frames that are still loading
+    if (!nextOk){ simImg(m, Math.min(k + 1, m.n - 1)); simImg(m, Math.min(k + 2, m.n - 1)); }        // and ask for them (the view may have moved since preloading)
     if (nextOk) st.f = Math.min(m.n - 1, st.f + dt * st.speed);
     wUpdate(); if (st.f >= m.n - 1){ wStop(); return; } wTimer = requestAnimationFrame(tickW); };
   wTimer = requestAnimationFrame(tickW); }
@@ -1032,7 +1046,7 @@ function flowTick(){
   fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.10)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
   const k = Math.round(st.f), vb = viewBB(0);
   const S = (m.mosaic ? m.tiles : [m]).filter(t => t.vel_step && !(t.bounds[0] > vb[2] || t.bounds[2] < vb[0] || mY(t.bounds[1]) < vb[1] || mY(t.bounds[3]) > vb[3]))
-    .map(t => ({t, V: velData(t, k)})).filter(o => o.V && o.V.wet.length);
+    .filter((t, _, arr) => arr.length <= 6).map(t => ({t, V: velData(t, k)})).filter(o => o.V && o.V.wet.length);
   if (!S.length) return;
   const Wt = S.reduce((a, o) => a + o.V.wet.length, 0), N = Math.min(3000, Wt * 2), key = m.id + ':' + k + ':' + S.map(o => o.t.id).join(',');
   const spawn = p => { let r = Math.random() * Wt, j = 0; while (j < S.length - 1 && r >= S[j].V.wet.length){ r -= S[j].V.wet.length; j++; } const V = S[j].V, i = V.wet[(Math.random() * V.wet.length) | 0];
