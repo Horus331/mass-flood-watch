@@ -174,7 +174,8 @@ class LocalInertial:
 
 
 # --------------------------------------------------------------------- frames
-STOPS = [(0.0, (154, 216, 240, 120)), (0.3, (86, 170, 224, 175)), (1.0, (31, 111, 181, 215)), (2.5, (14, 56, 128, 235)), (5.0, (8, 30, 80, 245))]
+STOPS = [(0.0, (110, 196, 250, 160)), (0.3, (56, 146, 232, 195)), (1.0, (24, 98, 200, 222)), (2.5, (12, 54, 140, 238)), (5.0, (8, 30, 90, 248))]
+RAIN_STOPS = [(1.0, (120, 220, 120, 70)), (5.0, (60, 190, 70, 110)), (15.0, (245, 225, 60, 140)), (30.0, (250, 150, 40, 160)), (50.0, (230, 50, 40, 175)), (80.0, (200, 40, 200, 185))]
 
 
 def to_rgba(depth, show):
@@ -224,9 +225,11 @@ def run(name):
     import pandas as pd
     S = SCEN[name]; t_start = time.time()
     out = os.path.join(OUTROOT, name); os.makedirs(out, exist_ok=True)
+    import shutil
     for f in os.listdir(out):
         if f.endswith('.png'):
             os.remove(os.path.join(out, f))
+    shutil.rmtree(os.path.join(out, 'rain'), ignore_errors=True)
     Z, dx, lats, lons = dem_3dep(S['bbox'], S['res'])
     ny, nx = Z.shape
     t0 = pd.Timestamp(S['t0']); nfr = int(S['hours'] * 60 / S['frame_min']) + 1
@@ -244,11 +247,17 @@ def run(name):
             except Exception as e:
                 print('  no MRMS for', ts, e); RAIN[ts] = np.zeros((ny, nx), np.float32)
             print(f'  MRMS {ts:%m-%d %H}Z: max {RAIN[ts].max():.0f} mm/h, mean {RAIN[ts].mean():.1f}')
+        os.makedirs(os.path.join(out, 'rain'), exist_ok=True); rain_frames = []
+        xs_ = np.array([q[0] for q in RAIN_STOPS]); cs_ = np.array([q[1] for q in RAIN_STOPS], float)
+        for ts, rr_ in RAIN.items():                                     # radar picture of each hour (1 km data, drawn at a third of the grid)
+            r3 = rr_[::3, ::3]; img = np.zeros(r3.shape + (4,), np.uint8); mm = r3 >= 1.0
+            for c in range(4): img[..., c][mm] = np.interp(r3[mm], xs_, cs_[:, c]).astype(np.uint8)
+            fn = f'rain/h{ts:%m%d%H}.png'; save_png(img, os.path.join(out, fn)); rain_frames.append([ts.strftime('%Y-%m-%dT%H:%MZ'), fn])
         tot = sum(RAIN.values()); print(f'storm total max {tot.max():.0f} mm, mean {tot.mean():.0f} mm')
         Smax = 25400.0 / S['cn'] - 254.0; Ia = 0.2 * Smax
         Q = lambda P: np.where(P > Ia, (P - Ia) ** 2 / (P + 0.8 * Smax), 0.0)
         P = np.zeros((ny, nx), np.float32)
-        extra = dict(rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), curve_number=S['cn'])
+        extra = dict(rain_frames=rain_frames, rain_colors=RAIN_STOPS, rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), curve_number=S['cn'])
     else:
         st = S['station']; DT = datums(st)
         lvl = coops(st, t0 - pd.Timedelta(hours=1), t0 + pd.Timedelta(hours=S['hours'] + 1))
