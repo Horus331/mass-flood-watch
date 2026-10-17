@@ -24,6 +24,9 @@ jobs:
         run: python refresh/fetch_logo.py || true
       - name: Tides, NOAA surge forecast, rain forecast, buoys, alerts
         run: python refresh/live_refresh.py
+      - name: District 3 road segment graph (live flood chance per segment)
+        run: if [ -f refresh/graph_model/static.npz ]; then pip install -r refresh/requirements-graph.txt && python refresh/graph_refresh.py; else echo 'graph model not published yet'; fi
+        continue-on-error: true
       - name: Commit the new data
         run: |
           git config user.name "flood-watch-bot"
