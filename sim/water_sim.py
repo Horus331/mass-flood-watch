@@ -275,7 +275,7 @@ def run(name):
         rk, rid, rlo, rla = RS
         x_, y_ = merc(rlo, rla); X0, Y0 = merc(S['bbox'][0], S['bbox'][1]); X1, Y1 = merc(S['bbox'][2], S['bbox'][3])
         rc = np.clip(((x_ - X0) / (X1 - X0) * nx).astype(int), 0, nx - 1); rr = np.clip(((Y1 - y_) / (Y1 - Y0) * ny).astype(int), 0, ny - 1)
-        road_first = {}; road_peak = {}
+        road_first = {}; road_peak = {}; road_last = {}
     t = t0; k = 0; steps = 0
     while k < nfr:
         # save frame k when the clock reaches it
@@ -297,7 +297,7 @@ def run(name):
                 dep = d[rr, rc]; on = dep >= 0.3
                 ids_on = np.unique(rid[on])
                 for i in ids_on.tolist():
-                    road_first.setdefault(i, k)
+                    road_first.setdefault(i, k); road_last[i] = k
                 for i, v in zip(rid[on].tolist(), dep[on].tolist()):
                     if v > road_peak.get(i, (0, 0))[0]:
                         road_peak[i] = (round(v, 2), k)
@@ -329,7 +329,7 @@ def run(name):
                 frame_min=S['frame_min'], show_m=S['show_m'], frames=meta_frames, n=len(meta_frames), steps=steps,
                 runtime_s=round(time.time() - t_start), colors=STOPS, **extra)
     if RS:
-        meta['roads'] = dict(kind=rk, first={str(i): v for i, v in road_first.items()},
+        meta['roads'] = dict(kind=rk, first={str(i): v for i, v in road_first.items()}, last={str(i): v for i, v in road_last.items()},
                              peak={str(i): v for i, v in road_peak.items()})
         if rk == 'coastal':
             D = json.load(open(os.path.join(ROOT, 'docs', 'data.json')))['coastal_roads']
