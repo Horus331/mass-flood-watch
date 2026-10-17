@@ -951,7 +951,7 @@ async function mWater(){
     const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 1.0 ? poolImg : simImg;   // zoomed out: blocks that keep their deepest cell
     if (cellPx > 3) ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`;   // zoomed in: soften the grid
     const pooled = img === poolImg; if (pooled) ctx.filter = 'saturate(1.8) brightness(0.72)';   // zoomed out: darker so thin water reads at state scale
-    if (m.mosaic){ if (!MA_CLIP){ MA_CLIP = new Path2D(); for (const g of townGeo.values()) MA_CLIP.addPath(g.path); } ctx.clip(MA_CLIP); }   // stitched scenes: keep water on Massachusetts land and its own coast
+    if (m.mosaic || m.bounds[2] - m.bounds[0] > 1.5){ if (!MA_CLIP){ MA_CLIP = new Path2D(); for (const g of townGeo.values()) MA_CLIP.addPath(g.path); } ctx.clip(MA_CLIP); }   // stitched scenes: keep water on Massachusetts land and its own coast
     const put = (im, al) => { ctx.globalAlpha = al; ctx.drawImage(im, x, y, w, h); };
     if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) put(im, 1); }
     else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k), B = img(tm, Math.min(k + 1, tm.n - 1));
