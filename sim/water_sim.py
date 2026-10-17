@@ -25,6 +25,10 @@ SCEN = {
                   bbox=(-72.02, 42.40, -71.52, 42.66), res=40.0,
                   t0='2023-09-11T17:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
                   f0=30.0, fc=3.0, Fk=40.0, drain=2.0),          # Horton infiltration (mm/h, mm) on ponded water all the time + a light storm-drain sink
+    'dec_state': dict(title='Statewide rain · Dec 18, 2023 · one connected model of all of Districts 3–6 (rivers can grow)', kind='flash',
+                      bbox=(-72.35, 41.48, -69.92, 42.90), res=100.0, sea_sink=True, landcover=True, wet_start_mm=25.0,
+                      t0='2023-12-17T22:00Z', hours=48, frame_min=30, manning=0.05, show_m=0.10,
+                      f0=30.0, fc=3.0, Fk=40.0, drain=2.0),
     'flash_state': dict(title='Flash flood · Sept 11, 2023 · whole project area (MassDOT Districts 3–6)', kind='flash',
                         bbox=(-72.35, 41.48, -69.92, 42.90), res=100.0, sea_sink=True,
                         t0='2023-09-11T16:00Z', hours=40, frame_min=20, manning=0.06, show_m=0.10,
