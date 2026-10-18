@@ -49,18 +49,24 @@ for hu in HU4:
         log(hu, 'fdr', fdr_p, 'fac', fac_p)
         with rasterio.open(fdr_p) as A, rasterio.open(fac_p) as B:
             log(hu, 'crs', A.crs, 'res', A.res, 'shape', A.shape)
-            assert str(A.crs).endswith('5070') or 'Albers' in A.crs.to_wkt(), A.crs
+            assert 'Albers' in A.crs.to_wkt() or str(A.crs).endswith('5070'), A.crs
             x0, y0, x1, y1 = max(BX0, A.bounds.left), max(BY0, A.bounds.bottom), min(BX1, A.bounds.right), min(BY1, A.bounds.top)
             if x1 <= x0 or y1 <= y0: continue
             win = from_bounds(x0, y0, x1, y1, A.transform).round_offsets().round_lengths()
-            a = A.read(1, window=win); b = B.read(1, window=win)
             c0 = int(round((A.transform.c + win.col_off * 10 - BX0) / 10)); r0 = int(round((BY1 - (A.transform.f - win.row_off * 10)) / 10))
-            h, w = a.shape; h = min(h, NY - r0); w = min(w, NX - c0); a = a[:h, :w]; b = b[:h, :w]
-            code = lut[np.clip(a, 0, 255).astype(np.uint8)] * (a > 0) * (a <= 128)
-            lv = np.clip(np.floor(np.log2(np.maximum(b.astype(np.float64), 1))), 0, 27).astype(np.uint8)
-            sel = code > 0
-            FDR[r0:r0 + h, c0:c0 + w][sel] = code[sel]; LV[r0:r0 + h, c0:c0 + w][sel] = lv[sel]
-            log(hu, f'placed at row {r0} col {c0}, {sel.mean() * 100:.0f}% cells with flow')
+            H, Wd = int(win.height), int(win.width); H = min(H, NY - r0); Wd = min(Wd, NX - c0)
+            BAND = 1024                                                   # read in bands: this machine has 12 GB
+            from rasterio.windows import Window
+            for rb in range(0, H, BAND):
+                hb = min(BAND, H - rb)
+                wb = Window(win.col_off, win.row_off + rb, Wd, hb)
+                a = A.read(1, window=wb); b = B.read(1, window=wb)
+                code = lut[np.clip(a, 0, 255).astype(np.uint8)]; code[(a <= 0) | (a > 128)] = 0
+                lv = np.clip(np.floor(np.log2(np.maximum(b.astype(np.float32), 1))), 0, 27).astype(np.uint8)
+                sel = code > 0
+                FDR[r0 + rb:r0 + rb + hb, c0:c0 + Wd][sel] = code[sel]; LV[r0 + rb:r0 + rb + hb, c0:c0 + Wd][sel] = lv[sel]
+                del a, b, code, lv, sel
+            log(hu, f'placed at row {r0} col {c0} ({H} x {Wd})')
         shutil.rmtree(d, ignore_errors=True)
     except Exception as e:
         log(hu, 'FAILED', repr(e)[:300])
