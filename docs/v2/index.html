@@ -27,9 +27,9 @@ html,body{margin:0;height:100%;background:#dfe8ef;font:13px/1.35 system-ui,-appl
 <div id="map"></div>
 <div id="top" class="card"><h1 id="title">Mass Flood Watch · v2</h1><div class="sub" id="sub">GPU flood run at 30 m resolution, drawn as map tiles · Dec 2023 storm</div><span id="stage">work log…</span></div>
 <div id="msg" class="card"></div>
-<div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m</div>
-<div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRain"> Rain (coming)</label></div></div>
-<div id="play" class="card"><div class="row"><button id="btn">▶ Play</button><input type="range" id="sl" min="0" max="0" value="0"><span class="t" id="tm">loading run…</span><span id="fps" style="color:#8a9aa8;font-size:11px">– fps</span></div></div>
+<div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m<br><span style="display:block;margin-top:4px"><i style="background:#d7263d"></i>road under ≥10 cm<br><i style="background:#f28c28"></i>next road over (detour load)</span></div>
+<div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRoads" checked> Flooded roads + knock-on</label><label><input type="checkbox" id="lyRain"> Rain (coming)</label></div></div>
+<div id="play" class="card"><div class="row"><button id="btn">▶ Play</button><input type="range" id="sl" min="0" max="0" value="0"><span class="t" id="tm">loading run…</span><span id="fps" style="color:#8a9aa8;font-size:11px">– fps</span></div><div id="rd" style="color:#56687a;font-size:12px;margin-top:4px"></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
 <script>
@@ -41,7 +41,7 @@ map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-righ
 map.addControl(new maplibregl.ScaleControl({unit: 'imperial'}), 'bottom-left');
 const $ = id => document.getElementById(id);
 function msg(t){ const m = $('msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; }
-let META = null, cur = 0, playing = false, timer = null, FRAMES = [];
+let META = null, cur = 0, playing = false, timer = null, FRAMES = [], ROADCM = null;
 const WINDOW = 3;                       // frames kept loaded on each side of the current one
 function frameLayer(i){ return 'w' + i; }
 function ensureFrame(i){
@@ -56,7 +56,7 @@ function show(i){
   for (let k = cur - WINDOW - 2; k <= cur + WINDOW + 2; k++) if (Math.abs(k - i) > WINDOW + 1) dropFrame(k);
   for (let k = i - WINDOW; k <= i + WINDOW; k++) ensureFrame(k);
   for (let k = i - WINDOW - 1; k <= i + WINDOW + 1; k++) if (map.getLayer(frameLayer(k))) map.setPaintProperty(frameLayer(k), 'raster-opacity', k === i && $('lyWater').checked ? 0.92 : 0);
-  cur = i; $('sl').value = i;
+  cur = i; $('sl').value = i; if (window.applyRoads) window.applyRoads(i);
   const t = new Date(new Date(META.t0).getTime() + META.frame_min * 60000 * i);
   $('tm').textContent = t.toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York'}) + ' ET';
 }
@@ -83,11 +83,41 @@ map.on('load', async () => {
     $('lyHwm').onchange = e => map.setLayoutProperty('hwm', 'visibility', e.target.checked ? 'visible' : 'none');
     $('lyHwm').parentNode.append(' (' + H.rows.length.toLocaleString() + ')');
   }).catch(() => {});
+  // roads: the site's 52,698 segments; per-frame depth comes from the run's roads_cm.npy
+  let ROADS = null, flooded = new Set(), knock = new Set();
+  fetch('../graph_segments.json').then(r => r.json()).then(S => {
+    const feats = [];
+    S.geo.forEach((parts, i) => { const lines = parts.map(d => { const c = []; let x = 0, y = 0; for (let j = 0; j < d.length; j += 2) { x += d[j]; y += d[j + 1]; c.push([x / 1e5, y / 1e5]); } return c; });
+      feats.push({type: 'Feature', id: i, properties: {road: S.props.road[i] || '', town: S.props.town[i] || '', aadt: S.props.aadt[i] || 0}, geometry: lines.length === 1 ? {type: 'LineString', coordinates: lines[0]} : {type: 'MultiLineString', coordinates: lines}}); });
+    const nb = Array.from({length: S.n}, () => []); for (const [a, b] of S.links) { nb[a].push(b); nb[b].push(a); }
+    ROADS = {n: S.n, nb};
+    map.addSource('roads', {type: 'geojson', data: {type: 'FeatureCollection', features: feats}});
+    map.addLayer({id: 'roads', type: 'line', source: 'roads', paint: {
+      'line-color': ['case', ['boolean', ['feature-state', 'wet'], false], '#d7263d', ['boolean', ['feature-state', 'knock'], false], '#f28c28', '#9fb0c0'],
+      'line-opacity': ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, ['interpolate', ['linear'], ['zoom'], 8, 0.15, 12, 0.55]],
+      'line-width': ['case', ['boolean', ['feature-state', 'wet'], false], ['interpolate', ['linear'], ['zoom'], 8, 2.2, 13, 6], ['boolean', ['feature-state', 'knock'], false], ['interpolate', ['linear'], ['zoom'], 8, 1.6, 13, 4], ['interpolate', ['linear'], ['zoom'], 8, 0.4, 13, 2]]}});
+    map.on('click', 'roads', e => { const p = e.features[0].properties, st = map.getFeatureState({source: 'roads', id: e.features[0].id}); new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road || 'Road segment'}</b><br>${p.town}${p.aadt ? ' · ' + (+p.aadt).toLocaleString() + ' vehicles/day' : ''}<br>${st.wet ? '<span style="color:#d7263d">water ' + st.cm + ' cm on the road</span>' : st.knock ? '<span style="color:#c96a00">next to a flooded road: detour traffic</span>' : 'dry'}`).addTo(map); });
+    $('lyRoads').onchange = e => map.setLayoutProperty('roads', 'visibility', e.target.checked ? 'visible' : 'none');
+    if (ROADCM) applyRoads(cur);
+  }).catch(() => {});
+  function applyRoads(i){
+    if (!ROADS || !ROADCM) return;
+    const row = ROADCM.subarray(i * ROADS.n, (i + 1) * ROADS.n), wet = new Set(), kn = new Set();
+    for (let k = 0; k < ROADS.n; k++) if (row[k] >= 10) wet.add(k);
+    for (const k of wet) for (const j of ROADS.nb[k]) if (!wet.has(j)) kn.add(j);
+    for (const k of flooded) if (!wet.has(k)) map.setFeatureState({source: 'roads', id: k}, {wet: false, cm: 0});
+    for (const k of knock) if (!kn.has(k)) map.setFeatureState({source: 'roads', id: k}, {knock: false});
+    for (const k of wet) map.setFeatureState({source: 'roads', id: k}, {wet: true, cm: row[k]});
+    for (const k of kn) map.setFeatureState({source: 'roads', id: k}, {knock: true});
+    flooded = wet; knock = kn; $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} road segments under water · ${kn.size.toLocaleString()} next to one` : 'no road under water yet';
+  }
+  window.applyRoads = applyRoads;
   // the GPU run
   try {
     META = await fetch(HF + RUN + '/meta.json', {cache: 'no-cache'}).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
     $('title').textContent = 'Mass Flood Watch · ' + (META.title || RUN);
     $('sub').textContent = `${META.res_m} m cells · ${META.shape[0].toLocaleString()} × ${META.shape[1].toLocaleString()} grid (${(META.shape[0] * META.shape[1] / 1e6).toFixed(0)} M cells) · frames every ${META.frame_min} min`;
+    fetch(HF + RUN + '/roads_cm.npy').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) return; const hl = new DataView(b).getUint16(8, true); ROADCM = new Uint8Array(b, 10 + hl); applyRoads(cur); }).catch(() => {});
     if (META.tiles) { FRAMES = META.frames.map((_, k) => 'f' + String(k).padStart(3, '0')); $('sl').max = FRAMES.length - 1; show(0); play(true); }
     else { $('tm').textContent = 'run finished, tiles being built…'; msg('The ' + RUN + ' run is on Hugging Face but its map tiles are still being built. Check back soon.'); }
   } catch (e) { $('tm').textContent = 'run not published yet'; msg('The ' + RUN + ' run is still computing on the GPU; the water layer appears here as soon as it is published.'); }
