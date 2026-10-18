@@ -214,7 +214,7 @@ if os.environ.get('SOILS', '1') == '1':
         hg, wt = SO['hydgrp'], SO['wtd']
         grp = np.where(hg >= 5, 4, hg).astype(np.int64); grp[(wt < 25) & (grp > 0)] = 4          # dual groups and shallow water table -> D
         # soil water storage before saturation-excess runoff starts (mm): available water in the top metre, cut by a shallow water table or bedrock
-        aws = SO['aws'].astype(np.float32); aws = np.where(aws > 0, aws, 120.0)
+        aws = SO['aws'].astype(np.float32) * 10.0; aws = np.where(aws > 0, aws, 120.0)          # SSURGO aws0100wta is in cm -> mm
         dlim = np.minimum(np.where(wt < 255, wt * 2.0, 200.0), np.where(SO['brock'] < 255, SO['brock'] * 2.0, 200.0))     # cm
         Scap = np.maximum(aws * np.clip(dlim / 100.0, 0.1, 1.0), 20.0).astype(np.float32)
         SOIL_META = f'SSURGO hydrologic group on {float((grp > 0).mean()) * 100:.0f}% of cells (A {float((grp == 1).mean()) * 100:.0f}%, B {float((grp == 2).mean()) * 100:.0f}%, C {float((grp == 3).mean()) * 100:.0f}%, D {float((grp == 4).mean()) * 100:.0f}%); storage cap mean {float(Scap[grp > 0].mean()):.0f} mm'
