@@ -1,0 +1,46 @@
+name: Land cover 10 m to Hugging Face (run by hand)
+on: workflow_dispatch
+jobs:
+  nlcd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests tifffile numpy pillow huggingface_hub
+      - name: Fetch NLCD 2021 impervious on the 10 m state tiles and upload
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, io, json, time, math, requests, tifffile, numpy as np
+          from PIL import Image
+          from huggingface_hub import HfApi, hf_hub_download, CommitOperationAdd
+          REPO = 'mohabeldokla/mass-flood-watch-tiles'; tok = os.environ['HF_TOKEN']; api = HfApi(token=tok)
+          idx = json.load(open(hf_hub_download(REPO, 'data/dem10/index.json', repo_type='dataset', token=tok)))
+          have = set(api.list_repo_files(REPO, repo_type='dataset')); T = 20000; ops = []; t0 = time.time(); n = 0
+          for key, v in sorted(idx.items()):
+              if v['valid'] == 0 or f'data/nlcd10/{key}.png' in have: continue
+              x, y = v['x'], v['y']
+              u = ('https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=mrlc_download:NLCD_2021_Impervious_L48'
+                   f'&CRS=EPSG:26986&BBOX={x},{y},{x + T},{y + T}&WIDTH=2000&HEIGHT=2000&FORMAT=GeoTIFF')
+              a = None
+              for k in range(5):
+                  try:
+                      r = requests.get(u, timeout=240)
+                      if r.status_code == 200 and r.content[:2] in (b'II', b'MM'):
+                          a = tifffile.imread(io.BytesIO(r.content)); a = a[..., 0] if a.ndim == 3 else a; break
+                      print('  bad', r.status_code, r.content[:80])
+                  except Exception as e: print('  retry', k, repr(e)[:80])
+                  time.sleep(5 + 10 * k)
+              if a is None: print('FAILED', key); continue
+              a = a.astype(np.float32); a[(a > 100)] = 0; a = a.astype(np.uint8)        # 0..100 percent paved
+              os.makedirs('out', exist_ok=True); Image.fromarray(a, 'L').save(f'out/{key}.png', optimize=True)
+              ops.append(CommitOperationAdd(path_in_repo=f'data/nlcd10/{key}.png', path_or_fileobj=f'out/{key}.png')); n += 1
+              if len(ops) >= 20:
+                  api.create_commit(REPO, repo_type='dataset', operations=ops, commit_message=f'nlcd10 {n}'); ops = []
+              if n % 10 == 0: print(f'{n} tiles, mean paved {a.mean():.1f}% | {time.time() - t0:.0f}s', flush=True)
+          if ops: api.create_commit(REPO, repo_type='dataset', operations=ops, commit_message=f'nlcd10 {n} (last)')
+          print('done', n)
+          PY
