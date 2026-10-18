@@ -35,7 +35,7 @@ html,body{margin:0;height:100%;background:#dfe8ef;font:13px/1.35 system-ui,-appl
 <a href="?run=sep2023_30m&f=14&c=-71.76,42.52&z=12.5&rain=1" style="color:#1f4f8a;text-decoration:none">② <b>Leominster, Sept 11 2023, 7 pm</b> — the flash-flood night: radar rain on top, roads turning red underneath</a>
 <a href="?run=dec2023_30m&f=44&c=-71.5,42.3&z=9" style="color:#1f4f8a;text-decoration:none">③ <b>Statewide, Dec 18 2023, 3 pm</b> — rivers filling across central Mass; orange roads are cut off or carrying detours</a>
 </div><div style="margin-top:6px;color:#56687a">Space = play/pause · ← → = step · click any road, dot or mark for details · <a href="#" id="tourhide" style="color:#56687a">hide</a></div></div>
-<div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m<br><span style="display:block;margin-top:4px"><i style="background:#d7263d"></i>road under ≥10 cm<br><i style="background:#f28c28"></i>dry but cut off, or next road over (detour)</span><span id="rainleg" style="display:none;margin-top:4px"><b>Rain, mm in the hour</b><br><i style="background:rgb(170,220,255)"></i>1–3 <i style="background:rgb(90,170,255)"></i>3–6 <i style="background:rgb(30,110,230)"></i>6–12<br><i style="background:rgb(255,200,60)"></i>12–25 <i style="background:rgb(255,110,30)"></i>25–50 <i style="background:rgb(200,20,20)"></i>&gt;50</span></div>
+<div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m<br><span style="display:block;margin-top:4px"><i style="background:#d7263d"></i>road under ≥10 cm<br><i style="background:#f28c28"></i>dry but cut off from every hospital, or over capacity with detours<br><i style="background:#b8860b"></i>nearest hospital 30+ min further than usual</span><span id="rainleg" style="display:none;margin-top:4px"><b>Rain, mm in the hour</b><br><i style="background:rgb(170,220,255)"></i>1–3 <i style="background:rgb(90,170,255)"></i>3–6 <i style="background:rgb(30,110,230)"></i>6–12<br><i style="background:rgb(255,200,60)"></i>12–25 <i style="background:rgb(255,110,30)"></i>25–50 <i style="background:rgb(200,20,20)"></i>&gt;50</span></div>
 <div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRoads" checked> Flooded roads + knock-on</label><label><input type="checkbox" id="lyRain"> Radar rain (mm/h)</label></div></div>
 <div id="play" class="card"><div class="row"><button id="btn">▶ Play</button><input type="range" id="sl" min="0" max="0" value="0"><span class="t" id="tm">loading run…</span><span id="fps" style="color:#8a9aa8;font-size:11px">– fps</span></div><div id="rd" style="color:#56687a;font-size:12px;margin-top:4px"></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -49,7 +49,7 @@ window.__map = map; map.addControl(new maplibregl.NavigationControl({showCompass
 map.addControl(new maplibregl.ScaleControl({unit: 'imperial'}), 'bottom-left');
 const $ = id => document.getElementById(id);
 function msg(t){ const m = $('msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; }
-let META = null, cur = 0, playing = false, timer = null, FRAMES = [], ROADCM = null, ROADBM = null, DIRS = [RUN];   // DIRS: run folders drawn together (a coast is many tiles on one clock)
+let META = null, cur = 0, playing = false, timer = null, FRAMES = [], ROADCM = null, ROADV = null, ROADBM = null, DIRS = [RUN];   // DIRS: run folders drawn together (a coast is many tiles on one clock)
 const WINDOW = 3;                       // frames kept loaded on each side of the current one
 function frameLayer(i, j){ return 'w' + i + '_' + j; }
 function ensureFrame(i){
@@ -119,13 +119,13 @@ map.on('load', async () => {
     const reach = blocked => { const seen = new Uint8Array(S.n), q = new Int32Array(S.n); let h = 0, t = 0;
       for (let i = 0; i < S.n; i++) if (major[i] && !blocked[i]) { seen[i] = 1; q[t++] = i; }
       while (h < t) { const i = q[h++]; for (const v of nb[i]) if (!seen[v] && !blocked[v]) { seen[v] = 1; q[t++] = v; } } return seen; };
-    ROADS = {n: S.n, nb, reach, base: reach(new Uint8Array(S.n))};
+    ROADS = {n: S.n, nb, reach, base: reach(new Uint8Array(S.n))}; buildNet(S);
     map.addSource('roads', {type: 'geojson', data: {type: 'FeatureCollection', features: feats}});
     map.addLayer({id: 'roads', type: 'line', source: 'roads', paint: {
-      'line-color': ['case', ['boolean', ['feature-state', 'wet'], false], '#d7263d', ['boolean', ['feature-state', 'knock'], false], '#f28c28', '#9fb0c0'],
-      'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, 0.15], 12, ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, 0.55]],
-      'line-width': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['boolean', ['feature-state', 'wet'], false], 2.2, ['boolean', ['feature-state', 'knock'], false], 1.6, 0.4], 13, ['case', ['boolean', ['feature-state', 'wet'], false], 6, ['boolean', ['feature-state', 'knock'], false], 4, 2]]}});
-    map.on('click', 'roads', e => { const p = e.features[0].properties, st = map.getFeatureState({source: 'roads', id: e.features[0].id}); new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road || 'Road segment'}</b><br>${p.town}${p.aadt ? ' · ' + (+p.aadt).toLocaleString() + ' vehicles/day' : ''}<br>${st.wet ? '<span style="color:#d7263d">water ' + st.cm + ' cm on the road</span>' : st.knock ? '<span style="color:#c96a00">next to a flooded road: detour traffic</span>' : 'dry'}`).addTo(map); });
+      'line-color': ['case', ['boolean', ['feature-state', 'wet'], false], '#d7263d', ['boolean', ['feature-state', 'knock'], false], '#f28c28', ['boolean', ['feature-state', 'iso'], false], '#b8860b', '#9fb0c0'],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, ['boolean', ['feature-state', 'iso'], false], 0.9, 0.15], 12, ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, ['boolean', ['feature-state', 'iso'], false], 0.9, 0.55]],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['boolean', ['feature-state', 'wet'], false], 2.2, ['boolean', ['feature-state', 'knock'], false], 1.6, ['boolean', ['feature-state', 'iso'], false], 1.4, 0.4], 13, ['case', ['boolean', ['feature-state', 'wet'], false], 6, ['boolean', ['feature-state', 'knock'], false], 4, ['boolean', ['feature-state', 'iso'], false], 3.5, 2]]}});
+    map.on('click', 'roads', e => { const p = e.features[0].properties, st = map.getFeatureState({source: 'roads', id: e.features[0].id}); new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road || 'Road segment'}</b><br>${p.town}${p.aadt ? ' · ' + (+p.aadt).toLocaleString() + ' vehicles/day' : ''}<br>${st.wet ? '<span style="color:#d7263d">water ' + st.cm + ' cm on the road' + (st.cm >= 30 ? ' — impassable' : ', slow') + '</span>' : st.knock ? '<span style="color:#c96a00">cut off from every hospital, or carrying detour traffic over capacity</span>' : st.iso ? '<span style="color:#b8860b">nearest hospital 30+ min further than usual</span>' : 'passable'}${NET && NET.imputed[e.features[0].id] ? '<br><span style="color:#8a9aa8">traffic count imputed</span>' : ''}`).addTo(map); });
     $('lyRoads').onchange = e => map.setLayoutProperty('roads', 'visibility', e.target.checked ? 'visible' : 'none');
     if (ROADCM) applyRoads(cur);
   }).catch(() => {});
@@ -151,18 +151,68 @@ map.on('load', async () => {
     bmWet = wet; if (!(ROADCM && ROADS && flooded.size)) $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} streets under water` : 'no street under water yet';
   }
   window.applyRoadsBM = applyRoadsBM;
+  // ---- network consequence model (replaces the 60/40 neighbour-spreading heuristic, Oct 18 review) ----
+  // passability: Pregnolato et al. 2017 speed-depth curve (km/h, depth in mm, impassable at 300 mm); vehicle stability h*v >= 0.5 m2/s also impassable
+  const CLASS_KMH = [45, 65, 95], CLASS_CAP = [900, 1800, 4000];           // free-flow speed and hourly capacity by class (local, arterial, highway)
+  function speedFactor(cm, v05){ if (cm >= 30) return 0; if (v05 != null && cm * v05 * 0.05 / 100 >= 0.5) return 0; if (cm < 5) return 1; const d = cm * 10; return Math.max(0.05, (0.0009 * d * d - 0.5529 * d + 86.94) / 86.94); }
+  let FAC = null, NET = null;
+  function buildNet(S){
+    const n = S.n, len = S.props.len, cls = S.props.cls, aadt = S.props.aadt;
+    const t0 = new Float32Array(n); for (let i = 0; i < n; i++) t0[i] = (len[i] || 30) / 1000 / CLASS_KMH[Math.min(cls[i] || 0, 2)] * 60;   // minutes to traverse at free flow
+    NET = {n, t0, cls, aadt, len, imputed: Uint8Array.from(aadt, a => (a === 1000 || a === 1500 || !a) ? 1 : 0)};
+    fetch('../network/facilities.json').then(r => r.json()).then(F => {
+      // snap each facility to the nearest segment midpoint (brute force once)
+      const mids = S.geo.map(parts => { const d = parts[0]; let x = 0, y = 0; const c = []; for (let j = 0; j < d.length; j += 2) { x += d[j]; y += d[j + 1]; c.push([x / 1e5, y / 1e5]); } return c[Math.floor(c.length / 2)]; });
+      const snap = pts => { const out = []; for (const [lon, lat] of pts) { let best = -1, bd = 1e9; for (let i = 0; i < n; i++) { const dx = (mids[i][0] - lon) * 82000, dy = (mids[i][1] - lat) * 111000, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = i; } } if (bd < 3000 * 3000) out.push(best); } return out; };
+      FAC = {hospital: snap(F.facilities.hospital), fire: snap(F.facilities.fire_station.concat(F.facilities.ambulance_station))};
+      NET.baseH = dijkstra(FAC.hospital, null); NET.baseF = dijkstra(FAC.fire, null);
+      applyRoads(cur);
+    }).catch(() => {});
+  }
+  class MinHeap { constructor(){ this.h = []; } size(){ return this.h.length; }
+    push(d, i){ const h = this.h; h.push([d, i]); let k = h.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (h[p][0] <= h[k][0]) break; [h[p], h[k]] = [h[k], h[p]]; k = p; } }
+    pop(){ const h = this.h, top = h[0], last = h.pop(); if (h.length) { h[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < h.length && h[l][0] < h[m][0]) m = l; if (r < h.length && h[r][0] < h[m][0]) m = r; if (m === k) break; [h[m], h[k]] = [h[k], h[m]]; k = m; } } return top; } }
+  function dijkstra(sources, mult){                                      // minutes from the nearest source to every segment; mult = per-segment time multiplier (Infinity = blocked)
+    const n = NET.n, dist = new Float64Array(n).fill(Infinity), heap = [];
+    const push = (d, i) => { heap.push([d, i]); let k = heap.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return top; };
+    for (const s of sources) { dist[s] = 0; push(0, s); }
+    while (heap.length) { const [d, i] = pop(); if (d > dist[i]) continue; for (const j of ROADS.nb[i]) { const m = mult ? mult[j] : 1; if (m === Infinity) continue; const nd = d + NET.t0[j] * m; if (nd < dist[j]) { dist[j] = nd; push(nd, j); } } }
+    return dist;
+  }
+  let isolated = new Set();
   function applyRoads(i){
     if (!ROADS || !ROADCM) return;
-    const row = ROADCM.subarray(i * ROADS.n, (i + 1) * ROADS.n), wet = new Set(), kn = new Set(), blocked = new Uint8Array(ROADS.n);
-    for (let k = 0; k < ROADS.n; k++) if (row[k] >= 10) { wet.add(k); blocked[k] = 1; }
-    for (const k of wet) for (const j of ROADS.nb[k]) if (!wet.has(j)) kn.add(j);
-    let nCut = 0;
-    if (wet.size) { const now = ROADS.reach(blocked); for (let k = 0; k < ROADS.n; k++) if (!blocked[k] && ROADS.base[k] && !now[k]) { kn.add(k); nCut++; } }
+    const n = ROADS.n, row = ROADCM.subarray(i * n, (i + 1) * n), vrow = ROADV ? ROADV.subarray(i * n, (i + 1) * n) : null;
+    const wet = new Set(), kn = new Set(), iso = new Set(), mult = new Float32Array(n);
+    for (let k = 0; k < n; k++) { const f = speedFactor(row[k], vrow ? vrow[k] : null); mult[k] = f > 0 ? 1 / f : Infinity; if (row[k] >= 10) wet.add(k); }
+    let nCut = 0, vh = 0, nBusy = 0, worstH = 0;
+    if (wet.size && NET && NET.baseH) {
+      // accessibility: minutes to the nearest hospital now vs normally; unreachable = cut off, +30 min = isolated
+      const nowH = dijkstra(FAC.hospital, mult);
+      for (let k = 0; k < n; k++) { if (mult[k] === Infinity) continue; if (nowH[k] === Infinity && NET.baseH[k] !== Infinity) { kn.add(k); nCut++; } else if (nowH[k] - NET.baseH[k] >= 30) { iso.add(k); worstH = Math.max(worstH, nowH[k] - NET.baseH[k]); } }
+      // detour load: each impassable segment's hourly traffic is rerouted along the shortest open path between two of its neighbours
+      const extra = new Float32Array(n);
+      for (const k of wet) {
+        if (mult[k] !== Infinity) continue;
+        const nbs = ROADS.nb[k].filter(j => mult[j] !== Infinity); if (nbs.length < 2) continue;
+        const a = nbs[0], b = nbs[nbs.length - 1]; const q = (NET.aadt[k] || 0) / 24;
+        // bounded Dijkstra from a to b avoiding k
+        const dist = new Map([[a, 0]]), prev = new Map(), heap = new MinHeap(); heap.push(0, a); let found = false, steps = 0;
+        while (heap.size() && steps++ < 4000) { const [d, u] = heap.pop(); if (u === b) { found = true; break; } if (d > (dist.get(u) ?? Infinity)) continue; for (const w of ROADS.nb[u]) { if (w === k || mult[w] === Infinity) continue; const nd = d + NET.t0[w] * mult[w]; if (nd < (dist.get(w) ?? Infinity)) { dist.set(w, nd); prev.set(w, u); heap.push(nd, w); } } }
+        if (found) { let u = b; while (u !== undefined && u !== a) { extra[u] += q; u = prev.get(u); } }
+        vh += q;
+      }
+      for (let k = 0; k < n; k++) if (extra[k] > 0) { const vc = (extra[k] + (NET.aadt[k] || 0) / 24) / CLASS_CAP[Math.min(NET.cls[k] || 0, 2)]; if (vc >= 0.9) { kn.add(k); nBusy++; } }
+    }
     for (const k of flooded) if (!wet.has(k)) map.setFeatureState({source: 'roads', id: k}, {wet: false, cm: 0});
     for (const k of knock) if (!kn.has(k)) map.setFeatureState({source: 'roads', id: k}, {knock: false});
+    for (const k of isolated) if (!iso.has(k)) map.setFeatureState({source: 'roads', id: k}, {iso: false});
     for (const k of wet) map.setFeatureState({source: 'roads', id: k}, {wet: true, cm: row[k]});
     for (const k of kn) map.setFeatureState({source: 'roads', id: k}, {knock: true});
-    flooded = wet; knock = kn; $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} road segments under water · ${nCut.toLocaleString()} dry but cut off from any numbered route · ${(kn.size - nCut).toLocaleString()} carrying detour traffic` : 'no road under water yet';
+    for (const k of iso) map.setFeatureState({source: 'roads', id: k}, {iso: true});
+    flooded = wet; knock = kn; isolated = iso;
+    $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} road segments under water · ${nCut.toLocaleString()} dry but cut off from every hospital · ${iso.size.toLocaleString()} with the nearest hospital 30+ min further (worst +${Math.round(worstH)} min) · ${nBusy.toLocaleString()} roads over 90% of capacity with detour traffic` : 'no road under water yet';
   }
   window.applyRoads = applyRoads;
   // the GPU run
@@ -196,6 +246,7 @@ map.on('load', async () => {
     }).catch(() => {});
     for (const d of DIRS) fetch(HF + 'runs/' + d + '/roads_bm_cm.npy').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) return; const hl = new DataView(b).getUint16(8, true); const a = new Uint8Array(b, 10 + hl);
       if (!ROADBM) ROADBM = a; else { const m = new Uint8Array(Math.max(ROADBM.length, a.length)); m.set(ROADBM); for (let k = 0; k < a.length; k++) if (a[k] > m[k]) m[k] = a[k]; ROADBM = m; } applyRoadsBM(cur); }).catch(() => {});
+    fetch(HF + 'runs/' + DIRS[0] + '/roads_v.npy').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) return; const hl = new DataView(b).getUint16(8, true); ROADV = new Uint8Array(b, 10 + hl); }).catch(() => {});
     fetch(HF + 'runs/' + DIRS[0] + '/roads_cm.npy').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) return; const hl = new DataView(b).getUint16(8, true); ROADCM = new Uint8Array(b, 10 + hl); applyRoads(cur); }).catch(() => {});
     if (META.tiles) { FRAMES = META.frames.map((_, k) => 'f' + String(k).padStart(3, '0')); $('sl').max = FRAMES.length - 1; if (META.tiles.bounds && Q.get('run') && DIRS.length === 1 && !Q.get('c')) { const [w, s_, e, n] = META.tiles.bounds; map.fitBounds([[w, s_], [e, n]], {padding: 40, duration: 0}); }
       if (Q.get('c')) { const [lon, lat] = Q.get('c').split(',').map(Number); map.jumpTo({center: [lon, lat], zoom: +(Q.get('z') || 12)}); }
