@@ -10,7 +10,7 @@
    "n": 2,
    "name": "GPU flood engine in Colab",
    "status": "running",
-   "note": "dec2023_30m computing, ETA ~11:55 pm ET; then w5_tiles (tiles + roads_cm), then w6_validate"
+   "note": "restarted dec2023_30m 4:22 am ET; chain_state.sh + chain_coast.sh"
   },
   {
    "n": 3,
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Sun Oct 18, 4:23 AM",
+   "text": "Overnight setback: Colab's runtime disconnected for inactivity around 2 am ET and took the statewide Dec 2023 run with it at frame 43 of 96 (8 of 10 remaining coast tiles had already been saved to Hugging Face). Restarted 4:22 am ET on a fresh L4: statewide run alone on the GPU (~75 min) with tiling and validation chained automatically; the last two coast tiles, then tiles + validation for all nine new coast tiles, run alongside. I now poke Colab every 20 minutes."
+  },
   {
    "t": "Sat Oct 17, 11:20 PM",
    "text": "First real validation: the Boston Jan 2018 run vs 32 USGS surveyed high-water marks — water at 91% of the marks, mean error 0.54 m, 53% within 50 cm, bias −0.07 m, with no calibration at all. The marks are drawn on the v2 map coloured by error (click one). Validation runs automatically for every published run from now on."
