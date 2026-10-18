@@ -103,6 +103,17 @@ for ts in hours:
     except Exception as e: log('  no MRMS', ts, repr(e)[:80]); RAIN[ts] = np.zeros((ny, nx), np.float32)
 tot = sum(RAIN.values()); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h')
 if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
+# rain pictures for the map: one small RGBA image per hour (every 10th cell), corners in lon/lat for a MapLibre image source
+from PIL import Image as _Im
+RSTOPS = [(1, (170, 220, 255, 90)), (3, (90, 170, 255, 130)), (6, (30, 110, 230, 160)), (12, (255, 200, 60, 190)), (25, (255, 110, 30, 215)), (50, (200, 20, 20, 235))]
+rain_hours = []
+for ts in hours:
+    r_ = RAIN[ts][::10, ::10]; img = np.zeros(r_.shape + (4,), np.uint8)
+    for th, col in RSTOPS: img[r_ >= th] = col
+    _Im.fromarray(img).save(f'{OUT}/r{ts:%d%H}.png', optimize=True); rain_hours.append([ts.strftime('%Y-%m-%dT%H:%MZ'), f'r{ts:%d%H}.png'])
+corn = [tr.transform(x_, y_) for x_, y_ in ((x0, y1), (x1, y1), (x1, y0), (x0, y0))]      # top-left, top-right, bottom-right, bottom-left
+RAIN_META = dict(hours=rain_hours, corners=[[round(a, 5), round(b, 5)] for a, b in corn], stops=RSTOPS, unit='mm in the hour ending at the time')
+
 # ---- 3b. rivers entering the box: USGS gauge discharge injected where the river crosses the edge (Stage 3) ----
 INFLOW = []                       # (row, col, name, times_utc[], m3/s[])
 if os.environ.get('INFLOW', '1') == '1':
@@ -187,7 +198,7 @@ def save_frame(kf, h):
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float((hc >= 0.1).sum() * RES * RES / 1e6), float((hc >= 0.5).sum() * RES * RES / 1e6)
 meta = dict(run=RUN, title=S['title'], res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
-            rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(soils=SOIL_META, Fk=Fk, drain=drain, landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
+            rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain=drain, landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
 while kf < nfr:
     if t >= frame_t[kf]:
