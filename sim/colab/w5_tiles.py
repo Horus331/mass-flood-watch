@@ -83,14 +83,32 @@ if f'{RUN_DIR}/roads_cm.npy' not in have:
         ROAD = dict(n=SEGJ['n'], r=rr_[ok_], c=cc_[ok_], seg=pid[ok_], cm=np.zeros((len(meta['frames']), SEGJ['n']), np.uint8)); del SEGJ
         log(f'roads: sampling {ROAD["n"]} segments ({int(ok_.sum())} vertices) from the class frames')
     except Exception as e: log('no road sampling:', repr(e)[:120])
+# the statewide basemap roads (docs/major.json, 110k named roads, no graph) -> roads_bm_cm.npy, so coastal tiles show flooded streets too
+ROADBM = None
+if f'{RUN_DIR}/roads_bm_cm.npy' not in have:
+    try:
+        import requests
+        from pyproj import Transformer
+        BM = requests.get('https://raw.githubusercontent.com/Horus331/mass-flood-watch/main/docs/major.json', timeout=120).json()
+        OX, OY, Q = BM['origin']; inv3 = Transformer.from_crs(4326, 26986, always_xy=True); px, py, pid = [], [], []
+        for i_, r_ in enumerate(BM['roads']):
+            d_ = r_[4:]; px.append(OX + np.cumsum(d_[0::2]) / Q); py.append(OY + np.cumsum(d_[1::2]) / Q); pid.append(np.full(len(d_) // 2, i_, np.int32))
+        px, py, pid = np.concatenate(px), np.concatenate(py), np.concatenate(pid)
+        X_, Y_ = inv3.transform(px, py); cc_ = ((X_ - x0) / res).astype(np.int64); rr_ = ((y1 - Y_) / res).astype(np.int64)
+        ok_ = (rr_ >= 0) & (rr_ < ny) & (cc_ >= 0) & (cc_ < nx)
+        ROADBM = dict(n=len(BM['roads']), r=rr_[ok_], c=cc_[ok_], seg=pid[ok_], cm=np.zeros((len(meta['frames']), len(BM['roads'])), np.uint8)); del BM
+        log(f'basemap roads: {len(np.unique(ROADBM["seg"]))} of {ROADBM["n"]} inside the box')
+    except Exception as e: log('no basemap road sampling:', repr(e)[:120])
 CLASS_CM = np.array([0, 5, 10, 30, 100, 250], np.uint8)
 t0 = time.time(); ops = []
 frames = [f'f{k:03d}' for k in range(len(meta['frames']))]
 for i, name in enumerate(frames):
-    if f'{RUN_DIR}/tiles/{name}.pmtiles' in have and ROAD is None: continue
+    if f'{RUN_DIR}/tiles/{name}.pmtiles' in have and ROAD is None and ROADBM is None: continue
     cls = np.asarray(Image.open(hf_hub_download(REPO, f'{RUN_DIR}/{name}.png', repo_type='dataset', token=TOK)))
     if ROAD is not None:
         m_ = np.zeros(ROAD['n'], np.uint8); np.maximum.at(m_, ROAD['seg'], cls[ROAD['r'], ROAD['c']]); ROAD['cm'][i] = CLASS_CM[m_]
+    if ROADBM is not None:
+        m_ = np.zeros(ROADBM['n'], np.uint8); np.maximum.at(m_, ROADBM['seg'], cls[ROADBM['r'], ROADBM['c']]); ROADBM['cm'][i] = CLASS_CM[m_]
     if f'{RUN_DIR}/tiles/{name}.pmtiles' in have: continue
     fn, n = pack(name, cls); ops.append(CommitOperationAdd(path_in_repo=f'{RUN_DIR}/tiles/{name}.pmtiles', path_or_fileobj=fn))
     log(f'{name}: {n} tiles, {os.path.getsize(fn) // 1024} KB | {time.time() - t0:.0f}s')
@@ -105,6 +123,9 @@ if ops:
 if ROAD is not None:
     np.save('/content/roads_cm.npy', ROAD['cm']); api.upload_file(path_or_fileobj='/content/roads_cm.npy', path_in_repo=f'{RUN_DIR}/roads_cm.npy', repo_id=REPO, repo_type='dataset')
     meta['roads'] = dict(segments=int(ROAD['n']), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), file='roads_cm.npy (frames x segments, depth cm from the 5 depth classes)'); log('roads uploaded:', meta['roads'])
+if ROADBM is not None:
+    np.save('/content/roads_bm_cm.npy', ROADBM['cm']); api.upload_file(path_or_fileobj='/content/roads_bm_cm.npy', path_in_repo=f'{RUN_DIR}/roads_bm_cm.npy', repo_id=REPO, repo_type='dataset')
+    meta['roads_bm'] = dict(roads=int(ROADBM['n']), flooded_10cm=int(((ROADBM['cm'] >= 10).any(axis=0)).sum()), file='roads_bm_cm.npy (frames x basemap roads, depth cm)'); log('basemap roads uploaded:', meta['roads_bm'])
 meta['tiles'] = dict(zmin=ZMIN, zmax=ZMAX, bounds=[W, S, E, N], format='pmtiles per frame')
 json.dump(meta, open('/content/meta_tiles.json', 'w'))
 api.upload_file(path_or_fileobj='/content/meta_tiles.json', path_in_repo=f'{RUN_DIR}/meta.json', repo_id=REPO, repo_type='dataset')
