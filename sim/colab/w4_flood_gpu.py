@@ -130,6 +130,26 @@ if os.environ.get('INFLOW', '1') == '1':
 # ---- 4. the run ----
 sim = solver.LocalInertial(Z, RES, 0.06, xp=xp); sim.sink = xp.asarray(sea)
 f0, fc, Fk, drain = 30.0, 3.0, 40.0, 2.0
+# Stage 3: soils.  Horton rates by SSURGO hydrologic soil group (Akan 1993: f0 250/200/125/75, fc 25.4/12.7/6.4/2.5 mm/h for A/B/C/D);
+# dual groups (A/D..C/D) are taken as D (high water table, the wet case); cells with a water table within 50 cm get the D rates too.
+SOIL_META = 'none (uniform f0 30, fc 3 mm/h)'
+if os.environ.get('SOILS', '1') == '1':
+    try:
+        SO = np.load(hf_hub_download(REPO, 'data/soils30/soils30.npz', repo_type='dataset', token=TOK)); SM = json.load(open(hf_hub_download(REPO, 'data/soils30/soils30_meta.json', repo_type='dataset', token=TOK)))
+        if SM['box'] == list(BOX) and SM['res_m'] == RES:
+            hg = SO['hydgrp']; wt = SO['wtd']
+        else:   # resample nearest to this grid
+            sx0, sy0, sx1, sy1 = SM['box']; sres = SM['res_m']
+            rr_ = np.clip(((y1 - (np.arange(ny) + 0.5) * RES) - sy0) / sres, 0, SM['shape'][0] - 1).astype(int); rr_ = SM['shape'][0] - 1 - rr_
+            cc_ = np.clip(((x0 + (np.arange(nx) + 0.5) * RES) - sx0) / sres, 0, SM['shape'][1] - 1).astype(int)
+            hg = SO['hydgrp'][rr_][:, cc_]; wt = SO['wtd'][rr_][:, cc_]
+        grp = np.where(hg >= 5, 4, hg).astype(np.int64); grp[(wt < 25) & (grp > 0)] = 4          # dual groups and shallow water table -> D
+        F0 = np.array([f0, 250, 200, 125, 75], np.float32)[grp]; FC = np.array([fc, 25.4, 12.7, 6.4, 2.5], np.float32)[grp]
+        f0, fc = xp.asarray(F0), xp.asarray(FC); del F0, FC
+        SOIL_META = f'SSURGO hydrologic group on {float((grp > 0).mean()) * 100:.0f}% of cells (A {float((grp == 1).mean()) * 100:.0f}%, B {float((grp == 2).mean()) * 100:.0f}%, C {float((grp == 3).mean()) * 100:.0f}%, D {float((grp == 4).mean()) * 100:.0f}%), Horton rates after Akan 1993'
+        log('soils:', SOIL_META); del grp, hg, wt, SO
+    except Exception as e:
+        log('no soils data, uniform infiltration:', repr(e)[:120])
 IMPg = xp.asarray(IMP); f_scale = 1.0 - 0.9 * IMPg; drain_mmph = drain + 5.0 * IMPg
 Finf = xp.full((ny, nx), S['wet_start_mm'], xp.float32)
 nfr = int(S['hours'] * 60 / S['frame_min']) + 1; frame_t = [t0 + pd.Timedelta(minutes=S['frame_min'] * i) for i in range(nfr)]
@@ -142,7 +162,7 @@ def save_frame(kf, h):
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float((hc >= 0.1).sum() * RES * RES / 1e6), float((hc >= 0.5).sum() * RES * RES / 1e6)
 meta = dict(run=RUN, title=S['title'], res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
-            rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(f0=f0, fc=fc, Fk=Fk, drain=drain, landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
+            rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(soils=SOIL_META, Fk=Fk, drain=drain, landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
 while kf < nfr:
     if t >= frame_t[kf]:
