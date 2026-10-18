@@ -38,6 +38,24 @@ code{background:#eaf1f8;padding:1px 5px;border-radius:4px;font-size:13px}a{color
 <p>Each published run is scored with <code>sim/validate.py</code>: modelled peak depth at every surveyed high-water mark of the same storm versus the surveyed height above ground (bias, mean absolute error, share within 50 cm), and the hit rate at dated road-flooding reports against the hit rate at random road points. Results are published next to each run as <code>validation.json</code>.</p>
 <div class="note">Known limits: 30 m cells hide culverts and small channels; rain inside the grid is counted once but the Deerfield inflow may overlap its in-state basin; no groundwater table dynamics yet; tide and surge enter only through gauge levels at the coast.</div>
 
+<h2>5b. Validation scoreboard (live)</h2>
+<p>Every published run is scored against the surveyed high-water marks of its storm. This table reads the results straight from Hugging Face.</p>
+<table id="scores"><tr><th>Run</th><th>Marks</th><th>Water at the mark</th><th>Mean error</th><th>Within 50 cm</th><th>Bias</th></tr><tr><td colspan="6" class="sub">loading…</td></tr></table>
+<script>
+(async () => {
+  const HF = 'https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles/resolve/main/'; const T = document.getElementById('scores');
+  try {
+    const L = await fetch('https://huggingface.co/api/datasets/mohabeldokla/mass-flood-watch-tiles/tree/main/runs').then(r => r.json());
+    const rows = [];
+    for (const d of L.filter(x => x.type === 'directory')) {
+      const n = d.path.split('/').pop();
+      try { const V = await fetch(HF + 'runs/' + n + '/validation.json?t=' + Date.now()).then(r => r.ok ? r.json() : null); if (V && V.hwm) rows.push([n, V.hwm]); else rows.push([n, null]); } catch (e) { rows.push([n, null]); }
+    }
+    T.querySelector('tr:last-child').remove();
+    for (const [n, h] of rows) { const tr = document.createElement('tr'); tr.innerHTML = h ? `<td><a href="v2/?run=${n}">${n.replace(/_/g, ' ')}</a></td><td>${h.n}</td><td>${Math.round(h.wet_share * 100)}%</td><td>${h.mae_m} m</td><td>${Math.round(h.within_50cm * 100)}%</td><td>${h.bias_m > 0 ? '+' : ''}${h.bias_m} m</td>` : `<td><a href="v2/?run=${n}">${n.replace(/_/g, ' ')}</a></td><td colspan="5" class="sub">no surveyed marks for this storm inside the run's box, or not scored yet</td>`; T.append(tr); }
+  } catch (e) { T.querySelector('tr:last-child').firstChild.textContent = 'could not load results'; }
+})();
+</script>
 <h2>6. Software</h2>
 <p>Everything is in the open repository <a href="https://github.com/Horus331/mass-flood-watch">Horus331/mass-flood-watch</a>. Data preparation runs on GitHub Actions, the flood engine on Google Colab (NVIDIA L4), the results live on Hugging Face (<a href="https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles">mass-flood-watch-tiles</a>) as map tiles, and the site is served by GitHub Pages with MapLibre GL and OpenFreeMap. There is no server and no paid service anywhere in the chain.</p>
 </main></body></html>
