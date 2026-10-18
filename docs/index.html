@@ -159,7 +159,7 @@ h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spa
     </div>
     <div class="status">
       <span class="livechip" id="livechip"><span class="dot ok" id="livedot"></span><span id="livetxt">Loading…</span></span>
-      <button class="livechip" id="progchip" title="Work in progress on this model" style="cursor:pointer;max-width:520px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="dot" style="background:var(--accent)"></span><span id="progtxt">Work log</span></button>
+      <button class="livechip" id="progchip" title="Work in progress on this model" style="cursor:pointer;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="dot" style="background:var(--accent)"></span><span id="progtxt">Work log</span></button>
       <span class="clock" id="clock"></span>
       <button class="btn" id="present">Presentation view</button>
     </div>
@@ -1166,7 +1166,7 @@ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>goTab(b.dataset.tab))
 let PROG = null;
 async function loadProgress(){ try { PROG = await getJSON('progress.json?v=' + Math.floor(Date.now() / 60000)); } catch(e){ return; }
   const cur = PROG.stages.find(s => s.status === 'in progress') || PROG.stages[0], u = PROG.updates[0];
-  $('#progtxt').textContent = `Stage ${cur.n}/${PROG.stages.length}: ${cur.name} · ${u.t}: ${u.text}`; }
+  $('#progtxt').textContent = `Stage ${cur.n}/${PROG.stages.length} · ${u.t.replace(/^\w+ /, '')}`; $('#progchip').title = `${cur.name}\n${u.t}: ${u.text}`; }
 $('#progchip').onclick = () => { if (!PROG) return; const box = $('#readout');
   box.innerHTML = `<h2>Work log</h2><p class="note">What is being built on this model this week, updated with every change. Times are Eastern.</p>
     <div class="tblwrap" style="max-height:none"><table><thead><tr><th>Stage</th><th>Status</th></tr></thead><tbody>${PROG.stages.map(s => `<tr${s.status === 'in progress' ? ' class="wnow"' : ''}><td><b>${s.n}. ${s.name}</b>${s.note ? '<br><span class="muted">' + s.note + '</span>' : ''}</td><td>${s.status}</td></tr>`).join('')}</tbody></table></div>
