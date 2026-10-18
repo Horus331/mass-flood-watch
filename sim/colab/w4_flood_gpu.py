@@ -15,6 +15,8 @@ RUN = os.environ.get('RUN', 'dec2023'); RES = float(os.environ.get('RES', '30'))
 BOX = tuple(float(v) for v in os.environ.get('BOX', '120000,780000,340000,960000').split(','))      # Districts 3-6 (EPSG:26986)
 STORMS = {'dec2023': dict(t0='2023-12-17T22:00Z', hours=48, frame_min=30, wet_start_mm=120.0, title='Dec 18, 2023 statewide rain'),
           'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, wet_start_mm=0.0, title='Sept 11, 2023 flash floods'),
+          'jul2023': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 9-11, 2023 western Mass. rain (105 USGS surveyed marks)'),
+          'jan2018': dict(t0='2018-01-04T00:00Z', hours=36, frame_min=30, wet_start_mm=0.0, title='Jan 4, 2018 nor\'easter rain (coast handled separately)'),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, wet_start_mm=0.0, title='Leominster test')}
 S = STORMS[RUN]
 OUT = f'/content/run_{RUN}_{RES:.0f}m'; os.makedirs(OUT, exist_ok=True)
