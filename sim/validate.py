@@ -39,13 +39,14 @@ def main(run_dir, hwm_path=None, reports_path=None):
             if r[C['event']] not in evs: continue
             hb = r[C['height_above_ground_ft']]
             if hb is None: continue
-            obs = float(hb) * 0.3048; mod = at(r[C['lon']], r[C['lat']], 30)
+            obs = float(hb) * 0.3048; mod = at(r[C['lon']], r[C['lat']], 0); modw = at(r[C['lon']], r[C['lat']], 30)
             if mod is None: continue
-            rows.append(dict(id=r[C['id']], obs_m=round(obs, 2), mod_m=round(mod, 2), env=r[C['environment']], where=r[C['waterbody']] or r[C['location']]))
+            rows.append(dict(id=r[C['id']], lat=r[C['lat']], lon=r[C['lon']], obs_m=round(obs, 2), mod_m=round(mod, 2), mod_max30_m=round(modw, 2), env=r[C['environment']], where=r[C['waterbody']] or r[C['location']]))
         if rows:
-            o = np.array([r['obs_m'] for r in rows]); m = np.array([r['mod_m'] for r in rows])
-            out['hwm'] = dict(n=len(rows), bias_m=round(float((m - o).mean()), 2), mae_m=round(float(np.abs(m - o).mean()), 2), wet_share=round(float((m >= 0.1).mean()), 2),
-                              within_50cm=round(float((np.abs(m - o) <= 0.5).mean()), 2), rows=rows)
+            o = np.array([r['obs_m'] for r in rows]); m = np.array([r['mod_m'] for r in rows]); mw = np.array([r['mod_max30_m'] for r in rows])
+            out['hwm'] = dict(n=len(rows), bias_m=round(float((m - o).mean()), 2), mae_m=round(float(np.abs(m - o).mean()), 2), wet_share=round(float((mw >= 0.1).mean()), 2),
+                              within_50cm=round(float((np.abs(m - o) <= 0.5).mean()), 2), bias_max30_m=round(float((mw - o).mean()), 2), mae_max30_m=round(float(np.abs(mw - o).mean()), 2),
+                              note='mod_m: modelled peak depth at the mark cell; mod_max30_m: deepest cell within 30 m; obs_m: surveyed height above ground', rows=rows)
     # 2. flood reports
     if reports_path and os.path.exists(reports_path):
         R = json.load(open(reports_path))['rows']; hit = [];
