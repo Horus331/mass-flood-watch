@@ -20,7 +20,7 @@ def main(run_dir, hwm_path=None, reports_path=None):
     from pyproj import Transformer
     tr = Transformer.from_crs(4326, 26986, always_xy=True)
     def at(lon, lat, radius_m=0):
-        x, y = tr.transform(lon, lat); c = int((x - x0) / res); r = int((y1 - y) / res)
+        x, y = tr.transform(lon, lat); c = int(math.floor((x - x0) / res)); r = int(math.floor((y1 - y) / res))
         if not (0 <= r < ny and 0 <= c < nx): return None
         if radius_m <= 0: return float(hm[r, c])
         k = int(math.ceil(radius_m / res)); return float(hm[max(0, r - k):r + k + 1, max(0, c - k):c + k + 1].max())
@@ -30,23 +30,56 @@ def main(run_dir, hwm_path=None, reports_path=None):
     d0 = dt.date.fromisoformat(t0)
     for k in range(int(meta['frame_min'] * (len(meta['frames']) - 1) / 1440) + 2): days.add((d0 + dt.timedelta(days=k)).isoformat())
     # 1. high-water marks (docs/validation/stn_ma.json: compact USGS STN marks for Massachusetts)
+    #    Two comparisons: (a) water-surface elevation: surveyed mark elevation (NAVD88) vs the model's z+hmax within 60 m
+    #    (the standard test; marks often sit on walls or banks whose ground differs from the 30 m cell mean);
+    #    (b) depth above ground at the mark cell (old metric, kept).  Marks with height_above_ground = 0 are edge-of-water
+    #    points: for them only the WSE and the 'is there water nearby' test mean anything.  Scores are also given per
+    #    waterbody/reach, because surveys cluster (July 2023 = 5 reaches), and coastal still-water vs wave/debris marks apart.
+    Z = None
+    zpath = os.path.join(run_dir, 'z.npy')
+    if os.path.exists(zpath): Z = np.load(zpath).astype(np.float32)
+    def wse_near(lon, lat, radius_m=60):
+        if Z is None: return None
+        x, y = tr.transform(lon, lat); c = int(math.floor((x - x0) / res)); r = int(math.floor((y1 - y) / res))
+        k = int(math.ceil(radius_m / res)); r0, r1, c0, c1 = max(0, r - k), min(ny, r + k + 1), max(0, c - k), min(nx, c + k + 1)
+        if r0 >= r1 or c0 >= c1: return None
+        hh = hm[r0:r1, c0:c1]; zz = Z[r0:r1, c0:c1]; wet = hh >= 0.05
+        return float((zz + hh)[wet].max()) if wet.any() else None
     if hwm_path and os.path.exists(hwm_path):
         H = json.load(open(hwm_path)); C = {c: i for i, c in enumerate(H['columns'])}; rows = []
-        run_start = meta['t0'][:10]
         evs = {int(k) for k, e in H['events'].items() if e['start'] <= max(days) and e['end'] >= min(days)}
         out['hwm_events'] = {k: e['name'] for k, e in H['events'].items() if int(k) in evs}
         for r in H['rows']:
             if r[C['event']] not in evs: continue
-            hb = r[C['height_above_ground_ft']]
-            if hb is None: continue
-            obs = float(hb) * 0.3048; mod = at(r[C['lon']], r[C['lat']], 0); modw = at(r[C['lon']], r[C['lat']], 30)
+            lon, lat = r[C['lon']], r[C['lat']]
+            x, y = tr.transform(lon, lat)
+            if not (x0 <= x < x1 and y0 <= y < y1): continue
+            hb = r[C['height_above_ground_ft']]; el = r[C['elev_ft']]
+            obs_d = None if hb is None else float(hb) * 0.3048
+            obs_wse = None if (el is None or r[C['vdatum']] not in (2, None)) else float(el) * 0.3048     # vdatum 2 = NAVD88 in STN
+            mod = at(lon, lat, 0); modw = at(lon, lat, 30); mwse = wse_near(lon, lat, 60)
             if mod is None: continue
-            rows.append(dict(id=r[C['id']], lat=r[C['lat']], lon=r[C['lon']], obs_m=round(obs, 2), mod_m=round(mod, 2), mod_max30_m=round(modw, 2), env=r[C['environment']], where=r[C['waterbody']] or r[C['location']]))
+            rows.append(dict(id=r[C['id']], lat=lat, lon=lon, reach=(r[C['waterbody']] or r[C['location']] or '')[:40], env=r[C['environment']], still=int(r[C['stillwater']] or 0),
+                             obs_m=None if obs_d is None else round(obs_d, 2), mod_m=round(mod, 2), mod_max30_m=round(modw, 2),
+                             obs_wse_m=None if obs_wse is None else round(obs_wse, 2), mod_wse_m=None if mwse is None else round(mwse, 2),
+                             wse_err_m=None if (obs_wse is None or mwse is None) else round(mwse - obs_wse, 2)))
         if rows:
-            o = np.array([r['obs_m'] for r in rows]); m = np.array([r['mod_m'] for r in rows]); mw = np.array([r['mod_max30_m'] for r in rows])
-            out['hwm'] = dict(n=len(rows), bias_m=round(float((m - o).mean()), 2), mae_m=round(float(np.abs(m - o).mean()), 2), wet_share=round(float((mw >= 0.1).mean()), 2),
-                              within_50cm=round(float((np.abs(m - o) <= 0.5).mean()), 2), bias_max30_m=round(float((mw - o).mean()), 2), mae_max30_m=round(float(np.abs(mw - o).mean()), 2),
-                              note='mod_m: modelled peak depth at the mark cell; mod_max30_m: deepest cell within 30 m; obs_m: surveyed height above ground', rows=rows)
+            def score(rs):
+                o = np.array([x['obs_m'] for x in rs if x['obs_m'] is not None]); m = np.array([x['mod_m'] for x in rs if x['obs_m'] is not None]); mw = np.array([x['mod_max30_m'] for x in rs])
+                we = np.array([x['wse_err_m'] for x in rs if x['wse_err_m'] is not None]); nwse = sum(1 for x in rs if x['obs_wse_m'] is not None)
+                d = dict(n=len(rs), wet_within_30m=round(float((mw >= 0.1).mean()), 2), n_wse=int(nwse), wse_found=round(float(len(we) / nwse), 2) if nwse else None)
+                if len(we): d.update(wse_bias_m=round(float(we.mean()), 2), wse_mae_m=round(float(np.abs(we).mean()), 2), wse_within_50cm=round(float((np.abs(we) <= 0.5).mean()), 2))
+                dep = [(x['obs_m'], x['mod_m']) for x in rs if x['obs_m'] is not None and x['obs_m'] > 0]
+                if dep:
+                    o2 = np.array([a for a, _ in dep]); m2 = np.array([b for _, b in dep])
+                    d.update(n_depth=len(dep), bias_m=round(float((m2 - o2).mean()), 2), mae_m=round(float(np.abs(m2 - o2).mean()), 2), within_50cm=round(float((np.abs(m2 - o2) <= 0.5).mean()), 2))
+                return d
+            out['hwm'] = score(rows); out['hwm']['note'] = ('wse_*: model water-surface elevation (z + peak depth, wettest cell within 60 m) vs surveyed mark elevation NAVD88; '
+                                                            'bias/mae/within_50cm: depth above ground at the mark cell, marks with height above ground > 0 only; wet_within_30m: any water >= 10 cm within 30 m')
+            out['hwm']['by_reach'] = {k: score([x for x in rows if x['reach'] == k]) for k in sorted({x['reach'] for x in rows}) if sum(1 for x in rows if x['reach'] == k) >= 3}
+            cst = [x for x in rows if x['env'] == 'Coastal']
+            if cst: out['hwm']['coastal'] = dict(still_water=score([x for x in cst if x['still']]) if any(x['still'] for x in cst) else None, wave_debris=score([x for x in cst if not x['still']]) if any(not x['still'] for x in cst) else None)
+            out['hwm']['rows'] = rows
     # 2. flood reports
     if reports_path and os.path.exists(reports_path):
         R = json.load(open(reports_path))['rows']; hit = [];
@@ -60,7 +93,7 @@ def main(run_dir, hwm_path=None, reports_path=None):
             if v is not None: rand.append(v >= 0.1)
         out['reports'] = dict(n_storm_day=len(hit), hit_rate=round(float(np.mean(hit)), 3) if hit else None, any_day_rate=round(float(np.mean(rand)), 3) if rand else None)
     json.dump(out, open(os.path.join(run_dir, 'validation.json'), 'w'), indent=1)
-    print(json.dumps({k: v for k, v in out.items() if k != 'hwm'} | ({'hwm': {k: v for k, v in out['hwm'].items() if k != 'rows'}} if 'hwm' in out else {}), indent=1))
+    print(json.dumps({k: v for k, v in out.items() if k != 'hwm'} | ({'hwm': {k: v for k, v in out['hwm'].items() if k not in ('rows',)}} if 'hwm' in out else {}), indent=1))
     return out
 
 if __name__ == '__main__':

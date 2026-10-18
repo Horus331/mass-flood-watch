@@ -342,7 +342,7 @@ hmx = xp.where(sim.fixed, 0, sim.hmax) if TIDE is not None else sim.hmax
 hm = xp.asnumpy(hmx) if hasattr(xp, 'asnumpy') else hmx
 np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
 tonp = (lambda a: xp.asnumpy(a)) if hasattr(xp, 'asnumpy') else (lambda a: a)
-np.save(f'{OUT}/t_first.npy', tonp(T_FIRST)); np.save(f'{OUT}/dur.npy', tonp(DUR)); np.save(f'{OUT}/vmax.npy', tonp(VMAX).astype(np.float16)); np.save(f'{OUT}/hvmax.npy', tonp(HVMAX).astype(np.float16))
+np.save(f'{OUT}/z.npy', Z.astype(np.float32)); np.save(f'{OUT}/t_first.npy', tonp(T_FIRST)); np.save(f'{OUT}/dur.npy', tonp(DUR)); np.save(f'{OUT}/vmax.npy', tonp(VMAX).astype(np.float16)); np.save(f'{OUT}/hvmax.npy', tonp(HVMAX).astype(np.float16))
 meta['cell_outputs'] = dict(hmax='peak depth m (float16)', t_first='frame index when depth first >= 10 cm (255 = never)', dur='number of frames >= 10 cm', vmax='peak speed m/s (float16)', hvmax='peak depth*speed m2/s (float16)')
 meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited_infiltration=bool(PHYS >= 2), channels_burnt=int(chan.sum()), manning='0.035 water/channel, 0.10 dense urban, 0.08 other' if PHYS >= 2 else '0.06 uniform',
                        tide=('gauge ' + os.environ.get('TIDE_STATION', '8443970')) if TIDE is not None else 'sea as sink', scheme='q-centred theta 0.7, Fr<=2' if PHYS >= 2 else 'Bates 2010, Fr<=1', antecedent_mm=round(WET0, 1))
