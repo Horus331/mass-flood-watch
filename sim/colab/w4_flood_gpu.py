@@ -78,6 +78,14 @@ except Exception as e:
 # ---- 3. rain: MRMS hourly, interpolated onto the grid ----
 import pandas as pd, pygrib
 from scipy.interpolate import RegularGridInterpolator
+def get(url, tries=4):
+    for k in range(tries):
+        try:
+            r = requests.get(url, timeout=120)
+            if r.status_code == 200: return r
+        except Exception: pass
+        time.sleep(3 * (k + 1))
+    raise RuntimeError(f'download failed: {url[-60:]}')
 def mrms_hour(ts):
     d = ts.strftime('%Y%m%d'); f = ts.strftime('%Y%m%d-%H%M%S')
     url = f'https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MultiSensor_QPE_01H_Pass2_00.00/{d}/MRMS_MultiSensor_QPE_01H_Pass2_00.00_{f}.grib2.gz'
@@ -94,6 +102,7 @@ for ts in hours:
     try: RAIN[ts] = mrms_hour(ts)
     except Exception as e: log('  no MRMS', ts, repr(e)[:80]); RAIN[ts] = np.zeros((ny, nx), np.float32)
 tot = sum(RAIN.values()); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h')
+if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
 # ---- 3b. rivers entering the box: USGS gauge discharge injected where the river crosses the edge (Stage 3) ----
 INFLOW = []                       # (row, col, name, times_utc[], m3/s[])
 if os.environ.get('INFLOW', '1') == '1':
