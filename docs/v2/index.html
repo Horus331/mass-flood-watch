@@ -69,7 +69,7 @@ function showRain(i){
   for (const [ts, fn] of META.rain.hours) { const te = new Date(ts).getTime(); if (t <= te && t > te - 3600000) { pick = fn; break; } }
   if (!pick) { if (map.getLayer('rain')) map.setLayoutProperty('rain', 'visibility', 'none'); rainCur = null; return; }
   const url = HF + 'runs/' + DIRS[0] + '/' + pick;
-  if (!map.getSource('rain')) { map.addSource('rain', {type: 'image', url, coordinates: META.rain.corners}); map.addLayer({id: 'rain', type: 'raster', source: 'rain', paint: {'raster-opacity': 0.75, 'raster-fade-duration': 0}}, map.getLayer('streams') ? 'streams' : undefined); }
+  if (!map.getSource('rain')) { map.addSource('rain', {type: 'image', url, coordinates: META.rain.corners}); map.addLayer({id: 'rain', type: 'raster', source: 'rain', paint: {'raster-opacity': 0.45, 'raster-fade-duration': 0}}, map.getLayer('streams') ? 'streams' : undefined); }
   else if (pick !== rainCur) map.getSource('rain').updateImage({url});
   map.setLayoutProperty('rain', 'visibility', 'visible'); rainCur = pick;
 }
