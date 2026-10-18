@@ -29,23 +29,23 @@ def main(run_dir, hwm_path=None, reports_path=None):
     import datetime as dt
     d0 = dt.date.fromisoformat(t0)
     for k in range(int(meta['frame_min'] * (len(meta['frames']) - 1) / 1440) + 2): days.add((d0 + dt.timedelta(days=k)).isoformat())
-    # 1. high-water marks
+    # 1. high-water marks (docs/validation/stn_ma.json: compact USGS STN marks for Massachusetts)
     if hwm_path and os.path.exists(hwm_path):
-        H = json.load(open(hwm_path)); rows = []
-        for ev in H.values():
-            if not any(d in (ev.get('start') or '') for d in days) and meta['run'][:3] not in (ev['name'] or '').lower(): continue
-            for h in ev['hwms']:
-                try:
-                    lon, lat = float(h['longitude_dd']), float(h['latitude_dd'])
-                    el = h.get('elev_ft'); hb = h.get('height_above_gnd')
-                    if hb is None: continue
-                    obs = float(hb) * 0.3048; mod = at(lon, lat, 30)
-                    if mod is None: continue
-                    rows.append(dict(site=h.get('hwm_label') or h.get('site_no'), obs_m=round(obs, 2), mod_m=round(mod, 2), env=h.get('hwm_environment')))
-                except Exception: pass
+        H = json.load(open(hwm_path)); C = {c: i for i, c in enumerate(H['columns'])}; rows = []
+        run_start = meta['t0'][:10]
+        evs = {int(k) for k, e in H['events'].items() if e['start'] <= max(days) and e['end'] >= min(days)}
+        out['hwm_events'] = {k: e['name'] for k, e in H['events'].items() if int(k) in evs}
+        for r in H['rows']:
+            if r[C['event']] not in evs: continue
+            hb = r[C['height_above_ground_ft']]
+            if hb is None: continue
+            obs = float(hb) * 0.3048; mod = at(r[C['lon']], r[C['lat']], 30)
+            if mod is None: continue
+            rows.append(dict(id=r[C['id']], obs_m=round(obs, 2), mod_m=round(mod, 2), env=r[C['environment']], where=r[C['waterbody']] or r[C['location']]))
         if rows:
             o = np.array([r['obs_m'] for r in rows]); m = np.array([r['mod_m'] for r in rows])
-            out['hwm'] = dict(n=len(rows), bias_m=round(float((m - o).mean()), 2), mae_m=round(float(np.abs(m - o).mean()), 2), wet_share=round(float((m >= 0.1).mean()), 2), rows=rows[:200])
+            out['hwm'] = dict(n=len(rows), bias_m=round(float((m - o).mean()), 2), mae_m=round(float(np.abs(m - o).mean()), 2), wet_share=round(float((m >= 0.1).mean()), 2),
+                              within_50cm=round(float((np.abs(m - o) <= 0.5).mean()), 2), rows=rows)
     # 2. flood reports
     if reports_path and os.path.exists(reports_path):
         R = json.load(open(reports_path))['rows']; hit = [];
@@ -64,4 +64,4 @@ def main(run_dir, hwm_path=None, reports_path=None):
 
 if __name__ == '__main__':
     rd = sys.argv[1]; base = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-    main(rd, hwm_path=sys.argv[2] if len(sys.argv) > 2 else None, reports_path=os.path.join(base, 'docs', 'prone', 'flood_reports.json'))
+    main(rd, hwm_path=sys.argv[2] if len(sys.argv) > 2 else os.path.join(base, 'docs', 'validation', 'stn_ma.json'), reports_path=os.path.join(base, 'docs', 'prone', 'flood_reports.json'))
