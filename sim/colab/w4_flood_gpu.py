@@ -55,29 +55,21 @@ from pyproj import Transformer
 tr = Transformer.from_crs(26986, 4326, always_xy=True)
 xc = x0 + (np.arange(nx) + 0.5) * RES; yc = y1 - (np.arange(ny) + 0.5) * RES
 lon_c, _ = tr.transform(xc, np.full(nx, (y0 + y1) / 2)); _, lat_c = tr.transform(np.full(ny, (x0 + x1) / 2), yc)
-# ---- 2. NLCD impervious on the grid (WCS, EPSG:26986 requested directly) ----
-def get(url, tries=5):
-    for t in range(tries):
-        try:
-            r = requests.get(url, timeout=300)
-            if r.status_code == 200: return r
-        except Exception as e: log('  retry', t, repr(e)[:80])
-        time.sleep(4 + 6 * t)
-    raise RuntimeError(url[:150])
-import tifffile
-IMP = np.zeros((ny, nx), np.float32); step = 1500
+# ---- 2. NLCD impervious from the 10 m tiles on Hugging Face (data/nlcd10, 0..100 % paved), averaged to RES ----
+IMP = np.zeros((ny, nx), np.float32)
 try:
-    for r0 in range(0, ny, step):
-        for c0 in range(0, nx, step):
-            r1, c1 = min(ny, r0 + step), min(nx, c0 + step)
-            bx0, bx1 = x0 + c0 * RES, x0 + c1 * RES; by1, by0 = y1 - r0 * RES, y1 - r1 * RES
-            u = ('https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=mrlc_download:NLCD_2021_Impervious_L48'
-                 f'&CRS=EPSG:26986&BBOX={bx0},{by0},{bx1},{by1}&WIDTH={c1 - c0}&HEIGHT={r1 - r0}&FORMAT=GeoTIFF')
-            t = tifffile.imread(io.BytesIO(get(u).content)).astype(np.float32); t = t[..., 0] if t.ndim == 3 else t; t[t > 100] = 0
-            IMP[r0:r1, c0:c1] = t[:r1 - r0, :c1 - c0] / 100
-    log(f'NLCD impervious: mean {IMP.mean() * 100:.1f}%')
+    from PIL import Image as _I
+    I10 = np.zeros((ny10, nx10), np.float32); got = 0
+    for key, v in need:
+        try: a = np.asarray(_I.open(hf_hub_download(REPO, f'data/nlcd10/{key}.png', repo_type='dataset', token=TOK))).astype(np.float32)
+        except Exception: continue
+        c0 = int((v['x'] - x0) / 10); r0 = int((y1 - (v['y'] + T)) / 10)
+        rs, cs = max(r0, 0), max(c0, 0); re_, ce = min(r0 + a.shape[0], ny10), min(c0 + a.shape[1], nx10)
+        I10[rs:re_, cs:ce] = a[rs - r0:re_ - r0, cs - c0:ce - c0]; got += 1
+    IMP = I10[:ny * k, :nx * k].reshape(ny, k, nx, k).mean(axis=(1, 3)).astype(np.float32) / 100; del I10
+    log(f'NLCD impervious: {got}/{len(need)} tiles, mean {IMP.mean() * 100:.1f}% paved')
 except Exception as e:
-    log('NLCD failed, using no paved-surface data:', repr(e)[:120])
+    log('NLCD unavailable, no paved-surface data:', repr(e)[:120])
 # ---- 3. rain: MRMS hourly, interpolated onto the grid ----
 import pandas as pd, pygrib
 from scipy.interpolate import RegularGridInterpolator
