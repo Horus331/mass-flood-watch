@@ -4,7 +4,7 @@
    "n": 1,
    "name": "10 m data foundation + drainage network",
    "status": "in progress",
-   "note": "10 m elevation 110/176 tiles; 10 m drainage reading watershed 1 of 5; GPU solver written and verified on CPU (bit-for-bit match with the old solver)"
+   "note": "restarted 8:55 pm: elevation resumes at tile 101/176; drainage reading in memory-safe bands"
   },
   {
    "n": 2,
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Sat Oct 17, 8:34 PM",
+   "text": "Both Colab data jobs had died: the 10 m drainage job ran out of memory (the Colab machine has 12 GB) and took the elevation pull down with it at tile 101/176. Drainage now reads the USGS rasters in small bands; both restarted and the elevation pull resumes where it stopped."
+  },
   {
    "t": "Sat Oct 17, 8:33 PM",
    "text": "New map engine test passed on your laptop: MapLibre GL + free OpenFreeMap tiles, whole-state stream network drawn by the GPU at a steady 60 fps (test page at /v2/). This is the foundation for the rebuild in stage 6."
