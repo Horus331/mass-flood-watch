@@ -1,0 +1,17 @@
+name: Stream crossings (USGS MA Stream Crossings Project) (run by hand)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  crossings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests && python sim/crossings_fetch.py
+      - run: |
+          git config user.name "flood-bot"; git config user.email "bot@users.noreply.github.com"
+          git add docs/network/crossings_ma.json && git commit -qm "data: MA stream crossings with peak flows" || exit 0
+          for i in $(seq 1 10); do git pull -q --rebase && git push -q && break; sleep 10; done
