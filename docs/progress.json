@@ -16,7 +16,7 @@
    "n": 3,
    "name": "Physics upgrades + statewide runs",
    "status": "running",
-   "note": "PHYS=2 in w4_flood_gpu.py; channels30 on HF; soils30 v2 running; jul2023_sat 53/96; coast_boston 10 m live"
+   "note": "chain_v2: jul2023_v2 → sep2023_v2 → dec2023_v2; test_leominster_v2 on HF"
   },
   {
    "n": 4,
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Sun Oct 18, 2:31 PM",
+   "text": "2:35 pm: v2 physics passed its smoke test (Leominster, 12 h, 1 M cells in 82 s). Now running the three storms on it — July 2023 west first (17 M cells, ~1.5 h), then Sept and Dec statewide — each tiled and scored with the new water-surface-elevation metric. Fixed on the way: SSURGO storage was in cm not mm; solver time step no longer throttled by the open sea."
+  },
   {
    "t": "Sun Oct 18, 1:58 PM",
    "text": "2:00 pm: engine v2 written after the three reviews — sea only where connected to the edge, no infiltration or drains on rivers/lakes/sea, soil store that fills up (SSURGO storage + 14 days of real antecedent rain), 2.5 M channel cells burnt from NHDPlus bankfull geometry, rivers start a third full, tributaries added to the state-line inflows, Manning by surface, sea held at the Boston tide gauge (compound flooding), q-centred numerics, and velocity/arrival/duration saved per cell and per road. Waiting for the statewide soils grid (with storage + bedrock depth) to finish, then a 12-hour Leominster smoke test before re-running the three storms."
