@@ -22,8 +22,12 @@ STORMS = {'dec2023': dict(t0='2023-12-17T22:00Z', hours=48, frame_min=30, wet_st
           'jan2018': dict(t0='2018-01-04T00:00Z', hours=36, frame_min=30, wet_start_mm=0.0, title='Jan 4, 2018 nor\'easter rain (coast handled separately)'),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, wet_start_mm=0.0, title='Leominster test')}
 S = STORMS[RUN]
+# experiment knobs (validation-driven calibration): WET_START mm overrides the storm's antecedent wetness, FC_SCALE multiplies the
+# soil infiltration rates (0.5 = soils drink half as fast), TAG names the variant (runs/<RUN><TAG>_<RES>m)
+if os.environ.get('WET_START'): S = dict(S, wet_start_mm=float(os.environ['WET_START']))
+FC_SCALE = float(os.environ.get('FC_SCALE', '1')); TAG = os.environ.get('TAG', '')
 if 'box' in S and 'BOX' not in os.environ: BOX = tuple(float(v) for v in S['box'])     # storms outside Districts 3-6 carry their own box
-OUT = f'/content/run_{RUN}_{RES:.0f}m'; os.makedirs(OUT, exist_ok=True)
+OUT = f'/content/run_{RUN}{TAG}_{RES:.0f}m'; os.makedirs(OUT, exist_ok=True)
 LOGP = '/content/log_flood.txt'
 def log(*a):
     s = time.strftime('%H:%M:%S ') + ' '.join(str(x) for x in a); print(s, flush=True); open(LOGP, 'a').write(s + '\n')
@@ -188,7 +192,8 @@ if os.environ.get('SOILS', '1') == '1':
         log('soils:', SOIL_META); del grp, hg, wt, SO
     except Exception as e:
         log('no soils data, uniform infiltration:', repr(e)[:120])
-IMPg = xp.asarray(IMP); f_scale = 1.0 - 0.9 * IMPg; drain_mmph = drain + 5.0 * IMPg
+IMPg = xp.asarray(IMP); f_scale = (1.0 - 0.9 * IMPg) * FC_SCALE; drain_mmph = drain + 5.0 * IMPg
+if FC_SCALE != 1 or os.environ.get('WET_START'): log(f'experiment: FC_SCALE {FC_SCALE}, wet_start {S["wet_start_mm"]} mm, tag {TAG!r}')
 Finf = xp.full((ny, nx), S['wet_start_mm'], xp.float32)
 nfr = int(S['hours'] * 60 / S['frame_min']) + 1; frame_t = [t0 + pd.Timedelta(minutes=S['frame_min'] * i) for i in range(nfr)]
 STOPS = [(0.0, (110, 196, 250, 160)), (0.3, (56, 146, 232, 195)), (1.0, (24, 98, 200, 222)), (2.5, (12, 54, 140, 238)), (5.0, (8, 30, 90, 248))]
@@ -199,7 +204,7 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float((hc >= 0.1).sum() * RES * RES / 1e6), float((hc >= 0.5).sum() * RES * RES / 1e6)
-meta = dict(run=RUN, title=S['title'], res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm']), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain=drain, landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
 while kf < nfr:
@@ -232,7 +237,7 @@ json.dump(meta, open(f'{OUT}/meta.json', 'w'))
 log('run done:', meta['peak_wet_km2'], 'km2 peak wet,', steps, 'steps,', meta['runtime_s'], 's')
 # ---- 5. upload ----
 from huggingface_hub import CommitOperationAdd
-files = sorted(os.listdir(OUT)); rem_dir = f'runs/{RUN}_{RES:.0f}m'
+files = sorted(os.listdir(OUT)); rem_dir = f'runs/{RUN}{TAG}_{RES:.0f}m'
 for i in range(0, len(files), 25):
     ops = [CommitOperationAdd(path_in_repo=f'{rem_dir}/{f}', path_or_fileobj=f'{OUT}/{f}') for f in files[i:i + 25]]
     for k_ in range(5):
