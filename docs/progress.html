@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="120">
+<title>Build progress · Mass Flood Watch</title>
+<style>
+:root{--ink:#0e1a24;--muted:#5d6b78;--panel:#fff;--line:#dbe3ea;--bg:#f3f6f9;--accent:#0b5f8f;--ok:#2e8b57;--now:#f08c28}
+@media(prefers-color-scheme:dark){:root{--ink:#e8eef4;--muted:#9fb0bf;--panel:#15202b;--line:#2a3845;--bg:#0b141c;--accent:#5fb3e6}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"IBM Plex Sans",Segoe UI,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 16px}
+table{width:100%;border-collapse:collapse}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--line);color:var(--ink)}
+.pill.now{background:var(--now);color:#fff}.pill.ok{background:var(--ok);color:#fff}
+.upd{white-space:pre-wrap}.t{color:var(--muted);font-size:13px}
+a{color:var(--accent)}
+</style></head><body><main>
+<h1>Build progress</h1><p class="sub">Mass Flood Watch · the week plan · this page refreshes itself every 2 minutes · <a href="./">open the model</a></p>
+<div class="card" id="stages"></div>
+<div class="card"><h2 style="margin:0 0 6px;font-size:16px">Latest update</h2><div class="t" id="when"></div><div class="upd" id="latest"></div></div>
+<div class="card"><h2 style="margin:0 0 6px;font-size:16px">Earlier updates</h2><div id="log"></div></div>
+<script>
+fetch('progress.json?x=' + Date.now()).then(r => r.json()).then(P => {
+  document.getElementById('stages').innerHTML = '<table><thead><tr><th>Stage</th><th>What</th><th>Status</th><th>Notes</th></tr></thead><tbody>' +
+    P.stages.map(s => `<tr><td><b>${s.n}</b></td><td>${s.what}</td><td><span class="pill ${s.status === 'in progress' ? 'now' : s.status === 'done' ? 'ok' : ''}">${s.status}</span></td><td class="t">${s.note || ''}</td></tr>`).join('') + '</tbody></table>';
+  const u = P.updates[0]; document.getElementById('when').textContent = u.t + ' ET'; document.getElementById('latest').textContent = u.text;
+  document.getElementById('log').innerHTML = P.updates.slice(1, 12).map(v => `<div style="margin:0 0 12px"><div class="t">${v.t} ET</div><div class="upd">${v.text.replace(/</g, '&lt;')}</div></div>`).join('');
+});
+</script></main></body></html>
