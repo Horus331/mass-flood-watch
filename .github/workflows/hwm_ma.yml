@@ -1,0 +1,31 @@
+name: Massachusetts high-water marks into the site (run by hand)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  hwm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests
+      - run: |
+          python - <<'PY'
+          import json, requests
+          d = requests.get('https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles/resolve/main/data/stn_hwms_ma.json', timeout=300).json()
+          ev = {e['id']: e for e in d['events']}
+          ma = [x for x in d['hwms_ma'] if x.get('latitude_dd') and 41.2 < x['latitude_dd'] < 42.9 and -73.6 < x['longitude_dd'] < -69.8]
+          f = lambda v, n: None if v in (None, '') else round(float(v), n)
+          rows = [[x['id'], x['event'], round(x['latitude_dd'], 6), round(x['longitude_dd'], 6), f(x.get('elev_ft'), 2), f(x.get('height_above_ground'), 2), x.get('environment'), x.get('hwm_quality'), 1 if x.get('stillwater') else 0, (x.get('waterbody') or '')[:40], (x.get('location_description') or '')[:80], x.get('vdatum'), x.get('hwm_type')] for x in ma]
+          events = {k: dict(name=ev[k]['name'], start=(ev[k].get('start_date') or '')[:10], end=(ev[k].get('end_date') or '')[:10], type=ev[k].get('event_type')) for k in sorted({x['event'] for x in ma}) if k in ev}
+          out = dict(source='USGS Short-Term Network (STN) high-water marks, https://api.waterdata.usgs.gov/stnservices/, fetched ' + d['fetched'],
+                     columns=['id', 'event', 'lat', 'lon', 'elev_ft', 'height_above_ground_ft', 'environment', 'quality', 'stillwater', 'waterbody', 'location', 'vdatum', 'hwm_type'], events=events, rows=rows)
+          json.dump(out, open('docs/validation/stn_ma.json', 'w'), separators=(',', ':'))
+          print(len(rows), 'marks;', {v['name']: sum(r[1] == k for r in rows) for k, v in events.items()})
+          PY
+      - run: |
+          git config user.name "flood-bot"; git config user.email "bot@users.noreply.github.com"
+          git add docs/validation/stn_ma.json && git commit -qm "data: USGS STN high-water marks for Massachusetts (compact, for validation)" || exit 0
+          for i in $(seq 1 10); do git pull -q --rebase && git push -q && break; sleep 10; done
