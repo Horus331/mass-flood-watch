@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mass Flood Watch · how the model works</title>
+<style>
+body{margin:0;background:#f4f7fa;color:#1d2a36;font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:28px 0 8px;border-bottom:1px solid #d6e0ea;padding-bottom:4px}
+.sub{color:#56687a}table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0}td,th{border-bottom:1px solid #e3eaf1;padding:6px 8px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+code{background:#eaf1f8;padding:1px 5px;border-radius:4px;font-size:13px}a{color:#1f6fd0}
+.note{background:#fff6e0;border-left:4px solid #e3a008;padding:8px 12px;border-radius:6px;margin:10px 0}
+</style></head><body><main>
+<h1>How the model works</h1>
+<div class="sub">Mass Flood Watch · a free, open, physics-based flood engine for Massachusetts. <a href="index.html">Main map</a> · <a href="v2/">v2 map</a> · <a href="methods.html">methods</a> · <a href="progress.html">work log</a></div>
+
+<h2>1. What it computes</h2>
+<p>For a storm (past or forecast) the engine computes <b>how deep the water gets on every 30 m × 30 m cell of the state, every 30 minutes</b>, from the rain that fell, the shape of the ground, how fast the soil can drink, how much of the surface is paved, and how much water the big rivers carry in from New Hampshire and Vermont. It then reads the water depth on each of the state's 52,698 road segments and traces which dry roads get cut off or carry detour traffic.</p>
+
+<h2>2. Data (all public, all free)</h2>
+<table><tr><th>Layer</th><th>Source</th><th>How it is used</th></tr>
+<tr><td>Ground elevation</td><td>USGS 3DEP, 10 m (176 tiles, 20 km each)</td><td>averaged to the run resolution (30 m statewide; 10 m for local runs)</td></tr>
+<tr><td>Where water flows</td><td>USGS NHDPlus High Resolution flow direction and accumulation, 10 m; 213,719 river and stream lines</td><td>"Where rain goes" view; channel network</td></tr>
+<tr><td>Rain</td><td>NOAA MRMS multi-sensor hourly precipitation (1 km radar + gauges)</td><td>hourly rain on every cell</td></tr>
+<tr><td>Paved surface</td><td>USGS NLCD 2021 impervious fraction, 10 m → 30 m</td><td>cuts infiltration by up to 90 % and adds storm-drain capacity on paved cells</td></tr>
+<tr><td>Soils</td><td>USDA SSURGO through Soil Data Access: 375,545 soil polygons → hydrologic group A–D, surface conductivity, water-table depth, drainage class</td><td>sets the Horton infiltration rates per cell (Akan 1993 values); shallow water table counts as group D</td></tr>
+<tr><td>Rivers entering the state</td><td>USGS instantaneous discharge: Connecticut River at North Walpole NH, Merrimack River near Goffs Falls NH, Deerfield River</td><td>injected where each river crosses the state line (Deerfield at 60 %, since part of its basin is inside the grid)</td></tr>
+<tr><td>Sea</td><td>NOAA tide gauges (Boston, Nantucket, …), with +0.5 / +1 m sea-level scenarios</td><td>coastal runs hold sea cells at the observed water level</td></tr>
+<tr><td>Roads</td><td>MassDOT road inventory, 52,698 segments with traffic counts and 81,519 links</td><td>road flooding, cut-off roads, detour load</td></tr>
+<tr><td>Validation</td><td>USGS Short-Term Network: 1,866 surveyed high-water marks in Massachusetts (Jan 2018, Mar 2018, July 2023, 2010, Irene, Sandy); 4,551 dated road-flooding reports; USGS gauge peaks inside the state</td><td>scoring runs against what really happened</td></tr></table>
+
+<h2>3. Physics</h2>
+<p>The water moves with the <b>2-D local-inertial shallow-water equations</b> (Bates, Horritt &amp; Fewtrell 2010, the scheme used by LISFLOOD-FP), solved on the GPU with CuPy: for each cell face the flow is updated from the water-surface slope and friction (Manning <i>n</i> = 0.06 on land), and each cell's depth from the net inflow. The time step follows the CFL limit (≤ 10 s). Water that reaches the sea leaves the model. The GPU and CPU versions of the solver are checked against each other on every run (max difference 1.1 × 10<sup>-4</sup> m).</p>
+<p>Rain that lands on a cell first infiltrates following <b>Horton's curve</b> <code>f = f<sub>c</sub> + (f<sub>0</sub> − f<sub>c</sub>)·exp(−F / k)</code>, where the cumulative infiltration F starts at the storm's antecedent wetness (120 mm for the saturated December 2023 ground, 0 for dry September 2023). f<sub>0</sub> and f<sub>c</sub> come from the soil group; the paved fraction scales infiltration down and storm drains remove up to 2 + 5·(paved) mm/h.</p>
+
+<h2>4. Why this is not just a flood map</h2>
+<p>Each run produces water depth on every road segment at every time step. From that the site traces the <b>knock-on effects</b>: dry roads that lose every path to a numbered route (cut off) and the neighbours that receive detour traffic (60 % to the next road, 40 % two roads away, weighted by traffic counts). This is the first link of the cascade the project is about: rain → water on the ground → roads and culverts → the network around them.</p>
+
+<h2>5. Validation (in progress)</h2>
+<p>Each published run is scored with <code>sim/validate.py</code>: modelled peak depth at every surveyed high-water mark of the same storm versus the surveyed height above ground (bias, mean absolute error, share within 50 cm), and the hit rate at dated road-flooding reports against the hit rate at random road points. Results are published next to each run as <code>validation.json</code>.</p>
+<div class="note">Known limits: 30 m cells hide culverts and small channels; rain inside the grid is counted once but the Deerfield inflow may overlap its in-state basin; no groundwater table dynamics yet; tide and surge enter only through gauge levels at the coast.</div>
+
+<h2>6. Software</h2>
+<p>Everything is in the open repository <a href="https://github.com/Horus331/mass-flood-watch">Horus331/mass-flood-watch</a>. Data preparation runs on GitHub Actions, the flood engine on Google Colab (NVIDIA L4), the results live on Hugging Face (<a href="https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles">mass-flood-watch-tiles</a>) as map tiles, and the site is served by GitHub Pages with MapLibre GL and OpenFreeMap. There is no server and no paid service anywhere in the chain.</p>
+</main></body></html>
