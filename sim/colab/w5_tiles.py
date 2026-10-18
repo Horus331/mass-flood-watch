@@ -54,7 +54,7 @@ def pack(name, cls):
                 for tx in range(ntx):
                     t = dst[ty * 256:(ty + 1) * 256, tx * 256:(tx + 1) * 256]
                     if not t.any(): continue
-                    buf = io.BytesIO(); Image.fromarray(RAMP[t], 'RGBA').save(buf, 'PNG', optimize=True)
+                    buf = io.BytesIO(); Image.fromarray(RAMP[t]).save(buf, 'PNG', optimize=True)
                     tiles[(z, tx0 + tx, ty0 + ty)] = buf.getvalue(); n += 1
             if z > ZMIN:
                 h2, w2 = dst.shape[0] // 2, dst.shape[1] // 2
