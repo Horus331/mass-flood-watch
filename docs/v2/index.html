@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mass Flood Watch · v2 (MapLibre test)</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>html,body{margin:0;height:100%;background:#dfe8ef}#map{position:absolute;inset:0}#hud{position:absolute;left:12px;top:12px;background:#fff;border-radius:8px;padding:8px 12px;font:13px system-ui;box-shadow:0 2px 10px rgba(0,0,0,.15)}</style>
+</head><body><div id="map"></div><div id="hud">v2 engine test · <span id="fps">–</span> fps</div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', center: [-71.4, 42.2], zoom: 8.2, maxBounds: [[-74.2, 40.8], [-69.2, 43.3]], attributionControl: true});
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+map.on('load', () => {
+  // the existing 50 m drainage streams, drawn by the GPU as a vector layer (a stand-in for the water and road layers to come)
+  fetch('../drain/streams.json').then(r => r.json()).then(j => {
+    const fc = {type: 'FeatureCollection', features: j.lines.map(([a, xy]) => { const c = []; for (let i = 0; i < xy.length; i += 2) c.push([xy[i], xy[i + 1]]); return {type: 'Feature', properties: {a}, geometry: {type: 'LineString', coordinates: c}}; })};
+    map.addSource('streams', {type: 'geojson', data: fc});
+    map.addLayer({id: 'streams', type: 'line', source: 'streams', paint: {'line-color': '#1f6fd0', 'line-opacity': 0.7,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 7, ['interpolate', ['linear'], ['get', 'a'], 4, 0.3, 1800, 2.2], 13, ['interpolate', ['linear'], ['get', 'a'], 4, 1.2, 1800, 7]]}});
+  });
+  let n = 0, t0 = performance.now(); const tick = () => { n++; const dt = performance.now() - t0; if (dt > 1000){ document.getElementById('fps').textContent = (n / dt * 1000).toFixed(0); n = 0; t0 = performance.now(); } requestAnimationFrame(tick); }; tick();
+});
+</script></body></html>
