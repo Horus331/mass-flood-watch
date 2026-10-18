@@ -2,7 +2,8 @@
 Writes docs/network/nbi_ma.json: rows [lon, lat, id, year, type_code, culvert(0/1), waterway_adequacy(71), scour_critical(113),
 deck(58), super(59), sub(60), culvert_rating(62), channel(61), adt(29), route]. Run by nbi.yml.
 """
-import csv, io, json, time, requests
+import csv, io, json, time, os, requests
+os.makedirs('docs/network', exist_ok=True)
 yr = None; txt = None
 for y in (2024, 2023, 2022):
     for url in (f'https://www.fhwa.dot.gov/bridge/nbi/{y}/delimited/MA{str(y)[2:]}.txt', f'https://www.fhwa.dot.gov/bridge/nbi/{y}/delimited/MA{str(y)[2:]}.TXT'):
