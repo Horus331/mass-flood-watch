@@ -231,7 +231,13 @@ if PHYS >= 2:
         chan = CH['chan'].astype(bool) & ~sea
         SUBGRID = os.environ.get('SUBGRID', '1') == '1'
         CW = np.where(chan, CH['width'].astype(np.float32), 0).astype(np.float32); CD = np.where(chan, CH['depth'].astype(np.float32), 0).astype(np.float32)
-        if SUBGRID: burn = CD                                                                                      # full bankfull depth; the solver keeps the channel's own width below bank
+        if SUBGRID:
+            burn = CD                                                                                              # full bankfull depth; the solver keeps the channel's own width below bank
+            wide = CH['water'].astype(bool) & ~chan & ~sea                                                         # rivers wider than a cell: the buffered body is cut to the channel depth too
+            if wide.any():
+                CDd = ndimage.grey_dilation(CD, size=(7, 7)); burn = np.where(wide, CDd, burn).astype(np.float32)
+                CW = np.where(wide, RES, CW).astype(np.float32); CD = np.where(wide, CDd, CD).astype(np.float32); chan = chan | wide
+                log(f'   wide rivers: {int(wide.sum()):,} extra body cells cut to channel depth')
         else: burn = (CD * np.minimum(CW / RES, 1.0))                                                              # volume-equivalent channel depth below the cell mean
         Z = np.where(chan, Z - burn, Z).astype(np.float32)
         log(f'channels: {int(chan.sum()):,} channel cells burnt (mean {float(burn[chan].mean()):.2f} m, {"sub-grid widths" if SUBGRID else "volume-equivalent"}), open water {float(water.mean()) * 100:.1f}% of cells')

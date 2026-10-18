@@ -28,6 +28,10 @@ G = json.load(open(p)); feats = G['features']; log('features', len(feats))
 keys = {k.lower(): k for k in feats[0]['properties']}; log('fields:', sorted(keys)[:40])
 ka = keys.get('totdasqkm'); kf = keys.get('ftype'); log('area field', ka, 'ftype field', kf)
 to_m = Transformer.from_crs(4326, 26986, always_xy=True).transform
+def bankfull_w(A):
+    """Bieger et al. 2015 width, widened for large rivers (the national regression under-predicts the Connecticut/Merrimack main stems by ~2x)."""
+    if A <= 0: return 1.0
+    return 2.70 * A ** 0.352 * ((A / 500.0) ** 0.15 if A > 500 else 1.0)
 chan_shapes, water_shapes, area_shapes = [], [], []
 nlake = 0
 for f in feats:
@@ -35,7 +39,7 @@ for f in feats:
     except Exception: continue
     pr = f['properties']; A = float(pr.get(ka) or 0) if ka else 0.0; ft = int(pr.get(kf) or 0) if kf else 0
     chan_shapes.append((g, 1)); area_shapes.append((g, A))
-    W = 2.70 * A ** 0.352 if A > 0 else 1.0
+    W = bankfull_w(A)
     if ft == 558: nlake += 1
     if W > RES or ft == 558:                          # rivers wider than a cell, and paths through lakes: buffer to width
         water_shapes.append((g.buffer(max(W, RES) / 2 if ft != 558 else 60.0), 1))
@@ -43,7 +47,7 @@ log('rasterising', len(chan_shapes), 'lines;', nlake, 'lake paths')
 chan = features.rasterize(chan_shapes, out_shape=(ny, nx), transform=tr, default_value=1, all_touched=True, dtype='uint8').astype(bool)
 area = features.rasterize(sorted([t for t in area_shapes if t[1] > 0], key=lambda t: t[1]), out_shape=(ny, nx), transform=tr, all_touched=True, dtype='float32')   # later (larger) shapes overwrite
 water = features.rasterize(water_shapes, out_shape=(ny, nx), transform=tr, default_value=1, all_touched=True, dtype='uint8').astype(bool) | chan & (area > 50)
-width = np.where(chan, 2.70 * np.maximum(area, 0.01) ** 0.352, 0).astype(np.float16)
+A_ = np.maximum(area, 0.01); width = np.where(chan, 2.70 * A_ ** 0.352 * np.where(A_ > 500, (A_ / 500.0) ** 0.15, 1.0), 0).astype(np.float16)
 depth = np.where(chan, 0.30 * np.maximum(area, 0.01) ** 0.213, 0).astype(np.float16)
 log(f'channel cells {chan.sum():,} ({chan.mean() * 100:.2f}%), water cells {water.sum():,} ({water.mean() * 100:.2f}%), max area {area.max():.0f} km2')
 os.makedirs('out', exist_ok=True)
