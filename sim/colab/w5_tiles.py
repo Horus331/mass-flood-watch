@@ -32,28 +32,35 @@ W, S, E, N = transform_bounds('EPSG:26986', 'EPSG:4326', x0, y0, x1, y1)
 log(f'{RUN_DIR}: {len(meta["frames"])} frames, zoom {ZMIN}-{ZMAX}, lon {W:.3f}..{E:.3f} lat {S:.3f}..{N:.3f}')
 OUT = '/content/tiles'; os.makedirs(OUT, exist_ok=True)
 have = set(api.list_repo_files(REPO, repo_type='dataset'))
-def warp_frame(cls, z):
-    """Nearest-neighbour warp of the class image onto the mercator tile grid for zoom z; returns array + tile range."""
+def warp_top(cls):
+    """Nearest-neighbour warp of the class image onto the mercator tile grid at ZMAX, with the tile origin aligned so that
+    every lower zoom is an exact 2x2 pooling of the level above (deepest class wins, like the site's overview frames)."""
+    z = ZMAX; A = 1 << (ZMAX - ZMIN)
     tl = mercantile.tile(W, N, z); br = mercantile.tile(E, S, z)
-    tx0, ty0, tx1, ty1 = tl.x, tl.y, br.x, br.y
+    tx0, ty0 = tl.x - tl.x % A, tl.y - tl.y % A; tx1, ty1 = br.x + (A - 1 - br.x % A), br.y + (A - 1 - br.y % A)
     wpx, hpx = (tx1 - tx0 + 1) * 256, (ty1 - ty0 + 1) * 256
     b0 = mercantile.xy_bounds(tx0, ty0, z); b1 = mercantile.xy_bounds(tx1, ty1, z)
     dst_tr = from_origin(b0.left, b0.top, (b1.right - b0.left) / wpx, (b0.top - b1.bottom) / hpx)
     dst = np.zeros((hpx, wpx), np.uint8)
     reproject(cls, dst, src_transform=src_tr, src_crs='EPSG:26986', dst_transform=dst_tr, dst_crs='EPSG:3857', resampling=Resampling.nearest, src_nodata=0, dst_nodata=0, num_threads=4)
-    return dst, tx0, ty0, tx1, ty1
+    return dst, tx0, ty0
 def pack(name, cls):
-    fn = f'{OUT}/{name}.pmtiles'
+    fn = f'{OUT}/{name}.pmtiles'; dst, tx0, ty0 = warp_top(cls)
     with open(fn, 'wb') as f:
-        w = Writer(f); n = 0
-        for z in range(ZMIN, ZMAX + 1):
-            dst, tx0, ty0, tx1, ty1 = warp_frame(cls, z)
-            for ty in range(ty0, ty1 + 1):
-                for tx in range(tx0, tx1 + 1):
-                    t = dst[(ty - ty0) * 256:(ty - ty0 + 1) * 256, (tx - tx0) * 256:(tx - tx0 + 1) * 256]
+        w = Writer(f); n = 0; tiles = {}
+        for z in range(ZMAX, ZMIN - 1, -1):
+            nty, ntx = dst.shape[0] // 256, dst.shape[1] // 256
+            for ty in range(nty):
+                for tx in range(ntx):
+                    t = dst[ty * 256:(ty + 1) * 256, tx * 256:(tx + 1) * 256]
                     if not t.any(): continue
                     buf = io.BytesIO(); Image.fromarray(RAMP[t], 'RGBA').save(buf, 'PNG', optimize=True)
-                    w.write_tile(zxy_to_tileid(z, tx, ty), buf.getvalue()); n += 1
+                    tiles[(z, tx0 + tx, ty0 + ty)] = buf.getvalue(); n += 1
+            if z > ZMIN:
+                h2, w2 = dst.shape[0] // 2, dst.shape[1] // 2
+                dst = dst[:h2 * 2, :w2 * 2].reshape(h2, 2, w2, 2).max(axis=(1, 3)); tx0 //= 2; ty0 //= 2
+        for (z, tx, ty) in sorted(tiles, key=lambda k: zxy_to_tileid(*k)):     # PMTiles wants tiles in id order
+            w.write_tile(zxy_to_tileid(z, tx, ty), tiles[(z, tx, ty)])
         w.finalize({'tile_type': TileType.PNG, 'tile_compression': Compression.NONE, 'min_zoom': ZMIN, 'max_zoom': ZMAX,
                     'min_lon_e7': int(W * 1e7), 'min_lat_e7': int(S * 1e7), 'max_lon_e7': int(E * 1e7), 'max_lat_e7': int(N * 1e7), 'center_zoom': 9, 'center_lon_e7': int((W + E) / 2 * 1e7), 'center_lat_e7': int((S + N) / 2 * 1e7)}, {'name': name})
     return fn, n
