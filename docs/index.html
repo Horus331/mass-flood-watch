@@ -1125,7 +1125,7 @@ function drainTick(){ const D = DRAIN; if (!D || state.mode !== 'drain') return;
   fctx.lineCap = 'round'; paths.forEach((g, j) => { fctx.strokeStyle = cols[j]; fctx.lineWidth = (1 + j * 0.6) * dpr; fctx.stroke(g); }); }
 
 let DP10 = null;
-function drainTick10(vb){ const ix = D10.ix, N = 4000, [lonA, latA] = [vb[0], iY(vb[3])], [lonB, latB] = [vb[2], iY(vb[1])];
+function drainTick10(vb){ const ix = D10.ix, N = 7000, [lonA, latA] = [vb[0], iY(vb[3])], [lonB, latB] = [vb[2], iY(vb[1])];
   const spawn = p => { for (let t = 0; t < 40; t++){ const lon = lonA + Math.random() * (lonB - lonA), lat = latA + Math.random() * (latB - latA), [x, y] = ALB.fwd(lon, lat), v = d10cell(x, y); if (v > 0){ p.x = x; p.y = y; p.age = 0; p.life = 150 + Math.random() * 250; return p; } } p.x = NaN; p.age = 1e9; return p; };
   const key = [vb[0].toFixed(3), vb[1].toFixed(3), vb[2].toFixed(3), vb[3].toFixed(3)].join(',');
   if (!DP10 || DP10.key !== key){ const old = DP10; DP10 = Array.from({length: N}, (_, j) => { const o = old && old[j]; if (o && !isNaN(o.x)){ const [lo, la] = ALB.inv(o.x, o.y); if (lo >= lonA && lo <= lonB && la >= latA && la <= latB) return o; } return spawn({}); }); DP10.key = key; }
@@ -1136,8 +1136,8 @@ function drainTick10(vb){ const ix = D10.ix, N = 4000, [lonA, latA] = [vb[0], iY
     const nx = p.x + dx / L * sp, ny = p.y - dy / L * sp;                                    // DSTEP y points south; Albers y points north
     const [lo1, la1] = ALB.inv(p.x, p.y), [lo2, la2] = ALB.inv(nx, ny), [a, b] = toScreen(lo1, mY(la1)), [c, d] = toScreen(lo2, mY(la2));
     const g = paths[lvl < 10 ? 0 : lvl < 15 ? 1 : lvl < 19 ? 2 : 3]; g.moveTo(a * dpr, b * dpr); g.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; alive++; }
-  const cols = ['rgba(120,180,230,0.55)', 'rgba(60,140,225,0.75)', 'rgba(25,100,210,0.9)', 'rgba(10,60,170,1)'];
-  fctx.lineCap = 'round'; paths.forEach((g, j) => { fctx.strokeStyle = cols[j]; fctx.lineWidth = (1 + j * 0.6) * dpr; fctx.stroke(g); }); }
+  const cols = ['rgba(90,160,225,0.8)', 'rgba(60,140,225,0.9)', 'rgba(25,100,210,0.95)', 'rgba(10,60,170,1)'];
+  fctx.lineCap = 'round'; paths.forEach((g, j) => { fctx.strokeStyle = cols[j]; fctx.lineWidth = (1.4 + j * 0.6) * dpr; fctx.stroke(g); }); }
 async function mDrain(){
   setTitle('Where rain goes', 'Water running downhill to the sea', 'Every 50 m of Massachusetts drains to its steepest downhill neighbour; follow the water from the hills into streams, rivers and the ocean.');
   layer = {}; legend('<b>Loading the drainage network…</b>'); $('#controls').innerHTML = '';
@@ -1147,7 +1147,7 @@ async function mDrain(){
   legend(`<b>Where rain goes</b><div><span class="sw" style="background:rgba(120,180,230,.9)"></span>water on the hillsides</div><div><span class="sw" style="background:rgba(60,140,225,1)"></span>small streams</div><div><span class="sw" style="background:rgba(25,100,210,1)"></span>brooks and rivers</div><div><span class="sw" style="background:rgba(10,60,170,1)"></span>large rivers</div>`);
   $('#howto').textContent = 'Each moving streak is a drop of rain following the land downhill until it reaches the sea or leaves the state. Zoomed out, drops follow a 50 m map of the terrain; zoom in past a town and they switch to the USGS 10 m flow grid, which has the real mapped rivers burned in, so water off a single street runs to its actual brook. Drops speed up and turn darker as they join streams and rivers. This is the terrain alone (where water would go), not a particular storm: the Replay tab shows how much water actually arrived in a storm.';
   engine(`USGS 3DEP lidar elevation · ${D.w.toLocaleString()} × ${D.h.toLocaleString()} cells of ${D.meta.cell_m} m · pits filled, flats resolved, D8 flow directions · ${D.meta.streams.toLocaleString()} stream runs`);
-  $('#readout').innerHTML = `<h2>Where rain goes</h2><p class="note">${D.meta.source}</p><div class="stats"><div class="stat"><b>${fmt(D.meta.g_max_km2, 0)} km²</b><span>largest area draining through one point on the map</span></div><div class="stat"><b>${D.meta.streams.toLocaleString()}</b><span>stream runs drawn (4 km² or more upstream)</span></div></div><p class="note">Zoom in anywhere: the drops keep the same speed on screen, so you can follow water off a single street toward its brook.</p>`;
+  $('#readout').innerHTML = `<h2>Where rain goes</h2><p class="note">${D.meta.source}. Zoomed in: USGS NHDPlus HR 10 m flow directions (real rivers burned in), streamed tile by tile.</p><div class="stats"><div class="stat"><b>${fmt(D.meta.g_max_km2, 0)} km²</b><span>largest area draining through one point on the map</span></div><div class="stat"><b>${D.meta.streams.toLocaleString()}</b><span>stream runs drawn (4 km² or more upstream)</span></div></div><p class="note">Zoom in anywhere: the drops keep the same speed on screen, so you can follow water off a single street toward its brook.</p>`;
   scheduleDraw(true); }
 /* ---------- animated flow streaks (water moving along the simulated currents) ---------- */
 const flowC = document.getElementById('flow'), fctx = flowC.getContext('2d'); let flowRaf = 0, FP = null, FPk = -1;
