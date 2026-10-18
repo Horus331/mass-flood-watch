@@ -59,6 +59,8 @@ def pack(name, cls):
             if z > ZMIN:
                 h2, w2 = dst.shape[0] // 2, dst.shape[1] // 2
                 dst = dst[:h2 * 2, :w2 * 2].reshape(h2, 2, w2, 2).max(axis=(1, 3)); tx0 //= 2; ty0 //= 2
+        if not tiles:                                                        # nothing wet: one transparent tile so the archive is valid
+            ct = mercantile.tile((W + E) / 2, (S + N) / 2, ZMIN); buf = io.BytesIO(); Image.new('RGBA', (256, 256), (0, 0, 0, 0)).save(buf, 'PNG'); tiles[(ZMIN, ct.x, ct.y)] = buf.getvalue()
         for (z, tx, ty) in sorted(tiles, key=lambda k: zxy_to_tileid(*k)):     # PMTiles wants tiles in id order
             w.write_tile(zxy_to_tileid(z, tx, ty), tiles[(z, tx, ty)])
         w.finalize({'tile_type': TileType.PNG, 'tile_compression': Compression.NONE, 'min_zoom': ZMIN, 'max_zoom': ZMAX,
