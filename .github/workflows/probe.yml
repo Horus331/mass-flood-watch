@@ -4,9 +4,10 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: USGS STN high-water marks
+      - name: USGS STN new API candidates
         run: |
-          for u in "https://stn.wim.usgs.gov/STNServices/Events.json" "https://stn.wim.usgs.gov/STNServices/Events?format=json" "https://stn.wim.usgs.gov/STNServices/Events" "https://stn.wim.usgs.gov/STNServices/HWMs/FilteredHWMs.json?States=MA" "https://stn.wim.usgs.gov/STNServices/HWMs.json?States=MA"; do echo "== $u"; curl -s -m 60 -H 'Accept: application/json' "$u" -o out.txt -w "%{http_code} %{content_type} %{size_download}\n"; head -c 400 out.txt; echo; done
-      - name: Soils via SDA (hydrologic group polygons for one tile)
-        run: |
-          curl -s -m 120 -X POST https://sdmdataaccess.sc.egov.usda.gov/tabular/post.rest -H 'Content-Type: application/json' -d '{"format":"JSON","query":"SELECT TOP 3 m.mukey, a.hydgrpdcd, mp.mupolygongeo.STAsText() AS wkt FROM mapunit m JOIN muaggatt a ON a.mukey=m.mukey JOIN mupolygon mp ON mp.mukey=m.mukey WHERE mp.mupolygongeo.STIntersects(geometry::STGeomFromText(\"POLYGON((-71.80 42.50,-71.70 42.50,-71.70 42.56,-71.80 42.56,-71.80 42.50))\",4326))=1"}' | head -c 600; echo
+          curl -s -m 60 -L https://apps.usgs.gov/stnweb -o app.html; grep -o -i -E 'https?://[a-z0-9./_-]*(stn|STN)[a-z0-9./_-]*' app.html | sort -u | head -30
+          grep -o -E '"[^"]*(api|services|Services)[^"]*"' app.html | sort -u | head -20
+          for u in "https://stn.wim.usgs.gov/STNServices/" "https://apps.usgs.gov/stnservices/Events.json" "https://apps.usgs.gov/stn-services/Events.json" "https://stn.wim.usgs.gov/STNServices2/Events.json" "https://stn.wim.usgs.gov/STNWeb/services/Events.json"; do echo "== $u"; curl -s -m 40 -L "$u" -o o.txt -w "%{http_code} %{content_type} %{size_download}\n"; head -c 200 o.txt; echo; done
+          # the STN web app loads its config from a JS bundle; look for the services URL inside it
+          for js in $(grep -o -E 'src="[^"]+\.js"' app.html | sed 's/src="//;s/"//' | head -8); do u="$js"; case "$u" in http*) ;; /*) u="https://apps.usgs.gov$u";; *) u="https://apps.usgs.gov/stnweb/$u";; esac; echo "-- $u"; curl -s -m 60 -L "$u" | grep -o -E 'https?://[A-Za-z0-9./_-]*(Services|services|api)[A-Za-z0-9./_-]*' | sort -u | head -10; done
