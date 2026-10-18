@@ -10,13 +10,16 @@ Layout on Hugging Face (dataset mohabeldokla/mass-flood-watch-tiles):
 Runs in the background; log in W/log_upload.txt.  Safe to re-run: skips files already present.
 """
 import os, time, json
-from google.colab import userdata
 from huggingface_hub import HfApi, CommitOperationAdd
+try:
+    from google.colab import userdata; TOK = userdata.get('HF_TOKEN')
+except Exception:
+    TOK = os.environ['HF_TOKEN']            # background jobs get it from the launcher cell's environment
 W = '/content/drive/MyDrive/flood_atlas_state'
 LOG = open(f'{W}/log_upload.txt', 'a')
 def log(*a):
     s = time.strftime('%H:%M:%S ') + ' '.join(str(x) for x in a); print(s, flush=True); LOG.write(s + '\n'); LOG.flush()
-api = HfApi(token=userdata.get('HF_TOKEN')); REPO = 'mohabeldokla/mass-flood-watch-tiles'
+api = HfApi(token=TOK); REPO = 'mohabeldokla/mass-flood-watch-tiles'
 have = set(api.list_repo_files(REPO, repo_type='dataset'))
 log('files already on HF:', len(have))
 def upload_dir(local, remote, exts, batch=25):
