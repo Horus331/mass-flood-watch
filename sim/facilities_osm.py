@@ -1,7 +1,8 @@
 """Emergency facilities for the accessibility layer, from OpenStreetMap (free): hospitals, fire stations, police, ambulance stations
 in and just around Massachusetts.  Writes docs/network/facilities.json = {kind: [[lon, lat, name], ...]}.  Run by facilities.yml.
 """
-import json, time, requests
+import json, time, os, requests
+os.makedirs('docs/network', exist_ok=True)
 Q = """[out:json][timeout:180];
 (
   nwr["amenity"="hospital"](41.1,-73.6,43.0,-69.8);
