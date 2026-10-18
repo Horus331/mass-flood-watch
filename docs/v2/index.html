@@ -1,21 +1,103 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Mass Flood Watch · v2 (MapLibre test)</title>
+<title>Mass Flood Watch · v2</title>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<style>html,body{margin:0;height:100%;background:#dfe8ef}#map{position:absolute;inset:0}#hud{position:absolute;left:12px;top:12px;background:#fff;border-radius:8px;padding:8px 12px;font:13px system-ui;box-shadow:0 2px 10px rgba(0,0,0,.15)}</style>
-</head><body><div id="map"></div><div id="hud">v2 engine test · <span id="fps">–</span> fps</div>
+<style>
+html,body{margin:0;height:100%;background:#dfe8ef;font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1d2a36}
+#map{position:absolute;inset:0}
+.card{position:absolute;background:rgba(255,255,255,.94);border-radius:10px;padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,.18);backdrop-filter:blur(6px)}
+#top{left:12px;top:12px;max-width:min(560px,calc(100vw - 24px))}
+#top h1{font-size:15px;margin:0 0 2px;font-weight:650}
+#top .sub{color:#56687a;font-size:12px}
+#stage{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#eaf2fb;color:#1f4f8a;font-size:11.5px;cursor:pointer}
+#play{left:12px;bottom:12px;right:12px;max-width:640px;margin:auto}
+#play .row{display:flex;align-items:center;gap:10px}
+#play button{border:0;background:#1f6fd0;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer}
+#play input[type=range]{flex:1}
+#play .t{min-width:170px;font-variant-numeric:tabular-nums}
+#legend{right:12px;top:110px;font-size:11.5px}
+#legend i{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+#layers{right:12px;top:200px;font-size:12px}
+#layers label{display:block;margin:2px 0;cursor:pointer}
+#msg{left:50%;top:70px;transform:translateX(-50%);background:#fff6e0;display:none}
+@media (max-width:640px){#legend,#layers{display:none}#top h1{font-size:14px}}
+</style>
+</head><body>
+<div id="map"></div>
+<div id="top" class="card"><h1 id="title">Mass Flood Watch · v2</h1><div class="sub" id="sub">GPU flood run at 30 m resolution, drawn as map tiles · Dec 2023 storm</div><span id="stage">work log…</span></div>
+<div id="msg" class="card"></div>
+<div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>&lt; 15 cm<br><i style="background:rgb(56,146,232)"></i>15–30 cm<br><i style="background:rgb(24,98,200)"></i>30–60 cm<br><i style="background:rgb(12,54,140)"></i>0.6–1.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 1.5 m</div>
+<div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRain"> Rain (coming)</label></div>
+<div id="play" class="card"><div class="row"><button id="btn">▶ Play</button><input type="range" id="sl" min="0" max="0" value="0"><span class="t" id="tm">loading run…</span><span id="fps" style="color:#8a9aa8;font-size:11px">– fps</span></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
 <script>
-const map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', center: [-71.4, 42.2], zoom: 8.2, maxBounds: [[-74.2, 40.8], [-69.2, 43.3]], attributionControl: true});
-map.addControl(new maplibregl.NavigationControl(), 'top-right');
-map.on('load', () => {
-  // the existing 50 m drainage streams, drawn by the GPU as a vector layer (a stand-in for the water and road layers to come)
-  fetch('../drain/streams.json').then(r => r.json()).then(j => {
-    const fc = {type: 'FeatureCollection', features: j.lines.map(([a, xy]) => { const c = []; for (let i = 0; i < xy.length; i += 2) c.push([xy[i], xy[i + 1]]); return {type: 'Feature', properties: {a}, geometry: {type: 'LineString', coordinates: c}}; })};
-    map.addSource('streams', {type: 'geojson', data: fc});
-    map.addLayer({id: 'streams', type: 'line', source: 'streams', paint: {'line-color': '#1f6fd0', 'line-opacity': 0.7,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 7, ['interpolate', ['linear'], ['get', 'a'], 4, 0.3, 1800, 2.2], 13, ['interpolate', ['linear'], ['get', 'a'], 4, 1.2, 1800, 7]]}});
-  });
-  let n = 0, t0 = performance.now(); const tick = () => { n++; const dt = performance.now() - t0; if (dt > 1000){ document.getElementById('fps').textContent = (n / dt * 1000).toFixed(0); n = 0; t0 = performance.now(); } requestAnimationFrame(tick); }; tick();
+const HF = 'https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles/resolve/main/';
+const Q = new URLSearchParams(location.search); const RUN = Q.get('run') || 'dec2023_30m';
+const protocol = new pmtiles.Protocol(); maplibregl.addProtocol('pmtiles', protocol.tile);
+const map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', center: [-71.6, 42.2], zoom: 8, maxBounds: [[-74.4, 40.6], [-69.0, 43.4]], attributionControl: true});
+map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
+map.addControl(new maplibregl.ScaleControl({unit: 'imperial'}), 'bottom-left');
+const $ = id => document.getElementById(id);
+function msg(t){ const m = $('msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; }
+let META = null, cur = 0, playing = false, timer = null, FRAMES = [];
+const WINDOW = 3;                       // frames kept loaded on each side of the current one
+function frameLayer(i){ return 'w' + i; }
+function ensureFrame(i){
+  if (i < 0 || i >= FRAMES.length || map.getSource(frameLayer(i))) return;
+  map.addSource(frameLayer(i), {type: 'raster', url: 'pmtiles://' + HF + RUN + '/tiles/' + FRAMES[i] + '.pmtiles', tileSize: 256});
+  map.addLayer({id: frameLayer(i), type: 'raster', source: frameLayer(i), paint: {'raster-opacity': 0, 'raster-fade-duration': 0, 'raster-resampling': 'nearest'}}, 'streams');
+}
+function dropFrame(i){ const id = frameLayer(i); if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(id)) map.removeSource(id); }
+function show(i){
+  if (!FRAMES.length) return;
+  i = Math.max(0, Math.min(FRAMES.length - 1, i));
+  for (let k = cur - WINDOW - 2; k <= cur + WINDOW + 2; k++) if (Math.abs(k - i) > WINDOW + 1) dropFrame(k);
+  for (let k = i - WINDOW; k <= i + WINDOW; k++) ensureFrame(k);
+  for (let k = i - WINDOW - 1; k <= i + WINDOW + 1; k++) if (map.getLayer(frameLayer(k))) map.setPaintProperty(frameLayer(k), 'raster-opacity', k === i && $('lyWater').checked ? 0.92 : 0);
+  cur = i; $('sl').value = i;
+  const t = new Date(new Date(META.t0).getTime() + META.frame_min * 60000 * i);
+  $('tm').textContent = t.toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York'}) + ' ET';
+}
+function play(on){ playing = on; $('btn').textContent = on ? '❚❚ Pause' : '▶ Play'; clearInterval(timer); if (on) timer = setInterval(() => show(cur + 1 >= FRAMES.length ? 0 : cur + 1), 700); }
+$('btn').onclick = () => play(!playing); $('sl').oninput = e => { play(false); show(+e.target.value); };
+$('lyWater').onchange = () => show(cur);
+$('lyStreams').onchange = e => map.setLayoutProperty('streams', 'visibility', e.target.checked ? 'visible' : 'none');
+document.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); play(!playing); } if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1); });
+map.on('load', async () => {
+  // rivers and streams (50 m D8 drainage, already on the site)
+  const j = await fetch('../drain/streams.json').then(r => r.json());
+  const fc = {type: 'FeatureCollection', features: j.lines.map(([a, xy]) => { const c = []; for (let i = 0; i < xy.length; i += 2) c.push([xy[i], xy[i + 1]]); return {type: 'Feature', properties: {a}, geometry: {type: 'LineString', coordinates: c}}; })};
+  map.addSource('streams', {type: 'geojson', data: fc});
+  map.addLayer({id: 'streams', type: 'line', source: 'streams', paint: {'line-color': '#2b7bd6', 'line-opacity': 0.55,
+    'line-width': ['interpolate', ['linear'], ['zoom'], 7, ['interpolate', ['linear'], ['get', 'a'], 4, 0.25, 1800, 1.8], 13, ['interpolate', ['linear'], ['get', 'a'], 4, 1, 1800, 6]]}});
+  // USGS surveyed high-water marks (validation data)
+  fetch('../validation/stn_ma.json').then(r => r.json()).then(H => {
+    const C = Object.fromEntries(H.columns.map((c, i) => [c, i]));
+    const pts = {type: 'FeatureCollection', features: H.rows.map(r => ({type: 'Feature', properties: {ev: H.events[r[C.event]] ? H.events[r[C.event]].name : '', h: r[C.height_above_ground_ft], env: r[C.environment], where: r[C.waterbody] || r[C.location]}, geometry: {type: 'Point', coordinates: [r[C.lon], r[C.lat]]}}))};
+    map.addSource('hwm', {type: 'geojson', data: pts});
+    map.addLayer({id: 'hwm', type: 'circle', source: 'hwm', layout: {visibility: 'none'}, paint: {'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 2.5, 13, 7], 'circle-color': ['match', ['get', 'env'], 'Coastal', '#d9480f', '#6f2dbd'], 'circle-opacity': 0.85, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1}});
+    map.on('click', 'hwm', e => { const p = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.ev}</b><br>${p.env} mark${p.h != null && p.h !== '' ? ', water ' + (+p.h * 0.3048).toFixed(2) + ' m above ground' : ''}<br><span style="color:#667">${p.where || ''}</span>`).addTo(map); });
+    map.on('mouseenter', 'hwm', () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', 'hwm', () => map.getCanvas().style.cursor = '');
+    $('lyHwm').onchange = e => map.setLayoutProperty('hwm', 'visibility', e.target.checked ? 'visible' : 'none');
+    $('lyHwm').parentNode.append(' (' + H.rows.length.toLocaleString() + ')');
+  }).catch(() => {});
+  // the GPU run
+  try {
+    META = await fetch(HF + RUN + '/meta.json', {cache: 'no-cache'}).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    $('title').textContent = 'Mass Flood Watch · ' + (META.title || RUN);
+    $('sub').textContent = `${META.res_m} m cells · ${META.shape[0].toLocaleString()} × ${META.shape[1].toLocaleString()} grid (${(META.shape[0] * META.shape[1] / 1e6).toFixed(0)} M cells) · frames every ${META.frame_min} min`;
+    if (META.tiles) { FRAMES = META.frames.map((_, k) => 'f' + String(k).padStart(3, '0')); $('sl').max = FRAMES.length - 1; show(0); play(true); }
+    else { $('tm').textContent = 'run finished, tiles being built…'; msg('The ' + RUN + ' run is on Hugging Face but its map tiles are still being built. Check back soon.'); }
+  } catch (e) { $('tm').textContent = 'run not published yet'; msg('The ' + RUN + ' run is still computing on the GPU; the water layer appears here as soon as it is published.'); }
+  let n = 0, t0 = performance.now(); const tick = () => { n++; const dt = performance.now() - t0; if (dt > 1000){ $('fps').textContent = (n / dt * 1000).toFixed(0) + ' fps'; n = 0; t0 = performance.now(); } requestAnimationFrame(tick); }; tick();
 });
+// work-log chip (same file the main site uses)
+fetch('../progress.json', {cache: 'no-cache'}).then(r => r.json()).then(p => {
+  const st = p.stages || []; const curS = st.find(s => s.status === 'running' || s.status === 'in progress') || st[st.length - 1];
+  const done = st.filter(s => s.status === 'done').length;
+  $('stage').textContent = `Stage ${curS ? curS.n || (st.indexOf(curS) + 1) : '?'} of ${st.length}: ${curS ? curS.name || curS.title : ''} · ${done} done`;
+  $('stage').title = (p.updates || []).slice(0, 1).map(u => (u.t || u.time || '') + ' — ' + (u.text || u.msg || '')).join('');
+  $('stage').onclick = () => location.href = '../index.html';
+}).catch(() => { $('stage').textContent = 'work log'; });
 </script></body></html>
