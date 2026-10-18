@@ -33,8 +33,8 @@
   {
    "n": 6,
    "name": "MapLibre GPU map + Hugging Face tiles",
-   "status": "started",
-   "note": "docs/v2/index.html: PMTiles playback from HF, HWM layer"
+   "status": "running",
+   "note": "network model live; facilities.json, nbi_ma.json; jul2023_v3 ETA ~7:30 pm"
   },
   {
    "n": 7,
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Sun Oct 18, 5:04 PM",
+   "text": "4:55 pm: item D done — the road-network layer on /v2/ now uses a real traffic model instead of the 60/40 guess: each flooded road gets a speed from its water depth (Pregnolato 2017 curve; impassable at 30 cm or when depth × speed is dangerous), travel time to the nearest of 175 hospitals is recomputed each frame (cut off = unreachable; amber = 30+ min further than usual), and detour traffic is routed along the real alternative path with capacity by road class. Dec 2023, 3 pm: 320 segments under water → 5 cut off from every hospital, 18 roads over 90% of capacity. 1,697 fire stations and 5,296 NBI bridges/culverts (334 culverts) fetched for the next step. July 2023 v3 at frame 33/96."
+  },
   {
    "t": "Sun Oct 18, 3:30 PM",
    "text": "3:30 pm: sub-grid channels are in (rivers narrower than a cell now keep their own width and depth inside the cell; tested on a synthetic valley and a Leominster run). The three storms are re-running on this v3 physics: July 2023 west first (~1.5 h), then Sept and Dec statewide. The v2-without-channels July run was stopped: a 26 m pile-up at the river inflow showed exactly why channels were needed."
