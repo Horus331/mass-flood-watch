@@ -94,6 +94,30 @@ for ts in hours:
     try: RAIN[ts] = mrms_hour(ts)
     except Exception as e: log('  no MRMS', ts, repr(e)[:80]); RAIN[ts] = np.zeros((ny, nx), np.float32)
 tot = sum(RAIN.values()); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h')
+# ---- 3b. rivers entering the box: USGS gauge discharge injected where the river crosses the edge (Stage 3) ----
+INFLOW = []                       # (row, col, name, times_utc[], m3/s[])
+if os.environ.get('INFLOW', '1') == '1':
+    try:
+        G = json.load(open(hf_hub_download(REPO, f'data/gauges/gauges_{RUN}.json', repo_type='dataset', token=TOK)))
+        ENTRY = {'01154500': (-72.478, 42.727, 1.0, 'Connecticut River at the NH line'), '01092000': (-71.422, 42.700, 1.0, 'Merrimack River at the NH line'),
+                 '01170000': (None, None, 0.6, 'Deerfield River (60%: the rest of its basin is in the box)')}
+        inv = Transformer.from_crs(4326, 26986, always_xy=True); Zc = Z
+        for sid, (lon, lat, sc, name) in ENTRY.items():
+            g = G['flow'].get(sid)
+            if not g: continue
+            if lon is None: lon, lat = float(g['lon']), float(g['lat'])
+            xg, yg = inv.transform(lon, lat); c = int((xg - x0) / RES); r = int((y1 - yg) / RES)
+            if not (0 <= r < ny and 0 <= c < nx): continue
+            w = int(600 / RES); r0_, r1_, c0_, c1_ = max(2, r - w), min(ny - 2, r + w + 1), max(2, c - w), min(nx - 2, c + w + 1)
+            win = np.where(sea[r0_:r1_, c0_:c1_], np.inf, Zc[r0_:r1_, c0_:c1_]); k_ = np.unravel_index(np.nanargmin(win), win.shape)
+            rr, cc = r0_ + int(k_[0]), c0_ + int(k_[1])
+            ts = [pd.Timestamp(t_).tz_localize('America/New_York', ambiguous='NaT', nonexistent='shift_forward').tz_convert('UTC').tz_localize(None) for t_, _ in g['values']]
+            qs = [float(v_) * 0.0283168 * sc for _, v_ in g['values']]
+            keep = [i_ for i_, t_ in enumerate(ts) if not pd.isna(t_)]
+            INFLOW.append((rr, cc, name, np.array([ts[i_].value / 1e9 for i_ in keep]), np.array([qs[i_] for i_ in keep], np.float32)))
+            log(f'inflow: {name} at cell ({rr},{cc}), peak {max(qs):.0f} m3/s')
+    except Exception as e:
+        log('no gauge inflows:', repr(e)[:120])
 # ---- 4. the run ----
 sim = solver.LocalInertial(Z, RES, 0.06, xp=xp); sim.sink = xp.asarray(sea)
 f0, fc, Fk, drain = 30.0, 3.0, 40.0, 2.0
@@ -110,7 +134,7 @@ def save_frame(kf, h):
     return float((hc >= 0.1).sum() * RES * RES / 1e6), float((hc >= 0.5).sum() * RES * RES / 1e6)
 meta = dict(run=RUN, title=S['title'], res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), infiltration=dict(f0=f0, fc=fc, Fk=Fk, drain=drain, landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
-t = t0; kf = 0; steps = 0; tstart = time.time(); Pcum = xp.zeros((ny, nx), xp.float32)
+t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
 while kf < nfr:
     if t >= frame_t[kf]:
         wet, deep = save_frame(kf, sim.h)
@@ -121,17 +145,20 @@ while kf < nfr:
     if rem < 0.5: t = frame_t[kf]; continue
     dt = round(min(sim.stable_dt(cap=10.0), rem), 3)
     hr = (t + pd.Timedelta(seconds=1)).ceil('h')
-    if hr in RAIN:
-        src = xp.asarray(RAIN[hr]) / 3.6e6; sim.step(dt, source=src)
-    else:
-        sim.step(dt)
+    if hr != src_hr:                                   # move this hour's rain to the GPU once, not every step
+        src_hr = hr; src = xp.asarray(RAIN[hr]) / 3.6e6 if hr in RAIN else None
+    sim.step(dt, source=src)
+    if INFLOW:
+        tsec = t.value / 1e9
+        for rr, cc, _, tq, qq in INFLOW:
+            sim.h[rr, cc] += float(np.interp(tsec, tq, qq)) * dt / (RES * RES)
     fcap = ((fc + (f0 - fc) * xp.exp(-Finf / Fk)) * f_scale + drain_mmph) / 3.6e6 * dt
     loss = xp.minimum(sim.h, fcap); sim.h -= loss; Finf += loss * 1000.0
     t = t + pd.Timedelta(seconds=dt); steps += 1
     if steps % 2000 == 0: log(f'   step {steps} t {t:%H:%M} dt {dt:.2f}s hmax {float(sim.h.max()):.2f} m | {time.time() - tstart:.0f}s')
 hm = xp.asnumpy(sim.hmax) if hasattr(xp, 'asnumpy') else sim.hmax
 np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
-meta.update(steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 1))
+meta.update(inflows=[dict(name=n_, row=r_, col=c_, peak_m3s=round(float(q_.max()), 1)) for r_, c_, n_, _, q_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 1))
 json.dump(meta, open(f'{OUT}/meta.json', 'w'))
 log('run done:', meta['peak_wet_km2'], 'km2 peak wet,', steps, 'steps,', meta['runtime_s'], 's')
 # ---- 5. upload ----
