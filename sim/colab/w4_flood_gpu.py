@@ -37,7 +37,7 @@ if DEV == 'gpu':
     log('GPU:', xp.cuda.runtime.getDeviceProperties(0)['name'].decode(), f"{xp.cuda.Device().mem_info[1] / 2**30:.0f} GB")
 else:
     xp = np
-urllib.request.urlretrieve('https://raw.githubusercontent.com/Horus331/mass-flood-watch/main/sim/solver.py', '/content/solver.py'); sys.path.insert(0, '/content'); import solver
+urllib.request.urlretrieve('https://raw.githubusercontent.com/Horus331/mass-flood-watch/' + os.environ.get('GIT_SHA', 'main') + '/sim/solver.py', '/content/solver.py'); sys.path.insert(0, '/content'); import solver
 from huggingface_hub import HfApi, hf_hub_download
 try:
     from google.colab import userdata; TOK = userdata.get('HF_TOKEN')

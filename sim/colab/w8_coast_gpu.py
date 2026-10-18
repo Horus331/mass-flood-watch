@@ -34,7 +34,7 @@ def log(*a):
 if DEV == 'gpu':
     import cupy as xp; log('GPU:', xp.cuda.runtime.getDeviceProperties(0)['name'].decode())
 else: xp = np
-urllib.request.urlretrieve('https://raw.githubusercontent.com/Horus331/mass-flood-watch/main/sim/solver.py?x=' + str(int(time.time())), '/content/solver.py'); sys.path.insert(0, '/content'); import solver
+urllib.request.urlretrieve('https://raw.githubusercontent.com/Horus331/mass-flood-watch/' + os.environ.get('GIT_SHA', 'main') + '/sim/solver.py', '/content/solver.py'); sys.path.insert(0, '/content'); import solver
 from huggingface_hub import HfApi, hf_hub_download, CommitOperationAdd
 try:
     from google.colab import userdata; TOK = userdata.get('HF_TOKEN')
