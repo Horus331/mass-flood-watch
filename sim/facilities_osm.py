@@ -10,11 +10,16 @@ Q = """[out:json][timeout:180];
   nwr["emergency"="ambulance_station"](41.1,-73.6,43.0,-69.8);
 );
 out center tags;"""
-for url in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'):
-    try:
-        r = requests.post(url, data={'data': Q}, timeout=300); r.raise_for_status(); els = r.json()['elements']; break
-    except Exception as e:
-        print('overpass failed', url, repr(e)[:100]); time.sleep(10)
+els = None; H = {'User-Agent': 'mass-flood-watch research (github.com/Horus331/mass-flood-watch)'}
+for attempt in range(3):
+    for url in ('https://overpass-api.de/api/interpreter', 'https://lz4.overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'):
+        try:
+            r = requests.post(url, data={'data': Q}, headers=H, timeout=300); r.raise_for_status(); els = r.json()['elements']; break
+        except Exception as e:
+            print('overpass failed', url, repr(e)[:100]); time.sleep(20)
+    if els is not None: break
+    time.sleep(90)
+if els is None: raise SystemExit('all Overpass mirrors refused')
 out = {'hospital': [], 'fire_station': [], 'police': [], 'ambulance_station': []}
 for e in els:
     t = e.get('tags', {}); kind = t.get('amenity') or t.get('emergency')
