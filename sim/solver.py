@@ -20,8 +20,10 @@ G = 9.81
 
 
 class LocalInertial:
-    def __init__(self, z, dx, n, fixed=None, xp=np):
+    def __init__(self, z, dx, n, fixed=None, xp=np, theta=1.0, fr_max=1.0):
         self.xp = xp
+        self.theta = float(theta)          # 1.0 = Bates 2010 update; 0.7 = q-centred scheme of de Almeida & Bates 2013 (damps checkerboarding on steep ground)
+        self.fr_max = float(fr_max)        # Froude cap on face flux (1.0 = original; 2.0 lets steep brooks run supercritical)
         self.z = xp.asarray(z, dtype=xp.float32); self.dx = float(dx)
         self.n2 = xp.asarray(n, dtype=xp.float32) ** 2 if hasattr(n, 'shape') else float(n) ** 2
         ny, nx = self.z.shape
@@ -37,24 +39,43 @@ class LocalInertial:
         if not hasattr(n2, 'shape'): return n2
         return (n2[:, :-1] + n2[:, 1:]) * 0.5 if axis == 0 else (n2[:-1, :] + n2[1:, :]) * 0.5
 
-    def _face(self, q, eta_a, eta_b, z_a, z_b, dt, n2):
+    def _face(self, q, eta_a, eta_b, z_a, z_b, dt, n2, axis=0):
         xp = self.xp
         hf = xp.maximum(eta_a, eta_b) - xp.maximum(z_a, z_b)
         wet = hf > 1e-3
         hf = xp.where(wet, hf, xp.float32(1.0)).astype(xp.float32)
         s = (eta_b - eta_a) / self.dx
-        qn = (q - G * hf * dt * s) / (1 + G * dt * n2 * xp.abs(q) / hf ** (7.0 / 3.0))
-        lim = hf * xp.sqrt(G * hf)
+        if self.theta < 1.0:                                   # q-centred: blend the face flux with its two neighbours along the axis
+            if axis == 0:
+                qm = xp.concatenate([q[:, :1], q[:, :-1]], axis=1); qp = xp.concatenate([q[:, 1:], q[:, -1:]], axis=1)
+            else:
+                qm = xp.concatenate([q[:1, :], q[:-1, :]], axis=0); qp = xp.concatenate([q[1:, :], q[-1:, :]], axis=0)
+            qc = self.theta * q + 0.5 * (1.0 - self.theta) * (qm + qp)
+        else:
+            qc = q
+        qn = (qc - G * hf * dt * s) / (1 + G * dt * n2 * xp.abs(q) / hf ** (7.0 / 3.0))
+        lim = self.fr_max * hf * xp.sqrt(G * hf)
         qn = xp.clip(qn, -lim, lim)
         return xp.where(wet, qn, xp.float32(0)).astype(xp.float32)
+
+    def velocity(self):
+        """Cell-centred flow speed (m/s): the largest face speed |q|/hf around each cell."""
+        xp = self.xp; z, h = self.z, self.h; eta = z + h
+        hfx = xp.maximum(xp.maximum(eta[:, :-1], eta[:, 1:]) - xp.maximum(z[:, :-1], z[:, 1:]), 1e-3)
+        hfy = xp.maximum(xp.maximum(eta[:-1, :], eta[1:, :]) - xp.maximum(z[:-1, :], z[1:, :]), 1e-3)
+        vx = xp.abs(self.qx) / hfx; vy = xp.abs(self.qy) / hfy
+        v = xp.zeros_like(h)
+        v[:, :-1] = xp.maximum(v[:, :-1], vx); v[:, 1:] = xp.maximum(v[:, 1:], vx)
+        v[:-1, :] = xp.maximum(v[:-1, :], vy); v[1:, :] = xp.maximum(v[1:, :], vy)
+        return xp.where(h > 1e-3, v, 0).astype(xp.float32)
 
     def step(self, dt, source=None, level=None):
         xp = self.xp; z, h = self.z, self.h
         if self.fixed is not None and level is not None:
             h[self.fixed] = xp.maximum(xp.float32(level) - z[self.fixed], 0)
         eta = z + h
-        self.qx = self._face(self.qx, eta[:, :-1], eta[:, 1:], z[:, :-1], z[:, 1:], dt, self._n2_face(0))
-        self.qy = self._face(self.qy, eta[:-1, :], eta[1:, :], z[:-1, :], z[1:, :], dt, self._n2_face(1))
+        self.qx = self._face(self.qx, eta[:, :-1], eta[:, 1:], z[:, :-1], z[:, 1:], dt, self._n2_face(0), axis=0)
+        self.qy = self._face(self.qy, eta[:-1, :], eta[1:, :], z[:-1, :], z[1:, :], dt, self._n2_face(1), axis=1)
         if self.fixed is not None:
             self.qx[self.ffx] = 0; self.qy[self.ffy] = 0
         out = (xp.pad(xp.maximum(self.qx, 0), ((0, 0), (0, 1))) + xp.pad(xp.maximum(-self.qx, 0), ((0, 0), (1, 0)))
@@ -84,13 +105,13 @@ class LocalInertial:
         return min(cap, cfl * self.dx / math.sqrt(G * max(hm, 0.05)))
 
 
-def selftest(xp_gpu, n=400, steps=300, seed=0):
+def selftest(xp_gpu, n=400, steps=300, seed=0, theta=1.0, fr_max=1.0):
     """Run the same scene on numpy and on `xp_gpu`; return the largest difference in depth (m)."""
     rng = np.random.default_rng(seed)
     y, x = np.mgrid[0:n, 0:n]
     z = (30 - 0.05 * np.hypot(x - n / 2, y - n / 2) + rng.normal(0, 0.3, (n, n))).astype(np.float32)   # a hill with noise
     rain = (np.full((n, n), 40 / 3.6e6, np.float32))                                                     # 40 mm/h everywhere
-    a = LocalInertial(z, 20.0, 0.05, xp=np); b = LocalInertial(z, 20.0, 0.05, xp=xp_gpu)
+    a = LocalInertial(z, 20.0, 0.05, xp=np, theta=theta, fr_max=fr_max); b = LocalInertial(z, 20.0, 0.05, xp=xp_gpu, theta=theta, fr_max=fr_max)
     rb = xp_gpu.asarray(rain)
     for k in range(steps):
         dt = min(a.stable_dt(), b.stable_dt())
