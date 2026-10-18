@@ -4,16 +4,9 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: NLCD impervious (MRLC WCS)
+      - name: USGS STN high-water marks
         run: |
-          curl -s -m 60 "https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=1.0.0&request=GetCapabilities" -o caps.xml; ls -la caps.xml
-          grep -o '<name>[^<]*</name>' caps.xml | grep -i -E 'impervious|land_cover' | head -40 || true
-          grep -o '<wcs:name>[^<]*' caps.xml | grep -i impervious | head || true
-          for L in mrlc_download:NLCD_2021_Impervious_L48 NLCD_2021_Impervious_L48 mrlc_download:Annual_NLCD_FctImp_2023_CU_C1V0; do
-            curl -s -m 90 "https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=$L&CRS=EPSG:4326&BBOX=-71.80,42.50,-71.70,42.56&WIDTH=200&HEIGHT=120&FORMAT=GeoTIFF" -o t.tif; echo "$L"; file t.tif; ls -la t.tif; head -c 300 t.tif | strings | head -3; done
-      - name: Soils (USDA SDA)
+          for u in "https://stn.wim.usgs.gov/STNServices/Events.json" "https://stn.wim.usgs.gov/STNServices/Events?format=json" "https://stn.wim.usgs.gov/STNServices/Events" "https://stn.wim.usgs.gov/STNServices/HWMs/FilteredHWMs.json?States=MA" "https://stn.wim.usgs.gov/STNServices/HWMs.json?States=MA"; do echo "== $u"; curl -s -m 60 -H 'Accept: application/json' "$u" -o out.txt -w "%{http_code} %{content_type} %{size_download}\n"; head -c 400 out.txt; echo; done
+      - name: Soils via SDA (hydrologic group polygons for one tile)
         run: |
-          curl -s -m 60 -X POST https://sdmdataaccess.sc.egov.usda.gov/tabular/post.rest -H 'Content-Type: application/json' -d '{"query":"SELECT TOP 3 mukey, muname FROM mapunit","format":"JSON"}' | head -c 400; echo
-          curl -s -m 60 "https://sdmdataaccess.nrcs.usda.gov/Spatial/SDMWGS84Geographic.wfs?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=MapunitPoly&FILTER=<Filter><BBOX><PropertyName>Geometry</PropertyName><Box%20srsName='EPSG:4326'><coordinates>-71.76,42.52%20-71.75,42.53</coordinates></Box></BBOX></Filter>" | head -c 600; echo
-      - name: USGS gauges (NWIS IV)
-        run: curl -s -m 60 "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01094400&parameterCd=00060&startDT=2023-12-18T00:00&endDT=2023-12-18T03:00" | head -c 500
+          curl -s -m 120 -X POST https://sdmdataaccess.sc.egov.usda.gov/tabular/post.rest -H 'Content-Type: application/json' -d '{"format":"JSON","query":"SELECT TOP 3 m.mukey, a.hydgrpdcd, mp.mupolygongeo.STAsText() AS wkt FROM mapunit m JOIN muaggatt a ON a.mukey=m.mukey JOIN mupolygon mp ON mp.mukey=m.mukey WHERE mp.mupolygongeo.STIntersects(geometry::STGeomFromText(\"POLYGON((-71.80 42.50,-71.70 42.50,-71.70 42.56,-71.80 42.56,-71.80 42.50))\",4326))=1"}' | head -c 600; echo
