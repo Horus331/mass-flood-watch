@@ -84,7 +84,7 @@ log(f'done: {npoly} polygons, hydrologic group known on {cov * 100:.1f}% of cell
 os.makedirs('out', exist_ok=True)
 np.savez_compressed('out/soils30.npz', hydgrp=hyd, ksat=ksat, wtd=wtd, drcl=drcl, aws=aws, brock=brock)
 json.dump(dict(box=BOX, res_m=RES, crs='EPSG:26986', shape=[ny, nx], polygons=npoly, coverage=round(float(cov), 3), source='USDA SSURGO via Soil Data Access, fetched ' + time.strftime('%Y-%m-%d'),
-               legend=dict(hydgrp=HG, drcl=DR, ksat='mm/h surface layer, dominant component', wtd='cm/2, 255 = none within 2 m', aws='available water storage 0-100 cm, mm', brock='depth to bedrock cm/2, 255 = none/unknown')), open('out/soils30_meta.json', 'w'), indent=1)
+               legend=dict(hydgrp=HG, drcl=DR, ksat='mm/h surface layer, dominant component', wtd='cm/2, 255 = none within 2 m', aws='available water storage 0-100 cm, in cm (x10 for mm)', brock='depth to bedrock cm/2, 255 = none/unknown')), open('out/soils30_meta.json', 'w'), indent=1)
 if os.environ.get('HF_TOKEN'):
     from huggingface_hub import HfApi
     api = HfApi(token=os.environ['HF_TOKEN'])
