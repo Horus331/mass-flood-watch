@@ -114,7 +114,7 @@ map.on('load', async () => {
       feats.push({type: 'Feature', id: i, properties: {name: BM.names[r[1]] || '', cls: r[0]}, geometry: {type: 'LineString', coordinates: c}}); });
     BMN = BM.roads.length;
     map.addSource('roadsbm', {type: 'geojson', data: {type: 'FeatureCollection', features: feats}});
-    map.addLayer({id: 'roadsbm', type: 'line', source: 'roadsbm', filter: ['boolean', ['feature-state', 'wet'], false], paint: {'line-color': '#d7263d', 'line-opacity': 1,
+    map.addLayer({id: 'roadsbm', type: 'line', source: 'roadsbm', paint: {'line-color': '#d7263d', 'line-opacity': ['case', ['boolean', ['feature-state', 'wet'], false], 1, 0],
       'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 13, 5]}}, map.getLayer('roads') ? 'roads' : undefined);
     map.on('click', 'roadsbm', e => { const p = e.features[0].properties, st = map.getFeatureState({source: 'roadsbm', id: e.features[0].id}); new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.name || 'Road'}</b><br><span style="color:#d7263d">water ${st.cm} cm on the road</span>`).addTo(map); });
     if (ROADBM) applyRoadsBM(cur);
@@ -125,7 +125,7 @@ map.on('load', async () => {
     for (let k = 0; k < BMN; k++) if (row[k] >= 10) wet.add(k);
     for (const k of bmWet) if (!wet.has(k)) map.setFeatureState({source: 'roadsbm', id: k}, {wet: false, cm: 0});
     for (const k of wet) map.setFeatureState({source: 'roadsbm', id: k}, {wet: true, cm: row[k]});
-    bmWet = wet; if (!ROADCM || !ROADS) $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} streets under water` : 'no street under water yet';
+    bmWet = wet; if (!(ROADCM && ROADS && flooded.size)) $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} streets under water` : 'no street under water yet';
   }
   window.applyRoadsBM = applyRoadsBM;
   function applyRoads(i){
