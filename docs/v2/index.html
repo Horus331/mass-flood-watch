@@ -28,7 +28,7 @@ html,body{margin:0;height:100%;background:#dfe8ef;font:13px/1.35 system-ui,-appl
 <div id="top" class="card"><h1 id="title">Mass Flood Watch · v2</h1><div class="sub" id="sub">GPU flood run at 30 m resolution, drawn as map tiles · Dec 2023 storm</div><div style="margin-top:4px"><label style="font-size:12px;color:#56687a">Run: <select id="runsel" style="font:12px system-ui"><option>loading…</option></select></label></div><span id="stage">work log…</span> <a href="../methods.html" style="font-size:11.5px;color:#1f6fd0;margin-left:6px">how it works</a> · <a href="../index.html" style="font-size:11.5px;color:#1f6fd0">main map</a></div>
 <div id="msg" class="card"></div>
 <div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m<br><span style="display:block;margin-top:4px"><i style="background:#d7263d"></i>road under ≥10 cm<br><i style="background:#f28c28"></i>dry but cut off, or next road over (detour)</span></div>
-<div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRoads" checked> Flooded roads + knock-on</label><label><input type="checkbox" id="lyRain"> Rain (coming)</label></div></div>
+<div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRoads" checked> Flooded roads + knock-on</label><label><input type="checkbox" id="lyRain"> Radar rain (mm/h)</label></div></div>
 <div id="play" class="card"><div class="row"><button id="btn">▶ Play</button><input type="range" id="sl" min="0" max="0" value="0"><span class="t" id="tm">loading run…</span><span id="fps" style="color:#8a9aa8;font-size:11px">– fps</span></div><div id="rd" style="color:#56687a;font-size:12px;margin-top:4px"></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
@@ -58,10 +58,22 @@ function show(i){
   for (let k = cur - WINDOW - 2; k <= cur + WINDOW + 2; k++) if (Math.abs(k - i) > WINDOW + 1) dropFrame(k);
   for (let k = i - WINDOW; k <= i + WINDOW; k++) ensureFrame(k);
   for (let k = i - WINDOW - 1; k <= i + WINDOW + 1; k++) setOpacity(k, k === i && $('lyWater').checked ? 0.92 : 0);
-  cur = i; $('sl').value = i; if (window.applyRoads) window.applyRoads(i); if (window.applyRoadsBM) window.applyRoadsBM(i);
+  cur = i; $('sl').value = i; showRain(i); if (window.applyRoads) window.applyRoads(i); if (window.applyRoadsBM) window.applyRoadsBM(i);
   const t = new Date(new Date(META.t0).getTime() + META.frame_min * 60000 * i);
   $('tm').textContent = t.toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York'}) + ' ET';
 }
+let rainCur = null;
+function showRain(i){
+  if (!META || !META.rain || !$('lyRain').checked) { if (rainCur && map.getLayer('rain')) map.setLayoutProperty('rain', 'visibility', 'none'); return; }
+  const t = new Date(META.t0).getTime() + META.frame_min * 60000 * i; let pick = null;
+  for (const [ts, fn] of META.rain.hours) { const te = new Date(ts).getTime(); if (t <= te && t > te - 3600000) { pick = fn; break; } }
+  if (!pick) { if (map.getLayer('rain')) map.setLayoutProperty('rain', 'visibility', 'none'); rainCur = null; return; }
+  const url = HF + 'runs/' + DIRS[0] + '/' + pick;
+  if (!map.getSource('rain')) { map.addSource('rain', {type: 'image', url, coordinates: META.rain.corners}); map.addLayer({id: 'rain', type: 'raster', source: 'rain', paint: {'raster-opacity': 0.75, 'raster-fade-duration': 0}}, map.getLayer('streams') ? 'streams' : undefined); }
+  else if (pick !== rainCur) map.getSource('rain').updateImage({url});
+  map.setLayoutProperty('rain', 'visibility', 'visible'); rainCur = pick;
+}
+$('lyRain').onchange = () => showRain(cur);
 function play(on){ playing = on; $('btn').textContent = on ? '❚❚ Pause' : '▶ Play'; clearInterval(timer); if (on) timer = setInterval(() => show(cur + 1 >= FRAMES.length ? 0 : cur + 1), 700); }
 $('btn').onclick = () => play(!playing); $('sl').oninput = e => { play(false); show(+e.target.value); };
 $('lyWater').onchange = () => show(cur);
