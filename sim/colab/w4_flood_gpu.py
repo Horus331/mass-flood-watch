@@ -229,9 +229,12 @@ if PHYS >= 2:
         CH = hf_grid('channels30/channels30.npz', 'channels30/channels30_meta.json', ['chan', 'water', 'area', 'width', 'depth'])
         water |= CH['water'].astype(bool)
         chan = CH['chan'].astype(bool) & ~sea
-        burn = (CH['depth'].astype(np.float32) * np.minimum(CH['width'].astype(np.float32) / RES, 1.0))           # volume-equivalent channel depth below the cell mean
+        SUBGRID = os.environ.get('SUBGRID', '1') == '1'
+        CW = np.where(chan, CH['width'].astype(np.float32), 0).astype(np.float32); CD = np.where(chan, CH['depth'].astype(np.float32), 0).astype(np.float32)
+        if SUBGRID: burn = CD                                                                                      # full bankfull depth; the solver keeps the channel's own width below bank
+        else: burn = (CD * np.minimum(CW / RES, 1.0))                                                              # volume-equivalent channel depth below the cell mean
         Z = np.where(chan, Z - burn, Z).astype(np.float32)
-        log(f'channels: {int(chan.sum()):,} channel cells burnt (mean {float(burn[chan].mean()):.2f} m), open water {float(water.mean()) * 100:.1f}% of cells')
+        log(f'channels: {int(chan.sum()):,} channel cells burnt (mean {float(burn[chan].mean()):.2f} m, {"sub-grid widths" if SUBGRID else "volume-equivalent"}), open water {float(water.mean()) * 100:.1f}% of cells')
         for k_, (r, c) in enumerate(INFLOW_PT):                      # spread each inflow along the main channel near its entry point
             w = int(3000 / RES); r0_, r1_, c0_, c1_ = max(2, r - w), min(ny - 2, r + w + 1), max(2, c - w), min(nx - 2, c + w + 1)
             sub = np.where(chan[r0_:r1_, c0_:c1_] & ~sea[r0_:r1_, c0_:c1_], CH['area'][r0_:r1_, c0_:c1_], 0)
@@ -240,9 +243,9 @@ if PHYS >= 2:
                 INFLOW[k_][0] = (r0_ + kk[0]).astype(np.int64); INFLOW[k_][1] = (c0_ + kk[1]).astype(np.int64)
                 log(f'   {INFLOW[k_][2]}: injected over {len(flat)} channel cells (drainage area {sub.max():.0f} km2)')
     except Exception as e:
-        log('no channel grid, rivers unburnt:', repr(e)[:120]); chan = np.zeros((ny, nx), bool); burn = np.zeros((ny, nx), np.float32)
+        log('no channel grid, rivers unburnt:', repr(e)[:120]); chan = np.zeros((ny, nx), bool); burn = np.zeros((ny, nx), np.float32); SUBGRID = False
 else:
-    chan = np.zeros((ny, nx), bool); burn = np.zeros((ny, nx), np.float32)
+    chan = np.zeros((ny, nx), bool); burn = np.zeros((ny, nx), np.float32); SUBGRID = False
 # Manning n: channels and open water 0.035, dense urban 0.10, everything else 0.08 (forest/field/suburban mix) until NLCD classes are wired in
 IMPg_np = IMP
 N_MAP = np.where(water | chan, 0.035, np.where(IMPg_np > 0.3, 0.10, 0.08)).astype(np.float32) if PHYS >= 2 else np.full((ny, nx), 0.06, np.float32)
@@ -263,8 +266,9 @@ if TIDE is not None:
     border = np.zeros((ny, nx), bool); border[[0, -1], :] = True; border[:, [0, -1]] = True; sim.sink = xp.asarray(border & ~sea)   # open land edges still drain out
 else:
     sim = solver.LocalInertial(Z, RES, N_MAP, xp=xp, theta=0.7 if PHYS >= 2 else 1.0, fr_max=2.0 if PHYS >= 2 else 1.0); sim.sink = xp.asarray(sea)
-if PHYS >= 2 and chan.any():                                            # baseflow: channels start a third full
-    sim.h += xp.asarray(np.where(chan, 0.3 * burn, 0).astype(np.float32))
+if PHYS >= 2 and chan.any():
+    if SUBGRID: sim.set_channels(CW, CD)                                 # sub-grid channel storage and conveyance (Neal et al. 2012, simplified)
+    sim.h += xp.asarray(np.where(chan, 0.3 * burn, 0).astype(np.float32))   # baseflow: channels start a third full
 INFLOW = [(xp.asarray(rr_), xp.asarray(cc_), n_, tq_, qq_, qb_) for rr_, cc_, n_, tq_, qq_, qb_ in INFLOW]
 f0g, fcg, Kdg, Scapg = xp.asarray(F0), xp.asarray(FC), xp.asarray(KDEEP), xp.asarray(Scap); del F0, FC, KDEEP
 IMPg = xp.asarray(IMP); f_scale = (1.0 - 0.9 * IMPg) * FC_SCALE
@@ -329,7 +333,9 @@ while kf < nfr:
         tsec = t.value / 1e9
         for rr, cc, _, tq, qq, qb in INFLOW:
             qin = float(np.interp(tsec, tq, qq)); qin = max(qin - qb, 0.0) if PHYS >= 2 else qin      # v2: the channel carries the starting flow already; inject the rise
-            if qin > 0: sim.h[rr, cc] += qin * dt / (RES * RES * len(rr))
+            if qin > 0:
+                if getattr(sim, 'channels', False): sim.h[rr, cc] += qin * dt / (RES * RES * len(rr)) / xp.where(sim.h[rr, cc] < sim.dch[rr, cc], sim.phi[rr, cc], 1.0)
+                else: sim.h[rr, cc] += qin * dt / (RES * RES * len(rr))
     if PHYS >= 2:
         frate = xp.where(Finf < Scapg, fcg + (f0g - fcg) * xp.exp(-Finf / Fk), Kdg)          # Horton until the soil store is full, then slow deep drainage
         fcap = xp.where(WATERg, 0.0, frate * f_scale + drain_mmph) / 3.6e6 * dt
@@ -344,7 +350,7 @@ np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
 tonp = (lambda a: xp.asnumpy(a)) if hasattr(xp, 'asnumpy') else (lambda a: a)
 np.save(f'{OUT}/z.npy', Z.astype(np.float32)); np.save(f'{OUT}/t_first.npy', tonp(T_FIRST)); np.save(f'{OUT}/dur.npy', tonp(DUR)); np.save(f'{OUT}/vmax.npy', tonp(VMAX).astype(np.float16)); np.save(f'{OUT}/hvmax.npy', tonp(HVMAX).astype(np.float16))
 meta['cell_outputs'] = dict(hmax='peak depth m (float16)', t_first='frame index when depth first >= 10 cm (255 = never)', dur='number of frames >= 10 cm', vmax='peak speed m/s (float16)', hvmax='peak depth*speed m2/s (float16)')
-meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited_infiltration=bool(PHYS >= 2), channels_burnt=int(chan.sum()), manning='0.035 water/channel, 0.10 dense urban, 0.08 other' if PHYS >= 2 else '0.06 uniform',
+meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited_infiltration=bool(PHYS >= 2), channels_burnt=int(chan.sum()), subgrid_channels=bool(SUBGRID), manning='0.035 water/channel, 0.10 dense urban, 0.08 other' if PHYS >= 2 else '0.06 uniform',
                        tide=('gauge ' + os.environ.get('TIDE_STATION', '8443970')) if TIDE is not None else 'sea as sink', scheme='q-centred theta 0.7, Fr<=2' if PHYS >= 2 else 'Bates 2010, Fr<=1', antecedent_mm=round(WET0, 1))
 if ROAD is not None:
     np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); np.save(f'{OUT}/roads_mean_cm.npy', ROAD['mean_cm']); np.save(f'{OUT}/roads_v.npy', ROAD['v']); meta['roads'] = dict(segments=int(ROAD['n']), in_box=int(len(ROAD['inbox'])), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), files='roads_cm.npy (max depth cm), roads_mean_cm.npy (mean depth cm along the segment), roads_v.npy (peak speed, 0.05 m/s units); frames x segments')

@@ -72,6 +72,29 @@ class LocalInertial:
         v[:-1, :] = xp.maximum(v[:-1, :], vy); v[1:, :] = xp.maximum(v[1:, :], vy)
         return xp.where(h > 1e-3, v, 0).astype(xp.float32)
 
+    def set_channels(self, width, depth):
+        """Sub-grid channels (after Neal, Schumann & Bates 2012, simplified).  `width` (m) and `depth` (m) per cell, 0 where there is
+        no channel.  The caller has already lowered z by `depth` on channel cells.  Below bank level the cell stores water only over
+        the channel's plan area (width x dx) and passes it to channel neighbours through a face of the channel's width; above bank
+        level the whole cell takes part, as on any other cell.  Diagonal-only channel links are not connected."""
+        xp = self.xp; dx = self.dx
+        wc = xp.asarray(width, dtype=xp.float32); self.dch = xp.asarray(depth, dtype=xp.float32)
+        chan = (wc > 0) & (self.dch > 0)
+        self.phi = xp.where(chan, xp.clip(wc / dx, 0.02, 1.0), 1.0).astype(xp.float32)        # plan-area fraction below bank
+        cx = chan[:, :-1] & chan[:, 1:]; cy = chan[:-1, :] & chan[1:, :]
+        self.wcx = xp.where(cx, xp.minimum(wc[:, :-1], wc[:, 1:]) / dx, 1.0).astype(xp.float32)   # face width fraction when both sides are below bank
+        self.wcy = xp.where(cy, xp.minimum(wc[:-1, :], wc[1:, :]) / dx, 1.0).astype(xp.float32)
+        self.channels = True
+
+    def _vol(self, h):
+        """Water volume per cell / dx^2 (m): channel cells hold phi*h below bank level."""
+        xp = self.xp; d = self.dch
+        return xp.where(h <= d, self.phi * h, self.phi * d + (h - d))
+
+    def _h_from_vol(self, v):
+        xp = self.xp; d = self.dch; vb = self.phi * d
+        return xp.where(v <= vb, v / self.phi, d + (v - vb))
+
     def step(self, dt, source=None, level=None):
         xp = self.xp; z, h = self.z, self.h
         if self.fixed is not None and level is not None:
@@ -81,16 +104,34 @@ class LocalInertial:
         self.qy = self._face(self.qy, eta[:-1, :], eta[1:, :], z[:-1, :], z[1:, :], dt, self._n2_face(1), axis=1)
         if self.fixed is not None:
             self.qx[self.ffx] = 0; self.qy[self.ffy] = 0
-        out = (xp.pad(xp.maximum(self.qx, 0), ((0, 0), (0, 1))) + xp.pad(xp.maximum(-self.qx, 0), ((0, 0), (1, 0)))
-               + xp.pad(xp.maximum(self.qy, 0), ((0, 1), (0, 0))) + xp.pad(xp.maximum(-self.qy, 0), ((1, 0), (0, 0)))) * (dt / self.dx)
-        f = xp.where(out > h, h / xp.maximum(out, 1e-9), xp.float32(1.0)).astype(xp.float32)
-        self.qx = xp.where(self.qx > 0, self.qx * f[:, :-1], self.qx * f[:, 1:])
-        self.qy = xp.where(self.qy > 0, self.qy * f[:-1, :], self.qy * f[1:, :])
-        div = xp.zeros_like(h)
-        div[:, :-1] -= self.qx; div[:, 1:] += self.qx; div[:-1, :] -= self.qy; div[1:, :] += self.qy
-        h += div * (dt / self.dx)
-        if source is not None:
-            h += source * dt
+        if getattr(self, 'channels', False):
+            # face width: the channel's width while both sides are below bank, the full cell once either side overtops
+            ab = h > self.dch
+            wx = xp.where(ab[:, :-1] | ab[:, 1:], 1.0, self.wcx); wy = xp.where(ab[:-1, :] | ab[1:, :], 1.0, self.wcy)
+            Qx = self.qx * wx; Qy = self.qy * wy                              # volume flux per unit dx (m^2/s)
+            vol = self._vol(h)
+            out = (xp.pad(xp.maximum(Qx, 0), ((0, 0), (0, 1))) + xp.pad(xp.maximum(-Qx, 0), ((0, 0), (1, 0)))
+                   + xp.pad(xp.maximum(Qy, 0), ((0, 1), (0, 0))) + xp.pad(xp.maximum(-Qy, 0), ((1, 0), (0, 0)))) * (dt / self.dx)
+            f = xp.where(out > vol, vol / xp.maximum(out, 1e-9), xp.float32(1.0)).astype(xp.float32)
+            Qx = xp.where(Qx > 0, Qx * f[:, :-1], Qx * f[:, 1:]); Qy = xp.where(Qy > 0, Qy * f[:-1, :], Qy * f[1:, :])
+            self.qx = xp.where(wx > 0, Qx / wx, 0).astype(xp.float32); self.qy = xp.where(wy > 0, Qy / wy, 0).astype(xp.float32)
+            div = xp.zeros_like(h)
+            div[:, :-1] -= Qx; div[:, 1:] += Qx; div[:-1, :] -= Qy; div[1:, :] += Qy
+            vol = vol + div * (dt / self.dx)
+            if source is not None:
+                vol = vol + source * dt                                       # rain falls on the whole cell
+            h = self._h_from_vol(xp.maximum(vol, 0)).astype(xp.float32); self.h = h
+        else:
+            out = (xp.pad(xp.maximum(self.qx, 0), ((0, 0), (0, 1))) + xp.pad(xp.maximum(-self.qx, 0), ((0, 0), (1, 0)))
+                   + xp.pad(xp.maximum(self.qy, 0), ((0, 1), (0, 0))) + xp.pad(xp.maximum(-self.qy, 0), ((1, 0), (0, 0)))) * (dt / self.dx)
+            f = xp.where(out > h, h / xp.maximum(out, 1e-9), xp.float32(1.0)).astype(xp.float32)
+            self.qx = xp.where(self.qx > 0, self.qx * f[:, :-1], self.qx * f[:, 1:])
+            self.qy = xp.where(self.qy > 0, self.qy * f[:-1, :], self.qy * f[1:, :])
+            div = xp.zeros_like(h)
+            div[:, :-1] -= self.qx; div[:, 1:] += self.qx; div[:-1, :] -= self.qy; div[1:, :] += self.qy
+            h += div * (dt / self.dx)
+            if source is not None:
+                h += source * dt
         xp.maximum(h, 0, out=h)
         if self.sink is not None:
             h[self.sink] = 0
