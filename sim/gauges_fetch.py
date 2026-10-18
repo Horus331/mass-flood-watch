@@ -12,8 +12,9 @@ import os, json, time, requests
 IV = 'https://waterservices.usgs.gov/nwis/iv/'
 STORMS = {'dec2023': ('2023-12-17', '2023-12-21'), 'sep2023': ('2023-09-10', '2023-09-14'), 'jul2023': ('2023-07-09', '2023-07-13'), 'jan2018': ('2018-01-03', '2018-01-07')}
 # rivers entering the state (gauge just upstream of the line) -> entry point in EPSG:26986 handled by the engine via lon/lat
-BOUNDARY = {'01154500': 'Connecticut River at North Walpole, NH', '01092000': 'Merrimack River near Goffs Falls, NH', '01096500': 'Nashua River at East Pepperell, MA (enters from NH side)',
-            '01170000': 'Deerfield River near West Deerfield, MA', '01333000': 'Green River at Williamstown, MA', '01197500': 'Housatonic River near Great Barrington, MA'}
+BOUNDARY = {'01154500': 'Connecticut River at North Walpole, NH', '01156000': 'West River at Newfane, VT (joins the Connecticut above the state line)', '01161000': 'Ashuelot River at Hinsdale, NH (joins the Connecticut above the state line)',
+            '01092000': 'Merrimack River near Goffs Falls, NH', '01094000': 'Souhegan River at Merrimack, NH (joins the Merrimack above the state line)', '01096500': 'Nashua River at East Pepperell, MA',
+            '01168500': 'Deerfield River at Charlemont, MA (basin mostly in Vermont)', '01170000': 'Deerfield River near West Deerfield, MA', '01333000': 'Green River at Williamstown, MA', '01197500': 'Housatonic River near Great Barrington, MA'}
 log = lambda *a: print(time.strftime('%H:%M:%S'), *a, flush=True)
 def fetch(sites, start, end, param):
     r = requests.get(IV, params=dict(format='json', sites=','.join(sites), startDT=start, endDT=end, parameterCd=param, siteStatus='all'), timeout=300)
