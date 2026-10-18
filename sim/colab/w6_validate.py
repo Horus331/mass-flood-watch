@@ -10,7 +10,7 @@ for mod, pkg in (('pyproj', 'pyproj'), ('huggingface_hub', 'huggingface_hub')):
     except ImportError: subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', pkg], check=False)
 from huggingface_hub import HfApi, hf_hub_download
 RUN_DIR = os.environ.get('RUN_DIR', 'runs/dec2023_30m'); REPO = 'mohabeldokla/mass-flood-watch-tiles'; TOK = os.environ.get('HF_TOKEN')
-RAW = 'https://raw.githubusercontent.com/Horus331/mass-flood-watch/main/'
+RAW = 'https://raw.githubusercontent.com/Horus331/mass-flood-watch/' + os.environ.get('GIT_SHA', 'main') + '/'
 d = f'/content/{RUN_DIR.replace("/", "_")}'; os.makedirs(d, exist_ok=True)
 for f in ('meta.json', 'hmax.npy'):
     p = hf_hub_download(REPO, f'{RUN_DIR}/{f}', repo_type='dataset', token=TOK); subprocess.run(['cp', p, f'{d}/{f}'])
