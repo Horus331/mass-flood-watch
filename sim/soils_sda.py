@@ -33,14 +33,15 @@ def q(sql, tries=5):
     return []
 
 # 1. attributes per map unit for all Massachusetts (and neighbouring) survey areas inside the box
-rows = q("""SELECT m.mukey, a.hydgrpdcd, a.drclassdcd, a.wtdepannmin FROM legend l JOIN mapunit m ON m.lkey = l.lkey
+rows = q("""SELECT m.mukey, a.hydgrpdcd, a.drclassdcd, a.wtdepannmin, a.aws0100wta, a.brockdepmin FROM legend l JOIN mapunit m ON m.lkey = l.lkey
             LEFT JOIN muaggatt a ON a.mukey = m.mukey WHERE l.areasymbol LIKE 'MA%' OR l.areasymbol LIKE 'RI%' OR l.areasymbol LIKE 'NH%' OR l.areasymbol LIKE 'CT%' OR l.areasymbol LIKE 'NY%' OR l.areasymbol LIKE 'VT%'""")
 log('map units with attributes:', len(rows))
 HG = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'A/D': 5, 'B/D': 6, 'C/D': 7}
 DR = {'Excessively drained': 1, 'Somewhat excessively drained': 2, 'Well drained': 3, 'Moderately well drained': 4, 'Somewhat poorly drained': 5, 'Poorly drained': 6, 'Very poorly drained': 7}
 ATTR = {}
-for mukey, hg, dr, wt in rows:
-    ATTR[str(mukey)] = [HG.get(hg or '', 0), DR.get(dr or '', 0), 255 if wt in (None, '') else min(254, int(float(wt) / 2))]
+for mukey, hg, dr, wt, aws, br in rows:
+    ATTR[str(mukey)] = [HG.get(hg or '', 0), DR.get(dr or '', 0), 255 if wt in (None, '') else min(254, int(float(wt) / 2)),
+                        0 if aws in (None, '') else min(250, int(round(float(aws)))), 255 if br in (None, '') else min(254, int(float(br) / 2))]   # aws: mm in top 100 cm; brock: cm/2
 # surface-layer ksat of the dominant component (µm/s -> mm/h: x3.6)
 ks = q("""SELECT c.mukey, c.comppct_r, h.ksat_r FROM component c JOIN chorizon h ON h.cokey = c.cokey JOIN mapunit m ON m.mukey = c.mukey JOIN legend l ON l.lkey = m.lkey
           WHERE h.hzdept_r = 0 AND c.majcompflag = 'Yes' AND h.ksat_r IS NOT NULL AND (l.areasymbol LIKE 'MA%' OR l.areasymbol LIKE 'RI%' OR l.areasymbol LIKE 'NH%' OR l.areasymbol LIKE 'CT%' OR l.areasymbol LIKE 'NY%' OR l.areasymbol LIKE 'VT%')""")
@@ -53,7 +54,7 @@ log('ksat for', len(KS), 'map units')
 # 2. polygons by lon/lat chunk, rasterised straight into the state grid
 to_m = Transformer.from_crs(4326, 26986, always_xy=True); to_ll = Transformer.from_crs(26986, 4326, always_xy=True)
 W, S = to_ll.transform(BOX[0], BOX[1]); E, N = to_ll.transform(BOX[2], BOX[3])
-hyd = np.zeros((ny, nx), np.uint8); ksat = np.zeros((ny, nx), np.uint8); wtd = np.full((ny, nx), 255, np.uint8); drcl = np.zeros((ny, nx), np.uint8)
+hyd = np.zeros((ny, nx), np.uint8); ksat = np.zeros((ny, nx), np.uint8); wtd = np.full((ny, nx), 255, np.uint8); drcl = np.zeros((ny, nx), np.uint8); aws = np.zeros((ny, nx), np.uint8); brock = np.full((ny, nx), 255, np.uint8)
 from shapely.ops import transform as shp_transform
 step = 0.25; npoly = 0; t0 = time.time()
 lons = np.arange(math.floor(W * 4) / 4, E, step); lats = np.arange(math.floor(S * 4) / 4, N, step)
@@ -62,7 +63,7 @@ for i, la in enumerate(lats):
         poly = f'POLYGON(({lo} {la},{lo + step} {la},{lo + step} {la + step},{lo} {la + step},{lo} {la}))'
         rs = q(f"SELECT mukey, mupolygongeo.STAsText() AS g FROM mupolygon WHERE mupolygongeo.STIntersects(geometry::STGeomFromText('{poly}', 4326)) = 1")
         if not rs: continue
-        shapes_h, shapes_k, shapes_w, shapes_d = [], [], [], []
+        shapes_h, shapes_k, shapes_w, shapes_d, shapes_a, shapes_b = [], [], [], [], [], []
         for mukey, g in rs:
             try: geom = shp_transform(to_m.transform, wkt.loads(g))
             except Exception: continue
@@ -71,17 +72,19 @@ for i, la in enumerate(lats):
                 if a[0]: shapes_h.append((geom, a[0]))
                 if a[1]: shapes_d.append((geom, a[1]))
                 if a[2] != 255: shapes_w.append((geom, a[2]))
+                if a[3]: shapes_a.append((geom, a[3]))
+                if a[4] != 255: shapes_b.append((geom, a[4]))
             if k: shapes_k.append((geom, k[1]))
-        for shp, arr in ((shapes_h, hyd), (shapes_k, ksat), (shapes_w, wtd), (shapes_d, drcl)):
+        for shp, arr in ((shapes_h, hyd), (shapes_k, ksat), (shapes_w, wtd), (shapes_d, drcl), (shapes_a, aws), (shapes_b, brock)):
             if shp: features.rasterize(shp, out=arr, transform=tr, default_value=0, all_touched=False)
         npoly += len(rs)
     log(f'row {i + 1}/{len(lats)} lat {la:.2f}: {npoly} polygons so far, {time.time() - t0:.0f}s')
 cov = (hyd > 0).mean()
 log(f'done: {npoly} polygons, hydrologic group known on {cov * 100:.1f}% of cells, ksat on {(ksat > 0).mean() * 100:.1f}%')
 os.makedirs('out', exist_ok=True)
-np.savez_compressed('out/soils30.npz', hydgrp=hyd, ksat=ksat, wtd=wtd, drcl=drcl)
+np.savez_compressed('out/soils30.npz', hydgrp=hyd, ksat=ksat, wtd=wtd, drcl=drcl, aws=aws, brock=brock)
 json.dump(dict(box=BOX, res_m=RES, crs='EPSG:26986', shape=[ny, nx], polygons=npoly, coverage=round(float(cov), 3), source='USDA SSURGO via Soil Data Access, fetched ' + time.strftime('%Y-%m-%d'),
-               legend=dict(hydgrp=HG, drcl=DR, ksat='mm/h surface layer, dominant component', wtd='cm/2, 255 = none within 2 m')), open('out/soils30_meta.json', 'w'), indent=1)
+               legend=dict(hydgrp=HG, drcl=DR, ksat='mm/h surface layer, dominant component', wtd='cm/2, 255 = none within 2 m', aws='available water storage 0-100 cm, mm', brock='depth to bedrock cm/2, 255 = none/unknown')), open('out/soils30_meta.json', 'w'), indent=1)
 if os.environ.get('HF_TOKEN'):
     from huggingface_hub import HfApi
     api = HfApi(token=os.environ['HF_TOKEN'])
