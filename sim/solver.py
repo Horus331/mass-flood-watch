@@ -33,6 +33,9 @@ class LocalInertial:
         self.hmax = xp.zeros_like(self.z)
         if self.fixed is not None:
             self.ffx = self.fixed[:, :-1] & self.fixed[:, 1:]; self.ffy = self.fixed[:-1, :] & self.fixed[1:, :]
+            land = ~self.fixed; near = xp.zeros_like(land)                      # fixed cells next to land: the only fixed cells whose depth limits the time step
+            near[:, 1:] |= land[:, :-1]; near[:, :-1] |= land[:, 1:]; near[1:, :] |= land[:-1, :]; near[:-1, :] |= land[1:, :]
+            self.shore = self.fixed & near
 
     def _n2_face(self, axis):
         n2 = self.n2
@@ -101,7 +104,7 @@ class LocalInertial:
             hm = float(self.h.max())
         else:
             hm = float(xp.max(xp.where(self.fixed, 0, self.h)))
-            hm = max(hm, float(xp.max(xp.where(self.fixed, xp.minimum(self.h, 6.0), 0))))
+            hm = max(hm, float(xp.max(xp.where(self.shore, xp.minimum(self.h, 6.0), 0))))
         return min(cap, cfl * self.dx / math.sqrt(G * max(hm, 0.05)))
 
 
