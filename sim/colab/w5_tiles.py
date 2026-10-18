@@ -30,7 +30,7 @@ RAMP = np.array([[0, 0, 0, 0], [110, 196, 250, 150], [56, 146, 232, 195], [24, 9
 src_tr = from_origin(x0, y1, res, res)
 W, S, E, N = transform_bounds('EPSG:26986', 'EPSG:4326', x0, y0, x1, y1)
 log(f'{RUN_DIR}: {len(meta["frames"])} frames, zoom {ZMIN}-{ZMAX}, lon {W:.3f}..{E:.3f} lat {S:.3f}..{N:.3f}')
-OUT = '/content/tiles'; os.makedirs(OUT, exist_ok=True)
+OUT = '/content/tiles_' + RUN_DIR.replace('/', '_'); os.makedirs(OUT, exist_ok=True)
 have = set(api.list_repo_files(REPO, repo_type='dataset'))
 def warp_top(cls):
     """Nearest-neighbour warp of the class image onto the mercator tile grid at ZMAX, with the tile origin aligned so that
@@ -121,12 +121,12 @@ for i, name in enumerate(frames):
 if ops:
     api.create_commit(REPO, repo_type='dataset', operations=ops, commit_message=f'{RUN_DIR} tiles (last)')
 if ROAD is not None:
-    np.save('/content/roads_cm.npy', ROAD['cm']); api.upload_file(path_or_fileobj='/content/roads_cm.npy', path_in_repo=f'{RUN_DIR}/roads_cm.npy', repo_id=REPO, repo_type='dataset')
+    np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); api.upload_file(path_or_fileobj=f'{OUT}/roads_cm.npy', path_in_repo=f'{RUN_DIR}/roads_cm.npy', repo_id=REPO, repo_type='dataset')
     meta['roads'] = dict(segments=int(ROAD['n']), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), file='roads_cm.npy (frames x segments, depth cm from the 5 depth classes)'); log('roads uploaded:', meta['roads'])
 if ROADBM is not None:
-    np.save('/content/roads_bm_cm.npy', ROADBM['cm']); api.upload_file(path_or_fileobj='/content/roads_bm_cm.npy', path_in_repo=f'{RUN_DIR}/roads_bm_cm.npy', repo_id=REPO, repo_type='dataset')
+    np.save(f'{OUT}/roads_bm_cm.npy', ROADBM['cm']); api.upload_file(path_or_fileobj=f'{OUT}/roads_bm_cm.npy', path_in_repo=f'{RUN_DIR}/roads_bm_cm.npy', repo_id=REPO, repo_type='dataset')
     meta['roads_bm'] = dict(roads=int(ROADBM['n']), flooded_10cm=int(((ROADBM['cm'] >= 10).any(axis=0)).sum()), file='roads_bm_cm.npy (frames x basemap roads, depth cm)'); log('basemap roads uploaded:', meta['roads_bm'])
 meta['tiles'] = dict(zmin=ZMIN, zmax=ZMAX, bounds=[W, S, E, N], format='pmtiles per frame')
-json.dump(meta, open('/content/meta_tiles.json', 'w'))
-api.upload_file(path_or_fileobj='/content/meta_tiles.json', path_in_repo=f'{RUN_DIR}/meta.json', repo_id=REPO, repo_type='dataset')
+json.dump(meta, open(f'{OUT}/meta_tiles.json', 'w'))
+api.upload_file(path_or_fileobj=f'{OUT}/meta_tiles.json', path_in_repo=f'{RUN_DIR}/meta.json', repo_id=REPO, repo_type='dataset')
 log('ALL DONE')
