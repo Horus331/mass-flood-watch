@@ -127,6 +127,31 @@ if os.environ.get('INFLOW', '1') == '1':
             log(f'inflow: {name} at cell ({rr},{cc}), peak {max(qs):.0f} m3/s')
     except Exception as e:
         log('no gauge inflows:', repr(e)[:120])
+# ---- 3c. road segments (the site's 52,698 segments) sampled every frame -> roads_cm.npy (uint8 depth in cm per segment per frame) ----
+ROAD = None
+try:
+    SEGJ = json.loads(get('https://raw.githubusercontent.com/Horus331/mass-flood-watch/main/docs/graph_segments.json').content)
+    inv2 = Transformer.from_crs(4326, 26986, always_xy=True); px, py, pid = [], [], []
+    for i_, parts in enumerate(SEGJ['geo']):
+        for d_ in parts:
+            x_ = np.cumsum(d_[0::2]) / 1e5; y_ = np.cumsum(d_[1::2]) / 1e5
+            px.append(x_); py.append(y_); pid.append(np.full(len(x_), i_, np.int32))
+    px, py, pid = np.concatenate(px), np.concatenate(py), np.concatenate(pid)
+    X_, Y_ = inv2.transform(px, py); cc_ = ((X_ - x0) / RES).astype(np.int64); rr_ = ((y1 - Y_) / RES).astype(np.int64)
+    ok_ = (rr_ >= 0) & (rr_ < ny) & (cc_ >= 0) & (cc_ < nx)
+    ROAD = dict(n=SEGJ['n'], r=xp.asarray(rr_[ok_]), c=xp.asarray(cc_[ok_]), seg=xp.asarray(pid[ok_]), inbox=np.unique(pid[ok_]))
+    ROAD['cm'] = np.zeros((int((S['hours'] * 60 / S['frame_min']) + 1), SEGJ['n']), np.uint8)
+    log(f'roads: {len(ROAD["inbox"])} of {SEGJ["n"]} segments inside the box ({int(ok_.sum())} vertices)'); del SEGJ, px, py, pid, X_, Y_
+except Exception as e:
+    log('no road sampling:', repr(e)[:120])
+def road_sample(kf, h):
+    if ROAD is None: return
+    d_ = h[ROAD['r'], ROAD['c']]; m_ = xp.zeros(ROAD['n'], xp.float32)
+    if xp is np: np.maximum.at(m_, ROAD['seg'], d_)
+    else:
+        import cupyx; cupyx.scatter_max(m_, ROAD['seg'], d_)
+    m_ = xp.asnumpy(m_) if hasattr(xp, 'asnumpy') else m_
+    ROAD['cm'][kf] = np.clip(np.round(m_ * 100), 0, 255).astype(np.uint8)
 # ---- 4. the run ----
 sim = solver.LocalInertial(Z, RES, 0.06, xp=xp); sim.sink = xp.asarray(sea)
 f0, fc, Fk, drain = 30.0, 3.0, 40.0, 2.0
@@ -166,7 +191,7 @@ meta = dict(run=RUN, title=S['title'], res_m=RES, box=BOX, crs='EPSG:26986', sha
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
 while kf < nfr:
     if t >= frame_t[kf]:
-        wet, deep = save_frame(kf, sim.h)
+        wet, deep = save_frame(kf, sim.h); road_sample(kf, sim.h)
         meta['frames'].append(dict(t=frame_t[kf].strftime('%Y-%m-%dT%H:%MZ'), wet_km2=round(wet, 1), deep_km2=round(deep, 1), soaked_mm=round(float(Finf.mean() - S['wet_start_mm']), 1)))
         log(f'frame {kf}/{nfr - 1} {frame_t[kf]:%m-%d %H:%M}Z wet {wet:.0f} km2 deep {deep:.0f} km2 | {steps} steps | {time.time() - tstart:.0f}s'); kf += 1
         if kf >= nfr: break
@@ -187,6 +212,8 @@ while kf < nfr:
     if steps % 2000 == 0: log(f'   step {steps} t {t:%H:%M} dt {dt:.2f}s hmax {float(sim.h.max()):.2f} m | {time.time() - tstart:.0f}s')
 hm = xp.asnumpy(sim.hmax) if hasattr(xp, 'asnumpy') else sim.hmax
 np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
+if ROAD is not None:
+    np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); meta['roads'] = dict(segments=int(ROAD['n']), in_box=int(len(ROAD['inbox'])), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), file='roads_cm.npy (frames x segments, depth cm)')
 meta.update(inflows=[dict(name=n_, row=r_, col=c_, peak_m3s=round(float(q_.max()), 1)) for r_, c_, n_, _, q_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 1))
 json.dump(meta, open(f'{OUT}/meta.json', 'w'))
 log('run done:', meta['peak_wet_km2'], 'km2 peak wet,', steps, 'steps,', meta['runtime_s'], 's')
