@@ -308,7 +308,7 @@ def save_frame(kf, h):
     cls = np.zeros(hc.shape, np.uint8)                       # 0 dry, 1: 5-10 cm, 2: 10-30, 3: 30-100, 4: 1-2.5 m, 5: >2.5 m
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
-    return float((hc >= 0.1).sum() * RES * RES / 1e6), float((hc >= 0.5).sum() * RES * RES / 1e6)
+    return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
 meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm']), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
@@ -354,7 +354,7 @@ meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited
                        tide=('gauge ' + os.environ.get('TIDE_STATION', '8443970')) if TIDE is not None else 'sea as sink', scheme='q-centred theta 0.7, Fr<=2' if PHYS >= 2 else 'Bates 2010, Fr<=1', antecedent_mm=round(WET0, 1))
 if ROAD is not None:
     np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); np.save(f'{OUT}/roads_mean_cm.npy', ROAD['mean_cm']); np.save(f'{OUT}/roads_v.npy', ROAD['v']); meta['roads'] = dict(segments=int(ROAD['n']), in_box=int(len(ROAD['inbox'])), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), files='roads_cm.npy (max depth cm), roads_mean_cm.npy (mean depth cm along the segment), roads_v.npy (peak speed, 0.05 m/s units); frames x segments')
-meta.update(inflows=[dict(name=n_, cells=int(len(r_)), peak_m3s=round(float(q_.max()), 1), start_m3s=round(float(qb_), 1)) for r_, c_, n_, _, q_, qb_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 1))
+meta.update(inflows=[dict(name=n_, cells=int(len(r_)), peak_m3s=round(float(q_.max()), 1), start_m3s=round(float(qb_), 1)) for r_, c_, n_, _, q_, qb_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float(((hm >= 0.1) & ~chan).sum() * RES * RES / 1e6), 1))
 json.dump(meta, open(f'{OUT}/meta.json', 'w'))
 log('run done:', meta['peak_wet_km2'], 'km2 peak wet,', steps, 'steps,', meta['runtime_s'], 's')
 # ---- 5. upload ----
