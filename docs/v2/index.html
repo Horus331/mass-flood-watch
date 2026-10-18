@@ -37,7 +37,7 @@ const HF = 'https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles/
 const Q = new URLSearchParams(location.search); const RUN = Q.get('run') || 'dec2023_30m';
 const protocol = new pmtiles.Protocol(); maplibregl.addProtocol('pmtiles', protocol.tile);
 const map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', center: [-71.6, 42.2], zoom: 8, maxBounds: [[-74.4, 40.6], [-69.0, 43.4]], attributionControl: true});
-map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
+window.__map = map; map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
 map.addControl(new maplibregl.ScaleControl({unit: 'imperial'}), 'bottom-left');
 const $ = id => document.getElementById(id);
 function msg(t){ const m = $('msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; }
@@ -94,8 +94,8 @@ map.on('load', async () => {
     map.addSource('roads', {type: 'geojson', data: {type: 'FeatureCollection', features: feats}});
     map.addLayer({id: 'roads', type: 'line', source: 'roads', paint: {
       'line-color': ['case', ['boolean', ['feature-state', 'wet'], false], '#d7263d', ['boolean', ['feature-state', 'knock'], false], '#f28c28', '#9fb0c0'],
-      'line-opacity': ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, ['interpolate', ['linear'], ['zoom'], 8, 0.15, 12, 0.55]],
-      'line-width': ['case', ['boolean', ['feature-state', 'wet'], false], ['interpolate', ['linear'], ['zoom'], 8, 2.2, 13, 6], ['boolean', ['feature-state', 'knock'], false], ['interpolate', ['linear'], ['zoom'], 8, 1.6, 13, 4], ['interpolate', ['linear'], ['zoom'], 8, 0.4, 13, 2]]}});
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, 0.15], 12, ['case', ['boolean', ['feature-state', 'wet'], false], 1, ['boolean', ['feature-state', 'knock'], false], 0.95, 0.55]],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['boolean', ['feature-state', 'wet'], false], 2.2, ['boolean', ['feature-state', 'knock'], false], 1.6, 0.4], 13, ['case', ['boolean', ['feature-state', 'wet'], false], 6, ['boolean', ['feature-state', 'knock'], false], 4, 2]]}});
     map.on('click', 'roads', e => { const p = e.features[0].properties, st = map.getFeatureState({source: 'roads', id: e.features[0].id}); new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road || 'Road segment'}</b><br>${p.town}${p.aadt ? ' · ' + (+p.aadt).toLocaleString() + ' vehicles/day' : ''}<br>${st.wet ? '<span style="color:#d7263d">water ' + st.cm + ' cm on the road</span>' : st.knock ? '<span style="color:#c96a00">next to a flooded road: detour traffic</span>' : 'dry'}`).addTo(map); });
     $('lyRoads').onchange = e => map.setLayoutProperty('roads', 'visibility', e.target.checked ? 'visible' : 'none');
     if (ROADCM) applyRoads(cur);
