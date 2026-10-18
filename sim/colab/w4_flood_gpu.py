@@ -134,13 +134,14 @@ if os.environ.get('INFLOW', '1') == '1':
             xg, yg = inv.transform(lon, lat); c = int((xg - x0) / RES); r = int((y1 - yg) / RES)
             if not (0 <= r < ny and 0 <= c < nx): continue
             w = int(600 / RES); r0_, r1_, c0_, c1_ = max(2, r - w), min(ny - 2, r + w + 1), max(2, c - w), min(nx - 2, c + w + 1)
-            win = np.where(sea[r0_:r1_, c0_:c1_], np.inf, Zc[r0_:r1_, c0_:c1_]); k_ = np.unravel_index(np.nanargmin(win), win.shape)
-            rr, cc = r0_ + int(k_[0]), c0_ + int(k_[1])
+            win = np.where(sea[r0_:r1_, c0_:c1_], np.inf, Zc[r0_:r1_, c0_:c1_])
+            flat = np.argsort(win, axis=None)[:12]; kk = np.unravel_index(flat, win.shape)          # the 12 lowest cells = the channel cross-section
+            rr, cc = (r0_ + kk[0]).astype(np.int64), (c0_ + kk[1]).astype(np.int64)
             ts = [pd.Timestamp(t_).tz_localize('America/New_York', ambiguous='NaT', nonexistent='shift_forward').tz_convert('UTC').tz_localize(None) for t_, _ in g['values']]
             qs = [float(v_) * 0.0283168 * sc for _, v_ in g['values']]
             keep = [i_ for i_, t_ in enumerate(ts) if not pd.isna(t_)]
-            INFLOW.append((rr, cc, name, np.array([ts[i_].value / 1e9 for i_ in keep]), np.array([qs[i_] for i_ in keep], np.float32)))
-            log(f'inflow: {name} at cell ({rr},{cc}), peak {max(qs):.0f} m3/s')
+            INFLOW.append((xp.asarray(rr), xp.asarray(cc), name, np.array([ts[i_].value / 1e9 for i_ in keep]), np.array([qs[i_] for i_ in keep], np.float32)))
+            log(f'inflow: {name} over {len(rr)} channel cells near ({int(rr[0])},{int(cc[0])}), peak {max(qs):.0f} m3/s')
     except Exception as e:
         log('no gauge inflows:', repr(e)[:120])
 # ---- 3c. road segments (the site's 52,698 segments) sampled every frame -> roads_cm.npy (uint8 depth in cm per segment per frame) ----
@@ -223,7 +224,7 @@ while kf < nfr:
     if INFLOW:
         tsec = t.value / 1e9
         for rr, cc, _, tq, qq in INFLOW:
-            sim.h[rr, cc] += float(np.interp(tsec, tq, qq)) * dt / (RES * RES)
+            sim.h[rr, cc] += float(np.interp(tsec, tq, qq)) * dt / (RES * RES * len(rr))
     fcap = ((fc + (f0 - fc) * xp.exp(-Finf / Fk)) * f_scale + drain_mmph) / 3.6e6 * dt
     loss = xp.minimum(sim.h, fcap); sim.h -= loss; Finf += loss * 1000.0
     t = t + pd.Timedelta(seconds=dt); steps += 1
@@ -232,7 +233,7 @@ hm = xp.asnumpy(sim.hmax) if hasattr(xp, 'asnumpy') else sim.hmax
 np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
 if ROAD is not None:
     np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); meta['roads'] = dict(segments=int(ROAD['n']), in_box=int(len(ROAD['inbox'])), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), file='roads_cm.npy (frames x segments, depth cm)')
-meta.update(inflows=[dict(name=n_, row=r_, col=c_, peak_m3s=round(float(q_.max()), 1)) for r_, c_, n_, _, q_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 1))
+meta.update(inflows=[dict(name=n_, cells=int(len(r_)), peak_m3s=round(float(q_.max()), 1)) for r_, c_, n_, _, q_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 1))
 json.dump(meta, open(f'{OUT}/meta.json', 'w'))
 log('run done:', meta['peak_wet_km2'], 'km2 peak wet,', steps, 'steps,', meta['runtime_s'], 's')
 # ---- 5. upload ----
