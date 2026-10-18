@@ -1073,10 +1073,10 @@ async function loadDrain(){ if (DRAIN) return DRAIN; const meta = await getJSON(
   const land = []; for (let i = 0; i < n; i += 7) if (F[i]) land.push(i);
   const lines = st.lines.map(([a, xy]) => { const out = new Float32Array(xy.length); for (let j = 0; j < xy.length; j += 2){ out[j] = xy[j]; out[j + 1] = mY(xy[j + 1]); } let b = [1e9, 1e9, -1e9, -1e9]; for (let j = 0; j < out.length; j += 2){ b[0] = Math.min(b[0], out[j]); b[2] = Math.max(b[2], out[j]); b[1] = Math.min(b[1], out[j + 1]); b[3] = Math.max(b[3], out[j + 1]); } return {a, c: out, bb: b}; }).sort((p, q) => p.a - q.a);
   const [lon0, lat0, lon1, lat1] = meta.bounds; DRAIN = {meta, F, w: im.width, h: im.height, land, lines, lon0, ww: lon1 - lon0, y0: mY(lat1), hh: mY(lat0) - mY(lat1)}; return DRAIN; }
-function drawStreams(){ const D = DRAIN; if (!D) return; const k = ps(), vb = viewBB(20), minA = mpp() > 300 ? 200 : mpp() > 120 ? 50 : mpp() > 40 ? 15 : 0;
+function drawStreams(){ const D = DRAIN; if (!D) return; const k = ps(), vb = viewBB(20), minA = mpp() > 300 ? 200 : mpp() > 120 ? 50 : mpp() > 40 ? 15 : 4;
   ctx.strokeStyle = C.river; ctx.lineCap = 'round';
   for (const L of D.lines){ if (L.a < minA || L.bb[2] < vb[0] || L.bb[0] > vb[2] || L.bb[3] < vb[1] || L.bb[1] > vb[3]) continue;
-    ctx.lineWidth = Math.min(6, 0.5 + 0.7 * Math.log10(L.a)) / k * (mpp() < 40 ? 1.6 : 1); ctx.globalAlpha = Math.min(0.9, 0.35 + 0.15 * Math.log10(L.a));
+    ctx.lineWidth = Math.min(4, 0.4 + 0.55 * Math.log10(L.a)) / k; ctx.globalAlpha = Math.min(0.75, 0.25 + 0.14 * Math.log10(L.a));
     ctx.beginPath(); ctx.moveTo(L.c[0], L.c[1]); for (let j = 2; j < L.c.length; j += 2) ctx.lineTo(L.c[j], L.c[j + 1]); ctx.stroke(); }
   ctx.globalAlpha = 1; }
 const DSTEP = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];   // N NE E SE S SW W NW (x, y)
