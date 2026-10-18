@@ -9,7 +9,10 @@ Model:  2-D local-inertial shallow water (sim/solver.py) on an EPSG:26986 grid, 
 Outputs on Hugging Face under runs/<RUN>_<RES>m/:  meta.json, frames f000.png.. (uint8 depth class, full grid),
         hmax.npy (float16 peak depth), roads.json (first/last/peak for District 3 segments when within the box).
 """
-import os, io, json, time, math, gzip, sys, urllib.request
+import os, io, json, time, math, gzip, sys, urllib.request, subprocess
+for mod, pkg in (('pygrib', 'pygrib'), ('pyproj', 'pyproj'), ('huggingface_hub', 'huggingface_hub'), ('PIL', 'pillow'), ('scipy', 'scipy'), ('pandas', 'pandas')):
+    try: __import__(mod)
+    except ImportError: subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', pkg], check=False)
 import numpy as np, requests
 RUN = os.environ.get('RUN', 'dec2023'); RES = float(os.environ.get('RES', '30')); DEV = os.environ.get('DEVICE', 'gpu')
 BOX = tuple(float(v) for v in os.environ.get('BOX', '120000,780000,340000,960000').split(','))      # Districts 3-6 (EPSG:26986)
