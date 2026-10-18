@@ -1,0 +1,43 @@
+name: USGS high-water marks to Hugging Face (run by hand)
+on: workflow_dispatch
+jobs:
+  hwm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests huggingface_hub
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, json, time, requests
+          from huggingface_hub import HfApi
+          B = 'https://api.waterdata.usgs.gov/stnservices'
+          def get(u):
+              for k in range(4):
+                  r = requests.get(u, timeout=120, headers={'Accept': 'application/json'})
+                  if r.status_code == 200:
+                      try: return r.json()
+                      except Exception: print('non-json', u, r.text[:120])
+                  else: print('http', r.status_code, u)
+                  time.sleep(5)
+              return None
+          ev = get(f'{B}/events/') or []; print('events', len(ev)); print(json.dumps(ev[0], indent=1)[:600] if ev else '')
+          # all MA marks: the HWMs endpoint supports a state filter; try the filtered endpoint first, then per event
+          hw = get(f'{B}/hwms/filteredhwms/?States=MA') or get(f'{B}/hwms/?States=MA') or get(f'{B}/hwms/filteredhwms/?States=MA&IncludeArchived=true')
+          print('MA hwms (filtered endpoint):', None if hw is None else len(hw))
+          if hw: print(json.dumps(hw[0], indent=1)[:900])
+          out = dict(events=ev, hwms_ma=hw, fetched=time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime()), source=B)
+          # per-event fallback for the two storms we need, if the filtered call failed
+          if not hw:
+              out['by_event'] = {}
+              for e in ev:
+                  nm = (e.get('event_name') or '').lower(); st = (e.get('event_start_date') or '')
+                  if ('2018' in st and ('nor' in nm or 'jan' in nm or 'march' in nm)) or ('2023' in st and ('sept' in nm or 'sep' in nm or 'july' in nm or 'dec' in nm)) or 'massachusetts' in nm or 'new england' in nm:
+                      h = get(f"{B}/events/{e['event_id']}/hwms/"); out['by_event'][e['event_id']] = dict(name=e.get('event_name'), start=st, hwms=h); print(e['event_id'], e.get('event_name'), st[:10], None if h is None else len(h))
+          json.dump(out, open('stn_hwms_ma.json', 'w'))
+          HfApi(token=os.environ['HF_TOKEN']).upload_file(path_or_fileobj='stn_hwms_ma.json', path_in_repo='data/stn_hwms_ma.json', repo_id='mohabeldokla/mass-flood-watch-tiles', repo_type='dataset')
+          print('uploaded', os.path.getsize('stn_hwms_ma.json') // 1024, 'KB')
+          PY
