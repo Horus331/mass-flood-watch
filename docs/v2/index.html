@@ -27,7 +27,7 @@ html,body{margin:0;height:100%;background:#dfe8ef;font:13px/1.35 system-ui,-appl
 <div id="map"></div>
 <div id="top" class="card"><h1 id="title">Mass Flood Watch · v2</h1><div class="sub" id="sub">GPU flood run at 30 m resolution, drawn as map tiles · Dec 2023 storm</div><span id="stage">work log…</span> <a href="../methods.html" style="font-size:11.5px;color:#1f6fd0;margin-left:6px">how it works</a> · <a href="../index.html" style="font-size:11.5px;color:#1f6fd0">main map</a></div>
 <div id="msg" class="card"></div>
-<div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m<br><span style="display:block;margin-top:4px"><i style="background:#d7263d"></i>road under ≥10 cm<br><i style="background:#f28c28"></i>next road over (detour load)</span></div>
+<div id="right"><div id="legend" class="card"><b>Water depth</b><br><i style="background:rgb(110,196,250)"></i>5–10 cm<br><i style="background:rgb(56,146,232)"></i>10–30 cm<br><i style="background:rgb(24,98,200)"></i>30 cm – 1 m<br><i style="background:rgb(12,54,140)"></i>1–2.5 m<br><i style="background:rgb(8,30,90)"></i>&gt; 2.5 m<br><span style="display:block;margin-top:4px"><i style="background:#d7263d"></i>road under ≥10 cm<br><i style="background:#f28c28"></i>dry but cut off, or next road over (detour)</span></div>
 <div id="layers" class="card"><b>Layers</b><label><input type="checkbox" id="lyWater" checked> Flood water</label><label><input type="checkbox" id="lyStreams" checked> Rivers &amp; streams</label><label><input type="checkbox" id="lyHwm"> USGS surveyed high-water marks</label><label><input type="checkbox" id="lyRoads" checked> Flooded roads + knock-on</label><label><input type="checkbox" id="lyRain"> Rain (coming)</label></div></div>
 <div id="play" class="card"><div class="row"><button id="btn">▶ Play</button><input type="range" id="sl" min="0" max="0" value="0"><span class="t" id="tm">loading run…</span><span id="fps" style="color:#8a9aa8;font-size:11px">– fps</span></div><div id="rd" style="color:#56687a;font-size:12px;margin-top:4px"></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -90,7 +90,11 @@ map.on('load', async () => {
     S.geo.forEach((parts, i) => { const lines = parts.map(d => { const c = []; let x = 0, y = 0; for (let j = 0; j < d.length; j += 2) { x += d[j]; y += d[j + 1]; c.push([x / 1e5, y / 1e5]); } return c; });
       feats.push({type: 'Feature', id: i, properties: {road: S.props.road[i] || '', town: S.props.town[i] || '', aadt: S.props.aadt[i] || 0}, geometry: lines.length === 1 ? {type: 'LineString', coordinates: lines[0]} : {type: 'MultiLineString', coordinates: lines}}); });
     const nb = Array.from({length: S.n}, () => []); for (const [a, b] of S.links) { nb[a].push(b); nb[b].push(a); }
-    ROADS = {n: S.n, nb};
+    const major = Uint8Array.from(S.props.cls, c => c >= 1 ? 1 : 0);
+    const reach = blocked => { const seen = new Uint8Array(S.n), q = new Int32Array(S.n); let h = 0, t = 0;
+      for (let i = 0; i < S.n; i++) if (major[i] && !blocked[i]) { seen[i] = 1; q[t++] = i; }
+      while (h < t) { const i = q[h++]; for (const v of nb[i]) if (!seen[v] && !blocked[v]) { seen[v] = 1; q[t++] = v; } } return seen; };
+    ROADS = {n: S.n, nb, reach, base: reach(new Uint8Array(S.n))};
     map.addSource('roads', {type: 'geojson', data: {type: 'FeatureCollection', features: feats}});
     map.addLayer({id: 'roads', type: 'line', source: 'roads', paint: {
       'line-color': ['case', ['boolean', ['feature-state', 'wet'], false], '#d7263d', ['boolean', ['feature-state', 'knock'], false], '#f28c28', '#9fb0c0'],
@@ -102,14 +106,16 @@ map.on('load', async () => {
   }).catch(() => {});
   function applyRoads(i){
     if (!ROADS || !ROADCM) return;
-    const row = ROADCM.subarray(i * ROADS.n, (i + 1) * ROADS.n), wet = new Set(), kn = new Set();
-    for (let k = 0; k < ROADS.n; k++) if (row[k] >= 10) wet.add(k);
+    const row = ROADCM.subarray(i * ROADS.n, (i + 1) * ROADS.n), wet = new Set(), kn = new Set(), blocked = new Uint8Array(ROADS.n);
+    for (let k = 0; k < ROADS.n; k++) if (row[k] >= 10) { wet.add(k); blocked[k] = 1; }
     for (const k of wet) for (const j of ROADS.nb[k]) if (!wet.has(j)) kn.add(j);
+    let nCut = 0;
+    if (wet.size) { const now = ROADS.reach(blocked); for (let k = 0; k < ROADS.n; k++) if (!blocked[k] && ROADS.base[k] && !now[k]) { kn.add(k); nCut++; } }
     for (const k of flooded) if (!wet.has(k)) map.setFeatureState({source: 'roads', id: k}, {wet: false, cm: 0});
     for (const k of knock) if (!kn.has(k)) map.setFeatureState({source: 'roads', id: k}, {knock: false});
     for (const k of wet) map.setFeatureState({source: 'roads', id: k}, {wet: true, cm: row[k]});
     for (const k of kn) map.setFeatureState({source: 'roads', id: k}, {knock: true});
-    flooded = wet; knock = kn; $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} road segments under water · ${kn.size.toLocaleString()} next to one` : 'no road under water yet';
+    flooded = wet; knock = kn; $('rd').textContent = wet.size ? `${wet.size.toLocaleString()} road segments under water · ${nCut.toLocaleString()} dry but cut off from any numbered route · ${(kn.size - nCut).toLocaleString()} carrying detour traffic` : 'no road under water yet';
   }
   window.applyRoads = applyRoads;
   // the GPU run
