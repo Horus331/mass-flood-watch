@@ -1,6 +1,6 @@
 """Statewide 30 m soil grids for the flood engine, from USDA SSURGO through Soil Data Access (free, no key).
 
-Outputs (EPSG:26986, same box as the statewide GPU run: x 120000..340000, y 780000..960000, 30 m -> 6000 x 7333):
+Outputs (EPSG:26986, whole state: x 30000..340000, y 780000..960000, 30 m -> 6000 x 10333):
     soils30.npz   hydgrp  uint8  hydrologic soil group: 1 A, 2 B, 3 C, 4 D, 5 A/D, 6 B/D, 7 C/D, 0 unknown/water/urban
                   ksat    uint8  saturated conductivity of the surface layer, mm/h (capped at 250)
                   wtd     uint8  shallowest annual water table, cm / 2 (0 = none reported within 2 m -> 255)
@@ -17,7 +17,7 @@ from rasterio.transform import from_origin
 from pyproj import Transformer
 
 SDA = 'https://sdmdataaccess.sc.egov.usda.gov/tabular/post.rest'
-BOX = (120000, 780000, 340000, 960000); RES = 30
+BOX = tuple(int(v) for v in os.environ.get('BOX', '30000,780000,340000,960000').split(',')); RES = 30   # whole state
 nx, ny = int((BOX[2] - BOX[0]) / RES), int((BOX[3] - BOX[1]) / RES)
 tr = from_origin(BOX[0], BOX[3], RES, RES)
 log = lambda *a: print(time.strftime('%H:%M:%S'), *a, flush=True)
