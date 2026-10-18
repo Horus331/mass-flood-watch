@@ -1,0 +1,15 @@
+name: SSURGO soils 30 m to Hugging Face (run by hand)
+on: workflow_dispatch
+jobs:
+  soils:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests numpy shapely rasterio pyproj huggingface_hub
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python sim/soils_sda.py
