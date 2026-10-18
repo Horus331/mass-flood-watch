@@ -175,8 +175,9 @@ if os.environ.get('SOILS', '1') == '1':
         SO = np.load(hf_hub_download(REPO, 'data/soils30/soils30.npz', repo_type='dataset', token=TOK)); SM = json.load(open(hf_hub_download(REPO, 'data/soils30/soils30_meta.json', repo_type='dataset', token=TOK)))
         if SM['box'] == list(BOX) and SM['res_m'] == RES:
             hg = SO['hydgrp']; wt = SO['wtd']
-        else:   # resample nearest to this grid
+        else:   # resample nearest to this grid (only if the run box lies inside the soils box)
             sx0, sy0, sx1, sy1 = SM['box']; sres = SM['res_m']
+            if not (x0 >= sx0 and y0 >= sy0 and x1 <= sx1 and y1 <= sy1): raise RuntimeError('run box outside the soils grid; run soils.yml for this area')
             rr_ = np.clip(((y1 - (np.arange(ny) + 0.5) * RES) - sy0) / sres, 0, SM['shape'][0] - 1).astype(int); rr_ = SM['shape'][0] - 1 - rr_
             cc_ = np.clip(((x0 + (np.arange(nx) + 0.5) * RES) - sx0) / sres, 0, SM['shape'][1] - 1).astype(int)
             hg = SO['hydgrp'][rr_][:, cc_]; wt = SO['wtd'][rr_][:, cc_]
