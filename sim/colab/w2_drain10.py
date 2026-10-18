@@ -41,10 +41,11 @@ for hu in HU4:
                 with open(z, 'wb') as f: shutil.copyfileobj(r.raw, f, 1 << 24)
         log(hu, 'downloaded', os.path.getsize(z) // 2**20, 'MB')
         d = f'{L}/{hu}'; os.makedirs(d, exist_ok=True)
-        subprocess.run(f'7z x -y -o{d} {z} "*fdr*" "*fac*" > /dev/null', shell=True)
+        subprocess.run(f'7z x -y -o{d} {z} -ir!fdr.tif -ir!fac.tif > /dev/null', shell=True)
+        log(hu, 'extracted:', [os.path.join(a, f) for a, _, fs in os.walk(d) for f in fs][:6])
         tifs = [os.path.join(a, f) for a, _, fs in os.walk(d) for f in fs if f.lower().endswith(('.tif', '.adf')) or f.lower() in ('hdr.adf',)]
-        fdr_p = next((os.path.join(a, f) for a, ds, fs in os.walk(d) for f in fs if re.search(r'fdr.*\.tif$', f.lower())), None) or next((a for a, ds, fs in os.walk(d) if os.path.basename(a).lower() == 'fdr'), None)
-        fac_p = next((os.path.join(a, f) for a, ds, fs in os.walk(d) for f in fs if re.search(r'fac.*\.tif$', f.lower())), None) or next((a for a, ds, fs in os.walk(d) if os.path.basename(a).lower() == 'fac'), None)
+        fdr_p = next((os.path.join(a, f) for a, ds, fs in os.walk(d) for f in fs if f.lower() == 'fdr.tif'), None)
+        fac_p = next((os.path.join(a, f) for a, ds, fs in os.walk(d) for f in fs if f.lower() == 'fac.tif'), None)
         log(hu, 'fdr', fdr_p, 'fac', fac_p)
         with rasterio.open(fdr_p) as A, rasterio.open(fac_p) as B:
             log(hu, 'crs', A.crs, 'res', A.res, 'shape', A.shape)
@@ -60,7 +61,7 @@ for hu in HU4:
             sel = code > 0
             FDR[r0:r0 + h, c0:c0 + w][sel] = code[sel]; LV[r0:r0 + h, c0:c0 + w][sel] = lv[sel]
             log(hu, f'placed at row {r0} col {c0}, {sel.mean() * 100:.0f}% cells with flow')
-        shutil.rmtree(d, ignore_errors=True); os.remove(z)
+        shutil.rmtree(d, ignore_errors=True)
     except Exception as e:
         log(hu, 'FAILED', repr(e)[:300])
 log(f'flow cells: {(FDR > 0).mean() * 100:.1f}% of the state box')
