@@ -313,7 +313,7 @@ if PHYS >= 2 and not os.environ.get('WET_START'):
         log('antecedent rain unavailable, using the storm default:', repr(e)[:120])
 if Finf0 is None: Finf0 = np.full((ny, nx), S['wet_start_mm'], np.float32)
 if FC_SCALE != 1 or os.environ.get('WET_START'): log(f'experiment: FC_SCALE {FC_SCALE}, wet_start {S["wet_start_mm"]} mm, tag {TAG!r}')
-Finf = xp.asarray(Finf0); WET0 = float(Finf0.mean()); del Finf0
+Finf = xp.asarray(Finf0); WET0 = float(Finf0.mean()); ANTE = Finf0.astype(np.float16); del Finf0      # ANTE kept (float16) for the ML corpus
 # per-cell outputs for the surrogate and the road layers: arrival frame, hours wet, peak speed, peak h*v
 T_FIRST = xp.full((ny, nx), 255, xp.uint8); DUR = xp.zeros((ny, nx), xp.uint8); VMAX = xp.zeros((ny, nx), xp.float32); HVMAX = xp.zeros((ny, nx), xp.float32)
 nfr = int(S['hours'] * 60 / S['frame_min']) + 1; frame_t = [t0 + pd.Timedelta(minutes=S['frame_min'] * i) for i in range(nfr)]
@@ -368,7 +368,7 @@ np.save(f'{OUT}/hmax.npy', hm.astype(np.float16)); np.save(f'{OUT}/hsnap.npy', (
 tonp = (lambda a: xp.asnumpy(a)) if hasattr(xp, 'asnumpy') else (lambda a: a)
 np.savez_compressed(f'{OUT}/rain_hourly.npz', mm=np.stack([RAIN[ts][::10, ::10] for ts in hours]).astype(np.float16), box=np.array(BOX), res_m=RES * 10,
                     hours=np.array([ts.strftime('%Y-%m-%dT%H:%MZ') for ts in hours]))      # for the ML corpus (sim/ml/dataset.py): hourly rain on a 10x coarser grid
-np.save(f'{OUT}/imp.npy', IMP.astype(np.float16)); np.save(f'{OUT}/ante.npy', np.asarray(Finf0, np.float32).astype(np.float16))    # paved fraction, starting soil store (mm)
+np.save(f'{OUT}/imp.npy', IMP.astype(np.float16)); np.save(f'{OUT}/ante.npy', ANTE)    # paved fraction, starting soil store (mm)
 np.save(f'{OUT}/z.npy', Z.astype(np.float32)); np.save(f'{OUT}/t_first.npy', tonp(T_FIRST)); np.save(f'{OUT}/dur.npy', tonp(DUR)); np.save(f'{OUT}/vmax.npy', tonp(VMAX).astype(np.float16)); np.save(f'{OUT}/hvmax.npy', tonp(HVMAX).astype(np.float16))
 meta['cell_outputs'] = dict(hmax='peak depth m (float16)', t_first='frame index when depth first >= 10 cm (255 = never)', dur='number of frames >= 10 cm', vmax='peak speed m/s (float16)', hvmax='peak depth*speed m2/s (float16)')
 meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited_infiltration=bool(PHYS >= 2), channels_burnt=int(chan.sum()), subgrid_channels=bool(SUBGRID), manning='0.035 water/channel, 0.10 dense urban, 0.08 other' if PHYS >= 2 else '0.06 uniform',
