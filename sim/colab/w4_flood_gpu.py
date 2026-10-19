@@ -24,6 +24,7 @@ STORMS = {'dec2023': dict(t0='2023-12-17T22:00Z', hours=48, frame_min=30, wet_st
           'jul2023_whetstone': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 2023 · Whetstone Brook reach (10 m resolution test)', box=(105000, 949400, 117600, 960000)),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, wet_start_mm=0.0, title='Leominster test')}
 S = STORMS[RUN]
+if os.environ.get('T0'): S = dict(S, t0=os.environ['T0'])      # smoke tests: start inside the storm so a short window has rain
 if os.environ.get('HOURS'): S = dict(S, hours=int(os.environ['HOURS']))      # smoke tests: run the whole script end to end on a short window
 # experiment knobs (validation-driven calibration): WET_START mm overrides the storm's antecedent wetness, FC_SCALE multiplies the
 # soil infiltration rates (0.5 = soils drink half as fast), TAG names the variant (runs/<RUN><TAG>_<RES>m)
