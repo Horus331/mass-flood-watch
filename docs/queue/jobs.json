@@ -75,176 +75,6 @@
   "est_h": 5
  },
  {
-  "id": "jul2023_southriver_v3dryK_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "GIT_SHA": "b7e2e6a1",
-   "TAG": "_v3dryK",
-   "KDEEP_SCALE": "3"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 4,
-  "after": [
-   "jul2023_southriver_v3brch2_10m"
-  ],
-  "only": [
-   "colab1",
-   "colab2",
-   "kaggle"
-  ],
-  "note": "drier-ground test: KDEEP_SCALE=3 | parked: dryA moved South River only -0.3 m; decide after brch2 (and add BREACH=1 if it becomes default)",
-  "est_h": 5
- },
- {
-  "id": "jul2023_southriver_v3dryAK_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "GIT_SHA": "b7e2e6a1",
-   "TAG": "_v3dryAK",
-   "ANTE_SCALE": "0.5",
-   "KDEEP_SCALE": "3"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 4,
-  "after": [
-   "jul2023_southriver_v3brch2_10m"
-  ],
-  "only": [
-   "colab1",
-   "colab2",
-   "kaggle"
-  ],
-  "note": "drier-ground test: ANTE_SCALE=0.5, KDEEP_SCALE=3 | parked: dryA moved South River only -0.3 m; decide after brch2 (and add BREACH=1 if it becomes default)",
-  "est_h": 5
- },
- {
-  "id": "jul2023_southriver_v3brch2_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "TAG": "_v3brch2",
-   "BREACH": "1",
-   "GIT_SHA": "b7e2e6a1"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 10,
-  "after": [
-   "smoke_b7e2e6a1"
-  ],
-  "only": [
-   "colab1",
-   "colab2",
-   "kaggle"
-  ],
-  "note": "channel breaching (cuts capped at 4 m per cell); baseline v3 10 m: South River +2.8, Avery +1.8, West Brook +0.8; gauge 01169900 +3.3",
-  "est_h": 5
- },
- {
-  "id": "smoke_41b4f62a",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "TAG": "_smoke_41b4f62a",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "HOURS": "3",
-   "T0": "2023-07-10T09:00",
-   "INFLOW": "0",
-   "BREACH": "1",
-   "RAIN_SCALE": "0.9",
-   "CHAN_D_SCALE": "1.2",
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 12,
-  "est_h": 0.4,
-  "note": "smoke at this commit with the new knobs set"
- },
- {
-  "id": "jul2023_whetstone_v3rain75_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_whetstone",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "BREACH": "1",
-   "GIT_SHA": "41b4f62a",
-   "TAG": "_v3rain75",
-   "RAIN_SCALE": "0.75"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 9,
-  "est_h": 0.8,
-  "after": [
-   "smoke_41b4f62a"
-  ],
-  "note": "Whetstone 10 m (35 min run) sensitivity, with breaching: rain x0.75. Baseline +1.88 m (breaching alone: +1.88)"
- },
- {
-  "id": "jul2023_whetstone_v3chan15_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_whetstone",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "BREACH": "1",
-   "GIT_SHA": "41b4f62a",
-   "TAG": "_v3chan15",
-   "CHAN_D_SCALE": "1.5",
-   "CHAN_W_SCALE": "1.5"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 9,
-  "est_h": 0.8,
-  "after": [
-   "smoke_41b4f62a"
-  ],
-  "note": "Whetstone 10 m (35 min run) sensitivity, with breaching: channel width and depth x1.5. Baseline +1.88 m (breaching alone: +1.88)"
- },
- {
   "id": "jul2023_whetstone_v3rain75chan15_10m",
   "kind": "storm",
   "env": {
@@ -361,5 +191,34 @@
   "priority": 11,
   "est_h": 0.3,
   "note": "score with stream gauges + sensitivity metrics for the scorecard"
+ },
+ {
+  "id": "jul2023_southriver_v3rc_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "41b4f62a",
+   "TAG": "_v3rc",
+   "RAIN_SCALE": "0.75",
+   "CHAN_D_SCALE": "1.5",
+   "CHAN_W_SCALE": "1.5"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 10,
+  "only": [
+   "colab1",
+   "colab2"
+  ],
+  "est_h": 3.5,
+  "note": "South River with rain x0.75 and channel x1.5 (the two knobs that each moved Whetstone ~0.5-0.6 m); breaching alone changed nothing (+2.90 vs +2.82)"
  }
 ]
