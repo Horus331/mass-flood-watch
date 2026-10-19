@@ -109,7 +109,7 @@ def run_tile(tile):
         dt = round(min(sim.stable_dt(cap=5.0), rem), 3)
         sim.step(dt, level=lvl_t(t)); t = t + pd.Timedelta(seconds=dt); steps += 1
     hm = xp.where(landg, sim.hmax, 0); hm = xp.asnumpy(hm) if hasattr(xp, 'asnumpy') else hm
-    np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
+    np.save(f'{OUT}/hmax.npy', hm.astype(np.float16)); np.save(f'{OUT}/z.npy', Z.astype(np.float32))     # z for the water-surface-elevation test
     meta.update(steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float((hm >= 0.1).sum() * RES * RES / 1e6), 2))
     json.dump(meta, open(f'{OUT}/meta.json', 'w'))
     files = sorted(os.listdir(OUT)); rem_dir = f'runs/{name}'
