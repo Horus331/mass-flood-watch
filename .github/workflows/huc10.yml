@@ -1,0 +1,15 @@
+name: HUC10 watershed grid 30 m to Hugging Face (run by hand)
+on: workflow_dispatch
+jobs:
+  huc10:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests numpy shapely rasterio pyproj huggingface_hub
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python sim/huc10_grid.py
