@@ -1,5 +1,26 @@
 [
  {
+  "id": "smoke_e31e82b5",
+  "kind": "storm",
+  "env": {
+   "RUN": "test_leominster",
+   "RES": "30",
+   "TAG": "_smoke_e31e82b5",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "HOURS": "2",
+   "BOX": "150000,905000,170000,925000",
+   "GIT_SHA": "e31e82b5"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 4,
+  "priority": 12,
+  "note": "2-hour end-to-end smoke test of the engine at this commit (catches end-of-script crashes before multi-hour runs)"
+ },
+ {
   "id": "sep2023_v3b_30m",
   "kind": "storm",
   "env": {
@@ -190,5 +211,90 @@
    "colab2",
    "kaggle"
   ]
+ },
+ {
+  "id": "jul2023_southriver_v3dryA_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "GIT_SHA": "e31e82b5",
+   "TAG": "_v3dryA",
+   "ANTE_SCALE": "0.5"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 9,
+  "after": [
+   "smoke_e31e82b5"
+  ],
+  "only": [
+   "colab2",
+   "kaggle"
+  ],
+  "note": "drier-ground test: ANTE_SCALE=0.5"
+ },
+ {
+  "id": "jul2023_southriver_v3dryK_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "GIT_SHA": "e31e82b5",
+   "TAG": "_v3dryK",
+   "KDEEP_SCALE": "3"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 9,
+  "after": [
+   "smoke_e31e82b5"
+  ],
+  "only": [
+   "colab2",
+   "kaggle"
+  ],
+  "note": "drier-ground test: KDEEP_SCALE=3"
+ },
+ {
+  "id": "jul2023_southriver_v3dryAK_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "GIT_SHA": "e31e82b5",
+   "TAG": "_v3dryAK",
+   "ANTE_SCALE": "0.5",
+   "KDEEP_SCALE": "3"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 8,
+  "after": [
+   "smoke_e31e82b5"
+  ],
+  "only": [
+   "colab2",
+   "kaggle"
+  ],
+  "note": "drier-ground test: ANTE_SCALE=0.5, KDEEP_SCALE=3"
  }
 ]
