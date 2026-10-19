@@ -294,7 +294,7 @@ IMPg = xp.asarray(IMP); f_scale = (1.0 - 0.9 * IMPg) * FC_SCALE
 drain_mmph = xp.where(IMPg > 0.05, 7.0 * IMPg, 0.0) if PHYS >= 2 else 2.0 + 5.0 * IMPg      # storm drains exist only where there is pavement
 WATERg = xp.asarray(water | sea)                                                              # no infiltration or drains from rivers, lakes and the sea
 # antecedent soil water: 14-day MRMS rain before the storm minus 3 mm/day evapotranspiration (replaces the hand-set wet_start)
-Finf0 = None
+Finf0 = None; ANTE_DAYS = 0
 if PHYS >= 2 and not os.environ.get('WET_START'):
     try:
         api_mm = np.zeros((ny, nx), np.float32); got_d = 0
@@ -308,8 +308,9 @@ if PHYS >= 2 and not os.environ.get('WET_START'):
                 fi = RegularGridInterpolator((lat1d[i0:i1][::-1], lon1d[j0:j1]), v[i0:i1, j0:j1][::-1], bounds_error=False, fill_value=0)
                 LA, LO = np.meshgrid(lat_c, lon_c, indexing='ij'); api_mm += fi((LA, LO)).astype(np.float32); got_d += 1
             except Exception: pass
-        api_mm = np.maximum(api_mm - 3.0 * 14, 0)
-        Finf0 = np.clip(0.6 * api_mm, 0, 0.9 * Scap).astype(np.float32)
+        if got_d < 12: raise RuntimeError(f'only {got_d}/14 antecedent days downloaded')      # a partial sum would start the soil silently too dry
+        api_mm = np.maximum(api_mm * (14.0 / got_d) - 3.0 * 14, 0)
+        Finf0 = np.clip(0.6 * api_mm, 0, 0.9 * Scap).astype(np.float32); ANTE_DAYS = got_d
         log(f'antecedent: {got_d}/14 days of MRMS, 14-day rain mean {float((api_mm + 42).mean()):.0f} mm -> soil store starts {float(Finf0.mean()):.0f} mm full of {float(Scap.mean()):.0f}')
     except Exception as e:
         log('antecedent rain unavailable, using the storm default:', repr(e)[:120])
@@ -329,7 +330,7 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
-meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None
 while kf < nfr:
@@ -384,10 +385,11 @@ json.dump(meta, open(f'{OUT}/meta.json', 'w'))
 log('run done:', meta['peak_wet_km2'], 'km2 peak wet,', steps, 'steps,', meta['runtime_s'], 's')
 # ---- 5. upload ----
 from huggingface_hub import CommitOperationAdd
-files = sorted(os.listdir(OUT)); rem_dir = f'runs/{RUN}{TAG}_{RES:.0f}m'
+files = sorted(f for f in os.listdir(OUT) if f != 'meta.json') + ['meta.json']; rem_dir = f'runs/{RUN}{TAG}_{RES:.0f}m'     # meta.json last: its presence on HF means 'run complete'
 for i in range(0, len(files), 25):
     ops = [CommitOperationAdd(path_in_repo=f'{rem_dir}/{f}', path_or_fileobj=f'{OUT}/{f}') for f in files[i:i + 25]]
     for k_ in range(5):
         try: api.create_commit(REPO, repo_type='dataset', operations=ops, commit_message=f'{rem_dir} {i + 1}-{i + len(ops)}'); break
         except Exception as e: log('  retry', k_, repr(e)[:120]); time.sleep(10 + 20 * k_)
+    else: log('UPLOAD FAILED for', files[i:i + 25][:3], '...'); sys.exit(1)      # never report a half-uploaded run as done
 log('uploaded to', rem_dir, '| ALL DONE')

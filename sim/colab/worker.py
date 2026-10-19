@@ -43,7 +43,7 @@ def read_status():
     for s in info.siblings:
         if s.rfilename.startswith('queue/status/') and s.rfilename.endswith('.json'):
             try: st[s.rfilename.split('/')[-1][:-5]] = json.load(open(hf_hub_download(REPO, s.rfilename, repo_type='dataset', token=TOK, revision=rev, force_download=True)))
-            except Exception as e: log('status read failed', s.rfilename, repr(e)[:80])
+            except Exception as e: raise RuntimeError(f'status read failed {s.rfilename}: {e!r}'[:160])      # a missing status would make that job look queued: skip this poll instead
     return st, rev
 
 def write_status(jid, d, parent=None):
@@ -61,7 +61,7 @@ def owns(jid, s):
     try:
         cur = json.load(open(hf_hub_download(REPO, f'queue/status/{jid}.json', repo_type='dataset', token=TOK, force_download=True)))
         return cur.get('worker') == WORKER and abs(cur.get('started', 0) - s['started']) < 1
-    except Exception as e: log('owner check failed (assuming still ours)', repr(e)[:80]); return True
+    except Exception as e: log('owner check failed', repr(e)[:80]); return None      # unknown: callers skip the write rather than risk overwriting a newer claim
 
 def run_exists(run_dir):
     try: return api.file_exists(REPO, f'{run_dir}/meta.json', repo_type='dataset', token=TOK)
@@ -101,8 +101,9 @@ def run_job(j, sha):
             if time.time() - last_hb > 300:
                 last_hb = time.time()
                 try:
-                    st = json.load(open(f'{WORK}/st_{j["id"]}.json'))
-                    if not owns(j['id'], st):
+                    st = json.load(open(f'{WORK}/st_{j["id"]}.json')); o = owns(j['id'], st)
+                    if o is None: last_hb = time.time() - 240; continue      # could not check: try again in ~1 min, do not write
+                    if not o:
                         p.kill(); lf.write('\n===== claim taken over by another worker: stopping =====\n'); lf.close(); return None, 'taken over', logp
                     st.update(heartbeat=time.time(), step=step, elapsed_s=round(time.time() - t0))
                     json.dump(st, open(f'{WORK}/st_{j["id"]}.json', 'w')); write_status(j['id'], st)
@@ -133,7 +134,9 @@ def main():
         s.update(state='done' if ok else 'failed', finished=time.time(), note=note, elapsed_s=round(time.time() - s['started']))
         for k in range(5):
             try:
-                if not owns(j['id'], s): log(j['id'], 'finished but the claim moved on; status left alone'); break
+                o = owns(j['id'], s)
+                if o is None: raise RuntimeError('owner check failed')
+                if not o: log(j['id'], 'finished but the claim moved on; status left alone'); break
                 write_status(j['id'], s)
                 if logp: api.upload_file(path_or_fileobj=logp, path_in_repo=f'queue/logs/{j["id"]}.log', repo_id=REPO, repo_type='dataset', commit_message=f'queue: log {j["id"]}')
                 break
