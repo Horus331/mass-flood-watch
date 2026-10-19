@@ -24,7 +24,9 @@ from huggingface_hub.utils import HfHubHTTPError
 REPO = 'mohabeldokla/mass-flood-watch-tiles'; GH = 'Horus331/mass-flood-watch'
 TOK = os.environ['HF_TOKEN']; api = HfApi(token=TOK)
 WORKER = os.environ.get('WORKER', socket.gethostname()); GPU_GB = float(os.environ.get('GPU_GB', '22')); WORK = os.environ.get('WORK', '/content')
-POLL = int(os.environ.get('POLL_S', '120')); os.makedirs(WORK, exist_ok=True); os.makedirs('/content', exist_ok=True)
+POLL = int(os.environ.get('POLL_S', '120')); os.makedirs(WORK, exist_ok=True)
+try: os.makedirs('/content', exist_ok=True)       # the step scripts still write under /content (true on Colab and Kaggle, which run as root)
+except OSError: pass
 log = lambda *a: print(time.strftime('%H:%M:%S'), *a, flush=True)
 
 def gh_json(path, ref='main'):
@@ -48,6 +50,19 @@ def write_status(jid, d, parent=None):
     api.upload_file(path_or_fileobj=json.dumps(d, indent=1).encode(), path_in_repo=f'queue/status/{jid}.json', repo_id=REPO, repo_type='dataset',
                     commit_message=f'queue: {jid} {d.get("state")} ({WORKER})', parent_commit=parent)
 
+def job_run_dir(j, env=None):
+    """Where the job's run lives on HF.  Storm jobs: exactly what w4 uploads to (runs/<RUN><TAG>_<RES:.0f>m), ignoring any run_dir."""
+    e = dict(j.get('env', {}), **(env or {}))
+    if j.get('kind', 'storm') == 'storm': return f"runs/{e.get('RUN', '')}{e.get('TAG', '')}_{float(e.get('RES', '30')):.0f}m"
+    return j.get('run_dir') or e.get('RUN_DIR', '')
+
+def owns(jid, s):
+    """True while the status on HF still names this worker and this claim (another worker may have re-queued a job it thought stale)."""
+    try:
+        cur = json.load(open(hf_hub_download(REPO, f'queue/status/{jid}.json', repo_type='dataset', token=TOK, force_download=True)))
+        return cur.get('worker') == WORKER and abs(cur.get('started', 0) - s['started']) < 1
+    except Exception as e: log('owner check failed (assuming still ours)', repr(e)[:80]); return True
+
 def run_exists(run_dir):
     try: return api.file_exists(REPO, f'{run_dir}/meta.json', repo_type='dataset', token=TOK)
     except Exception: return False
@@ -58,11 +73,11 @@ def pick(jobs, st):
         s = st.get(j['id'], {}); state = s.get('state', 'queued')
         if state == 'done': return False
         if state == 'running' and now - s.get('heartbeat', s.get('started', 0)) < 2400: return False      # alive
-        if state == 'failed' and s.get('attempts', 1) >= 2: return False
+        if state in ('failed', 'running') and s.get('attempts', 1) >= 2: return False      # a job that killed its runtime twice needs a human look
         if j.get('gpu_gb', 10) > GPU_GB: return False
         if any(st.get(a, {}).get('state') != 'done' for a in j.get('after', [])): return False
         if j.get('only') and WORKER not in j['only']: return False
-        if j.get('requires_run_dir') and not run_exists(j.get('run_dir') or ''): return False      # post-processing of a run made outside the queue: wait until its meta.json is on HF
+        if j.get('requires_run_dir') and not run_exists(job_run_dir(j)): return False      # post-processing of a run made outside the queue: wait until its meta.json is on HF
         return True
     c = [j for j in jobs if runnable(j)]
     c.sort(key=lambda j: (-j.get('priority', 5), j['id']))
@@ -75,7 +90,8 @@ def fetch_scripts(sha):
 STEP = {'w4': 'w4_flood_gpu.py', 'w5': 'w5_tiles.py', 'w6': 'w6_validate.py', 'w8': 'w8_coast_gpu.py'}
 def run_job(j, sha):
     env = dict(os.environ, HF_TOKEN=TOK, GIT_SHA=j.get('env', {}).get('GIT_SHA', sha), WORKER=WORKER); env.update({k: str(v) for k, v in j.get('env', {}).items()})
-    run_dir = j.get('run_dir') or f"runs/{env.get('RUN', '')}{env.get('TAG', '')}_{env.get('RES', '30')}m"; env.setdefault('RUN_DIR', run_dir)
+    fetch_scripts(env['GIT_SHA'])          # step scripts at the same commit as the files they fetch (and pick up fixes pushed since the worker started)
+    env['RUN_DIR'] = job_run_dir(j, env)
     logp = f'{WORK}/job_{j["id"]}.out'; lf = open(logp, 'a'); t0 = time.time(); last_hb = 0
     for step in j.get('steps', ['w4', 'w5', 'w6']):
         lf.write(f'\n===== {step} {time.strftime("%Y-%m-%d %H:%M:%S")} =====\n'); lf.flush()
@@ -85,12 +101,15 @@ def run_job(j, sha):
             if time.time() - last_hb > 300:
                 last_hb = time.time()
                 try:
-                    st = json.load(open(f'{WORK}/st_{j["id"]}.json')); st.update(heartbeat=time.time(), step=step, elapsed_s=round(time.time() - t0))
+                    st = json.load(open(f'{WORK}/st_{j["id"]}.json'))
+                    if not owns(j['id'], st):
+                        p.kill(); lf.write('\n===== claim taken over by another worker: stopping =====\n'); lf.close(); return None, 'taken over', logp
+                    st.update(heartbeat=time.time(), step=step, elapsed_s=round(time.time() - t0))
                     json.dump(st, open(f'{WORK}/st_{j["id"]}.json', 'w')); write_status(j['id'], st)
                     api.upload_file(path_or_fileobj=logp, path_in_repo=f'queue/logs/{j["id"]}.log', repo_id=REPO, repo_type='dataset', commit_message=f'queue: log {j["id"]}')
                 except Exception as e: log('heartbeat failed', repr(e)[:100])
-        if p.returncode != 0: return False, f'{step} exited {p.returncode}', logp
-    return True, 'ok', logp
+        if p.returncode != 0: lf.close(); return False, f'{step} exited {p.returncode}', logp
+    lf.close(); return True, 'ok', logp
 
 def main():
     sha = os.environ.get('GIT_SHA') or gh_sha(); fetch_scripts(sha); log(f'worker {WORKER}: {GPU_GB} GB, scripts at {sha[:8]}')
@@ -102,16 +121,19 @@ def main():
         if j is None:
             if os.environ.get('ONCE'): log('nothing to do'); return
             log('idle'); time.sleep(POLL); continue
-        prev = st.get(j['id'], {}); s = dict(state='running', worker=WORKER, started=time.time(), heartbeat=time.time(), attempts=prev.get('attempts', 0) + 1, git=sha[:8])
+        prev = st.get(j['id'], {}); s = dict(state='running', worker=WORKER, started=time.time(), heartbeat=time.time(), attempts=prev.get('attempts', 0) + 1, git=j.get('env', {}).get('GIT_SHA', sha)[:8])
         try: write_status(j['id'], s, parent=rev)
-        except HfHubHTTPError as e:
-            log('claim lost', j['id'], repr(e)[:80]); time.sleep(5); continue
+        except Exception as e:      # 412 = someone committed since we read (claim lost or just a busy repo); anything else = network/HF trouble
+            code = getattr(getattr(e, 'response', None), 'status_code', None)
+            log('claim lost' if code == 412 else 'claim failed', j['id'], code, repr(e)[:80]); time.sleep(5 if code == 412 else POLL); continue
         json.dump(s, open(f'{WORK}/st_{j["id"]}.json', 'w')); log('claimed', j['id'], j.get('env'))
         try: ok, note, logp = run_job(j, sha)
         except Exception: ok, note, logp = False, traceback.format_exc()[-400:], None
+        if ok is None: log(j['id'], 'taken over by another worker; not touching its status'); continue
         s.update(state='done' if ok else 'failed', finished=time.time(), note=note, elapsed_s=round(time.time() - s['started']))
         for k in range(5):
             try:
+                if not owns(j['id'], s): log(j['id'], 'finished but the claim moved on; status left alone'); break
                 write_status(j['id'], s)
                 if logp: api.upload_file(path_or_fileobj=logp, path_in_repo=f'queue/logs/{j["id"]}.log', repo_id=REPO, repo_type='dataset', commit_message=f'queue: log {j["id"]}')
                 break
@@ -119,4 +141,9 @@ def main():
         log(j['id'], s['state'], note)
         if os.environ.get('ONCE'): return
 
-if __name__ == '__main__': main()
+def forever():
+    while True:      # a crash of the loop (network blip, HF 5xx) must not leave the GPU idle
+        try: main(); return
+        except Exception: log('worker loop crashed, restarting in 60 s:', traceback.format_exc()[-300:]); time.sleep(60)
+
+if __name__ == '__main__': forever()

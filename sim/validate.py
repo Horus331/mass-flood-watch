@@ -15,7 +15,7 @@ import os, sys, json, math
 import numpy as np
 
 def main(run_dir, hwm_path=None, reports_path=None):
-    meta = json.load(open(os.path.join(run_dir, 'meta.json'))); hm = np.load(os.path.join(run_dir, 'hmax.npy')).astype(np.float32)
+    meta = json.load(open(os.path.join(run_dir, 'meta.json'))); hm = np.nan_to_num(np.load(os.path.join(run_dir, 'hmax.npy')).astype(np.float32), nan=0.0, posinf=0.0)     # a NaN cell would poison argmax and write bare NaN into the JSON
     x0, y0, x1, y1 = meta['box']; res = meta['res_m']; ny, nx = hm.shape
     from pyproj import Transformer
     tr = Transformer.from_crs(4326, 26986, always_xy=True)
@@ -93,7 +93,7 @@ def main(run_dir, hwm_path=None, reports_path=None):
             v = at(lon, lat, 100)
             if v is not None: rand.append(v >= 0.1)
         out['reports'] = dict(n_storm_day=len(hit), hit_rate=round(float(np.mean(hit)), 3) if hit else None, any_day_rate=round(float(np.mean(rand)), 3) if rand else None)
-    json.dump(out, open(os.path.join(run_dir, 'validation.json'), 'w'), indent=1)
+    json.dump(out, open(os.path.join(run_dir, 'validation.json'), 'w'), indent=1, allow_nan=False)
     print(json.dumps({k: v for k, v in out.items() if k != 'hwm'} | ({'hwm': {k: v for k, v in out['hwm'].items() if k not in ('rows',)}} if 'hwm' in out else {}), indent=1))
     return out
 
