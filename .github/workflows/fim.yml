@@ -1,0 +1,36 @@
+name: NOAA HAND-FIM flood-depth maps from NWM flows to Hugging Face (run by hand)
+on:
+  workflow_dispatch:
+    inputs:
+      storms:
+        description: "comma list: jul2023, sep2023, dec2023, jan2024"
+        default: "jul2023"
+      hucs:
+        description: "comma list of HUC8 codes and/or groups west, east, all (west is processed and published first)"
+        default: "west,east"
+      extra:
+        description: "extra flags, e.g. --branch0-only or --hand-version hand_fim_4_8_7_2"
+        default: ""
+        required: false
+jobs:
+  fim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q rasterio numpy pandas xarray netCDF4 h5py requests huggingface_hub boto3 pyproj
+      - run: python sim/fim_maps.py --selftest
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PYTHONUNBUFFERED: "1"
+          STORMS: ${{ inputs.storms }}
+          HUCS: ${{ inputs.hucs }}
+          EXTRA: ${{ inputs.extra }}
+        run: python sim/fim_maps.py --storms "$STORMS" --hucs "$HUCS" $EXTRA
+      - if: always()
+        run: |
+          df -h . | tail -1
+          for f in out/fim/fim_*/summary.json; do echo "== $f"; head -c 4000 "$f"; echo; done
