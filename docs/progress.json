@@ -45,6 +45,10 @@
  ],
  "updates": [
   {
+   "t": "Mon Oct 19, 10:25 AM",
+   "text": "Smoke at 618ef364 passed (3 h inside the July storm, 7 min), but its breaching log showed cuts up to 20 m (channel fragments flooded from their upstream end were carved all the way down). Capped every cut at 4 m per cell (b7e2e6a1), cancelled the uncapped brch run with the new queue-cancel workflow (worker dropped it within 5 min), queued smoke_b7e2e6a1 -> brch2. Side effect worth noting: with breaching the smoke's time step was ~0.9-1.0 s vs 0.5 s before."
+  },
+  {
    "t": "Mon Oct 19, 9:17 AM",
    "text": "Result: roughness x0.7 (South River 10 m) barely moves water levels — South River +2.80 (was +2.82), Avery +1.73 (+1.80), West Brook +0.64 (+0.76). Roughness is not the cause; dropped the x1.3 run. Baseline re-scored with gauges: Deerfield at W Deerfield -0.4 m, South River near Conway +3.3 m, 01171000 +0.6 m, Connecticut 01170500 -3.0 m (no upstream Connecticut inflow in this box, expected). First smoke at ef9022f4 found no rain in a 2 h window from the storm start: added T0 so smoke tests start inside the storm; requeued as smoke_618ef364."
   },
@@ -199,10 +203,6 @@
   {
    "t": "Sat Oct 17, 9:10 PM",
    "text": "Stage 1 done: 10 m elevation, 10 m drainage, and the full USGS river network (213,719 flowlines) are on Hugging Face. Switched Colab to an L4 GPU (24 GB) with high RAM; starting stage 2, the GPU flood engine. Note: USGS high-water marks download failed (service returned no data); will retry via a different route."
-  },
-  {
-   "t": "Sat Oct 17, 9:08 PM",
-   "text": "10 m drainage is live on the site: zoom into any town under Now → Where rain goes and the drops switch to the USGS 10 m flow grid (real rivers burned in), streamed from Hugging Face tile by tile."
   }
  ]
 }
