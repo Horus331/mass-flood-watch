@@ -262,6 +262,7 @@ else:
 # Manning n: channels and open water 0.035, dense urban 0.10, everything else 0.08 (forest/field/suburban mix) until NLCD classes are wired in
 IMPg_np = IMP
 N_MAP = np.where(water | chan, 0.035, np.where(IMPg_np > 0.3, 0.10, 0.08)).astype(np.float32) if PHYS >= 2 else np.full((ny, nx), 0.06, np.float32)
+N_SCALE = float(os.environ.get('N_SCALE', '1')); N_MAP = (N_MAP * N_SCALE).astype(np.float32)      # roughness sensitivity (protocol ensemble: Manning +-30 %)
 # ---- 3e. tide: sea cells held at the observed water level (compound rain + tide flooding) instead of a sink ----
 TIDE = None
 if PHYS >= 2 and os.environ.get('TIDE', '1') == '1' and sea.any():
@@ -325,15 +326,16 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
-meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm']), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
-t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None
+t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None
 while kf < nfr:
     if t >= frame_t[kf]:
         wet, deep = save_frame(kf, sim.h); road_sample(kf, sim.h)
         if TIDE is not None: hl = xp.where(sim.fixed, 0, sim.h)
         else: hl = sim.h
         wetm = hl >= 0.1; T_FIRST = xp.where(wetm & (T_FIRST == 255), kf, T_FIRST).astype(xp.uint8); DUR += wetm.astype(xp.uint8)
+        HSNAP = hl.copy() if HSNAP is None else xp.maximum(HSNAP, hl)      # peak of the 30-min snapshots: insensitive to single-step spikes, unlike sim.hmax
         vel = sim.velocity(); VMAX = xp.maximum(VMAX, vel); HVMAX = xp.maximum(HVMAX, vel * hl); road_sample_v(kf, vel, hl)
         meta['frames'].append(dict(t=frame_t[kf].strftime('%Y-%m-%dT%H:%MZ'), wet_km2=round(wet, 1), deep_km2=round(deep, 1), soaked_mm=round(float(Finf.mean()) - WET0, 1)))
         log(f'frame {kf}/{nfr - 1} {frame_t[kf]:%m-%d %H:%M}Z wet {wet:.0f} km2 deep {deep:.0f} km2 | {steps} steps | {time.time() - tstart:.0f}s'); kf += 1
@@ -362,7 +364,7 @@ while kf < nfr:
     if steps % 2000 == 0: log(f'   step {steps} t {t:%H:%M} dt {dt:.2f}s hmax {float(sim.h.max()):.2f} m | {time.time() - tstart:.0f}s')
 hmx = xp.where(sim.fixed, 0, sim.hmax) if TIDE is not None else sim.hmax
 hm = xp.asnumpy(hmx) if hasattr(xp, 'asnumpy') else hmx
-np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
+np.save(f'{OUT}/hmax.npy', hm.astype(np.float16)); np.save(f'{OUT}/hsnap.npy', (xp.asnumpy(HSNAP) if hasattr(xp, 'asnumpy') else HSNAP).astype(np.float16))
 tonp = (lambda a: xp.asnumpy(a)) if hasattr(xp, 'asnumpy') else (lambda a: a)
 np.savez_compressed(f'{OUT}/rain_hourly.npz', mm=np.stack([RAIN[ts][::10, ::10] for ts in hours]).astype(np.float16), box=np.array(BOX), res_m=RES * 10,
                     hours=np.array([ts.strftime('%Y-%m-%dT%H:%MZ') for ts in hours]))      # for the ML corpus (sim/ml/dataset.py): hourly rain on a 10x coarser grid
