@@ -1,0 +1,17 @@
+name: NWM vs USGS streamflow comparison to Hugging Face (run by hand)
+on: workflow_dispatch
+jobs:
+  nwm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests numpy netCDF4 huggingface_hub
+      - run: python sim/nwm_compare.py --selftest
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PYTHONUNBUFFERED: "1"
+        run: python sim/nwm_compare.py
