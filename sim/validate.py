@@ -43,8 +43,9 @@ def main(run_dir, hwm_path=None, reports_path=None):
         x, y = tr.transform(lon, lat); c = int(math.floor((x - x0) / res)); r = int(math.floor((y1 - y) / res))
         k = int(math.ceil(radius_m / res)); r0, r1, c0, c1 = max(0, r - k), min(ny, r + k + 1), max(0, c - k), min(nx, c + k + 1)
         if r0 >= r1 or c0 >= c1: return None
-        hh = hm[r0:r1, c0:c1]; zz = Z[r0:r1, c0:c1]; wet = hh >= 0.05
-        return float((zz + hh)[wet].max()) if wet.any() else None
+        hh = hm[r0:r1, c0:c1]; zz = Z[r0:r1, c0:c1]
+        if hh.max() < 0.05: return None
+        i = int(np.argmax(hh)); return float(zz.ravel()[i] + hh.ravel()[i])     # WSE at the deepest cell (the channel / flooded floor), not the highest wet cell: a hillside with 5 cm of sheet flow 6 m up-slope would otherwise win
     if hwm_path and os.path.exists(hwm_path):
         H = json.load(open(hwm_path)); C = {c: i for i, c in enumerate(H['columns'])}; rows = []
         evs = {int(k) for k, e in H['events'].items() if e['start'] <= max(days) and e['end'] >= min(days)}
@@ -74,7 +75,7 @@ def main(run_dir, hwm_path=None, reports_path=None):
                     o2 = np.array([a for a, _ in dep]); m2 = np.array([b for _, b in dep])
                     d.update(n_depth=len(dep), bias_m=round(float((m2 - o2).mean()), 2), mae_m=round(float(np.abs(m2 - o2).mean()), 2), within_50cm=round(float((np.abs(m2 - o2) <= 0.5).mean()), 2))
                 return d
-            out['hwm'] = score(rows); out['hwm']['note'] = ('wse_*: model water-surface elevation (z + peak depth, wettest cell within 60 m) vs surveyed mark elevation NAVD88; '
+            out['hwm'] = score(rows); out['hwm']['note'] = ('wse_*: model water-surface elevation (z + peak depth at the deepest cell within 60 m) vs surveyed mark elevation NAVD88; '
                                                             'bias/mae/within_50cm: depth above ground at the mark cell, marks with height above ground > 0 only; wet_within_30m: any water >= 10 cm within 30 m')
             out['hwm']['by_reach'] = {k: score([x for x in rows if x['reach'] == k]) for k in sorted({x['reach'] for x in rows}) if sum(1 for x in rows if x['reach'] == k) >= 3}
             cst = [x for x in rows if x['env'] == 'Coastal']
