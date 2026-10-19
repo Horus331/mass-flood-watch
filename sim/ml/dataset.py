@@ -71,7 +71,9 @@ def state_grid(F, npz_path, fields, box, res, shape):
 
 def tiles10(F, tdir, box, res, shape, kind='png'):
     """Assemble 10 m tiles (index.json: key -> {x, y, valid}, tiles of T m) over the run box and average to the run resolution (w4 logic, local dir)."""
-    idx = json.load(open(F.fetch(f'{tdir}/index.json'))); T = float(idx.pop('_tile_m', 20000))                       # HF tiles are 20 km; the selftest writes smaller ones
+    ip = F.fetch(f'{tdir}/index.json', required=False)
+    if ip is None: ip = F.fetch(f'{os.path.dirname(tdir.rstrip("/"))}/dem10/index.json')       # HF data/nlcd10 has no index of its own: it shares the DEM's 20 km tile keys (as in w4)
+    idx = json.load(open(ip)); T = float(idx.pop('_tile_m', 20000))                       # HF tiles are 20 km; the selftest writes smaller ones
     x0, y0, x1, y1 = box; k = int(round(res / 10)); ny, nx = shape; nx10, ny10 = nx * k, ny * k
     A = np.full((ny10, nx10), np.nan, np.float32); got = 0
     for key, v in idx.items():
