@@ -81,8 +81,8 @@ def score(df, P, H, T, D):
         for th in DEPTH_TH: out[f'{pre}csi_{int(th * 100)}cm'] = rates(df['hmax'].values >= th, H >= th, ww)['csi']; out[f'{pre}f1_{int(th * 100)}cm'] = rates(df['hmax'].values >= th, H >= th, ww)['f1']
     err = np.abs(H[y] - df['hmax'].values[y]); out['depth_mae_wet_m'] = float(err.mean()) if y.any() else np.nan; out['depth_within50_wet'] = float((err <= WITHIN_M).mean()) if y.any() else np.nan
     both = y & pw; out['n_both_wet'] = int(both.sum())
-    out['t_first_mae_h'] = float(np.abs(T[both] - df['t_first_h'].values[both]).mean()) if both.any() else np.nan
-    out['dur_mae_h'] = float(np.abs(D[both] - df['dur_h'].values[both]).mean()) if both.any() else np.nan
+    out['t_first_mae_h'] = float(np.nanmean(np.abs(T[both] - df['t_first_h'].values[both]))) if both.any() else np.nan
+    out['dur_mae_h'] = float(np.nanmean(np.abs(D[both] - df['dur_h'].values[both]))) if both.any() else np.nan
     out['depth_mae_all_m'] = float(np.average(np.abs(H - df['hmax'].values), weights=w))                      # population-weighted, dry cells included (pred 0 where P < 0.5)
     return out
 
@@ -97,7 +97,8 @@ def crossval(df, feats, group, n_iter, seed, min_group_rows=200):
         if df['wet'].values[tr].min() == df['wet'].values[tr].max() or wet_tr.sum() < 20: log(f'   skip fold {g}: training wet/dry degenerate'); continue
         pc, mc = fit_cls(X[tr], df['wet'].values[tr], df['weight'].values[tr], n_iter, seed); P[te] = pc(X[te]); imps.append(importance(mc, feats))
         H[te] = np.expm1(fit_reg(X[wet_tr], np.log1p(df['hmax'].values[wet_tr]), n_iter, seed)(X[te])) * (P[te] >= 0.5)
-        T[te] = fit_reg(X[wet_tr], df['t_first_h'].values[wet_tr], n_iter, seed)(X[te]); D[te] = fit_reg(X[wet_tr], df['dur_h'].values[wet_tr], n_iter, seed)(X[te])
+        tf_ok = wet_tr & np.isfinite(df['t_first_h'].values); du_ok = wet_tr & np.isfinite(df['dur_h'].values)      # a cell can peak >= 10 cm between frames and never be wet in a saved frame: no arrival time
+        T[te] = fit_reg(X[tf_ok], df['t_first_h'].values[tf_ok], n_iter, seed)(X[te]); D[te] = fit_reg(X[du_ok], df['dur_h'].values[du_ok], n_iter, seed)(X[te])
         per_fold[str(g)] = score(df[te], P[te], H[te], T[te], D[te]); log(f"   {group}={g}: n {te.sum():,}  hit {per_fold[str(g)]['hit_rate']:.2f}  prec {per_fold[str(g)]['precision']:.2f}  PR-AUC {per_fold[str(g)]['pr_auc']:.3f}  depth MAE {per_fold[str(g)]['depth_mae_wet_m']:.2f} m  t_first MAE {per_fold[str(g)]['t_first_mae_h']:.1f} h")
     ok = ~np.isnan(P)
     pooled = score(df[ok], P[ok], H[ok], T[ok], D[ok]) if ok.any() else {}
