@@ -112,9 +112,14 @@ def mrms_hour(ts):
     LA, LO = np.meshgrid(lat_c, lon_c, indexing='ij'); return fi((LA, LO)).astype(np.float32)
 t0 = pd.Timestamp(S['t0']); hours = [t0 + pd.Timedelta(hours=h + 1) for h in range(S['hours'])]
 RAIN = {}
+MISSING = []
 for ts in hours:
-    try: RAIN[ts] = mrms_hour(ts)
-    except Exception as e: log('  no MRMS', ts, repr(e)[:80]); RAIN[ts] = np.zeros((ny, nx), np.float32)
+    for k_ in range(4):                     # NOAA's bucket answers 5xx now and then: a silently dry hour would bias the whole storm low
+        try: RAIN[ts] = mrms_hour(ts); break
+        except Exception as e:
+            if k_ == 3: log('  no MRMS after 4 tries', ts, repr(e)[:80]); RAIN[ts] = np.zeros((ny, nx), np.float32); MISSING.append(ts.strftime('%Y-%m-%dT%H:%MZ'))
+            else: time.sleep(5 + 10 * k_)
+if MISSING: log(f'WARNING: {len(MISSING)} rain hours missing (counted as dry): {MISSING}')
 tot = sum(RAIN.values()); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h')
 if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
 # rain pictures for the map: one small RGBA image per hour (every 10th cell), corners in lon/lat for a MapLibre image source
@@ -359,10 +364,14 @@ hmx = xp.where(sim.fixed, 0, sim.hmax) if TIDE is not None else sim.hmax
 hm = xp.asnumpy(hmx) if hasattr(xp, 'asnumpy') else hmx
 np.save(f'{OUT}/hmax.npy', hm.astype(np.float16))
 tonp = (lambda a: xp.asnumpy(a)) if hasattr(xp, 'asnumpy') else (lambda a: a)
+np.savez_compressed(f'{OUT}/rain_hourly.npz', mm=np.stack([RAIN[ts][::10, ::10] for ts in hours]).astype(np.float16), box=np.array(BOX), res_m=RES * 10,
+                    hours=np.array([ts.strftime('%Y-%m-%dT%H:%MZ') for ts in hours]))      # for the ML corpus (sim/ml/dataset.py): hourly rain on a 10x coarser grid
+np.save(f'{OUT}/imp.npy', IMP.astype(np.float16)); np.save(f'{OUT}/ante.npy', np.asarray(Finf0, np.float32).astype(np.float16))    # paved fraction, starting soil store (mm)
 np.save(f'{OUT}/z.npy', Z.astype(np.float32)); np.save(f'{OUT}/t_first.npy', tonp(T_FIRST)); np.save(f'{OUT}/dur.npy', tonp(DUR)); np.save(f'{OUT}/vmax.npy', tonp(VMAX).astype(np.float16)); np.save(f'{OUT}/hvmax.npy', tonp(HVMAX).astype(np.float16))
 meta['cell_outputs'] = dict(hmax='peak depth m (float16)', t_first='frame index when depth first >= 10 cm (255 = never)', dur='number of frames >= 10 cm', vmax='peak speed m/s (float16)', hvmax='peak depth*speed m2/s (float16)')
 meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited_infiltration=bool(PHYS >= 2), channels_burnt=int(chan.sum()), subgrid_channels=bool(SUBGRID), manning='0.035 water/channel, 0.10 dense urban, 0.08 other' if PHYS >= 2 else '0.06 uniform',
                        tide=('gauge ' + os.environ.get('TIDE_STATION', '8443970')) if TIDE is not None else 'sea as sink', scheme='q-centred theta 0.7, Fr<=2' if PHYS >= 2 else 'Bates 2010, Fr<=1', antecedent_mm=round(WET0, 1))
+meta['rain_missing_hours'] = MISSING
 if ROAD is not None:
     np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); np.save(f'{OUT}/roads_mean_cm.npy', ROAD['mean_cm']); np.save(f'{OUT}/roads_v.npy', ROAD['v']); meta['roads'] = dict(segments=int(ROAD['n']), in_box=int(len(ROAD['inbox'])), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), files='roads_cm.npy (max depth cm), roads_mean_cm.npy (mean depth cm along the segment), roads_v.npy (peak speed, 0.05 m/s units); frames x segments')
 meta.update(inflows=[dict(name=n_, cells=int(len(r_)), peak_m3s=round(float(q_.max()), 1), start_m3s=round(float(qb_), 1)) for r_, c_, n_, _, q_, qb_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float(((hm >= 0.1) & ~chan).sum() * RES * RES / 1e6), 1))
