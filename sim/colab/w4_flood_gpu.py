@@ -20,6 +20,8 @@ STORMS = {'dec2023': dict(t0='2023-12-17T22:00Z', hours=48, frame_min=30, wet_st
           'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, wet_start_mm=0.0, title='Sept 11, 2023 flash floods'),
           'jul2023': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 9-11, 2023 western Mass. rain (105 USGS surveyed marks)', box=(30000, 850000, 170000, 960000)),
           'jan2018': dict(t0='2018-01-04T00:00Z', hours=36, frame_min=30, wet_start_mm=0.0, title='Jan 4, 2018 nor\'easter rain (coast handled separately)'),
+          'jul2023_southriver': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 2023 · South River / Avery Brook / West Brook reaches (10 m resolution test)', box=(84700, 904200, 113100, 928300)),
+          'jul2023_whetstone': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 2023 · Whetstone Brook reach (10 m resolution test)', box=(105000, 949400, 117600, 960000)),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, wet_start_mm=0.0, title='Leominster test')}
 S = STORMS[RUN]
 # experiment knobs (validation-driven calibration): WET_START mm overrides the storm's antecedent wetness, FC_SCALE multiplies the
