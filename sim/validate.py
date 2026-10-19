@@ -14,7 +14,7 @@ Writes <run_dir>/validation.json and prints a plain summary.
 import os, sys, json, math
 import numpy as np
 
-def main(run_dir, hwm_path=None, reports_path=None):
+def main(run_dir, hwm_path=None, reports_path=None, gauges_path=None):
     meta = json.load(open(os.path.join(run_dir, 'meta.json'))); hm = np.nan_to_num(np.load(os.path.join(run_dir, os.environ.get('HMAX_FILE', 'hmax.npy'))).astype(np.float32), nan=0.0, posinf=0.0)     # a NaN cell would poison argmax and write bare NaN into the JSON
     x0, y0, x1, y1 = meta['box']; res = meta['res_m']; ny, nx = hm.shape
     from pyproj import Transformer
@@ -110,6 +110,26 @@ def main(run_dir, hwm_path=None, reports_path=None):
             if v is not None: rand.append(v >= 0.1)
         out['reports'] = dict(n_storm_day=len(hit), hit_rate=round(float(np.mean(hit)), 3) if hit else None, any_day_rate=round(float(np.mean(rand)), 3) if rand else None)
     hf = os.environ.get('HMAX_FILE', 'hmax.npy'); out['hmax_file'] = hf
+    # 3. stream gauges (data/gauges_v2/gauges_<storm>.json from sim/gauges_fetch.py): peak stage over the run window + gauge datum
+    #    (NAVD88 only) = observed peak water-surface elevation, vs the model's WSE near the gauge (same three metrics as the marks).
+    if gauges_path and os.path.exists(gauges_path) and Z is not None:
+        G = json.load(open(gauges_path)); t_end = (dt.datetime.fromisoformat(meta['t0'][:16]) + dt.timedelta(minutes=meta['frame_min'] * (len(meta['frames']) - 1))).isoformat()[:13]
+        grows = []
+        for sid, g in G.get('stage', {}).items():
+            si = G.get('sites', {}).get(sid, {}); lon, lat = g.get('lon') or si.get('lon'), g.get('lat') or si.get('lat')
+            if lon is None or si.get('datum_ft') is None or (si.get('vdatum') or '').upper() != 'NAVD88': continue
+            x, y = tr.transform(lon, lat)
+            if not (x0 <= x < x1 and y0 <= y < y1): continue
+            vals = [v for t_, v in g['values'] if meta['t0'][:13] <= t_ <= t_end]
+            if not vals: continue
+            obs = (float(si['datum_ft']) + max(vals)) * 0.3048; mw = wse_near(lon, lat, 60); wn, wm = wse_alt(lon, lat, 60)
+            fl = G.get('flow', {}).get(sid, {}); qv = [v for t_, v in fl.get('values', []) if meta['t0'][:13] <= t_ <= t_end]
+            grows.append(dict(site=sid, name=(si.get('name') or '')[:40], obs_wse_m=round(obs, 2), obs_peak_m3s=round(max(qv) * 0.0283168, 1) if qv else None,
+                              wse_err_m=None if mw is None else round(mw - obs, 2), wse_err_nearest_m=None if wn is None else round(wn - obs, 2), wse_err_median_m=None if wm is None else round(wm - obs, 2)))
+        if grows:
+            e_ = np.array([g['wse_err_m'] for g in grows if g['wse_err_m'] is not None])
+            out['gauges'] = dict(n=len(grows), wse_bias_m=round(float(e_.mean()), 2) if len(e_) else None, wse_mae_m=round(float(np.abs(e_).mean()), 2) if len(e_) else None, rows=grows,
+                                 note='peak gage height in the run window + gauge datum (NAVD88) vs model WSE near the gauge; hourly max stage, so the true peak can be a little higher')
     json.dump(out, open(os.path.join(run_dir, 'validation.json' if hf == 'hmax.npy' else f'validation_{hf[:-4]}.json'), 'w'), indent=1, allow_nan=False)     # a snapshot-peak score never overwrites the main one
     print(json.dumps({k: v for k, v in out.items() if k != 'hwm'} | ({'hwm': {k: v for k, v in out['hwm'].items() if k not in ('rows',)}} if 'hwm' in out else {}), indent=1))
     return out
