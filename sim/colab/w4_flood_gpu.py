@@ -24,6 +24,7 @@ STORMS = {'dec2023': dict(t0='2023-12-17T22:00Z', hours=48, frame_min=30, wet_st
           'jul2023_whetstone': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 2023 · Whetstone Brook reach (10 m resolution test)', box=(105000, 949400, 117600, 960000)),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, wet_start_mm=0.0, title='Leominster test')}
 S = STORMS[RUN]
+if os.environ.get('HOURS'): S = dict(S, hours=int(os.environ['HOURS']))      # smoke tests: run the whole script end to end on a short window
 # experiment knobs (validation-driven calibration): WET_START mm overrides the storm's antecedent wetness, FC_SCALE multiplies the
 # soil infiltration rates (0.5 = soils drink half as fast), TAG names the variant (runs/<RUN><TAG>_<RES>m)
 if os.environ.get('WET_START'): S = dict(S, wet_start_mm=float(os.environ['WET_START']))
@@ -287,7 +288,8 @@ if PHYS >= 2 and chan.any():
     if SUBGRID: sim.set_channels(CW, CD)                                 # sub-grid channel storage and conveyance (Neal et al. 2012, simplified)
     sim.h += xp.asarray(np.where(chan, 0.3 * burn, 0).astype(np.float32))   # baseflow: channels start a third full
 INFLOW = [(xp.asarray(rr_), xp.asarray(cc_), n_, tq_, qq_, qb_) for rr_, cc_, n_, tq_, qq_, qb_ in INFLOW]
-f0g, fcg, Kdg, Scapg = xp.asarray(F0), xp.asarray(FC), xp.asarray(KDEEP), xp.asarray(Scap); del F0, FC, KDEEP
+KDEEP_SCALE = float(os.environ.get('KDEEP_SCALE', '1')); ANTE_SCALE = float(os.environ.get('ANTE_SCALE', '1'))     # 'drier ground' experiments: faster deep drainage, emptier starting soil store
+f0g, fcg, Kdg, Scapg = xp.asarray(F0), xp.asarray(FC), xp.asarray(KDEEP * KDEEP_SCALE), xp.asarray(Scap); del F0, FC, KDEEP
 IMPg = xp.asarray(IMP); f_scale = (1.0 - 0.9 * IMPg) * FC_SCALE
 drain_mmph = xp.where(IMPg > 0.05, 7.0 * IMPg, 0.0) if PHYS >= 2 else 2.0 + 5.0 * IMPg      # storm drains exist only where there is pavement
 WATERg = xp.asarray(water | sea)                                                              # no infiltration or drains from rivers, lakes and the sea
@@ -312,6 +314,7 @@ if PHYS >= 2 and not os.environ.get('WET_START'):
     except Exception as e:
         log('antecedent rain unavailable, using the storm default:', repr(e)[:120])
 if Finf0 is None: Finf0 = np.full((ny, nx), S['wet_start_mm'], np.float32)
+if ANTE_SCALE != 1: Finf0 = (Finf0 * ANTE_SCALE).astype(np.float32); log(f'experiment: antecedent store x{ANTE_SCALE}')
 if FC_SCALE != 1 or os.environ.get('WET_START'): log(f'experiment: FC_SCALE {FC_SCALE}, wet_start {S["wet_start_mm"]} mm, tag {TAG!r}')
 Finf = xp.asarray(Finf0); WET0 = float(Finf0.mean()); ANTE = Finf0.astype(np.float16); del Finf0      # ANTE kept (float16) for the ML corpus
 # per-cell outputs for the surrogate and the road layers: arrival frame, hours wet, peak speed, peak h*v
@@ -326,7 +329,7 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
-meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None
 while kf < nfr:
