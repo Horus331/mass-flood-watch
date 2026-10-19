@@ -15,7 +15,7 @@ import os, sys, json, math
 import numpy as np
 
 def main(run_dir, hwm_path=None, reports_path=None):
-    meta = json.load(open(os.path.join(run_dir, 'meta.json'))); hm = np.nan_to_num(np.load(os.path.join(run_dir, 'hmax.npy')).astype(np.float32), nan=0.0, posinf=0.0)     # a NaN cell would poison argmax and write bare NaN into the JSON
+    meta = json.load(open(os.path.join(run_dir, 'meta.json'))); hm = np.nan_to_num(np.load(os.path.join(run_dir, os.environ.get('HMAX_FILE', 'hmax.npy'))).astype(np.float32), nan=0.0, posinf=0.0)     # a NaN cell would poison argmax and write bare NaN into the JSON
     x0, y0, x1, y1 = meta['box']; res = meta['res_m']; ny, nx = hm.shape
     from pyproj import Transformer
     tr = Transformer.from_crs(4326, 26986, always_xy=True)

@@ -12,7 +12,7 @@ from huggingface_hub import HfApi, hf_hub_download
 RUN_DIR = os.environ.get('RUN_DIR', 'runs/dec2023_30m'); REPO = 'mohabeldokla/mass-flood-watch-tiles'; TOK = os.environ.get('HF_TOKEN')
 RAW = 'https://raw.githubusercontent.com/Horus331/mass-flood-watch/' + os.environ.get('GIT_SHA', 'main') + '/'
 d = f'/content/{RUN_DIR.replace("/", "_")}'; os.makedirs(d, exist_ok=True)
-for f in ('meta.json', 'hmax.npy', 'z.npy'):
+for f in ('meta.json', 'hmax.npy', 'z.npy', 'hsnap.npy'):
     try: p = hf_hub_download(REPO, f'{RUN_DIR}/{f}', repo_type='dataset', token=TOK); subprocess.run(['cp', p, f'{d}/{f}'])
     except Exception as e: print('no', f, '(older run):', repr(e)[:80])
 for f in ('sim/validate.py', 'docs/validation/stn_ma.json', 'docs/prone/flood_reports.json'):
