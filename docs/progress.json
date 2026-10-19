@@ -21,7 +21,7 @@
   {
    "n": 4,
    "name": "Validation vs surveyed water marks and flood reports",
-   "status": "running",
+   "status": "3 GPU machines + job queue live; Sept v3 16/72; South River 10 m running; Dec v3 on Kaggle",
    "note": "jul2023: wet_share 4% (n=103) → experiment jul2023_sat (WET_START 250, FC_SCALE 0.3); coast10 running"
   },
   {
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Sun Oct 18, 9:47 PM",
+   "text": "9:50 pm: Resolution test 1 — Whetstone Brook at 10 m: water-surface error +1.9 m (was +4.7 m at 30 m; 6 marks, all wet). Second GPU (Colab) running South River at 10 m (46 marks); Kaggle 2×T4 joined as a third machine via the new shared job queue (docs/queue/jobs.json + sim/colab/worker.py) and took Dec 2023 v3 statewide. Four parallel agents: culvert overtopping module, ML training-corpus builder, independent code review, docs (merged)."
+  },
   {
    "t": "Sun Oct 18, 8:31 PM",
    "text": "8:40 pm: July 2023 v3 scored. Water now reaches 100% of the 103 surveyed marks (was 4% with the old physics). Water-surface elevation per reach: North Branch Deerfield 0.18 m, West Brook 0.5 m, Avery Brook 1.9 m (bias +0.7), South River +4.1 m, Whetstone +4.7 m — the two narrow steep valleys run high, consistent with the 30 m cell-mean ground sitting above the real channel; a 10 m test is proposed. Two fixes: grid edges are now open boundaries everywhere (the Housatonic piled up 50 m against the July box's south wall), and the WSE metric reads the deepest cell within 60 m instead of the highest wet cell (dated amendment in the protocol). Sept 2023 v3 statewide started 8:28 pm."
