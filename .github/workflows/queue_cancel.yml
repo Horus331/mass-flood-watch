@@ -1,0 +1,36 @@
+name: Queue - cancel a running job (run by hand)
+# Writes queue/status/<job>.json as cancelled by 'admin'. The worker running it sees within 5 min (owns() check)
+# that the claim is no longer its own, kills the run and moves on to the next job. Remove the job from
+# docs/queue/jobs.json too, or it becomes runnable again.
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: job id to cancel
+        required: true
+      reason:
+        description: why
+        required: false
+        default: cancelled by lead
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q huggingface_hub
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          JOB_ID: ${{ inputs.job_id }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          python - <<'PY'
+          import os, json, time
+          from huggingface_hub import HfApi
+          jid = os.environ['JOB_ID']; assert jid and '/' not in jid
+          d = dict(state='cancelled', worker='admin', started=time.time(), finished=time.time(), note=os.environ.get('REASON', '')[:200], attempts=9)
+          HfApi(token=os.environ['HF_TOKEN']).upload_file(path_or_fileobj=json.dumps(d, indent=1).encode(), path_in_repo=f'queue/status/{jid}.json',
+              repo_id='mohabeldokla/mass-flood-watch-tiles', repo_type='dataset', commit_message=f'queue: {jid} cancelled (admin)')
+          print('cancelled', jid)
+          PY
