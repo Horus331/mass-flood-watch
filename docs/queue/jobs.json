@@ -46,153 +46,6 @@
   "est_h": 6
  },
  {
-  "id": "jul2023_southriver_v3snapb_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "TAG": "_v3snap",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "N_SCALE": "1.0",
-   "GIT_SHA": "b7e2e6a1"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 10,
-  "note": "South River 10 m sensitivity: Manning x1.0; every run also saves hsnap.npy (peak of 30-min snapshots) to separate numerical spikes from real stage | same-commit control for brch; L4 only (a 5 h run started late on Kaggle would hit the 12 h session cap)",
-  "only": [
-   "colab1",
-   "colab2"
-  ],
-  "after": [
-   "smoke_b7e2e6a1"
-  ],
-  "est_h": 5
- },
- {
-  "id": "jul2023_whetstone_v3rain75chan15_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_whetstone",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "BREACH": "1",
-   "GIT_SHA": "41b4f62a",
-   "TAG": "_v3rain75chan15",
-   "RAIN_SCALE": "0.75",
-   "CHAN_D_SCALE": "1.5",
-   "CHAN_W_SCALE": "1.5"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 9,
-  "est_h": 0.8,
-  "after": [
-   "smoke_41b4f62a"
-  ],
-  "note": "Whetstone 10 m (35 min run) sensitivity, with breaching: both. Baseline +1.88 m (breaching alone: +1.88)"
- },
- {
-  "id": "score_dec2023_v3_30m_g",
-  "kind": "score",
-  "run_dir": "runs/dec2023_v3_30m",
-  "env": {
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "score with stream gauges + sensitivity metrics for the scorecard"
- },
- {
-  "id": "score_jul2023_v3_30m_g",
-  "kind": "score",
-  "run_dir": "runs/jul2023_v3_30m",
-  "env": {
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "score with stream gauges + sensitivity metrics for the scorecard"
- },
- {
-  "id": "score_jul2023_southriver_v3dryA_10m_g",
-  "kind": "score",
-  "run_dir": "runs/jul2023_southriver_v3dryA_10m",
-  "env": {
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "score with stream gauges + sensitivity metrics for the scorecard"
- },
- {
-  "id": "score_jul2023_southriver_v3n07_10m_g",
-  "kind": "score",
-  "run_dir": "runs/jul2023_southriver_v3n07_10m",
-  "env": {
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "score with stream gauges + sensitivity metrics for the scorecard"
- },
- {
-  "id": "score_sep2023_30m_g",
-  "kind": "score",
-  "run_dir": "runs/sep2023_30m",
-  "env": {
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "score with stream gauges + sensitivity metrics for the scorecard"
- },
- {
-  "id": "score_dec2023_30m_g",
-  "kind": "score",
-  "run_dir": "runs/dec2023_30m",
-  "env": {
-   "GIT_SHA": "41b4f62a"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "score with stream gauges + sensitivity metrics for the scorecard"
- },
- {
   "id": "jul2023_southriver_v3rc_10m",
   "kind": "storm",
   "env": {
@@ -220,5 +73,55 @@
   ],
   "est_h": 3.5,
   "note": "South River with rain x0.75 and channel x1.5 (the two knobs that each moved Whetstone ~0.5-0.6 m); breaching alone changed nothing (+2.90 vs +2.82)"
+ },
+ {
+  "id": "jul2023_whetstone_v3rain75chan20_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_whetstone",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "41b4f62a",
+   "TAG": "_v3rain75chan20",
+   "RAIN_SCALE": "0.75",
+   "CHAN_D_SCALE": "2",
+   "CHAN_W_SCALE": "2"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 8,
+  "est_h": 0.8,
+  "note": "Whetstone sensitivity map: rain x0.75 + channel x2 (rain x0.75 + channel x1.5 gave +0.88 m from +1.88)"
+ },
+ {
+  "id": "jul2023_whetstone_v3rain85chan15_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_whetstone",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "41b4f62a",
+   "TAG": "_v3rain85chan15",
+   "RAIN_SCALE": "0.85",
+   "CHAN_D_SCALE": "1.5",
+   "CHAN_W_SCALE": "1.5"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 8,
+  "est_h": 0.8,
+  "note": "Whetstone sensitivity map: rain x0.85 + channel x1.5 (rain x0.75 + channel x1.5 gave +0.88 m from +1.88)"
  }
 ]
