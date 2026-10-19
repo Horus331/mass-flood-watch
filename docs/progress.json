@@ -15,7 +15,7 @@
   {
    "n": 3,
    "name": "Physics upgrades + statewide runs",
-   "status": "South River 10 m done; sensitivity runs queued; Sept v3 ~frame 55/72; Dec v3 on Kaggle",
+   "status": "Sept v3 restarted on BOT 1 (~5.5 h); South River tiles + sensitivity tests on BOT 2; Dec v3 on Kaggle",
    "note": "chain_v3 jul/sep/dec; subgrid channels in solver"
   },
   {
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Mon Oct 19, 1:31 AM",
+   "text": "1:30 am: setback — Colab disconnected BOT 1 as idle at 12:15 am and the Sept 2023 v3 run was lost at frame 50/72 (my checks skipped that tab for more than 30 min). Fixed: Sept is back in the shared queue at top priority and BOT 1 reconnected and claimed it; all three bots now run a blocking keep-alive cell that also prints progress every 10 minutes, so an idle timeout can no longer happen. BOT 2 is finishing the South River tiles, then the roughness tests."
+  },
   {
    "t": "Mon Oct 19, 1:01 AM",
    "text": "1:05 am: South River at 10 m scored (94 marks in the box): water-surface error South River +2.8 m (30 m: +4.1), West Brook +0.8 m (30 m: +0.5), Avery Brook MAE 2.5 m, bias +1.8 (30 m: MAE 1.9, bias +0.7). Finer cells help the narrowest valley but leave a consistent ~2 m high bias, so resolution is not the whole story. Next tests queued on the free GPU: Manning roughness x0.7 and x1.3, and a new 'peak of 30-minute snapshots' output to separate real stage from single-step numerical spikes in steep channels. BOT 2 joined the job queue by itself as planned."
