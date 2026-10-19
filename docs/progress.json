@@ -21,7 +21,7 @@
   {
    "n": 4,
    "name": "Validation vs surveyed water marks and flood reports",
-   "status": "Sept v3 running (BOT 1), South River 10 m (BOT 2), Dec v3 (BOT 3 Kaggle); crossings module live",
+   "status": "Dec v3 scored (over-wet); Sept v3 on BOT 1 (~noon); South River roughness test on BOT 2 (~9 am)",
    "note": "jul2023: wet_share 4% (n=103) → experiment jul2023_sat (WET_START 250, FC_SCALE 0.3); coast10 running"
   },
   {
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Mon Oct 19, 6:44 AM",
+   "text": "6:50 am: Dec 2023 v3 statewide scored against road-flood reports: water at 66.7% of reported roads on the storm days vs 59.4% at the same flood-prone roads on any day (v2 30 m physics: 44% vs 18%). The new physics catches more real flooding but wets far more roads that stayed dry, so discrimination dropped. Same signal as the ~2 m high bias at the July surveyed marks: too much water on the ground or too slow to drain. Roughness and snapshot tests are running to tell which."
+  },
   {
    "t": "Mon Oct 19, 5:43 AM",
    "text": "5:45 am: found and fixed a bug I introduced last night (the engine crashed at the very end of a run, after saving max depth, on a variable deleted earlier — added with the ML outputs). It cost the South River roughness x0.7 test (3.4 h). Stopped the two runs that carried the same bug (Sept on BOT 2 and the snapshot test on BOT 1) and re-queued everything on the fixed engine (6f12a7b4): BOT 1 now runs Sept 2023 v3 (done ~11:30 am), BOT 2 the South River tests. Dec 2023 on Kaggle uses the older engine, unaffected; ~frame 90/96."
