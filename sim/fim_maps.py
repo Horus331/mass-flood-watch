@@ -371,6 +371,18 @@ def process_huc(src, huc, storms, flows, out_dir, work, branch0_only=False, min_
                 ids, stg = stages_for(ht, flows[s]); sets.append((ids, stg))
                 fq = flows[s](ht['feature_id'].unique())
                 info[s]['hydroids'] += int(ht['HydroID'].nunique()); info[s]['hydroids_wet'] += int((stg > 0).sum()); info[s]['features_no_flow'] += int((~np.isfinite(fq)).sum())
+            if k == 0:      # diagnostics: do the catchment raster values match the rating-curve HydroIDs, and what do HAND and stages look like?
+                try:
+                    import rasterio
+                    with rasterio.open(rem) as R_, rasterio.open(cat) as C_:
+                        rr = R_.read(1, out_shape=(min(R_.height, 2000), min(R_.width, 2000))); cc = C_.read(1, out_shape=(min(C_.height, 2000), min(C_.width, 2000)))
+                        log(f'  diag rem dtype {R_.dtypes[0]} nodata {R_.nodata} crs {R_.crs} min/med/max {np.nanmin(rr):.2f}/{np.nanmedian(rr):.2f}/{np.nanmax(rr):.2f}; '
+                            f'cat dtype {C_.dtypes[0]} nodata {C_.nodata} sample ids {np.unique(cc)[:6].tolist()} .. {np.unique(cc)[-3:].tolist()}')
+                        ids0, st0 = sets[0]
+                        log(f'  diag ht cols {list(ht.columns)} rows {len(ht)} HydroID {ht["HydroID"].min()}..{ht["HydroID"].max()} feature_id {ht["feature_id"].min()}..{ht["feature_id"].max()}; '
+                            f'stage ids {len(ids0)} stage min/med/max {st0.min() if len(st0) else 0:.2f}/{np.median(st0) if len(st0) else 0:.2f}/{st0.max() if len(st0) else 0:.2f}; '
+                            f'cat cells matching a staged HydroID: {int(np.isin(cc, ids0).sum())} of {cc.size}')
+                except Exception as e: log('  diag failed', repr(e)[:150])
             branch_depths(rem, cat, sets, [os.path.join(bdir[s], f'b_{u["id"]}.tif') for s in storms])
             for s in storms: info[s]['branches_done'] += 1
         except Exception as e:
