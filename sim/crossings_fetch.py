@@ -35,3 +35,12 @@ json.dump(dict(source='Massachusetts Stream Crossings Project (USGS, UMass Amher
                note='peak flows m3/s from StreamStats regression; deck_m = original road deck elevation (NAVD88 m) from the 100-yr box design record; sample fields first-run, verify units against the data dictionary (table 2)', rows=rows),
           open('docs/network/crossings_ma.json', 'w'), separators=(',', ':'))
 print(len(rows), 'crossings; with 100-yr flow:', sum(1 for x in rows if x[10]), '; sample:', rows[0] if rows else None)
+# the service's own data dictionary (table 2): units, descriptions and no-data values, to verify the conversions above
+try:
+    D = requests.get(B.replace('/0/query', '/2/query'), params=dict(where='1=1', outFields='*', returnGeometry='false', f='json'), headers=H, timeout=120).json()
+    json.dump([f['attributes'] for f in D.get('features', [])], open('docs/network/crossings_dictionary.json', 'w'), indent=0)
+    print('dictionary rows:', len(D.get('features', [])))
+    for f in D.get('features', []):
+        a = f['attributes']; t = json.dumps(a)
+        if any(k in t for k in ('DRNAREA', 'PK1AEP', 'BFWDTH', 'BFDPTH', 'BCORDE1HYR', 'HWYHDF', '"LAT"')): print(t[:300])
+except Exception as e: print('no dictionary:', repr(e)[:120])
