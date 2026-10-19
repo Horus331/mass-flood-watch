@@ -111,12 +111,17 @@ def flooded_km2(path, min_cm=1):
 
 
 # =============================================================================================== rasters
-def branch_depths(rem_path, cat_path, stage_sets, out_paths, rows=1024):
+def branch_depths(rem_path, cat_path, stage_sets, out_paths, rows=1024, ht=None):
     """One branch: write a depth tif (int16 cm) per storm. stage_sets: [(ids, st)], out_paths: same order."""
     import rasterio
     from rasterio.vrt import WarpedVRT
     from rasterio.enums import Resampling
     with rasterio.open(rem_path) as R, rasterio.open(cat_path) as C0:
+        sc = float(R.scales[0]) if R.scales and R.scales[0] not in (0, 1) else None
+        rem_scale = sc if sc else (0.01 if np.issubdtype(np.dtype(R.dtypes[0]), np.integer) else 1.0)
+        hid_offset = 0
+        if ht is not None and np.issubdtype(np.dtype(C0.dtypes[0]), np.integer) and np.dtype(C0.dtypes[0]).itemsize <= 2:
+            hmin = int(ht['HydroID'].min()); hid_offset = (hmin // 10000) * 10000 if hmin > 32767 else 0
         same = (C0.shape == R.shape and C0.transform.almost_equals(R.transform) and C0.crs == R.crs)
         C = C0 if same else WarpedVRT(C0, crs=R.crs, transform=R.transform, width=R.width, height=R.height, resampling=Resampling.nearest)
         prof = dict(GT, crs=R.crs, transform=R.transform, width=R.width, height=R.height)
@@ -126,7 +131,10 @@ def branch_depths(rem_path, cat_path, stage_sets, out_paths, rows=1024):
             for r0 in range(0, R.height, rows):
                 w = rasterio.windows.Window(0, r0, R.width, min(rows, R.height - r0))
                 rem = R.read(1, window=w); cat = C.read(1, window=w)
-                for (ids, st), o in zip(stage_sets, outs): o.write(to_cm(depth_block(rem, cat, ids, st, R.nodata, C0.nodata)), 1, window=w)
+                bad = (rem == R.nodata) if R.nodata is not None else np.zeros(rem.shape, bool)
+                rem = rem.astype(np.float32) * rem_scale; rem[bad] = np.nan       # CIROH int16 HAND is in cm
+                cat = np.where(cat > 0, cat.astype(np.int64) + hid_offset, 0)        # CIROH int16 catchments hold HydroID minus the HUC prefix
+                for (ids, st), o in zip(stage_sets, outs): o.write(to_cm(depth_block(rem, cat, ids, st, None, None)), 1, window=w)
         finally:
             for o in outs: o.close()
             if not same: C.close()
@@ -381,9 +389,9 @@ def process_huc(src, huc, storms, flows, out_dir, work, branch0_only=False, min_
                         ids0, st0 = sets[0]
                         log(f'  diag ht cols {list(ht.columns)} rows {len(ht)} HydroID {ht["HydroID"].min()}..{ht["HydroID"].max()} feature_id {ht["feature_id"].min()}..{ht["feature_id"].max()}; '
                             f'stage ids {len(ids0)} stage min/med/max {st0.min() if len(st0) else 0:.2f}/{np.median(st0) if len(st0) else 0:.2f}/{st0.max() if len(st0) else 0:.2f}; '
-                            f'cat cells matching a staged HydroID: {int(np.isin(cc, ids0).sum())} of {cc.size}')
+                            f'cat cells matching a staged HydroID: {int(np.isin(cc, ids0).sum())} raw, {int(np.isin(np.where(cc > 0, cc.astype(np.int64) + (int(ht["HydroID"].min()) // 10000) * 10000, 0), ids0).sum())} with the HUC prefix, of {cc.size}')
                 except Exception as e: log('  diag failed', repr(e)[:150])
-            branch_depths(rem, cat, sets, [os.path.join(bdir[s], f'b_{u["id"]}.tif') for s in storms])
+            branch_depths(rem, cat, sets, [os.path.join(bdir[s], f'b_{u["id"]}.tif') for s in storms], ht=ht)
             for s in storms: info[s]['branches_done'] += 1
         except Exception as e:
             log('  branch fail', huc, u['id'], repr(e)[:200])
