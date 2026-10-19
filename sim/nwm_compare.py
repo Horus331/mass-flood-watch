@@ -98,10 +98,13 @@ def comid_for(site):
         except Exception as e: log('  NLDI parse', site, repr(e)[:80])
     return None, None
 
+import threading
+_NC_LOCK = threading.Lock()      # HDF5/netCDF4 is not thread-safe: downloads run in threads, parsing one at a time (a parallel parse segfaulted on the runner)
+
 def read_channel(blob, ids):
     """NWM channel_rt netCDF bytes -> {feature_id: streamflow m3/s} for the wanted ids."""
     import netCDF4
-    with netCDF4.Dataset('mem.nc', memory=blob) as ds:
+    with _NC_LOCK, netCDF4.Dataset('mem.nc', memory=blob) as ds:
         fid = ds.variables['feature_id'][:].astype(np.int64)
         q = np.ma.filled(ds.variables['streamflow'][:].astype(float), np.nan).ravel()   # auto scale_factor / missing
     pos = {int(f): i for i, f in enumerate(fid)}
