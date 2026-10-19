@@ -18,7 +18,7 @@ import os, json, time, requests
 API = 'https://api.waterdata.usgs.gov/ogcapi/v0/collections'
 H = {'User-Agent': 'mass-flood-watch research (github.com/Horus331/mass-flood-watch)'}
 if os.environ.get('API_USGS_PAT'): H['X-Api-Key'] = os.environ['API_USGS_PAT']          # optional key: higher rate limits
-STORMS = {'dec2023': ('2023-12-17', '2023-12-21'), 'sep2023': ('2023-09-10', '2023-09-14'), 'jul2023': ('2023-07-09', '2023-07-13'), 'jan2018': ('2018-01-03', '2018-01-07')}
+STORMS = {'dec2023': ('2023-12-17', '2023-12-21'), 'sep2023': ('2023-09-10', '2023-09-14'), 'jul2023': ('2023-07-09', '2023-07-13'), 'jan2018': ('2018-01-03', '2018-01-07'), 'jan2024': ('2024-01-08', '2024-01-12')}
 BOUNDARY = {'01154500': 'Connecticut River at North Walpole, NH', '01156000': 'West River at Newfane, VT (joins the Connecticut above the state line)', '01161000': 'Ashuelot River at Hinsdale, NH (joins the Connecticut above the state line)',
             '01092000': 'Merrimack River near Goffs Falls, NH', '01094000': 'Souhegan River at Merrimack, NH (joins the Merrimack above the state line)', '01096500': 'Nashua River at East Pepperell, MA',
             '01168500': 'Deerfield River at Charlemont, MA (basin mostly in Vermont)', '01170000': 'Deerfield River near West Deerfield, MA', '01333000': 'Green River at Williamstown, MA', '01197500': 'Housatonic River near Great Barrington, MA'}
