@@ -27,7 +27,7 @@
    "TILE": "northshore",
    "STORM": "jan2018",
    "RES": "10",
-   "GIT_SHA": "618ef364"
+   "GIT_SHA": "b7e2e6a1"
   },
   "run_dir": "runs/coast_northshore_jan2018_10m",
   "steps": [
@@ -50,7 +50,7 @@
    "TILE": "southshore",
    "STORM": "jan2018",
    "RES": "10",
-   "GIT_SHA": "618ef364"
+   "GIT_SHA": "b7e2e6a1"
   },
   "run_dir": "runs/coast_southshore_jan2018_10m",
   "steps": [
@@ -102,7 +102,7 @@
    "SUBGRID": "1",
    "INFLOW": "0",
    "N_SCALE": "1.0",
-   "GIT_SHA": "618ef364"
+   "GIT_SHA": "b7e2e6a1"
   },
   "steps": [
    "w4",
@@ -116,7 +116,7 @@
    "colab2"
   ],
   "after": [
-   "smoke_618ef364"
+   "smoke_b7e2e6a1"
   ],
   "est_h": 5
  },
@@ -157,7 +157,7 @@
    "PHYS": "2",
    "SUBGRID": "1",
    "INFLOW": "0",
-   "GIT_SHA": "618ef364",
+   "GIT_SHA": "b7e2e6a1",
    "TAG": "_v3dryK",
    "KDEEP_SCALE": "3"
   },
@@ -168,7 +168,7 @@
   "gpu_gb": 8,
   "priority": 9,
   "after": [
-   "jul2023_southriver_v3brch_10m"
+   "jul2023_southriver_v3brch2_10m"
   ],
   "only": [
    "colab1",
@@ -187,7 +187,7 @@
    "PHYS": "2",
    "SUBGRID": "1",
    "INFLOW": "0",
-   "GIT_SHA": "618ef364",
+   "GIT_SHA": "b7e2e6a1",
    "TAG": "_v3dryAK",
    "ANTE_SCALE": "0.5",
    "KDEEP_SCALE": "3"
@@ -199,7 +199,7 @@
   "gpu_gb": 8,
   "priority": 8,
   "after": [
-   "jul2023_southriver_v3brch_10m"
+   "jul2023_southriver_v3brch2_10m"
   ],
   "only": [
    "colab1",
@@ -210,36 +210,7 @@
   "est_h": 5
  },
  {
-  "id": "smoke_618ef364",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "TAG": "_smoke_618ef364",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "HOURS": "3",
-   "INFLOW": "0",
-   "BREACH": "1",
-   "GIT_SHA": "618ef364",
-   "T0": "2023-07-10T09:00"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 12,
-  "only": [
-   "colab1",
-   "colab2",
-   "kaggle"
-  ],
-  "note": "2-hour smoke test at 10 m on the South River box with BREACH=1 (also logs the breaching stats); also tests the upload/meta fixes",
-  "est_h": 0.7
- },
- {
-  "id": "jul2023_southriver_v3brch_10m",
+  "id": "jul2023_southriver_v3brch2_10m",
   "kind": "storm",
   "env": {
    "RUN": "jul2023_southriver",
@@ -247,9 +218,9 @@
    "PHYS": "2",
    "SUBGRID": "1",
    "INFLOW": "0",
-   "TAG": "_v3brch",
+   "TAG": "_v3brch2",
    "BREACH": "1",
-   "GIT_SHA": "618ef364"
+   "GIT_SHA": "b7e2e6a1"
   },
   "steps": [
    "w4",
@@ -258,14 +229,14 @@
   "gpu_gb": 8,
   "priority": 10,
   "after": [
-   "smoke_618ef364"
+   "smoke_b7e2e6a1"
   ],
   "only": [
    "colab1",
    "colab2",
    "kaggle"
   ],
-  "note": "channel-breaching test: South River 10 m with sills in the burnt channel carved (BREACH=1, max 4 m); baseline v3 10 m: South River +2.8, Avery +1.8, West Brook +0.8",
+  "note": "channel breaching (cuts capped at 4 m per cell); baseline v3 10 m: South River +2.8, Avery +1.8, West Brook +0.8; gauge 01169900 +3.3",
   "est_h": 5
  },
  {
@@ -273,7 +244,7 @@
   "kind": "score",
   "run_dir": "runs/jul2023_southriver_v3dryA_10m",
   "env": {
-   "GIT_SHA": "618ef364"
+   "GIT_SHA": "b7e2e6a1"
   },
   "steps": [
    "w6"
@@ -291,7 +262,7 @@
   "kind": "score",
   "run_dir": "runs/sep2023_v3_30m",
   "env": {
-   "GIT_SHA": "618ef364"
+   "GIT_SHA": "b7e2e6a1"
   },
   "steps": [
    "w6"
@@ -305,18 +276,32 @@
   "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
  },
  {
-  "id": "score_jul2023_southriver_v3n07_10m",
-  "kind": "score",
-  "run_dir": "runs/jul2023_southriver_v3n07_10m",
+  "id": "smoke_b7e2e6a1",
+  "kind": "storm",
   "env": {
-   "GIT_SHA": "618ef364"
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "TAG": "_smoke_b7e2e6a1",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "HOURS": "3",
+   "T0": "2023-07-10T09:00",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "b7e2e6a1"
   },
   "steps": [
+   "w4",
    "w6"
   ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.3,
-  "note": "re-score roughness x0.7 run (its TAG is _v3n07) with gauges + sensitivity metrics"
+  "gpu_gb": 8,
+  "priority": 12,
+  "only": [
+   "colab1",
+   "colab2",
+   "kaggle"
+  ],
+  "est_h": 0.4,
+  "note": "smoke at this commit: 3 h inside the July storm, South River box, BREACH=1 (check the breaching log line: max cut <= 4 m)"
  }
 ]
