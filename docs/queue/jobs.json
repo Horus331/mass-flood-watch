@@ -303,5 +303,59 @@
    "kaggle"
   ],
   "note": "drier-ground test: ANTE_SCALE=0.5, KDEEP_SCALE=3"
+ },
+ {
+  "id": "smoke_4c03ab91",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "TAG": "_smoke_4c03ab91",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "HOURS": "2",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "4c03ab91"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 12,
+  "only": [
+   "colab2",
+   "kaggle"
+  ],
+  "note": "2-hour smoke test at 10 m on the South River box with BREACH=1 (also logs the breaching stats); also tests the upload/meta fixes"
+ },
+ {
+  "id": "jul2023_southriver_v3brch_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "TAG": "_v3brch",
+   "BREACH": "1",
+   "GIT_SHA": "4c03ab91"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 10,
+  "after": [
+   "smoke_4c03ab91"
+  ],
+  "only": [
+   "colab2",
+   "kaggle"
+  ],
+  "note": "channel-breaching test: South River 10 m with sills in the burnt channel carved (BREACH=1, max 4 m); baseline v3 10 m: South River +2.8, Avery +1.8, West Brook +0.8"
  }
 ]
