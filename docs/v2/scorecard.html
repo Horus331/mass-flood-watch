@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Experiment Scorecard</title>
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#1d2a36;--mute:#56687a;--line:#dbe4ec;--good:#1a7f4b;--mid:#a86a00;--bad:#b3261e;--acc:#1f6fd0;--head:#f5f8fb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161d;--card:#17212b;--ink:#e3ebf2;--mute:#93a4b4;--line:#2a3743;--good:#4cc38a;--mid:#e0a33a;--bad:#ff7b72;--acc:#6aa8ff;--head:#1c2833}}
+:root[data-theme="dark"]{--bg:#0f161d;--card:#17212b;--ink:#e3ebf2;--mute:#93a4b4;--line:#2a3743;--good:#4cc38a;--mid:#e0a33a;--bad:#ff7b72;--acc:#6aa8ff;--head:#1c2833}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+h1{font-size:19px;margin:0 0 2px;font-weight:650}
+.sub{color:var(--mute);margin-bottom:14px}
+a{color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;overflow-x:auto}
+h2{font-size:14px;margin:2px 0 8px;font-weight:650}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:var(--head);color:var(--mute);font-weight:600;font-size:11.5px;position:sticky;top:0}
+td:first-child,th:first-child{text-align:left;white-space:normal;min-width:190px}
+td.k{color:var(--mute)}
+.g{color:var(--good);font-weight:600}.m{color:var(--mid);font-weight:600}.b{color:var(--bad);font-weight:600}
+.pend{color:var(--mute);font-style:italic}
+.note{color:var(--mute);font-size:12px;margin-top:6px}
+.tag{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:999px;background:var(--head);color:var(--mute);margin-left:4px}
+</style></head><body><main>
+<h1>Experiment scorecard</h1>
+<div class="sub">Every engine run scored the same way, read live from the run folders on Hugging Face · <a href="index.html">back to the map</a></div>
+
+<div class="card"><h2>July 2023 · South River / Avery Brook / West Brook (10 m) — water-surface error at USGS high-water marks</h2>
+<table id="t1"><thead><tr><th>Experiment</th><th>South River</th><th>Avery Brook</th><th>West Brook</th><th>All marks</th><th>All marks, nearest wet cell</th><th>Gauge 01169900 (Conway)</th><th>Run time</th></tr></thead><tbody></tbody></table>
+<div class="note">Metres, model minus observed (positive = model too high). Primary metric: water surface at the deepest cell within 60 m of the mark. "Nearest wet cell" is the sensitivity check (steep reaches). Green within ±0.5 m, amber within ±1.5 m.</div></div>
+
+<div class="card"><h2>July 2023 · Whetstone Brook (10 m)</h2>
+<table id="t2"><thead><tr><th>Experiment</th><th>All marks</th><th>Nearest wet cell</th><th>Median of wet cells</th><th>Marks</th><th>Run time</th></tr></thead><tbody></tbody></table></div>
+
+<div class="card"><h2>Statewide 30 m runs — road flood reports and stream gauges</h2>
+<table id="t3"><thead><tr><th>Run</th><th>Road reports hit</th><th>Any-day baseline</th><th>Lift</th><th>Gauges</th><th>Gauge WSE bias</th><th>Gauge WSE MAE</th><th>Gauges within 1 m (nearest)</th><th>Run time</th></tr></thead><tbody></tbody></table>
+<div class="note">Hit = share of storm-day road flood reports where the model has ≥10 cm within 100 m. Any-day baseline = the same test at reports from any day (how often the model is simply wet there). Lift = hit − baseline: the skill. Gauges: peak stage + gauge datum (NAVD88) vs model WSE near the gauge.</div></div>
+
+<div class="note" id="stamp"></div>
+</main>
+<script>
+const HF = 'https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles/resolve/main/runs/';
+const SR = [
+  ['jul2023_southriver_v3_10m', 'Baseline v3'],
+  ['jul2023_southriver_v3n07_10m', 'Roughness × 0.7'],
+  ['jul2023_southriver_v3dryA_10m', 'Drier ground (antecedent × 0.5)'],
+  ['jul2023_southriver_v3brch2_10m', 'Channel breaching (cuts ≤ 4 m)'],
+  ['jul2023_southriver_v3snap_10m', 'Snapshot peaks (control)'],
+  ['jul2023_southriver_v3dryK_10m', 'Faster deep drainage × 3'],
+  ['jul2023_southriver_v3dryAK_10m', 'Drier ground + drainage']];
+const WS = [
+  ['jul2023_whetstone_v3_10m', 'Baseline v3'],
+  ['jul2023_whetstone_v3brch2_10m', 'Channel breaching'],
+  ['jul2023_whetstone_v3rain75_10m', 'Breaching + rain × 0.75'],
+  ['jul2023_whetstone_v3chan15_10m', 'Breaching + channel size × 1.5'],
+  ['jul2023_whetstone_v3rain75chan15_10m', 'Breaching + both']];
+const ST = [['sep2023_30m', 'Sept 2023 · v2 (old)'], ['sep2023_v3_30m', 'Sept 2023 · v3'], ['dec2023_30m', 'Dec 2023 · v2 (old)'], ['dec2023_v3_30m', 'Dec 2023 · v3'], ['jul2023_30m', 'July 2023 · v2 (old)'], ['jul2023_v3_30m', 'July 2023 · v3']];
+const j = async u => { const r = await fetch(u + '?t=' + Date.now(), {cache: 'no-store'}); if (!r.ok) throw new Error(r.status); return r.json(); };
+const cls = v => v == null ? '' : Math.abs(v) <= 0.5 ? 'g' : Math.abs(v) <= 1.5 ? 'm' : 'b';
+const f = (v, d = 2) => v == null ? '–' : (v > 0 ? '+' : '') + (+v).toFixed(d);
+const cell = v => `<td class="${cls(v)}">${f(v)}</td>`;
+const mins = m => m && m.runtime_s ? Math.round(m.runtime_s / 60) + ' min' : '–';
+const pend = (name, n) => `<tr><td>${name}</td><td class="pend" colspan="${n}">pending (not run or not scored yet)</td></tr>`;
+async function load(run) { try { const [v, m] = await Promise.all([j(HF + run + '/validation.json'), j(HF + run + '/meta.json').catch(() => null)]); return {v, m}; } catch (e) { return null; } }
+(async () => {
+  const b1 = document.querySelector('#t1 tbody');
+  for (const [run, name] of SR) {
+    const r = await load(run); if (!r) { b1.insertAdjacentHTML('beforeend', pend(name, 7)); continue; }
+    const h = r.v.hwm || {}, br = h.by_reach || {}, g = (r.v.gauges && r.v.gauges.rows || []).find(x => x.site === '01169900');
+    b1.insertAdjacentHTML('beforeend', `<tr><td>${name}</td>${cell((br['South River'] || {}).wse_bias_m)}${cell((br['Avery Brook'] || {}).wse_bias_m)}${cell((br['West Brook'] || {}).wse_bias_m)}${cell(h.wse_bias_m)}${cell(h.wse_nearest_bias_m)}${cell(g ? g.wse_err_m : null)}<td class="k">${mins(r.m)}</td></tr>`);
+  }
+  const b2 = document.querySelector('#t2 tbody');
+  for (const [run, name] of WS) {
+    const r = await load(run); if (!r) { b2.insertAdjacentHTML('beforeend', pend(name, 5)); continue; }
+    const h = r.v.hwm || {};
+    b2.insertAdjacentHTML('beforeend', `<tr><td>${name}</td>${cell(h.wse_bias_m)}${cell(h.wse_nearest_bias_m)}${cell(h.wse_median_bias_m)}<td class="k">${h.n || '–'}</td><td class="k">${mins(r.m)}</td></tr>`);
+  }
+  const b3 = document.querySelector('#t3 tbody');
+  for (const [run, name] of ST) {
+    const r = await load(run); if (!r) { b3.insertAdjacentHTML('beforeend', pend(name, 8)); continue; }
+    const rp = r.v.reports || {}, g = r.v.gauges;
+    const near = g ? g.rows.map(x => x.wse_err_nearest_m).filter(x => x != null) : [];
+    const lift = rp.hit_rate != null && rp.any_day_rate != null ? rp.hit_rate - rp.any_day_rate : null;
+    const pct = x => x == null ? '–' : Math.round(x * 100) + '%';
+    b3.insertAdjacentHTML('beforeend', `<tr><td>${name}<span class="tag">${rp.n_storm_day || 0} reports</span></td><td>${pct(rp.hit_rate)}</td><td class="k">${pct(rp.any_day_rate)}</td><td class="${lift == null ? '' : lift >= 0.2 ? 'g' : lift >= 0.05 ? 'm' : 'b'}">${lift == null ? '–' : (lift >= 0 ? '+' : '') + Math.round(lift * 100) + ' pts'}</td><td class="k">${g ? g.n : 'not scored'}</td>${g ? cell(g.wse_bias_m) : '<td>–</td>'}<td class="k">${g ? (+g.wse_mae_m).toFixed(2) : '–'}</td><td class="k">${near.length ? pct(near.filter(x => Math.abs(x) <= 1).length / near.length) : '–'}</td><td class="k">${mins(r.m)}</td></tr>`);
+  }
+  document.getElementById('stamp').textContent = 'Loaded ' + new Date().toLocaleString() + ' · reload to refresh';
+})();
+</script></body></html>
