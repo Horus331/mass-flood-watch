@@ -253,10 +253,13 @@ def breach_channels(Z, chan, sea, max_cut):
             if rr < 0 or cc < 0 or rr >= ny_ or cc >= nx_ or seen[rr, cc] or not chan[rr, cc]: continue
             seen[rr, cc] = True; kk = rr * nx_ + cc; par.flat[kk] = k; zn = float(Zc[rr, cc])
             if zn < zc:                                  # a pit below its spill: lower the path back toward the outlet instead of filling it
-                if zc - zn <= max_cut:
-                    p_ = k
-                    while p_ >= 0 and Zc.flat[p_] > zn:
-                        cut += 1; cut_m = max(cut_m, float(Z.flat[p_] - zn)); Zc.flat[p_] = zn; p_ = int(par.flat[p_])
+                path = []; p_ = k; ok = True
+                while p_ >= 0 and Zc.flat[p_] > zn:
+                    if Z.flat[p_] - zn > max_cut: ok = False; break      # no cell is ever cut more than max_cut below its original height
+                    path.append(p_); p_ = int(par.flat[p_])
+                if ok:
+                    for p_ in path: Zc.flat[p_] = zn
+                    cut += len(path)
                 else: skipped += 1
             heapq.heappush(hq, (float(Zc[rr, cc]), kk))
     d = Z - Zc
