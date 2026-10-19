@@ -32,7 +32,7 @@ for f in feats:
                  num(a.get('BFWDTH'), FT), num(a.get('BFDPTH'), FT), num(a.get('BCORDE1HYR'), FT), a.get('HWYCLASS'), a.get('HWYHDF')])
 json.dump(dict(source='Massachusetts Stream Crossings Project (USGS, UMass Amherst, MassDEP) ArcGIS feature service; units converted to SI', fetched=time.strftime('%Y-%m-%d'), n=len(rows),
                columns=['lon', 'lat', 'naacc', 'road', 'stream', 'town', 'drn_km2', 'pk10', 'pk25', 'pk50', 'pk100', 'pk500', 'bf_w', 'bf_d', 'deck_m', 'hwy_class', 'design_flood'],
-               note='peak flows m3/s from StreamStats regression; deck_m = original road deck elevation (NAVD88 m) from the 100-yr box design record; sample fields first-run, verify units against the data dictionary (table 2)', rows=rows),
+               note='Units verified against the service data dictionary (docs/network/crossings_dictionary.json, 19 Oct 2026): PK*AEP ft3/s -> m3/s, DRNAREA mi2 -> km2, BFWDTH/BFDPTH ft -> m, BCORDE1HYR = elevation of the existing road deck from lidar over the culvert, ft NAVD88 -> m; -9999 = no data', rows=rows),
           open('docs/network/crossings_ma.json', 'w'), separators=(',', ':'))
 print(len(rows), 'crossings; with 100-yr flow:', sum(1 for x in rows if x[10]), '; sample:', rows[0] if rows else None)
 # the service's own data dictionary (table 2): units, descriptions and no-data values, to verify the conversions above
