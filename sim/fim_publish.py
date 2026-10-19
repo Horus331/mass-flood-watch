@@ -34,8 +34,9 @@ for storm in [s.strip() for s in os.environ.get('STORMS', 'jul2023').split(',') 
                 peak_wet_km2=round(wet, 1), model='NOAA NWM analysis_assim peak flows -> OWP HAND-FIM (FIM4) rating curves; riverine flooding only')
     json.dump(meta, open(f'{d}/meta.json', 'w'))
     np.save(f'{d}/hmax.npy', hm.astype(np.float16))
-    for f in ('f000.png', 'hmax.npy', 'meta.json'):      # meta last: its presence means the run is complete
-        api.upload_file(path_or_fileobj=f'{d}/{f}', path_in_repo=f'runs/fim_{storm}/{f}', repo_id=REPO, repo_type='dataset')
+    from huggingface_hub import CommitOperationAdd       # one commit per storm (HF allows 128 commits per hour per repo)
+    api.create_commit(REPO, repo_type='dataset', commit_message=f'runs/fim_{storm}: site frame + meta',
+                      operations=[CommitOperationAdd(path_in_repo=f'runs/fim_{storm}/{f}', path_or_fileobj=f'{d}/{f}') for f in ('f000.png', 'hmax.npy', 'meta.json')])
     print(storm, 'uploaded', hm.shape, f'{wet:.0f} km2 wet', flush=True)
     w5 = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'colab', 'w5_tiles.py')
     subprocess.run([sys.executable, w5], env=dict(os.environ, RUN_DIR=f'runs/fim_{storm}'), check=True)
