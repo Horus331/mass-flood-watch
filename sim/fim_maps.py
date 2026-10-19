@@ -170,7 +170,7 @@ def mosaic_blocks(paths, out_path, block=4096, overviews=True):
                     o.write(out, 1, window=w)
             o.scales = (0.01,); o.units = ('m',); o.update_tags(units='int16 centimetres of water depth; 0 = dry')
         if overviews and min(W, H) > 2048:
-            with rasterio.open(out_path, 'r+') as o: o.build_overviews([4, 16, 64], Resampling.max)
+            with rasterio.open(out_path, 'r+') as o: o.build_overviews([4, 16, 64], Resampling.nearest)
     finally:
         for s in srcs: s.close()
 
