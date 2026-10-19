@@ -22,5 +22,6 @@ Tail the log with `print(open('/content/w4_flood_gpu_dec30.out').read()[-1500:])
 | `w5_tiles.py` | map tiles (PMTiles per frame) for a run (`RUN_DIR`) | runs/<RUN>_<RES>m/ | runs/<RUN>_<RES>m/tiles/ |
 | `w1_data.py`, `w2_drain10.py`, `w2b_upload.py` | one-off data foundation (10 m DEM, 10 m drainage, flowlines) | USGS | data/dem10, data/drain10, data/nhdplushr_flowlines.geojson |
 | `w3_gpu_check.py` | CPU vs GPU solver check and speed | – | – |
+| `../crossings_capacity.py` | post-processing (CPU, any runtime): per road-stream crossing, modelled channel flow Q = h·v·W as a StreamStats return period, water surface vs road deck → freeboard / overtopping (L2 hydraulic exceedance); NBI culverts: depth at the structure vs waterway adequacy code. `python sim/crossings_capacity.py <run_dir> --out <json> [--channels channels30.npz --channels-meta channels30_meta.json]`; `--selftest` runs offline | runs/<RUN>_<RES>m/ (z, hmax, vmax, meta), docs/network/crossings_ma.json + nbi_ma.json, data/channels30 (optional) | <run_dir>/crossings.json (or `--out`) |
 
 Data jobs that need no GPU run on GitHub Actions instead (`.github/workflows/`: nlcd, soils, gauges, hwm, hwm_ma, drain).
