@@ -271,7 +271,10 @@ if TIDE is not None:
     sim = solver.LocalInertial(Z, RES, N_MAP, fixed=sea, xp=xp, theta=0.7 if PHYS >= 2 else 1.0, fr_max=2.0 if PHYS >= 2 else 1.0)
     border = np.zeros((ny, nx), bool); border[[0, -1], :] = True; border[:, [0, -1]] = True; sim.sink = xp.asarray(border & ~sea)   # open land edges still drain out
 else:
-    sim = solver.LocalInertial(Z, RES, N_MAP, xp=xp, theta=0.7 if PHYS >= 2 else 1.0, fr_max=2.0 if PHYS >= 2 else 1.0); sim.sink = xp.asarray(sea)
+    sim = solver.LocalInertial(Z, RES, N_MAP, xp=xp, theta=0.7 if PHYS >= 2 else 1.0, fr_max=2.0 if PHYS >= 2 else 1.0)
+    border = np.zeros((ny, nx), bool); border[[0, -1], :] = True; border[:, [0, -1]] = True
+    sim.sink = xp.asarray(sea | border) if PHYS >= 2 else xp.asarray(sea)   # grid edge is an open boundary: rivers leaving the box (Housatonic, Connecticut into CT) flow out instead of piling up against a wall
+    if PHYS >= 2: log(f'open boundary: {int(border.sum()):,} edge cells drain out')
 if PHYS >= 2 and chan.any():
     if SUBGRID: sim.set_channels(CW, CD)                                 # sub-grid channel storage and conveyance (Neal et al. 2012, simplified)
     sim.h += xp.asarray(np.where(chan, 0.3 * burn, 0).astype(np.float32))   # baseflow: channels start a third full
