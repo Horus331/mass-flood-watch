@@ -1,29 +1,5 @@
 [
  {
-  "id": "smoke_e31e82b5",
-  "kind": "storm",
-  "env": {
-   "RUN": "test_leominster",
-   "RES": "30",
-   "TAG": "_smoke_e31e82b5",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "HOURS": "3",
-   "BOX": "150000,905000,170000,925000",
-   "GIT_SHA": "e31e82b5",
-   "ANTE_SCALE": "0.5",
-   "KDEEP_SCALE": "3",
-   "INFLOW": "0"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 4,
-  "priority": 12,
-  "note": "2-hour end-to-end smoke test of the engine at this commit (catches end-of-script crashes before multi-hour runs)"
- },
- {
   "id": "sep2023_v3b_30m",
   "kind": "storm",
   "env": {
@@ -45,30 +21,6 @@
   "note": "statewide Sept 2023, v3 physics; first attempt lost at frame 50/72 when Colab disconnected the idle runtime; renamed (fresh retry budget) after the end-of-run NameError fix"
  },
  {
-  "id": "dec2023_v3_30m",
-  "kind": "storm",
-  "env": {
-   "RUN": "dec2023",
-   "RES": "30",
-   "TAG": "_v3",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "TIDE": "1",
-   "GIT_SHA": "e31e82b5"
-  },
-  "steps": [
-   "w4",
-   "w5",
-   "w6"
-  ],
-  "gpu_gb": 12,
-  "priority": 9,
-  "note": "statewide Dec 2023 with the v3 physics (open boundary, wide rivers)",
-  "after": [
-   "smoke_e31e82b5"
-  ]
- },
- {
   "id": "tiles_jul2023_whetstone_v3_10m",
   "kind": "tiles",
   "run_dir": "runs/jul2023_whetstone_v3_10m",
@@ -83,32 +35,13 @@
   "requires_run_dir": true
  },
  {
-  "id": "tiles_jul2023_southriver_v3_10m",
-  "kind": "tiles",
-  "run_dir": "runs/jul2023_southriver_v3_10m",
-  "env": {
-   "RUN_DIR": "runs/jul2023_southriver_v3_10m"
-  },
-  "steps": [
-   "w5",
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 6,
-  "after": [],
-  "only": [
-   "colab2",
-   "kaggle"
-  ],
-  "requires_run_dir": true
- },
- {
   "id": "coast_northshore_jan2018_10m",
   "kind": "coast",
   "env": {
    "TILE": "northshore",
    "STORM": "jan2018",
-   "RES": "10"
+   "RES": "10",
+   "GIT_SHA": "4dc291ea"
   },
   "run_dir": "runs/coast_northshore_jan2018_10m",
   "steps": [
@@ -119,9 +52,10 @@
   "gpu_gb": 12,
   "priority": 5,
   "only": [
-   "colab2",
-   "kaggle"
-  ]
+   "colab1",
+   "colab2"
+  ],
+  "est_h": 6
  },
  {
   "id": "coast_southshore_jan2018_10m",
@@ -129,7 +63,8 @@
   "env": {
    "TILE": "southshore",
    "STORM": "jan2018",
-   "RES": "10"
+   "RES": "10",
+   "GIT_SHA": "4dc291ea"
   },
   "run_dir": "runs/coast_southshore_jan2018_10m",
   "steps": [
@@ -140,9 +75,10 @@
   "gpu_gb": 12,
   "priority": 5,
   "only": [
-   "colab2",
-   "kaggle"
-  ]
+   "colab1",
+   "colab2"
+  ],
+  "est_h": 6
  },
  {
   "id": "jul2023_southriver_v3n07b_10m",
@@ -190,9 +126,14 @@
   "priority": 6,
   "note": "South River 10 m sensitivity: Manning x1.3; every run also saves hsnap.npy (peak of 30-min snapshots) to separate numerical spikes from real stage",
   "only": [
+   "colab1",
    "colab2",
    "kaggle"
-  ]
+  ],
+  "after": [
+   "jul2023_southriver_v3brch_10m"
+  ],
+  "est_h": 5
  },
  {
   "id": "jul2023_southriver_v3snapb_10m",
@@ -212,12 +153,16 @@
    "w6"
   ],
   "gpu_gb": 8,
-  "priority": 7,
-  "note": "South River 10 m sensitivity: Manning x1.0; every run also saves hsnap.npy (peak of 30-min snapshots) to separate numerical spikes from real stage",
+  "priority": 10,
+  "note": "South River 10 m sensitivity: Manning x1.0; every run also saves hsnap.npy (peak of 30-min snapshots) to separate numerical spikes from real stage | same-commit control for brch; L4 only (a 5 h run started late on Kaggle would hit the 12 h session cap)",
   "only": [
-   "colab2",
-   "kaggle"
-  ]
+   "colab1",
+   "colab2"
+  ],
+  "after": [
+   "smoke_4dc291ea"
+  ],
+  "est_h": 5
  },
  {
   "id": "jul2023_southriver_v3dryA_10m",
@@ -267,13 +212,15 @@
   "gpu_gb": 8,
   "priority": 9,
   "after": [
-   "smoke_e31e82b5"
+   "jul2023_southriver_v3brch_10m"
   ],
   "only": [
+   "colab1",
    "colab2",
    "kaggle"
   ],
-  "note": "drier-ground test: KDEEP_SCALE=3"
+  "note": "drier-ground test: KDEEP_SCALE=3",
+  "est_h": 5
  },
  {
   "id": "jul2023_southriver_v3dryAK_10m",
@@ -296,27 +243,29 @@
   "gpu_gb": 8,
   "priority": 8,
   "after": [
-   "smoke_e31e82b5"
+   "jul2023_southriver_v3brch_10m"
   ],
   "only": [
+   "colab1",
    "colab2",
    "kaggle"
   ],
-  "note": "drier-ground test: ANTE_SCALE=0.5, KDEEP_SCALE=3"
+  "note": "drier-ground test: ANTE_SCALE=0.5, KDEEP_SCALE=3",
+  "est_h": 5
  },
  {
-  "id": "smoke_4c03ab91",
+  "id": "smoke_4dc291ea",
   "kind": "storm",
   "env": {
    "RUN": "jul2023_southriver",
    "RES": "10",
-   "TAG": "_smoke_4c03ab91",
+   "TAG": "_smoke_4dc291ea",
    "PHYS": "2",
    "SUBGRID": "1",
    "HOURS": "2",
    "INFLOW": "0",
    "BREACH": "1",
-   "GIT_SHA": "4c03ab91"
+   "GIT_SHA": "4dc291ea"
   },
   "steps": [
    "w4",
@@ -325,10 +274,12 @@
   "gpu_gb": 8,
   "priority": 12,
   "only": [
+   "colab1",
    "colab2",
    "kaggle"
   ],
-  "note": "2-hour smoke test at 10 m on the South River box with BREACH=1 (also logs the breaching stats); also tests the upload/meta fixes"
+  "note": "2-hour smoke test at 10 m on the South River box with BREACH=1 (also logs the breaching stats); also tests the upload/meta fixes",
+  "est_h": 0.7
  },
  {
   "id": "jul2023_southriver_v3brch_10m",
@@ -350,12 +301,83 @@
   "gpu_gb": 8,
   "priority": 10,
   "after": [
-   "smoke_4c03ab91"
+   "smoke_4dc291ea"
   ],
   "only": [
+   "colab1",
    "colab2",
    "kaggle"
   ],
-  "note": "channel-breaching test: South River 10 m with sills in the burnt channel carved (BREACH=1, max 4 m); baseline v3 10 m: South River +2.8, Avery +1.8, West Brook +0.8"
+  "note": "channel-breaching test: South River 10 m with sills in the burnt channel carved (BREACH=1, max 4 m); baseline v3 10 m: South River +2.8, Avery +1.8, West Brook +0.8",
+  "est_h": 5
+ },
+ {
+  "id": "score_jul2023_southriver_v3_10m",
+  "kind": "score",
+  "run_dir": "runs/jul2023_southriver_v3_10m",
+  "env": {
+   "GIT_SHA": "4dc291ea"
+  },
+  "steps": [
+   "w6"
+  ],
+  "gpu_gb": 1,
+  "priority": 11,
+  "est_h": 0.2,
+  "note": "re-score the South River baseline with the new sensitivity metrics; also tests w6/validate at 4dc291ea in minutes"
+ },
+ {
+  "id": "score_jul2023_southriver_v3n07b_10m",
+  "kind": "score",
+  "run_dir": "runs/jul2023_southriver_v3n07b_10m",
+  "env": {
+   "GIT_SHA": "4dc291ea"
+  },
+  "steps": [
+   "w6"
+  ],
+  "gpu_gb": 1,
+  "priority": 11,
+  "after": [
+   "jul2023_southriver_v3n07b_10m"
+  ],
+  "est_h": 0.3,
+  "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
+ },
+ {
+  "id": "score_jul2023_southriver_v3dryA_10m",
+  "kind": "score",
+  "run_dir": "runs/jul2023_southriver_v3dryA_10m",
+  "env": {
+   "GIT_SHA": "4dc291ea"
+  },
+  "steps": [
+   "w6"
+  ],
+  "gpu_gb": 1,
+  "priority": 11,
+  "after": [
+   "jul2023_southriver_v3dryA_10m"
+  ],
+  "est_h": 0.3,
+  "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
+ },
+ {
+  "id": "score_sep2023_v3b_30m",
+  "kind": "score",
+  "run_dir": "runs/sep2023_v3b_30m",
+  "env": {
+   "GIT_SHA": "4dc291ea"
+  },
+  "steps": [
+   "w6"
+  ],
+  "gpu_gb": 1,
+  "priority": 11,
+  "after": [
+   "sep2023_v3b_30m"
+  ],
+  "est_h": 0.3,
+  "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
  }
 ]

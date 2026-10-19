@@ -15,7 +15,8 @@ How it works
 Launch (Colab):  env = dict(os.environ, HF_TOKEN=userdata.get('HF_TOKEN'), WORKER='colab2', GPU_GB='22'); subprocess.Popen('python worker.py', env=env)
 Launch (Kaggle): HF_TOKEN from kaggle_secrets, WORKER='kaggle', GPU_GB='15' (T4 x2: one 15 GB card is used), WORK='/kaggle/working'.
 Env: HF_TOKEN (required), WORKER (name), GPU_GB (memory available), WORK (scratch dir, default /content), GIT_SHA (default: main at start),
-     ONCE=1 (run one job and exit), POLL_S (idle poll seconds, default 120).
+     ONCE=1 (run one job and exit), POLL_S (idle poll seconds, default 120),
+     SESSION_H (hours until the runtime is killed; jobs whose est_h x 1.2 would not fit are left to other machines).
 """
 import os, sys, json, time, subprocess, urllib.request, socket, traceback
 from huggingface_hub import HfApi, hf_hub_download
@@ -25,6 +26,7 @@ REPO = 'mohabeldokla/mass-flood-watch-tiles'; GH = 'Horus331/mass-flood-watch'
 TOK = os.environ['HF_TOKEN']; api = HfApi(token=TOK)
 WORKER = os.environ.get('WORKER', socket.gethostname()); GPU_GB = float(os.environ.get('GPU_GB', '22')); WORK = os.environ.get('WORK', '/content')
 POLL = int(os.environ.get('POLL_S', '120')); os.makedirs(WORK, exist_ok=True)
+SESSION_END = float(os.environ.get('SESSION_END', '0')) or (time.time() + 3600 * float(os.environ['SESSION_H']) if os.environ.get('SESSION_H') else 0)     # unix time the runtime will be killed (Kaggle: SESSION_H=11.5 at launch)
 try: os.makedirs('/content', exist_ok=True)       # the step scripts still write under /content (true on Colab and Kaggle, which run as root)
 except OSError: pass
 log = lambda *a: print(time.strftime('%H:%M:%S'), *a, flush=True)
@@ -77,6 +79,7 @@ def pick(jobs, st):
         if j.get('gpu_gb', 10) > GPU_GB: return False
         if any(st.get(a, {}).get('state') != 'done' for a in j.get('after', [])): return False
         if j.get('only') and WORKER not in j['only']: return False
+        if SESSION_END and now + 3600 * float(j.get('est_h', 1)) * 1.2 > SESSION_END: return False      # would be killed by the runtime's session cap (Kaggle 12 h): leave it to another machine
         if j.get('requires_run_dir') and not run_exists(job_run_dir(j)): return False      # post-processing of a run made outside the queue: wait until its meta.json is on HF
         return True
     c = [j for j in jobs if runnable(j)]
