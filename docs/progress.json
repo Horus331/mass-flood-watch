@@ -21,7 +21,7 @@
   {
    "n": 4,
    "name": "Validation vs surveyed water marks and flood reports",
-   "status": "3 GPU machines + job queue live; Sept v3 16/72; South River 10 m running; Dec v3 on Kaggle",
+   "status": "Sept v3 running (BOT 1), South River 10 m (BOT 2), Dec v3 (BOT 3 Kaggle); crossings module live",
    "note": "jul2023: wet_share 4% (n=103) → experiment jul2023_sat (WET_START 250, FC_SCALE 0.3); coast10 running"
   },
   {
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Sun Oct 18, 9:56 PM",
+   "text": "10:00 pm: Crossings module (item E) merged and run on July 2023 v3: 348 crossings in the box. Units verified against the USGS service's own data dictionary (ft3/s, mi2, ft, road deck = lidar elevation of the existing deck, ft NAVD88). At 30 m, 23 crossings sit where the grid's channel cell is higher than the road deck — not assessable at that resolution, now flagged; of the 325 assessable, 32 show modelled water above the road deck. Not quotable yet: will be cross-checked on the 10 m South River run. Reviewer findings applied (worker ownership check and crash-proof loop, NaN-safe scoring, crossing coordinates no longer rounded to 100 m, de-duplicated marks on the map)."
+  },
   {
    "t": "Sun Oct 18, 9:47 PM",
    "text": "9:50 pm: Resolution test 1 — Whetstone Brook at 10 m: water-surface error +1.9 m (was +4.7 m at 30 m; 6 marks, all wet). Second GPU (Colab) running South River at 10 m (46 marks); Kaggle 2×T4 joined as a third machine via the new shared job queue (docs/queue/jobs.json + sim/colab/worker.py) and took Dec 2023 v3 statewide. Four parallel agents: culvert overtopping module, ML training-corpus builder, independent code review, docs (merged)."
