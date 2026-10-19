@@ -34,8 +34,10 @@ import numpy as np
 
 T_YR = np.array([10., 25., 50., 100., 500.]); PK = ['pk10', 'pk25', 'pk50', 'pk100', 'pk500']
 COLS = ['naacc', 'road', 'stream', 'town', 'lon', 'lat', 'drn_km2', 'area_cell_km2', 'row', 'col', 'dist_m', 'h_m', 'v_ms', 'q_m2s', 'W_m', 'Q_m3s',
-        'T_yr', 'T_label', 'pk100', 'wse_m', 'deck_m', 'freeboard_m', 'overtop', 'stage_ratio', 'deck_minus_dem_m', 'design_flood']
+        'T_yr', 'T_label', 'pk100', 'wse_m', 'deck_m', 'freeboard_m', 'overtop', 'stage_ratio', 'deck_minus_dem_m', 'design_flood', 'deck_minus_chan_m', 'qc_ok']
 NBI_COLS = ['id', 'lon', 'lat', 'year', 'culvert', 'waterway_71', 'scour_113', 'culvert_62', 'adt', 'h_cell_m', 'h_max30_m', 'wet', 'frequent_overtop_code']
+
+QC_TOL = 0.5     # m: channel-cell ground may sit at most this far above the deck before the crossing is flagged not assessable
 
 def return_period(Q, pk):
     """Return period (yr) of flow Q by log-log interpolation against the StreamStats peaks; None if Q <= 0 or peaks missing."""
@@ -99,10 +101,13 @@ def assess(run_dir, crossings, nbi=None, channels=None, radius_m=60):
                      None if q is None else round(q, 3), None if W is None else round(float(W), 2), None if Q is None else round(Q, 3),
                      None if T is None else round(T, 1), t_label(T, Q, s[C['pk10']]) if T is not None else None, s[C['pk100']], round(wse, 2), deck,
                      None if fb is None else round(fb, 2), None if fb is None else int(fb < 0), None if not bfd else round(h / float(bfd), 2),
-                     None if deck is None else round(float(deck) - float(Z[r, c]), 2), s[C['design_flood']]])
+                     None if deck is None else round(float(deck) - float(Z[r, c]), 2), s[C['design_flood']],
+                     None if deck is None else round(float(deck) - float(Z[cr, cc_]), 2),
+                     None if deck is None else int(float(deck) - float(Z[cr, cc_]) >= -QC_TOL)])      # QC: a channel cell standing above the road deck cannot be the stream under the road (grid too coarse for the valley) -> not assessable at this resolution
     R = {n: i for i, n in enumerate(COLS)}; col = lambda n: np.array([x[R[n]] for x in rows if x[R[n]] is not None], float)
     fb = col('freeboard_m'); T = col('T_yr'); dd = col('deck_minus_dem_m'); ac = col('area_cell_km2'); da = np.array([x[R['drn_km2']] for x in rows if x[R['area_cell_km2']] is not None], float)
-    summary = dict(crossings_in_box=len(rows), crossings_outside_box=n_out, overtopped=int((fb < 0).sum()), freeboard_lt_1m=int((fb < 1).sum()),
+    qc = [x for x in rows if x[R['qc_ok']] == 1]; fbq = np.array([x[R['freeboard_m']] for x in qc if x[R['freeboard_m']] is not None], float)
+    summary = dict(crossings_in_box=len(rows), assessable_qc=len(qc), overtopped_qc=int((fbq < 0).sum()), freeboard_lt_1m_qc=int((fbq < 1).sum()), crossings_outside_box=n_out, overtopped=int((fb < 0).sum()), freeboard_lt_1m=int((fb < 1).sum()),
                    above_bankfull=int(sum(1 for x in rows if x[R['stage_ratio']] is not None and x[R['stage_ratio']] > 1)),
                    T_ge_10yr=int((T >= 10).sum()), T_ge_100yr=int((T >= 100).sum()), T_median_yr=round(float(np.median(T)), 1) if len(T) else None,
                    freeboard_median_m=round(float(np.median(fb)), 2) if len(fb) else None,
@@ -133,7 +138,7 @@ def assess(run_dir, crossings, nbi=None, channels=None, radius_m=60):
 
 def print_table(out, n=15):
     R = {k: i for i, k in enumerate(out['columns'])}; rows = sorted(out['rows'], key=lambda x: (x[R['freeboard_m']] is None, x[R['freeboard_m']] if x[R['freeboard_m']] is not None else 0))
-    print(f"{out['run']}: {out['summary']['crossings_in_box']} crossings in box, {out['summary']['overtopped']} overtopped (freeboard < 0), {out['summary']['freeboard_lt_1m']} with freeboard < 1 m; "
+    print(f"{out['run']}: {out['summary']['crossings_in_box']} crossings in box, {out['summary']['assessable_qc']} assessable at this resolution, {out['summary']['overtopped_qc']} of them overtopped; raw {out['summary']['overtopped']} overtopped (freeboard < 0), {out['summary']['freeboard_lt_1m']} with freeboard < 1 m; "
           f"deck - DEM median {out['summary']['deck_minus_dem_median_m']} m; channel grid {out['summary']['channel_grid']}")
     print(f"{'road':<26}{'town':<14}{'A km2':>7}{'h m':>6}{'v m/s':>7}{'Q m3/s':>8}{'pk100':>7}{'T yr':>6}{'freeb m':>9}{'over':>5}")
     for x in rows[:n]:
