@@ -67,31 +67,6 @@
   "est_h": 6
  },
  {
-  "id": "jul2023_southriver_v3n07b_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "TAG": "_v3n07",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "N_SCALE": "0.7",
-   "GIT_SHA": "6f12a7b4"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 8,
-  "note": "South River 10 m sensitivity: Manning x0.7; every run also saves hsnap.npy (peak of 30-min snapshots) to separate numerical spikes from real stage",
-  "only": [
-   "colab2",
-   "kaggle"
-  ]
- },
- {
   "id": "jul2023_southriver_v3snapb_10m",
   "kind": "storm",
   "env": {
@@ -119,34 +94,6 @@
    "smoke_b7e2e6a1"
   ],
   "est_h": 5
- },
- {
-  "id": "jul2023_southriver_v3dryA_10m",
-  "kind": "storm",
-  "env": {
-   "RUN": "jul2023_southriver",
-   "RES": "10",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "INFLOW": "0",
-   "GIT_SHA": "e31e82b5",
-   "TAG": "_v3dryA",
-   "ANTE_SCALE": "0.5"
-  },
-  "steps": [
-   "w4",
-   "w6"
-  ],
-  "gpu_gb": 8,
-  "priority": 9,
-  "after": [
-   "smoke_e31e82b5"
-  ],
-  "only": [
-   "colab2",
-   "kaggle"
-  ],
-  "note": "drier-ground test: ANTE_SCALE=0.5"
  },
  {
   "id": "jul2023_southriver_v3dryK_10m",
@@ -240,24 +187,6 @@
   "est_h": 5
  },
  {
-  "id": "score_jul2023_southriver_v3dryA_10m",
-  "kind": "score",
-  "run_dir": "runs/jul2023_southriver_v3dryA_10m",
-  "env": {
-   "GIT_SHA": "b7e2e6a1"
-  },
-  "steps": [
-   "w6"
-  ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "after": [
-   "jul2023_southriver_v3dryA_10m"
-  ],
-  "est_h": 0.3,
-  "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
- },
- {
   "id": "score_sep2023_v3b_30m",
   "kind": "score",
   "run_dir": "runs/sep2023_v3_30m",
@@ -276,17 +205,15 @@
   "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
  },
  {
-  "id": "smoke_b7e2e6a1",
+  "id": "jul2023_whetstone_v3brch2_10m",
   "kind": "storm",
   "env": {
-   "RUN": "jul2023_southriver",
+   "RUN": "jul2023_whetstone",
    "RES": "10",
-   "TAG": "_smoke_b7e2e6a1",
    "PHYS": "2",
    "SUBGRID": "1",
-   "HOURS": "3",
-   "T0": "2023-07-10T09:00",
    "INFLOW": "0",
+   "TAG": "_v3brch2",
    "BREACH": "1",
    "GIT_SHA": "b7e2e6a1"
   },
@@ -295,13 +222,23 @@
    "w6"
   ],
   "gpu_gb": 8,
-  "priority": 12,
-  "only": [
-   "colab1",
-   "colab2",
-   "kaggle"
+  "priority": 9,
+  "est_h": 2,
+  "note": "breaching on a second reach (Whetstone 10 m baseline +1.9 m): does the fix generalise?"
+ },
+ {
+  "id": "score_jul2023_whetstone_v3_10m",
+  "kind": "score",
+  "run_dir": "runs/jul2023_whetstone_v3_10m",
+  "env": {
+   "GIT_SHA": "b7e2e6a1"
+  },
+  "steps": [
+   "w6"
   ],
-  "est_h": 0.4,
-  "note": "smoke at this commit: 3 h inside the July storm, South River box, BREACH=1 (check the breaching log line: max cut <= 4 m)"
+  "gpu_gb": 1,
+  "priority": 11,
+  "est_h": 0.2,
+  "note": "re-score Whetstone baseline with gauges + sensitivity metrics"
  }
 ]
