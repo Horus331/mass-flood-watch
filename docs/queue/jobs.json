@@ -1,0 +1,90 @@
+[
+ {
+  "id": "dec2023_v3_30m",
+  "kind": "storm",
+  "env": {
+   "RUN": "dec2023",
+   "RES": "30",
+   "TAG": "_v3",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "TIDE": "1"
+  },
+  "steps": [
+   "w4",
+   "w5",
+   "w6"
+  ],
+  "gpu_gb": 12,
+  "priority": 9,
+  "note": "statewide Dec 2023 with the v3 physics (open boundary, wide rivers)"
+ },
+ {
+  "id": "tiles_jul2023_whetstone_v3_10m",
+  "kind": "tiles",
+  "run_dir": "runs/jul2023_whetstone_v3_10m",
+  "env": {
+   "RUN_DIR": "runs/jul2023_whetstone_v3_10m"
+  },
+  "steps": [
+   "w5"
+  ],
+  "gpu_gb": 1,
+  "priority": 6,
+  "requires_run_dir": true
+ },
+ {
+  "id": "tiles_jul2023_southriver_v3_10m",
+  "kind": "tiles",
+  "run_dir": "runs/jul2023_southriver_v3_10m",
+  "env": {
+   "RUN_DIR": "runs/jul2023_southriver_v3_10m"
+  },
+  "steps": [
+   "w5",
+   "w6"
+  ],
+  "gpu_gb": 1,
+  "priority": 6,
+  "after": [],
+  "only": [
+   "colab2",
+   "kaggle"
+  ],
+  "requires_run_dir": true
+ },
+ {
+  "id": "coast_northshore_jan2018_10m",
+  "kind": "coast",
+  "env": {
+   "TILE": "northshore",
+   "STORM": "jan2018",
+   "RES": "10"
+  },
+  "run_dir": "runs/coast_northshore_jan2018_10m",
+  "steps": [
+   "w8",
+   "w5",
+   "w6"
+  ],
+  "gpu_gb": 12,
+  "priority": 5
+ },
+ {
+  "id": "coast_southshore_jan2018_10m",
+  "kind": "coast",
+  "env": {
+   "TILE": "southshore",
+   "STORM": "jan2018",
+   "RES": "10"
+  },
+  "run_dir": "runs/coast_southshore_jan2018_10m",
+  "steps": [
+   "w8",
+   "w5",
+   "w6"
+  ],
+  "gpu_gb": 12,
+  "priority": 5
+ }
+]
