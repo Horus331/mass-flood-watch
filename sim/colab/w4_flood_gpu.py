@@ -122,6 +122,8 @@ for ts in hours:
             if k_ == 3: log('  no MRMS after 4 tries', ts, repr(e)[:80]); RAIN[ts] = np.zeros((ny, nx), np.float32); MISSING.append(ts.strftime('%Y-%m-%dT%H:%MZ'))
             else: time.sleep(5 + 10 * k_)
 if MISSING: log(f'WARNING: {len(MISSING)} rain hours missing (counted as dry): {MISSING}')
+RAIN_SCALE = float(os.environ.get('RAIN_SCALE', '1'))      # experiment: radar rain bias (MRMS can over-read in hill towns)
+if RAIN_SCALE != 1: RAIN = {k_: (v_ * RAIN_SCALE).astype(np.float32) for k_, v_ in RAIN.items()}; log(f'experiment: rain x{RAIN_SCALE}')
 tot = sum(RAIN.values()); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h')
 if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
 # rain pictures for the map: one small RGBA image per hour (every 10th cell), corners in lon/lat for a MapLibre image source
@@ -274,6 +276,8 @@ if PHYS >= 2:
         chan = CH['chan'].astype(bool) & ~sea
         SUBGRID = os.environ.get('SUBGRID', '1') == '1'
         CW = np.where(chan, CH['width'].astype(np.float32), 0).astype(np.float32); CD = np.where(chan, CH['depth'].astype(np.float32), 0).astype(np.float32)
+        CH_W, CH_D = float(os.environ.get('CHAN_W_SCALE', '1')), float(os.environ.get('CHAN_D_SCALE', '1'))     # experiment: in-bank channel size (regional curves can under-size channels)
+        if CH_W != 1 or CH_D != 1: CW = (CW * CH_W).astype(np.float32); CD = (CD * CH_D).astype(np.float32); log(f'experiment: channel width x{CH_W}, depth x{CH_D}')
         if SUBGRID:
             burn = CD                                                                                              # full bankfull depth; the solver keeps the channel's own width below bank
             wide = CH['water'].astype(bool) & ~chan & ~sea                                                         # rivers wider than a cell: the buffered body is cut to the channel depth too
@@ -366,7 +370,7 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
-meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, breach=os.environ.get('BREACH', '0') == '1', hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, breach=os.environ.get('BREACH', '0') == '1', rain_scale=RAIN_SCALE, chan_w_scale=float(os.environ.get('CHAN_W_SCALE', '1')), chan_d_scale=float(os.environ.get('CHAN_D_SCALE', '1')), hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None
 while kf < nfr:
