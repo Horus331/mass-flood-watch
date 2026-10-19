@@ -1,26 +1,5 @@
 [
  {
-  "id": "sep2023_v3b_30m",
-  "kind": "storm",
-  "env": {
-   "RUN": "sep2023",
-   "RES": "30",
-   "TAG": "_v3",
-   "PHYS": "2",
-   "SUBGRID": "1",
-   "TIDE": "1",
-   "GIT_SHA": "6f12a7b4"
-  },
-  "steps": [
-   "w4",
-   "w5",
-   "w6"
-  ],
-  "gpu_gb": 12,
-  "priority": 10,
-  "note": "statewide Sept 2023, v3 physics; first attempt lost at frame 50/72 when Colab disconnected the idle runtime; renamed (fresh retry budget) after the end-of-run NameError fix"
- },
- {
   "id": "coast_northshore_jan2018_10m",
   "kind": "coast",
   "env": {
@@ -187,25 +166,33 @@
   "est_h": 5
  },
  {
-  "id": "score_sep2023_v3b_30m",
-  "kind": "score",
-  "run_dir": "runs/sep2023_v3_30m",
+  "id": "smoke_41b4f62a",
+  "kind": "storm",
   "env": {
-   "GIT_SHA": "b7e2e6a1"
+   "RUN": "jul2023_southriver",
+   "RES": "10",
+   "TAG": "_smoke_41b4f62a",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "HOURS": "3",
+   "T0": "2023-07-10T09:00",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "RAIN_SCALE": "0.9",
+   "CHAN_D_SCALE": "1.2",
+   "GIT_SHA": "41b4f62a"
   },
   "steps": [
+   "w4",
    "w6"
   ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "after": [
-   "sep2023_v3b_30m"
-  ],
-  "est_h": 0.3,
-  "note": "re-score at 4dc291ea (hsnap + WSE sensitivity metrics) so it is comparable with the newer runs"
+  "gpu_gb": 8,
+  "priority": 12,
+  "est_h": 0.4,
+  "note": "smoke at this commit with the new knobs set"
  },
  {
-  "id": "jul2023_whetstone_v3brch2_10m",
+  "id": "jul2023_whetstone_v3rain75_10m",
   "kind": "storm",
   "env": {
    "RUN": "jul2023_whetstone",
@@ -213,9 +200,10 @@
    "PHYS": "2",
    "SUBGRID": "1",
    "INFLOW": "0",
-   "TAG": "_v3brch2",
    "BREACH": "1",
-   "GIT_SHA": "b7e2e6a1"
+   "GIT_SHA": "41b4f62a",
+   "TAG": "_v3rain75",
+   "RAIN_SCALE": "0.75"
   },
   "steps": [
    "w4",
@@ -223,22 +211,65 @@
   ],
   "gpu_gb": 8,
   "priority": 9,
-  "est_h": 2,
-  "note": "breaching on a second reach (Whetstone 10 m baseline +1.9 m): does the fix generalise?"
+  "est_h": 0.8,
+  "after": [
+   "smoke_41b4f62a"
+  ],
+  "note": "Whetstone 10 m (35 min run) sensitivity, with breaching: rain x0.75. Baseline +1.88 m (breaching alone: +1.88)"
  },
  {
-  "id": "score_jul2023_whetstone_v3_10m",
-  "kind": "score",
-  "run_dir": "runs/jul2023_whetstone_v3_10m",
+  "id": "jul2023_whetstone_v3chan15_10m",
+  "kind": "storm",
   "env": {
-   "GIT_SHA": "b7e2e6a1"
+   "RUN": "jul2023_whetstone",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "41b4f62a",
+   "TAG": "_v3chan15",
+   "CHAN_D_SCALE": "1.5",
+   "CHAN_W_SCALE": "1.5"
   },
   "steps": [
+   "w4",
    "w6"
   ],
-  "gpu_gb": 1,
-  "priority": 11,
-  "est_h": 0.2,
-  "note": "re-score Whetstone baseline with gauges + sensitivity metrics"
+  "gpu_gb": 8,
+  "priority": 9,
+  "est_h": 0.8,
+  "after": [
+   "smoke_41b4f62a"
+  ],
+  "note": "Whetstone 10 m (35 min run) sensitivity, with breaching: channel width and depth x1.5. Baseline +1.88 m (breaching alone: +1.88)"
+ },
+ {
+  "id": "jul2023_whetstone_v3rain75chan15_10m",
+  "kind": "storm",
+  "env": {
+   "RUN": "jul2023_whetstone",
+   "RES": "10",
+   "PHYS": "2",
+   "SUBGRID": "1",
+   "INFLOW": "0",
+   "BREACH": "1",
+   "GIT_SHA": "41b4f62a",
+   "TAG": "_v3rain75chan15",
+   "RAIN_SCALE": "0.75",
+   "CHAN_D_SCALE": "1.5",
+   "CHAN_W_SCALE": "1.5"
+  },
+  "steps": [
+   "w4",
+   "w6"
+  ],
+  "gpu_gb": 8,
+  "priority": 9,
+  "est_h": 0.8,
+  "after": [
+   "smoke_41b4f62a"
+  ],
+  "note": "Whetstone 10 m (35 min run) sensitivity, with breaching: both. Baseline +1.88 m (breaching alone: +1.88)"
  }
 ]
