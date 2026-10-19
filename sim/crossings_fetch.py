@@ -14,18 +14,18 @@ H = {'User-Agent': 'mass-flood-watch research (github.com/Horus331/mass-flood-wa
 n = requests.get(B, params=dict(where='1=1', returnCountOnly='true', f='json'), headers=H, timeout=120).json(); print('count', n)
 feats = []; off = 0
 while True:
-    r = requests.get(B, params=dict(where='1=1', outFields=','.join(F), returnGeometry='false', outSR=4326, f='json', resultOffset=off, resultRecordCount=2000), headers=H, timeout=180).json()
+    r = requests.get(B, params=dict(where='1=1', outFields=','.join(F), returnGeometry='false', outSR=4326, f='json', orderByFields='OBJECTID', resultOffset=off, resultRecordCount=2000), headers=H, timeout=180).json()
     if 'error' in r: raise SystemExit(r['error'])
     fs = r.get('features', []); feats += fs; off += len(fs); print('got', off, flush=True)
     if not r.get('exceededTransferLimit') or not fs: break
     time.sleep(1)
 CFS = 0.0283168; FT = 0.3048; SQMI = 2.58999
 def num(v, k=1.0):
-    try: return None if v is None else round(float(v) * k, 3)
+    try: return None if v is None or float(v) <= -999 else round(float(v) * k, 3)      # -999/-9999 = no data in the service
     except Exception: return None
 rows = []
 for f in feats:
-    a = f['attributes']; lat, lon = num(a.get('LAT')), num(a.get('LON'))
+    a = f['attributes']; lat, lon = (float(a['LAT']) if a.get('LAT') is not None else None), (float(a['LON']) if a.get('LON') is not None else None)     # full precision (3 decimals = 100 m)
     if lat is None or lon is None: continue
     rows.append([round(lon, 5), round(lat, 5), a.get('CrosCode'), a.get('ROAD'), a.get('STREAM'), a.get('TOWN'), num(a.get('DRNAREA'), SQMI),
                  num(a.get('PK10AEP'), CFS), num(a.get('PK4AEP'), CFS), num(a.get('PK2AEP'), CFS), num(a.get('PK1AEP'), CFS), num(a.get('PK02AEP'), CFS),
