@@ -232,6 +232,37 @@ if os.environ.get('SOILS', '1') == '1':
         log('no soils data, uniform infiltration:', repr(e)[:120])
 F0 = np.array([f0, 250, 200, 125, 75], np.float32)[grp]; FC = np.array([fc, 25.4, 12.7, 6.4, 2.5], np.float32)[grp]
 KDEEP = np.array([1.0, 5.0, 2.5, 1.0, 0.5], np.float32)[grp]            # mm/h once the soil store is full (deep drainage through dense till / bedrock)
+def breach_channels(Z, chan, sea, max_cut):
+    """Carve the burnt channel network so every channel cell drains to the box edge or the sea without climbing (least-cost
+    breaching restricted to channel cells; Barnes et al. 2014 priority-flood with carving).  Needed because the channel grid is
+    30 m: at 10 m its cells can sit beside the true thalweg, so bridge fill, road embankments and valley-side cells leave sills
+    in the burnt bed that pond the river (South River, Conway: a 1.3 m sill and a flat 6 m-deep pool upstream).  A sill deeper
+    than max_cut m is left alone (real dams).  Returns the carved Z; logs how many cells were lowered and by how much."""
+    import heapq
+    ny_, nx_ = Z.shape; Zc = Z.copy(); seen = np.zeros(Z.shape, bool); par = np.full(Z.shape, -1, np.int64)
+    edge = np.zeros(Z.shape, bool); edge[[0, -1], :] = True; edge[:, [0, -1]] = True
+    zch = np.where(chan, Z, np.inf); nmin = ndimage.minimum_filter(zch, size=3, mode='nearest')
+    seed = chan & ((edge & (Z <= nmin + 0.05)) | ndimage.binary_dilation(sea, iterations=1))     # rivers leave at edge cells lower than their channel neighbours; where they enter, the edge cell sits higher and is not an outlet
+    hq = [(float(Zc.flat[k]), int(k)) for k in np.flatnonzero(seed)]; heapq.heapify(hq); seen[seed] = True
+    nb8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]; cut = 0; cut_m = 0.0; skipped = 0
+    while hq:
+        zc, k = heapq.heappop(hq); r, c = divmod(k, nx_)
+        for dr, dc in nb8:
+            rr, cc = r + dr, c + dc
+            if rr < 0 or cc < 0 or rr >= ny_ or cc >= nx_ or seen[rr, cc] or not chan[rr, cc]: continue
+            seen[rr, cc] = True; kk = rr * nx_ + cc; par.flat[kk] = k; zn = float(Zc[rr, cc])
+            if zn < zc:                                  # a pit below its spill: lower the path back toward the outlet instead of filling it
+                if zc - zn <= max_cut:
+                    p_ = k
+                    while p_ >= 0 and Zc.flat[p_] > zn:
+                        cut += 1; cut_m = max(cut_m, float(Z.flat[p_] - zn)); Zc.flat[p_] = zn; p_ = int(par.flat[p_])
+                else: skipped += 1
+            heapq.heappush(hq, (float(Zc[rr, cc]), kk))
+    d = Z - Zc
+    log(f'   breaching: {int((d > 0.01).sum()):,} channel cells lowered (mean {float(d[d > 0.01].mean()) if (d > 0.01).any() else 0:.2f} m, max {float(d.max()):.2f} m), '
+        f'{skipped} sills deeper than {max_cut} m kept as dams, {int((chan & ~seen).sum()):,} channel cells not connected to an outlet')
+    return Zc.astype(np.float32)
+
 if PHYS >= 2:
     try:
         CH = hf_grid('channels30/channels30.npz', 'channels30/channels30_meta.json', ['chan', 'water', 'area', 'width', 'depth'])
@@ -248,6 +279,7 @@ if PHYS >= 2:
                 log(f'   wide rivers: {int(wide.sum()):,} extra body cells cut to channel depth')
         else: burn = (CD * np.minimum(CW / RES, 1.0))                                                              # volume-equivalent channel depth below the cell mean
         Z = np.where(chan, Z - burn, Z).astype(np.float32)
+        if os.environ.get('BREACH', '0') == '1': Z = breach_channels(Z, chan, sea, float(os.environ.get('BREACH_MAX', '4')))
         log(f'channels: {int(chan.sum()):,} channel cells burnt (mean {float(burn[chan].mean()):.2f} m, {"sub-grid widths" if SUBGRID else "volume-equivalent"}), open water {float(water.mean()) * 100:.1f}% of cells')
         for k_, (r, c) in enumerate(INFLOW_PT):                      # spread each inflow along the main channel near its entry point
             w = int(3000 / RES); r0_, r1_, c0_, c1_ = max(2, r - w), min(ny - 2, r + w + 1), max(2, c - w), min(nx - 2, c + w + 1)
@@ -330,7 +362,7 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
-meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, breach=os.environ.get('BREACH', '0') == '1', hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
 t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None
 while kf < nfr:
