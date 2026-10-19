@@ -22,6 +22,7 @@ STORMS = {'dec2023': dict(t0='2023-12-17T22:00Z', hours=48, frame_min=30, wet_st
           'jan2018': dict(t0='2018-01-04T00:00Z', hours=36, frame_min=30, wet_start_mm=0.0, title='Jan 4, 2018 nor\'easter rain (coast handled separately)'),
           'jul2023_southriver': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 2023 · South River / Avery Brook / West Brook reaches (10 m resolution test)', box=(84700, 904200, 113100, 928300)),
           'jul2023_whetstone': dict(t0='2023-07-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='July 2023 · Whetstone Brook reach (10 m resolution test)', box=(105000, 949400, 117600, 960000)),
+          'jan2024': dict(t0='2024-01-09T12:00Z', hours=48, frame_min=30, wet_start_mm=60.0, title='Jan 9-10, 2024: heavy rain and wind on fresh snow (rain-on-snow test, SNOW=1)'),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, wet_start_mm=0.0, title='Leominster test')}
 S = STORMS[RUN]
 if os.environ.get('T0'): S = dict(S, t0=os.environ['T0'])      # smoke tests: start inside the storm so a short window has rain
@@ -124,6 +125,40 @@ for ts in hours:
 if MISSING: log(f'WARNING: {len(MISSING)} rain hours missing (counted as dry): {MISSING}')
 RAIN_SCALE = float(os.environ.get('RAIN_SCALE', '1'))      # experiment: radar rain bias (MRMS can over-read in hill towns)
 if RAIN_SCALE != 1: RAIN = {k_: (v_ * RAIN_SCALE).astype(np.float32) for k_, v_ in RAIN.items()}; log(f'experiment: rain x{RAIN_SCALE}')
+SNOW = os.environ.get('SNOW', '0') == '1'; INF_MULT = {}; SNOW_META = None; SNOW_OUT = None
+if SNOW:      # snowpack, melt and frozen ground (sim/snow.py): RAIN becomes the water reaching the ground; INF_MULT cuts infiltration on frozen soil
+    try:
+        for f_ in ('sim/snow.py', 'sim/colab/snow_inputs.py'):
+            urllib.request.urlretrieve('https://raw.githubusercontent.com/Horus331/mass-flood-watch/' + os.environ.get('GIT_SHA', 'main') + '/' + f_, '/content/' + f_.split('/')[-1])
+        import snow as SN, snow_inputs as SI
+        kk = max(1, int(round(300 / RES))); latk, lonk = np.asarray(lat_c)[::kk], np.asarray(lon_c)[::kk]
+        up = lambda a: np.repeat(np.repeat(a, kk, 0), kk, 1)[:ny, :nx]
+        try: swe0 = SI.snodas_swe((t0 - pd.Timedelta(hours=6)).floor('D'), latk, lonk); swe_src = 'SNODAS'
+        except Exception as e: log('  SNODAS unavailable, no snow on the ground at start:', repr(e)[:100]); swe0 = np.zeros((len(latk), len(lonk)), np.float32); swe_src = 'none'
+        daily = []
+        for dd in range(14, 0, -1):          # frozen-ground spin-up from HRRR 00Z and 12Z over the 14 days before the storm
+            day = t0.floor('D') - pd.Timedelta(days=dd); tt = []
+            for hh in (0, 12):
+                try: tt.append(SI.hrrr_t2m(day + pd.Timedelta(hours=hh), latk, lonk))
+                except Exception: pass
+            if tt: daily.append(np.mean(tt, axis=0))
+        frost0 = SN.spinup_frost(daily, np, depth_cm=swe0 / SN.RHO_SNOW / 10.0) if daily else None
+        pack = SN.Snowpack(swe0.shape, np, swe0=swe0, frost0=frost0); nflag = 0
+        for ts in hours:
+            try: T = SI.hrrr_t2m(ts, latk, lonk)
+            except Exception as e: log('  HRRR missing', ts, repr(e)[:60]); T = T if 'T' in dir() else np.full(swe0.shape, 5.0, np.float32)
+            fs = pack.snow_fraction(T)
+            try: fl = SI.precip_flag_snow(ts, latk, lonk); fs = np.where(np.isnan(fl), fs, fl).astype(np.float32); nflag += 1
+            except Exception: pass
+            out_, inf_ = pack.step(RAIN[ts][::kk, ::kk], T, flag_snow=fs)
+            RAIN[ts] = up(out_).astype(np.float32); INF_MULT[ts] = up(inf_).astype(np.float32)
+        SNOW_OUT = dict(swe_start=swe0, swe_end=pack.swe, melt=pack.melt_total, snowfall=pack.snow_total, frost_end=pack.frost)
+        SNOW_META = dict(swe_source=swe_src, swe_start_mean_mm=round(float(swe0.mean()), 1), swe_end_mean_mm=round(float(pack.swe.mean()), 1), snowfall_mean_mm=round(float(pack.snow_total.mean()), 1),
+                         melt_mean_mm=round(float(pack.melt_total.mean()), 1), frozen_share_start=round(float((frost0 >= SN.CFGI_FROZEN).mean()) if frost0 is not None else 0, 3),
+                         phase_flag_hours=nflag, hours=len(hours), grid_m=RES * kk, ddf_mm_per_degC_day=SN.DDF)
+        log('snow:', SNOW_META)
+    except Exception as e:
+        log('SNOW requested but failed, running as rain only:', repr(e)[:160]); INF_MULT = {}
 tot = sum(RAIN.values()); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h')
 if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
 # rain pictures for the map: one small RGBA image per hour (every 10th cell), corners in lon/lat for a MapLibre image source
@@ -370,9 +405,9 @@ def save_frame(kf, h):
     for i, th in enumerate((0.05, 0.10, 0.30, 1.0, 2.5)): cls[hc >= th] = i + 1
     Image.fromarray(cls, 'L').save(f'{OUT}/f{kf:03d}.png', optimize=True)
     return float(((hc >= 0.1) & ~chan).sum() * RES * RES / 1e6), float(((hc >= 0.5) & ~chan).sum() * RES * RES / 1e6)     # land only: river channels are wet by definition
-meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, breach=os.environ.get('BREACH', '0') == '1', rain_scale=RAIN_SCALE, chan_w_scale=float(os.environ.get('CHAN_W_SCALE', '1')), chan_d_scale=float(os.environ.get('CHAN_D_SCALE', '1')), hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
+meta = dict(run=RUN + TAG, title=S['title'] + (f' · variant {TAG}' if TAG else ''), experiment=dict(fc_scale=FC_SCALE, wet_start_mm=S['wet_start_mm'], n_scale=N_SCALE, kdeep_scale=KDEEP_SCALE, ante_scale=ANTE_SCALE, breach=os.environ.get('BREACH', '0') == '1', rain_scale=RAIN_SCALE, chan_w_scale=float(os.environ.get('CHAN_W_SCALE', '1')), chan_d_scale=float(os.environ.get('CHAN_D_SCALE', '1')), snow=SNOW, hours=S['hours'], git_sha=os.environ.get('GIT_SHA', '')[:8], antecedent_source=(f'MRMS {ANTE_DAYS}/14 days' if ANTE_DAYS else 'storm default wet_start_mm'), antecedent_start_mm=round(WET0, 1)), res_m=RES, box=BOX, crs='EPSG:26986', shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=[],
             rain_total_max_mm=round(float(tot.max())), rain_total_mean_mm=round(float(tot.mean())), rain=RAIN_META, infiltration=dict(soils=SOIL_META, Fk=Fk, drain='7 mm/h x paved fraction on paved cells' if PHYS >= 2 else '2 + 5 x paved mm/h everywhere', landcover='NLCD 2021 impervious', wet_start_mm=S['wet_start_mm']))
-t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None
+t = t0; kf = 0; steps = 0; tstart = time.time(); src_hr = None; src = None; HSNAP = None; fs_now = f_scale
 while kf < nfr:
     if t >= frame_t[kf]:
         wet, deep = save_frame(kf, sim.h); road_sample(kf, sim.h)
@@ -390,6 +425,7 @@ while kf < nfr:
     hr = (t + pd.Timedelta(seconds=1)).ceil('h')
     if hr != src_hr:                                   # move this hour's rain to the GPU once, not every step
         src_hr = hr; src = xp.asarray(RAIN[hr]) / 3.6e6 if hr in RAIN else None
+        fs_now = f_scale * xp.asarray(INF_MULT[hr]) if hr in INF_MULT else f_scale
     sim.step(dt, source=src, level=float(np.interp(t.value / 1e9, TIDE[0], TIDE[1])) if TIDE is not None else None)
     if INFLOW:
         tsec = t.value / 1e9
@@ -400,9 +436,9 @@ while kf < nfr:
                 else: sim.h[rr, cc] += qin * dt / (RES * RES * len(rr))
     if PHYS >= 2:
         frate = xp.where(Finf < Scapg, fcg + (f0g - fcg) * xp.exp(-Finf / Fk), Kdg)          # Horton until the soil store is full, then slow deep drainage
-        fcap = xp.where(WATERg, 0.0, frate * f_scale + drain_mmph) / 3.6e6 * dt
+        fcap = xp.where(WATERg, 0.0, frate * fs_now + drain_mmph) / 3.6e6 * dt
     else:
-        fcap = ((fcg + (f0g - fcg) * xp.exp(-Finf / Fk)) * f_scale + drain_mmph) / 3.6e6 * dt
+        fcap = ((fcg + (f0g - fcg) * xp.exp(-Finf / Fk)) * fs_now + drain_mmph) / 3.6e6 * dt
     loss = xp.minimum(sim.h, fcap); sim.h -= loss; Finf += loss * 1000.0
     t = t + pd.Timedelta(seconds=dt); steps += 1
     if steps % 2000 == 0: log(f'   step {steps} t {t:%H:%M} dt {dt:.2f}s hmax {float(sim.h.max()):.2f} m | {time.time() - tstart:.0f}s')
@@ -418,6 +454,8 @@ meta['cell_outputs'] = dict(hmax='peak depth m (float16)', t_first='frame index 
 meta['physics'] = dict(version=PHYS, water_mask=bool(PHYS >= 2), storage_limited_infiltration=bool(PHYS >= 2), channels_burnt=int(chan.sum()), subgrid_channels=bool(SUBGRID), manning='0.035 water/channel, 0.10 dense urban, 0.08 other' if PHYS >= 2 else '0.06 uniform',
                        tide=('gauge ' + os.environ.get('TIDE_STATION', '8443970')) if TIDE is not None else 'sea as sink', scheme='q-centred theta 0.7, Fr<=2' if PHYS >= 2 else 'Bates 2010, Fr<=1', antecedent_mm=round(WET0, 1))
 meta['rain_missing_hours'] = MISSING
+if SNOW_META: meta['snow'] = SNOW_META
+if SNOW_OUT: np.savez_compressed(f'{OUT}/snow.npz', **{k_: v_.astype(np.float16) for k_, v_ in SNOW_OUT.items()}, grid_step=np.array(kk))
 if ROAD is not None:
     np.save(f'{OUT}/roads_cm.npy', ROAD['cm']); np.save(f'{OUT}/roads_mean_cm.npy', ROAD['mean_cm']); np.save(f'{OUT}/roads_v.npy', ROAD['v']); meta['roads'] = dict(segments=int(ROAD['n']), in_box=int(len(ROAD['inbox'])), flooded_10cm=int(((ROAD['cm'] >= 10).any(axis=0)).sum()), files='roads_cm.npy (max depth cm), roads_mean_cm.npy (mean depth cm along the segment), roads_v.npy (peak speed, 0.05 m/s units); frames x segments')
 meta.update(inflows=[dict(name=n_, cells=int(len(r_)), peak_m3s=round(float(q_.max()), 1), start_m3s=round(float(qb_), 1)) for r_, c_, n_, _, q_, qb_ in INFLOW], steps=steps, runtime_s=round(time.time() - tstart), peak_wet_km2=round(float(((hm >= 0.1) & ~chan).sum() * RES * RES / 1e6), 1))
