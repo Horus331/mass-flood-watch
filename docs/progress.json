@@ -45,6 +45,10 @@
  ],
  "updates": [
   {
+   "t": "Mon Oct 19, 8:08 AM",
+   "text": "New validation source live: USGS stream gauges via the new Water Data API (data/gauges_v2 on HF). Per storm ~102-113 flow gauges and 114-128 stage gauges, ~all with a NAVD88 gauge datum, so every run is now scored on peak water-surface elevation at real gauges, not only high-water marks (which exist for July 2023 only). Re-score jobs queued for the baseline, n07b, dryA and Sept runs."
+  },
+  {
    "t": "Mon Oct 19, 8:01 AM",
    "text": "Gauge check (scout idea A1): USGS 01169900 South River near Conway sits right at the HWM cluster. Observed peak Jul 10 2023 11:15 ET: 6190 cfs (175 m3/s), stage 10.35 ft on a 453.2 ft NAVD88 datum -> WSE 141.3 m (matches marks). Model v3 10 m at the gauge: WSE ~144.8-145.3 m (+3.5 to +4 m), peak flow ~220-300 m3/s through the narrowest transect (1.25-1.7x observed). Flow is somewhat high, but ~25-50% extra flow explains well under 1 m: most of the error is hydraulic (the channel sill/backwater), so the breaching run is the right next test. Legacy USGS IV API now returns 403 from the browser; the new api.waterdata.usgs.gov OGC API works."
   },
@@ -199,10 +203,6 @@
   {
    "t": "Sat Oct 17, 8:51 PM",
    "text": "10 m foundation data is in: elevation for the whole state (176 tiles) and the 10 m drainage from the USGS flow grids (160 tiles, 263 MB, rivers burned in). Copying both to Hugging Face now (about 2.8 GB) so the GPU runtime can read them."
-  },
-  {
-   "t": "Sat Oct 17, 8:34 PM",
-   "text": "Both Colab data jobs had died: the 10 m drainage job ran out of memory (the Colab machine has 12 GB) and took the elevation pull down with it at tile 101/176. Drainage now reads the USGS rasters in small bands; both restarted and the elevation pull resumes where it stopped."
   }
  ]
 }
