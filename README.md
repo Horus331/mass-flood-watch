@@ -10,4 +10,11 @@ Road flood risk map for Massachusetts (MassDOT Districts 3–6), built for Mo El
 - `refresh/live_refresh.py` pulls NOAA tide gauges, the NOAA STOFS surge forecast, NWS rain forecasts, NDBC buoys and NWS alerts, and writes `docs/live.json`.
 - `.github/workflows/refresh.yml` runs it every 6 hours. Run it by hand from the **Actions** tab → *Refresh live data* → **Run workflow**.
 
+## Running jobs on more machines
+
+Flood runs are a shared queue: jobs are listed in `docs/queue/jobs.json` (edit with git), and `sim/colab/worker.py` on any GPU machine
+(Colab, Kaggle, a cluster node) pulls the next runnable job, claims it with a Hugging Face commit so no two workers take the same one,
+runs the steps (engine → tiles → score) and uploads the log to `queue/logs/` on Hugging Face. To add a machine, start a worker there
+with an `HF_TOKEN` secret; see `sim/colab/README.md` for the Colab and Kaggle launcher cells.
+
 All data sources are free public NOAA / NWS / USGS / MassGIS services. Model results are research prototypes, not official warnings.

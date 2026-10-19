@@ -38,3 +38,10 @@ Then re-run July 2023 and Dec/Sept 2023 → honest numbers.
 ## Not recommended / drop
 - 10 m statewide runs (GPU hours better spent on physics and the corpus); 10 m only for case-study boxes.
 - Boston Blue Clay consolidation, retaining walls (no data), dam breach as a result (demo only).
+
+## Status 19 Oct 2026
+- **A, B — done.** Engine v3: water balance fixed (drains only on paved cells, no infiltration on water, storage-limited infiltration), sub-grid channels with baseflow and the NH tributaries, land-cover Manning n, q-centred numerics, open boundaries on every grid edge (the July box had a closed south wall where the Housatonic leaves for Connecticut), big rivers widened above 500 km² and the water-mask body cut to channel depth; WSE metric per reach, read at the deepest cell within 60 m. July 2023: water within 30 m of 100 % of the 103 marks (was 4 %); two narrow reaches still over-predict at 30 m, 10 m test boxes running.
+- **C — in progress.** Dataset code (velocity, arrival time, duration, h·v per cell and per segment, run manifest) being written.
+- **D — done.** Cascade heuristic replaced by depth × velocity passability, travel-time accessibility and rerouting-based detour load.
+- **E — data fetched** (`crossings_ma.json`: NAACC + MassDOT + NBI); the per-crossing capacity module is in progress.
+- **F — queue live.** `docs/queue/jobs.json` + `sim/colab/worker.py`, claims via Hugging Face commits; two Colab L4 sessions and one Kaggle 2×T4 session are pulling jobs.
