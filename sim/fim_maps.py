@@ -292,11 +292,19 @@ def nfie_hydrotable(path):
 
 
 # =============================================================================================== NWM peaks
+import threading
+_H5_LOCK = threading.Lock()
 def read_full(blob):
-    import netCDF4
-    with netCDF4.Dataset('mem.nc', memory=blob) as ds:
-        fid = ds.variables['feature_id'][:].astype(np.int64)
-        q = np.ma.filled(ds.variables['streamflow'][:].astype(np.float32), np.nan).ravel()
+    """NWM channel_rt (netCDF4 = HDF5) bytes -> (feature_id, streamflow m3/s).  h5py, one file at a time: netCDF4 in worker
+    threads next to rasterio's GDAL segfaulted on the runner."""
+    import h5py, io
+    with _H5_LOCK, h5py.File(io.BytesIO(blob), 'r') as f:
+        fid = f['feature_id'][:].astype(np.int64); v = f['streamflow']; raw = v[:]
+        sf = float(np.ravel(v.attrs.get('scale_factor', [1.0]))[0]); off = float(np.ravel(v.attrs.get('add_offset', [0.0]))[0])
+        fill = v.attrs.get('_FillValue', None); miss = v.attrs.get('missing_value', None)
+    q = raw.astype(np.float32).ravel() * sf + off
+    for bad in (fill, miss):
+        if bad is not None: q[raw.ravel() == np.ravel(bad)[0]] = np.nan
     q[q < 0] = np.nan
     return fid, q
 
