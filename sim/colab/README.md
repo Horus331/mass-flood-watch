@@ -26,6 +26,7 @@ Tail the log with `print(open('/content/w4_flood_gpu_dec30.out').read()[-1500:])
 | `w8_coast_gpu.py` | coastal flood run at 10 m: the sea held at the tide-gauge level flows over the land (`TILE`, `STORM`, `RES`, `SEA_RISE`) | data/dem10, NOAA CO-OPS water levels | runs/coast_<TILE>_<STORM>[_slr<cm>]_<RES>m/ |
 | `worker.py` | shared job-queue worker: claims the next runnable job from `docs/queue/jobs.json` and runs its steps (`WORKER`, `GPU_GB`, `WORK`, `ONCE`, `POLL_S`) | docs/queue/jobs.json (GitHub), queue/status/ | queue/status/<id>.json, queue/logs/<id>.log, plus the job's own outputs |
 | `kaggle_launch.py` | Kaggle launcher: reads `HF_TOKEN` from Kaggle secrets, installs the engine's packages, fetches `worker.py` at current main and starts it as worker `kaggle` | – | (whatever the worker runs) |
+| `../crossings_capacity.py` | post-processing (CPU, any runtime): per road-stream crossing, modelled channel flow Q = h·v·W as a StreamStats return period, water surface vs road deck → freeboard / overtopping (L2 hydraulic exceedance); NBI culverts: depth at the structure vs waterway adequacy code. `python sim/crossings_capacity.py <run_dir> --out <json> [--channels channels30.npz --channels-meta channels30_meta.json]`; `--selftest` runs offline | runs/<RUN>_<RES>m/ (z, hmax, vmax, meta), docs/network/crossings_ma.json + nbi_ma.json, data/channels30 (optional) | <run_dir>/crossings.json (or `--out`) |
 
 ## Job queue (any GPU machine)
 
