@@ -93,7 +93,8 @@ def main(run_dir, hwm_path=None, reports_path=None):
             v = at(lon, lat, 100)
             if v is not None: rand.append(v >= 0.1)
         out['reports'] = dict(n_storm_day=len(hit), hit_rate=round(float(np.mean(hit)), 3) if hit else None, any_day_rate=round(float(np.mean(rand)), 3) if rand else None)
-    json.dump(out, open(os.path.join(run_dir, 'validation.json'), 'w'), indent=1, allow_nan=False)
+    hf = os.environ.get('HMAX_FILE', 'hmax.npy'); out['hmax_file'] = hf
+    json.dump(out, open(os.path.join(run_dir, 'validation.json' if hf == 'hmax.npy' else f'validation_{hf[:-4]}.json'), 'w'), indent=1, allow_nan=False)     # a snapshot-peak score never overwrites the main one
     print(json.dumps({k: v for k, v in out.items() if k != 'hwm'} | ({'hwm': {k: v for k, v in out['hwm'].items() if k not in ('rows',)}} if 'hwm' in out else {}), indent=1))
     return out
 

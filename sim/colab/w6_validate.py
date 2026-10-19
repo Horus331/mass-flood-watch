@@ -18,7 +18,13 @@ for f in ('meta.json', 'hmax.npy', 'z.npy', 'hsnap.npy'):
 for f in ('sim/validate.py', 'docs/validation/stn_ma.json', 'docs/prone/flood_reports.json'):
     os.makedirs(os.path.dirname(f'/content/repo/{f}'), exist_ok=True); urllib.request.urlretrieve(RAW + f + '?x=' + str(int(time.time())), f'/content/repo/{f}')
 sys.path.insert(0, '/content/repo/sim'); import validate
-out = validate.main(d, hwm_path='/content/repo/docs/validation/stn_ma.json', reports_path='/content/repo/docs/prone/flood_reports.json')
-if TOK:
-    HfApi(token=TOK).upload_file(path_or_fileobj=f'{d}/validation.json', path_in_repo=f'{RUN_DIR}/validation.json', repo_id=REPO, repo_type='dataset')
-    print('uploaded', f'{RUN_DIR}/validation.json')
+# score the full-resolution peak (hmax.npy -> validation.json) and, when the run has it, the peak of 30-min snapshots
+# (hsnap.npy -> validation_hsnap.json): a big gap between the two means short numerical spikes are inflating hmax
+for hf in ['hmax.npy'] + (['hsnap.npy'] if os.path.exists(f'{d}/hsnap.npy') else []):
+    os.environ['HMAX_FILE'] = hf; vj = 'validation.json' if hf == 'hmax.npy' else f'validation_{hf[:-4]}.json'
+    print(f'===== scoring {hf} -> {vj} =====', flush=True)
+    out = validate.main(d, hwm_path='/content/repo/docs/validation/stn_ma.json', reports_path='/content/repo/docs/prone/flood_reports.json')
+    if TOK:
+        HfApi(token=TOK).upload_file(path_or_fileobj=f'{d}/{vj}', path_in_repo=f'{RUN_DIR}/{vj}', repo_id=REPO, repo_type='dataset')
+        print('uploaded', f'{RUN_DIR}/{vj}')
+os.environ.pop('HMAX_FILE', None)
