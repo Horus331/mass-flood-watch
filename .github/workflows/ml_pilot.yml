@@ -1,0 +1,31 @@
+name: ML pilot - training table + gradient-boosting baseline from engine runs (run by hand)
+# CPU only. Builds the per-cell training table from finished engine runs on Hugging Face (sim/ml/dataset.py) and scores the
+# baseline with the pre-registered leave-one-storm-out and HUC10 block splits (sim/ml/baseline.py). Pilot = the pipeline test on
+# the current v3 runs; it is re-run unchanged when the engine is recalibrated.
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: space-separated run dirs on HF
+        default: runs/dec2023_v3_30m runs/sep2023_v3_30m runs/jul2023_v3_30m
+      name:
+        description: dataset name under ml/datasets/
+        default: v3_30m_pilot
+jobs:
+  ml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q numpy scipy pandas pyarrow scikit-learn lightgbm huggingface_hub pillow pyproj
+      - name: training table
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python sim/ml/dataset.py --hf --runs ${{ inputs.runs }} --soils data/soils30/soils30.npz --channels data/channels30/channels30.npz --huc10 data/huc10_30/huc10_30.npz --nlcd10 data/nlcd10 --out out/ds --upload ml/datasets/${{ inputs.name }}
+      - name: baseline
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python sim/ml/baseline.py --dataset out/ds --out out/ds/baseline --upload ml/datasets/${{ inputs.name }}/baseline
