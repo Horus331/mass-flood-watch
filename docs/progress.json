@@ -15,7 +15,7 @@
   {
    "n": 3,
    "name": "Physics upgrades + statewide runs",
-   "status": "BOT 1: South River snapshots test; BOT 2: roughness x0.7 then Sept v3; Kaggle: Dec v3 85/96",
+   "status": "BOT 1: Sept v3 (fixed engine); BOT 2: South River tests; Kaggle: Dec v3 finishing",
    "note": "chain_v3 jul/sep/dec; subgrid channels in solver"
   },
   {
@@ -44,6 +44,10 @@
   }
  ],
  "updates": [
+  {
+   "t": "Mon Oct 19, 5:43 AM",
+   "text": "5:45 am: found and fixed a bug I introduced last night (the engine crashed at the very end of a run, after saving max depth, on a variable deleted earlier — added with the ML outputs). It cost the South River roughness x0.7 test (3.4 h). Stopped the two runs that carried the same bug (Sept on BOT 2 and the snapshot test on BOT 1) and re-queued everything on the fixed engine (6f12a7b4): BOT 1 now runs Sept 2023 v3 (done ~11:30 am), BOT 2 the South River tests. Dec 2023 on Kaggle uses the older engine, unaffected; ~frame 90/96."
+  },
   {
    "t": "Mon Oct 19, 5:03 AM",
    "text": "5:05 am: second setback — BOT 1's Colab VM was reset at about 4:20 am (fresh machine on reconnect; not the idle timeout this time, the keep-alive cell was running) and the Sept 2023 rerun was lost at frame 37/72. BOT 1 reconnected and took the South River 'peak of 30-min snapshots' test; Sept goes to BOT 2 as soon as its roughness x0.7 test finishes (~5:15 am), expected done ~10:45 am. Dec 2023 on Kaggle at frame 85/96, done ~5:40 am."
