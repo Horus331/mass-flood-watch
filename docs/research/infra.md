@@ -144,5 +144,6 @@ Next steps for statewide coverage:
 ## 6. Open items for the lead
 
 - The real MA counts from U and N are not yet known: the agent shell has no internet. Run `python sim/infra/crossings_all.py` on the runner and read the `counts` it prints.
+- First runner run (19 Oct): U gave 59,586 points in the bbox and 29,205 MA rows (9,393 in D3); P matched 297 and added 68; B matched 4,919. NAACC failed with a 400 "Invalid query parameters" because the fetch sent `orderByFields=OBJECTID` and the layer's object-ID field is `FID`. Fixed: the fetch now reads the layer metadata (`objectIdField`, `maxRecordCount`, `supportsPagination`) and runs an envelope query with `where=1=1` and `outFields=*`. It falls back to `returnIdsOnly` plus `objectIds` batches, filters by the `State` value afterwards, and logs the field list, the mapping and sample values.
 - The NAACC `field_map` chosen from the data needs a check. The likely mapping is `Inlet_Ty_1` or `Inlet_Stru` = shape and `Inlet_Type` = inlet edge.
 - `gis.massdot.state.ma.us` was unconfirmed; only the staging host (`gisstg`) answered the agent.
