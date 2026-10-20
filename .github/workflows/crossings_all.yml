@@ -1,0 +1,21 @@
+name: All Massachusetts road-stream crossings (USGS + NAACC) -> docs/network/crossings_all.json (run by hand)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  crossings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q numpy requests pyproj
+      - run: python sim/infra/crossings_all.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull -q --rebase
+          git add docs/network/crossings_all.json
+          git diff --cached --quiet || (git commit -m "data: all MA road-stream crossings (crossings_all.json)" && git push)
