@@ -87,10 +87,10 @@ def pick(jobs, st):
     return c[0] if c else None
 
 def fetch_scripts(sha):
-    for f in ('sim/colab/w4_flood_gpu.py', 'sim/colab/w5_tiles.py', 'sim/colab/w6_validate.py', 'sim/colab/w8_coast_gpu.py', 'sim/solver.py'):
+    for f in ('sim/colab/w4_flood_gpu.py', 'sim/colab/w5_tiles.py', 'sim/colab/w6_validate.py', 'sim/colab/w8_coast_gpu.py', 'sim/colab/w9_lisflood.py', 'sim/solver.py'):
         urllib.request.urlretrieve(f'https://raw.githubusercontent.com/{GH}/{sha}/{f}', f'{WORK}/{f.split("/")[-1]}')
 
-STEP = {'w4': 'w4_flood_gpu.py', 'w5': 'w5_tiles.py', 'w6': 'w6_validate.py', 'w8': 'w8_coast_gpu.py'}
+STEP = {'w4': 'w4_flood_gpu.py', 'w5': 'w5_tiles.py', 'w6': 'w6_validate.py', 'w8': 'w8_coast_gpu.py', 'w9': 'w9_lisflood.py'}
 def run_job(j, sha):
     env = dict(os.environ, HF_TOKEN=TOK, GIT_SHA=j.get('env', {}).get('GIT_SHA', sha), WORKER=WORKER); env.update({k: str(v) for k, v in j.get('env', {}).items()})
     fetch_scripts(env['GIT_SHA'])          # step scripts at the same commit as the files they fetch (and pick up fixes pushed since the worker started)
