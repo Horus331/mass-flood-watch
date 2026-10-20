@@ -74,7 +74,7 @@ def pick(jobs, st):
     def runnable(j):
         s = st.get(j['id'], {}); state = s.get('state', 'queued')
         if state == 'done': return False
-        if state == 'running' and now - s.get('heartbeat', s.get('started', 0)) < 2400: return False      # alive
+        if state == 'running' and now - s.get('heartbeat', s.get('started', 0)) < 3000: return False      # alive
         if state in ('failed', 'running') and s.get('attempts', 1) >= 2: return False      # a job that killed its runtime twice needs a human look
         if j.get('gpu_gb', 10) > GPU_GB: return False
         if any(st.get(a, {}).get('state') != 'done' for a in j.get('after', [])): return False
@@ -101,7 +101,7 @@ def run_job(j, sha):
         p = subprocess.Popen([sys.executable, f'{WORK}/{STEP[step]}'], env=env, stdout=lf, stderr=subprocess.STDOUT, cwd=WORK)
         while p.poll() is None:
             time.sleep(30)
-            if time.time() - last_hb > 300:
+            if time.time() - last_hb > 600:      # HF allows 128 commits/hour per repo: one commit (status + log) every 10 min per worker
                 last_hb = time.time()
                 try:
                     st = json.load(open(f'{WORK}/st_{j["id"]}.json')); o = owns(j['id'], st)
@@ -109,8 +109,11 @@ def run_job(j, sha):
                     if not o:
                         p.kill(); lf.write('\n===== claim taken over by another worker: stopping =====\n'); lf.close(); return None, 'taken over', logp
                     st.update(heartbeat=time.time(), step=step, elapsed_s=round(time.time() - t0))
-                    json.dump(st, open(f'{WORK}/st_{j["id"]}.json', 'w')); write_status(j['id'], st)
-                    api.upload_file(path_or_fileobj=logp, path_in_repo=f'queue/logs/{j["id"]}.log', repo_id=REPO, repo_type='dataset', commit_message=f'queue: log {j["id"]}')
+                    json.dump(st, open(f'{WORK}/st_{j["id"]}.json', 'w'))
+                    from huggingface_hub import CommitOperationAdd
+                    api.create_commit(REPO, repo_type='dataset', commit_message=f'queue: {j["id"]} heartbeat ({WORKER})',
+                                      operations=[CommitOperationAdd(path_in_repo=f'queue/status/{j["id"]}.json', path_or_fileobj=json.dumps(st, indent=1).encode()),
+                                                  CommitOperationAdd(path_in_repo=f'queue/logs/{j["id"]}.log', path_or_fileobj=logp)])
                 except Exception as e: log('heartbeat failed', repr(e)[:100])
         if p.returncode != 0: lf.close(); return False, f'{step} exited {p.returncode}', logp
     lf.close(); return True, 'ok', logp
