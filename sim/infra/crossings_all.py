@@ -110,9 +110,11 @@ def _get(url, params, tries=4):
             if k == tries - 1: raise
             time.sleep(3 * (k + 1))
 
-def query_all(layer_url, where='1=1', fields='*', bbox=None, page=2000, fetch=None, geometry=False, max_rows=None):
-    """All features of a layer (attributes [+ geometry]), paging with resultOffset; bbox (lon/lat) as an envelope filter."""
-    fetch = fetch or _get; p = dict(where=where, outFields=fields, returnGeometry='true' if geometry else 'false', outSR=4326, f='json', orderByFields='OBJECTID')
+def query_all(layer_url, where='1=1', fields='*', bbox=None, page=2000, fetch=None, geometry=False, max_rows=None, oid='OBJECTID'):
+    """All features of a layer (attributes [+ geometry]), paging with resultOffset; bbox (lon/lat) as an envelope filter.
+    oid: the layer's objectIdField (orderByFields must name a real field - NAACC's is FID; a wrong name is a 400 'Invalid query parameters')."""
+    fetch = fetch or _get; p = dict(where=where, outFields=fields, returnGeometry='true' if geometry else 'false', outSR=4326, f='json')
+    if oid: p['orderByFields'] = oid
     if bbox: p.update(geometry=','.join(map(str, bbox)), geometryType='esriGeometryEnvelope', inSR=4326, spatialRel='esriSpatialRelIntersects')
     out, off = [], 0
     while True:
@@ -122,6 +124,29 @@ def query_all(layer_url, where='1=1', fields='*', bbox=None, page=2000, fetch=No
         if not fs or not j.get('exceededTransferLimit', len(fs) >= page) or (max_rows and off >= max_rows): break
         time.sleep(0.3)
     return out
+
+def query_by_ids(layer_url, bbox=None, where='1=1', fetch=None, geometry=True, batch=500, oid=None, max_rows=None):
+    """Fallback without pagination: returnIdsOnly (bbox filter), then outFields=* in objectIds batches."""
+    fetch = fetch or _get; p = dict(where=where, returnIdsOnly='true', f='json')
+    if bbox: p.update(geometry=','.join(map(str, bbox)), geometryType='esriGeometryEnvelope', inSR=4326, spatialRel='esriSpatialRelIntersects')
+    j = fetch(layer_url + '/query', p); ids = sorted(j.get('objectIds') or [])
+    if max_rows: ids = ids[:max_rows]
+    print(f'  {layer_url.split("/services/")[-1][:60]}: {len(ids)} ids ({j.get("objectIdFieldName", oid)})', flush=True); out = []
+    for k in range(0, len(ids), batch):
+        r = fetch(layer_url + '/query', dict(objectIds=','.join(map(str, ids[k:k + batch])), outFields='*', returnGeometry='true' if geometry else 'false', outSR=4326, f='json'))
+        out += r.get('features', [])
+    return out
+
+def query_layer(layer_url, info, bbox=None, fetch=None, geometry=True, max_rows=None):
+    """Envelope query with where=1=1 and outFields=*, using the layer metadata: objectIdField, maxRecordCount, supportsPagination;
+    falls back to objectIds batches when pagination is unsupported or the paged query is refused."""
+    oid = info.get('objectIdField') or next((f['name'] for f in info.get('fields', []) if f.get('type') == 'esriFieldTypeOID'), None)
+    page = int(info.get('maxRecordCount') or 1000); pag = (info.get('advancedQueryCapabilities') or {}).get('supportsPagination', True)
+    print(f'  layer {layer_url.split("/services/")[-1][:60]}: objectIdField={oid}, maxRecordCount={page}, supportsPagination={pag}', flush=True)
+    if pag:
+        try: return query_all(layer_url, bbox=bbox, page=page, fetch=fetch, geometry=geometry, max_rows=max_rows, oid=oid)
+        except Exception as e: print('  paged query refused, using objectIds batches:', repr(e)[:160])
+    return query_by_ids(layer_url, bbox=bbox, fetch=fetch, geometry=geometry, batch=min(page, 500), oid=oid, max_rows=max_rows)
 
 def layer_info(layer_url, fetch=None):
     return (fetch or _get)(layer_url, dict(f='json'))
@@ -207,18 +232,17 @@ def build(fetch=None, counties='auto', max_rows=None):
     # N: NAACC surveys
     try:
         info = layer_info(SRC_N, fetch); flds = info.get('fields', [])
-        N = []
-        for wh in ("State='MA'", "State='Massachusetts'", "UPPER(State) LIKE '%MASS%'"):
-            try: N = query_all(SRC_N, where=wh, fetch=fetch, geometry=True, max_rows=max_rows)
-            except Exception as e: print('NAACC where', wh, 'failed:', repr(e)[:100]); N = []
-            if N: break
-        if not N: N = query_all(SRC_N, bbox=MA_BBOX, fetch=fetch, geometry=True, max_rows=max_rows)
-        fm = pick_fields(flds, [f['attributes'] for f in N[:3000]]); field_map['N'] = fm; print('NAACC field map:', fm)
+        print('NAACC fields:', [f['name'] for f in flds])
+        N = query_layer(SRC_N, info, bbox=MA_BBOX, fetch=fetch, geometry=True, max_rows=max_rows)
+        print('NAACC records in MA bbox:', len(N))
+        fm = pick_fields(flds, [f['attributes'] for f in N[:3000]]); field_map['N'] = fm; print('NAACC field map (role -> field):', fm)
+        for role in ('shape', 'inlet', 'material', 'xtype'):
+            if fm.get(role): print(f'  {role} <- {fm[role]}: e.g.', sorted({str(f["attributes"].get(fm[role])) for f in N[:3000]})[:12])
         recs = []
         for f in N:
             a = f['attributes']; p = xy(f, a, fm['lat'], fm['lon'])
             if p is None: continue
-            if fm['state'] and a.get(fm['state']) and str(a[fm['state']]).upper() not in ('MA', 'MASSACHUSETTS'): continue
+            if fm['state'] and a.get(fm['state']) and str(a[fm['state']]).strip().upper() not in ('MA', 'MASSACHUSETTS', '25'): continue
             recs.append((p[0], p[1], a))
         def applyN(r, a):
             g = lambda k: a.get(fm[k]) if fm.get(k) else None
@@ -302,6 +326,9 @@ def selftest():
     PA = [dict(attributes=dict(CrosCode='xy42', ROAD='Main St', STREAM='Brook', LAT=p_in[1], LON=p_in[0], DRNAREA=1.0, PK10AEP=100.0, PK4AEP=150.0, PK2AEP=200.0, PK1AEP=250.0, PK02AEP=400.0,
                                BFWDTH=10.0, BFDPTH=1.0, BCORDE1HYR=500.0, BCUSIE1HYR=490.0, BCDSIE1HYR=489.0))]
     BA = [dict(attributes=dict(bridgeDepartmentNumber='W01', structureCategory='Culvert', structureMaterial='Concrete', culvertCondition='5', latitude=p_n[1], longitude=p_n[0]))]
+    NA.append(dict(attributes=dict(Crossing_C='nh1', Inlet_Type='Projecting', Inlet_Ty_1='Round Culvert', Material='Plastic', Structure_='None', Inlet_Widt='2', Inlet_Heig='2',
+                                   Number_Of_=1, Road_Fill_='1', State='NH', Crossing_T='Single Culvert'), geometry=dict(x=p_in[0] + 0.01, y=p_in[1] + 0.3)))
+    NAACC_META = dict(max=1, pag=True)                                 # maxRecordCount 1 -> the paged path really pages
     calls = []
     def fetch(url, params):
         calls.append(url); off = params.get('resultOffset', 0); n = params.get('resultRecordCount', 2000)
@@ -312,8 +339,14 @@ def selftest():
             return dict(features=[dict(attributes=dict(NAME='Worcester County'), geometry=dict(rings=[ring]))])
         if url == SRC_U + '/0/query': return page(U0)
         if url == SRC_U + '/1/query': return page(U1)
-        if url == SRC_N: return dict(fields=NF)
-        if url == SRC_N + '/query': return page(NA)
+        if url == SRC_N: return dict(fields=[dict(name='FID', type='esriFieldTypeOID')] + NF, objectIdField='FID', maxRecordCount=NAACC_META['max'],
+                                     advancedQueryCapabilities=dict(supportsPagination=NAACC_META['pag']))
+        if url == SRC_N + '/query':                                    # behaves like the real layer: OID is FID, State where-clauses are refused
+            if params.get('orderByFields') not in (None, 'FID') or 'State' in str(params.get('where', '')): raise RuntimeError({'code': 400, 'message': 'Cannot perform query. Invalid query parameters.'})
+            if params.get('returnIdsOnly') == 'true': return dict(objectIdFieldName='FID', objectIds=list(range(len(NA))))
+            if params.get('objectIds') is not None: return dict(features=[NA[int(i)] for i in str(params['objectIds']).split(',')])
+            if not NAACC_META['pag'] and 'resultOffset' in params: raise RuntimeError({'code': 400, 'message': 'Pagination is not supported.'})
+            return page(NA)
         if url == SRC_P + '/query': return page(PA)
         if url == SRC_B[0] + '/query': raise RuntimeError('unreachable')
         if url == SRC_B[1] + '/query': return page(BA)
@@ -337,6 +370,10 @@ def selftest():
     check('NBI observation marks a bridge', len(b) == 1 and b[0][C['shape']] == 'bridge')
     check('vocabularies', norm_shape('Pipe Arch/Elliptical Culvert') == 'pipe_arch' and norm_shape('Open Bottom Arch Bridge/Culvert') == 'arch_open' and norm_inlet('Mitered to Slope') == 'mitered'
           and norm_material('Rock/Stone') == 'stone' and norm_material('Plastic') == 'plastic' and norm_shape('Bridge with Abutments') == 'bridge')
+    check('NH survey in the bbox dropped by State', not any(r[C['naacc']] == 'nh1' for r in out['rows']) and out['sources']['N']['n'] == 2, out['sources']['N'])
+    # pagination unsupported -> returnIdsOnly + objectIds batches give the same merge
+    NAACC_META.update(max=2000, pag=False); out2 = build(fetch); C2 = {c: i for i, c in enumerate(out2['columns'])}
+    check('objectIds fallback', out2['sources']['N']['n'] == 2 and out2['field_map']['N']['shape'] == 'Inlet_Ty_1' and out2['counts']['with_geometry'] == 2, out2['counts'])
     print('crossings_all selftest', 'OK' if ok else 'FAILED'); return ok
 
 if __name__ == '__main__':
