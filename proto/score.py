@@ -40,16 +40,22 @@ def score(run_dir, obs_path):
         if not win_obs: continue
         o_t, o_v = max(win_obs, key=lambda a: a[1]); o_rise = o_v - float(np.median(pre))
         q = g.get('peak_q_cfs')
+        wse = None
+        if Z is not None and g.get('datum_ft') is not None and (g.get('vdatum') or '').upper().startswith('NAVD'):
+            zw = Z[max(0, r - k):r + k + 1, max(0, c - k):c + k + 1]; wse_m = float(zw[i] + ms.max())
+            wse = dict(obs_peak_wse_m=round(g['datum_ft'] * 0.3048 + o_v, 2), model_peak_wse_m=round(wse_m, 2), wse_error_m=round(wse_m - (g['datum_ft'] * 0.3048 + o_v), 2))
         out.append(dict(site=g['site'], name=g['name'], drain_km2=round((g.get('drain_mi2') or 0) * 2.59, 1), obs_rise_m=round(o_rise, 2), model_rise_m=round(m_rise, 2),
                         rise_error_m=round(m_rise - o_rise, 2), obs_peak_utc=o_t.strftime('%Y-%m-%dT%H:%MZ'), model_peak_utc=m_tpk.strftime('%Y-%m-%dT%H:%MZ'),
-                        timing_error_h=round((m_tpk - o_t).total_seconds() / 3600, 1), obs_peak_q_m3s=round(q[1] * 0.0283168, 1) if q else None))
+                        timing_error_h=round((m_tpk - o_t).total_seconds() / 3600, 1), obs_peak_q_m3s=round(q[1] * 0.0283168, 1) if q else None, **(wse or {})))
     try:
         np.savez_compressed(os.path.join(os.path.dirname(os.path.abspath(obs_path)), '..', '..', '..', 'gauge_windows.npz') if False else os.environ.get('SCORE_WINDOWS', '/tmp/gauge_windows.npz'),
                             **{f'{k}_{f}': v[f] for k, v in WIN.items() for f in ('depth_cm', 'z', 'wm') if v[f] is not None}, hours=hours)
     except Exception as e: print('windows not saved', e)
+    werr = [o['wse_error_m'] for o in out if 'wse_error_m' in o]
     errs = [o['rise_error_m'] for o in out]; terr = [o['timing_error_h'] for o in out]
     return dict(run=meta.get('run'), gauges=out, mean_abs_rise_error_m=round(float(np.mean(np.abs(errs))), 2) if errs else None,
-                mean_rise_bias_m=round(float(np.mean(errs)), 2) if errs else None, mean_abs_timing_error_h=round(float(np.mean(np.abs(terr))), 1) if terr else None)
+                mean_rise_bias_m=round(float(np.mean(errs)), 2) if errs else None, mean_abs_timing_error_h=round(float(np.mean(np.abs(terr))), 1) if terr else None,
+                mean_abs_wse_error_m=round(float(np.mean(np.abs(werr))), 2) if werr else None)
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('--run-dir', required=True); ap.add_argument('--obs', default='docs/proto/obs/gauges_sep2023.json'); ap.add_argument('--out')
