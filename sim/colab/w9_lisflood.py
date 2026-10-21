@@ -221,7 +221,7 @@ def find_source(root):
 def build_lisflood(src, want_cuda):
     """CMake build.  The build switches are read from the source itself (option()/set() names containing CUDA or NETCDF in
     CMakeLists.txt / *.cmake), because the 8.x tree keeps them in a user config.cmake; every name and value is logged."""
-    sh('apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin > /dev/null', check=False)
+    sh('apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null', check=False)
     cm = glob.glob(f'{src}/*.cmake') + glob.glob(f'{src}/cmake/*.cmake') + [f'{src}/CMakeLists.txt']
     names = set()
     for p in cm:
