@@ -1,0 +1,21 @@
+name: observed data for a storm (gauges, storm reports)
+on:
+  workflow_dispatch:
+    inputs:
+      storm: {default: 'sep2023'}
+      bbox: {description: 'lon/lat w,s,e,n', default: '-72.15,42.40,-71.55,42.75'}
+      start: {default: '2023-09-10'}
+      end: {default: '2023-09-14'}
+permissions:
+  contents: write
+jobs:
+  obs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: python proto/obs_fetch.py --storm ${{ inputs.storm }} --bbox=${{ inputs.bbox }} --start ${{ inputs.start }} --end ${{ inputs.end }} --out docs/proto/obs 2>&1 | tail -40
+      - run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/obs && git commit -qm "observed data: ${{ inputs.storm }}" || echo nothing
+          git pull --rebase -q && git push
