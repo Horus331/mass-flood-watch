@@ -4,9 +4,10 @@ on:
     inputs:
       box: {description: 'EPSG:26986 box x0,y0,x1,y1 (default Leominster-Fitchburg-Lunenburg 20 x 20 km)', default: '168000,908000,188000,928000'}
       res: {description: 'grid metres (multiple of 10)', default: '20'}
-      hours: {description: 'storm hours from t0', default: '36'}
+      hours: {description: 'storm hours from t0', default: '48'}
       loss: {description: 'none or fc (soil + drain losses)', default: 'fc'}
       name: {description: 'output folder under docs/proto/', default: 'leominster_sep2023'}
+      env: {description: 'extra env, space separated', default: 'LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.9 LF_INFIL_MMH=2'}
 permissions:
   contents: write
 jobs:
@@ -27,13 +28,13 @@ jobs:
           BOX: ${{ inputs.box }}
           RES: ${{ inputs.res }}
           HOURS: ${{ inputs.hours }}
-          LF_LOSS: ${{ inputs.loss }}
           STORM: sep2023
           RUN_DIR: runs/sep2023_proto_${{ inputs.name }}
           GIT_SHA: ${{ github.sha }}
           OMP_NUM_THREADS: '4'
         run: |
           set -o pipefail; nproc; free -g
+          export ${{ inputs.env }}
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: road closures
         run: |
