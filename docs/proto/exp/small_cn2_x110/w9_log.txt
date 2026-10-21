@@ -1,0 +1,106 @@
+16:49:07 w9 LISFLOOD-FP benchmark: sep2023_exp_small_cn2_x110 box (168000.0, 908000.0, 188000.0, 928000.0) res 20.0 m, 48 h from 2023-09-11T16:00Z; GPU False, nvcc None
+16:49:08 downloading LISFLOOD-FP 8.2 from zenodo 13121102: LISFLOOD-FP-v8.2.zip (348 MB)
+16:51:17 source tree: /home/runner/work/_temp/lf/src/LISFLOOD-FP
+16:51:17 $ apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null
+16:51:17 E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+
+16:51:17 cmake files: ['config.default.cmake', 'CMakeLists.txt']
+16:51:17 build switches found: ['CMAKE_CUDA_ARCHITECTURES', 'CMAKE_CUDA_COMPILER', '_NETCDF']
+16:51:17 config.cmake from config.default.cmake
+16:51:17 config.cmake used:
+set(_NETCDF ON)
+add_compile_definitions(_NUMERIC_MODE=1)
+add_compile_definitions(_ONLY_RECT=1)
+add_compile_definitions(_PROFILE_MODE=0)
+add_compile_definitions(_DISABLE_WET_DRY=0)
+add_compile_definitions(_CALCULATE_Q_MODE=1)
+add_compile_definitions(_SGM_BY_BLOCKS=0)
+add_compile_definitions(_BALANCE_TYPE=0)
+
+16:51:17 $ cmake -S /home/runner/work/_temp/lf/src/LISFLOOD-FP -B /home/runner/work/_temp/lf/build_cpu -DCMAKE_BUILD_TYPE=Release -D_NETCDF=ON
+16:51:18 $ cmake --build /home/runner/work/_temp/lf/build_cpu -j 4
+16:51:49 $ ldd /home/runner/work/_temp/lf/build_cpu/lisflood
+16:51:49 built /home/runner/work/_temp/lf/build_cpu/lisflood (CUDA False) in 162s
+16:51:50 probe: {'quadrants': {'NW': 0.04406, 'NE': 0.00619, 'SW': 0.01963, 'SE': 0.00188}, 'flip_y': False, 'flip_x': False, 'scale': 1.0, 'probe_B_ratio': 0.924, 'convention': 'forward'}
+16:51:50 elevation: 4 tiles of 10 m
+16:51:54 grid 1000 x 1000 = 1.00 M cells at 20 m; sea 0.0%
+16:51:57 NLCD impervious: 4/4 tiles, mean 15.6% paved
+16:51:59 channels: 44,156 cells burnt, mean 0.19 m (volume-equivalent)
+16:51:59 crossings: 536 road fills opened to the lowest ground within 40 m
+16:52:01 depressions: 14,890 cells carved (mean 0.34 m, max 3.97 m), 162 basins deeper than the cap kept, 3s
+16:52:03 LF_LOSS=cn: AMC II, mean CN 76.5 (HSG A-D + NLCD impervious)
+16:55:59 rain: max 207 mm, mean 107 mm over 48 h; missing []
+16:56:00 effective rain (CN) mean 61 mm of 107 mm (57%)
+16:56:01 par: DEMfile dem.asc | resroot res | dirroot results | sim_time 172800 | initial_tstep 10 | massint 300 | saveint 1800 | fpfric 0.08 | acceleration | manningfile n.asc | dynamicrainfile rain.nc | bcifile run.bci | startfile start.wd | infiltration 5.556e-07
+17:39:10 LISFLOOD-FP run 2589s
+17:39:10  channels only.
+_CALCULATE_Q_MODE 1.
+***************************
+
+Loading parameters... 'run.par'
+DEMfile = dem.asc
+resroot = res
+dirroot = results
+sim_time = 172800.000
+initial_tstep = 10.000
+massint = 300.000
+saveint = 1800.000
+fpfric = 0.080
+acceleration
+
+Using acceleration formulation for floodplain flow
+manningfile = n.asc
+dynamicrainfile = rain.nc
+bcifile = run.bci
+startfile = start.wd
+infiltration = 0.000
+Reading parameters done.
+
+Reading command line.
+Reading command line done.
+
+
+Start Date: 21/10/2026 
+Start Time: 16:56:1 
+
+Loading DEM1000x1000
+BL corner	(168000.000000,908000.000000)
+NODATA_value	-9999.000000
+Done.
+
+Loading startfile Done.
+
+Loading boundary condition IDs
+FREE on N side start 168000.000000 end 188000.000000
+FREE on S side start 168000.000000 end 188000.000000
+FREE on W side start 908000.000000 end 928000.000000
+FREE on E side start 908000.000000 end 928000.000000
+Done.
+
+No bdyfile used
+Done.
+
+Loading floodplain Manning's n dataDone.
+
+Porosity off
+Floodplain infiltration set at: 0.0000005556 ms-1
+
+
+Starting time steps: acceleration mode
+
+loop time 2588.000000
+Finished.
+
+
+Finish Date: 21/10/2026 
+Finish Time: 17:39:10 
+
+
+  Total computation time: 43.15 mins
+
+
+17:39:59 peak wet (hmax >= 10 cm, land) 45.5 km2; largest snapshot wet area 39.8 km2; 97 snapshots
+17:40:02 no upload: outputs left in /home/runner/work/_temp/lf/run_sep2023_exp_small_cn2_x110/out
