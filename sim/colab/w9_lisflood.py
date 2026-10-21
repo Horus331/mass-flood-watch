@@ -314,16 +314,20 @@ def probe(exe, cuda):
 # ======================================================================================================================
 # inputs from Hugging Face / MRMS (copied from w4_flood_gpu.py, which cannot be imported: it runs at top level)
 # ======================================================================================================================
-def breach_depressions(Z, max_cut=4.0):
+def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None):
     """Least-cost breaching of every closed depression to the box edge (Barnes et al. 2014 priority-flood with carving), applied to all
     cells.  Lidar keeps road, rail and runway fill but not the pipes and culverts under them, so water ponds behind every embankment
     with no surface outlet.  A carved one-cell path stands in for those pipes.  No cell is lowered more than max_cut m (deeper basins
-    are kept: real ponds, quarries).  Returns (carved Z, mask of lowered cells, stats)."""
+    are kept: real ponds, quarries).  chan / max_cut_chan (LF_BREACH_CHAN_MAX): a pit whose bottom is a mapped channel cell may be cut
+    up to max_cut_chan instead.  A river never runs uphill and a real dam holds a flat pool level with its crest, so a closed pit on a
+    mapped river is a DEM artifact (bridge deck or road fill left in the bare earth, culvert fill); the default cap leaves those deeper
+    than max_cut as dead storage that never drains.  Returns (carved Z, mask of lowered cells, stats)."""
     import heapq
     ny_, nx_ = Z.shape; Zc = Z.astype(np.float64).copy(); seen = np.zeros(Z.size, bool); par = np.full(Z.size, -1, np.int64)
     edge = np.zeros(Z.shape, bool); edge[[0, -1], :] = True; edge[:, [0, -1]] = True
     hq = [(float(Zc.flat[k]), int(k)) for k in np.flatnonzero(edge)]; heapq.heapify(hq); seen[np.flatnonzero(edge)] = True
     nb8 = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)); Zf = Zc.ravel(); Zo = Z.ravel(); skipped = 0
+    chf = chan.ravel() if (chan is not None and max_cut_chan is not None) else None; chan_deep = 0
     while hq:
         zc, k = heapq.heappop(hq); r, c = divmod(k, nx_)
         for dr, dc in nb8:
@@ -333,16 +337,69 @@ def breach_depressions(Z, max_cut=4.0):
             if seen[kk]: continue
             seen[kk] = True; par[kk] = k; zn = Zf[kk]
             if zn < zc:
-                path = []; p_ = k; ok = True
+                path = []; p_ = k; ok = True; cap = max_cut if chf is None or not chf[kk] else max(max_cut, max_cut_chan)
                 while p_ >= 0 and Zf[p_] > zn:
-                    if Zo[p_] - zn > max_cut: ok = False; break
+                    if Zo[p_] - zn > cap: ok = False; break
                     path.append(p_); p_ = int(par[p_])
                 if ok:
                     for p_ in path: Zf[p_] = zn
+                    if cap > max_cut and path and max(Zo[p_] - zn for p_ in path) > max_cut: chan_deep += 1
                 else: skipped += 1
             heapq.heappush(hq, (float(Zf[kk]), kk))
     Zc = Zf.reshape(Z.shape).astype(np.float32); d = Z - Zc; low = d > 0.01
-    return Zc, low, dict(cells=int(low.sum()), mean_cut_m=round(float(d[low].mean()), 2) if low.any() else 0.0, max_cut_m=round(float(d.max()), 2), kept_deep=skipped)
+    return Zc, low, dict(cells=int(low.sum()), mean_cut_m=round(float(d[low].mean()), 2) if low.any() else 0.0, max_cut_m=round(float(d.max()), 2), kept_deep=skipped,
+                         chan_deep_cut=chan_deep)
+
+
+CULVERT_SHAPES = ('circular', 'elliptical', 'pipe_arch', 'box', 'arch_open', 'arch_closed')
+
+
+def sized_notch(row, zmin, zcrest, res, n_min=0.035, n_max=5.0):
+    """LF_BREACH_SIZED: (cut level, Manning n) for a crossing with a surveyed culvert, else None (keep the default opening).
+    A 20 m grid cannot hold a 1 m barrel, so the 3x3-cell notch (width W = 3 res, length L = 3 res) keeps its place and is (a) cut no lower
+    than the culvert invert, estimated as the DEM crest minus NAACC fill + rise (the lowest ground within LF_BREACH_M otherwise), and
+    (b) given the Manning n at which it passes the barrel's HDS-5 capacity at headwater = rise (inlet just submerged, the usual design
+    limit HW/D = 1): steady local-inertial flux Q = W h^(5/3) S^(1/2) / n with mean depth h = rise / 2 and head drop = rise over L
+    -> n = W (D/2)^(5/3) (D/L)^(1/2) / Q_cap(HW = D), clipped to [n_min, n_max].  Above the crown the notch conveys like an open
+    channel (more than a pressurised barrel) and the road cells around it overtop as weirs."""
+    shape, rise, span = row.get('shape'), row.get('rise_m'), row.get('span_m')
+    if shape not in CULVERT_SHAPES or not rise or rise <= 0 or (shape != 'circular' and not span): return None
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'infra'))
+    import culvert as CV
+    nb_ = int(row.get('n_barrels') or 1); fill = row.get('fill_m'); L_ = row.get('length_m') or None
+    S_ = (row.get('slope_pct') or 1.0) / 100.0
+    qcap = CV.q_at_headwater(rise, shape, span or rise, rise, row.get('material') or 'concrete', row.get('inlet') or 'headwall', S_, L_ or 20.0, 0.0, nb_)
+    W = 3 * res; n_eq = W * (0.5 * rise) ** (5 / 3) * math.sqrt(rise / W) / max(qcap, 1e-3)
+    zcut = max(zmin, zcrest - (fill + rise)) if fill is not None else zmin
+    return float(min(zcut, zcrest)), float(np.clip(n_eq, n_min, n_max))
+
+
+def open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, sized=False):
+    """Open a 3x3-cell notch at every crossing in the box down to the lowest ground within kw cells (default), or sized to the surveyed culvert
+    (sized_notch).  Returns (Z, NOV: Manning n of sized notches else nan, XG: one dict per opened crossing)."""
+    x0, y0, x1, y1 = BOX; ny, nx = Z.shape; Z = Z.copy(); NOV = np.full((ny, nx), np.nan, np.float32); XG = []
+    for row, xq, yq in zip(rows_x, xx, yy):
+        if not (x0 <= xq < x1 and y0 <= yq < y1): continue
+        rq, cq = int((y1 - yq) // RES), int((xq - x0) // RES)
+        r0_, r1_, c0_, c1_ = max(0, rq - kw), min(ny, rq + kw + 1), max(0, cq - kw), min(nx, cq + kw + 1)
+        zmin = float(Z[r0_:r1_, c0_:c1_].min()); blk = (slice(max(0, rq - 1), rq + 2), slice(max(0, cq - 1), cq + 2))
+        zcrest = float(Z[blk].max()); zcut, n_eq = zmin, None
+        if sized:
+            sz = sized_notch(row, zmin, zcrest, RES)
+            if sz is not None: zcut, n_eq = sz; NOV[blk] = np.fmax(NOV[blk], n_eq)
+        Z[blk] = np.minimum(Z[blk], zcut)
+        XG.append(dict(id=row.get('id'), r=rq, c=cq, r0=blk[0].start, r1=min(ny, rq + 2), c0=blk[1].start, c1=min(nx, cq + 2), zmin=round(zmin, 2),
+                       zcrest=round(zcrest, 2), zcut=round(float(zcut), 2), n_eq=None if n_eq is None else round(float(n_eq), 3)))
+    return Z, NOV, XG
+
+
+def block_throughflow(Qx, Qy, r0, r1, c0, c1):
+    """Flow through a block of cells rows r0..r1-1, cols c0..c1-1 from LISFLOOD-FP flux grids (m3/s per face; Qx (ny, nx+1), column c = face
+    between cells c-1 and c, + eastwards; Qy (ny+1, nx), row r = face between rows r-1 and r, + southwards, rows north -> south).
+    Returns (inflow, outflow) summed over the block's perimeter faces."""
+    inw = np.r_[Qx[r0:r1, c0], -Qx[r0:r1, c1], Qy[r0, c0:c1], -Qy[r1, c0:c1]]
+    inw = np.nan_to_num(inw)
+    return float(inw[inw > 0].sum()), float(-inw[inw < 0].sum())
 
 
 def build_inputs(BOX, RES, S, TOK):
@@ -410,29 +467,30 @@ def build_inputs(BOX, RES, S, TOK):
             log('no channel grid, rivers unburnt:', repr(e)[:120])
     # culverts are not in the lidar DEM: road fill over a culvert is a dam (USGS lidar base spec).  Open a notch at every mapped crossing
     # to the lowest ground within LF_BREACH_M (default 40 m), so water passes under the road as it does through the culvert.
-    nb = 0
+    # LF_BREACH_SIZED=1: where the NAACC survey gives the culvert (shape, span, rise), the notch is sized to it (sized_notch): cut no deeper
+    # than the surveyed invert (crest - fill - rise) and given the Manning n at which the 3x3-cell notch passes the HDS-5 capacity of the
+    # real barrel(s); crossings without a size (and bridges) keep the default full opening.
+    nb = 0; NOV = np.full((ny, nx), np.nan, np.float32); XG = []; nsized = 0
     if os.environ.get('LF_BREACH_XINGS', '1') == '1':
         try:
+            SIZED = os.environ.get('LF_BREACH_SIZED', '0') == '1'
             xp = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
             XJ = json.load(open(xp)); C = XJ['columns']; il, ia = C.index('lon'), C.index('lat')
             from pyproj import Transformer
             tf = Transformer.from_crs(4326, 26986, always_xy=True)
-            pts = [(r_[il], r_[ia]) for r_ in XJ['rows'] if r_[il] is not None]
-            xx, yy = tf.transform([p[0] for p in pts], [p[1] for p in pts])
+            rows_x = [dict(zip(C, r_)) for r_ in XJ['rows'] if r_[il] is not None]
+            xx, yy = tf.transform([r_['lon'] for r_ in rows_x], [r_['lat'] for r_ in rows_x])
             kw = int(math.ceil(float(os.environ.get('LF_BREACH_M', '40')) / RES))
-            for xq, yq in zip(xx, yy):
-                if not (x0 <= xq < x1 and y0 <= yq < y1): continue
-                rq, cq = int((y1 - yq) // RES), int((xq - x0) // RES)
-                r0_, r1_, c0_, c1_ = max(0, rq - kw), min(ny, rq + kw + 1), max(0, cq - kw), min(nx, cq + kw + 1)
-                zmin = float(Z[r0_:r1_, c0_:c1_].min())
-                Z[max(0, rq - 1):rq + 2, max(0, cq - 1):cq + 2] = np.minimum(Z[max(0, rq - 1):rq + 2, max(0, cq - 1):cq + 2], zmin); nb += 1
-            log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m')
+            Z, NOV, XG = open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, SIZED); nb = len(XG); nsized = sum(1 for g in XG if g['n_eq'] is not None)
+            log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m' + (f'; {nsized} sized to the NAACC culvert (LF_BREACH_SIZED)' if SIZED else ''))
         except Exception as e:
             log('crossing breach skipped:', repr(e)[:150])
     carved = np.zeros((ny, nx), bool)
     if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
-        t_ = time.time(); Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')))
-        log(f'depressions: {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept, {time.time() - t_:.0f}s')
+        t_ = time.time(); mcc = os.environ.get('LF_BREACH_CHAN_MAX')
+        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None)
+        log(f'depressions: {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept'
+            + (f', {st_["chan_deep_cut"]} channel pits cut deeper than the cap (LF_BREACH_CHAN_MAX={mcc})' if mcc else '') + f', {time.time() - t_:.0f}s')
     loss = None
     if os.environ.get('LF_LOSS', 'none') == 'fc':      # rain-excess approximation of w4's losses: steady soil rate + storm drains
         try:
@@ -493,7 +551,8 @@ def build_inputs(BOX, RES, S, TOK):
         Q = np.where(P > Ia, (P - Ia) ** 2 / np.maximum(P - Ia + Sx, 1e-6), 0.0)
         RAIN = np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32)
         log(f'effective rain (CN) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%)')
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC)
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
+                NOV=NOV, XG=XG)
 
 
 # ======================================================================================================================
@@ -536,12 +595,16 @@ def main():
     I = build_inputs(BOX, RES, S, TOK); ny, nx = I['ny'], I['nx']
     wd = f'{WORK}/run_{run_name}'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
     write_asc(f'{wd}/dem.asc', I['Z'], x0, y0, RES)
-    write_asc(f'{wd}/n.asc', manning_map(I['water'], I['chan'], I['IMP']), x0, y0, RES, fmt='%.3f')
+    NM = manning_map(I['water'], I['chan'], I['IMP'])
+    if np.isfinite(I['NOV']).any(): NM = np.where(np.isfinite(I['NOV']), np.maximum(NM, np.nan_to_num(I['NOV'])), NM).astype(np.float32)   # sized culvert notches
+    write_asc(f'{wd}/n.asc', NM, x0, y0, RES, fmt='%.3f')
     rec, th = rain_records(I['RAIN'] / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
     write_rain_nc(f'{wd}/rain.nc', rec, x0, y0, RES, th, flip_y=P['flip_y'], flip_x=P['flip_x'])
     write_bci(f'{wd}/run.bci', x0, y0, x1, y1)
     start = None
     extra = []; infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4'))
+    QOUT = os.environ.get('LF_QOUT', '0') == '1'
+    if QOUT: extra.append('qoutput')          # .Qx/.Qy face fluxes (m3/s) at every saveint: flow through each crossing notch, river flow at gauges
     if I['SGC'] and I['chan'].any():
         # LISFLOOD-FP sub-grid channels (Neal et al. 2012): width raster, bank = DEM, bed = bank - bankfull depth (channels30, Bieger 2015)
         W_ = np.where(I['chan'], np.maximum(I['CW'], 1.0), 0.0); bed = np.where(I['chan'], I['Z'] - np.maximum(I['CD'], 0.3), I['Z'])
@@ -582,6 +645,35 @@ def main():
     peak_wet = round(float(((hmax >= 0.1) & land).sum() * RES * RES / 1e6), 1)
     peak_frame_wet = max([f.get('wet_km2', 0) for f in frames] or [0])
     log(f'peak wet (hmax >= 10 cm, land) {peak_wet} km2; largest snapshot wet area {peak_frame_wet} km2; {len(snaps)} snapshots')
+    # flow through every crossing notch and past every gauge from the face fluxes (LF_QOUT=1): peak over the snapshots
+    XG = I['XG']; GQ = []
+    gp_ = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'proto', 'obs', f'gauges_{STORM}.json')
+    if os.path.exists(gp_):
+        from pyproj import Transformer
+        tg = Transformer.from_crs(4326, 26986, always_xy=True)
+        for g in json.load(open(gp_))['gauges']:
+            gx, gy = tg.transform(g['lon'], g['lat'])
+            if x0 <= gx < x1 and y0 <= gy < y1:
+                rg, cg = int((y1 - gy) // RES), int((gx - x0) // RES); kg = max(2, int(math.ceil(100 / RES)))
+                GQ.append(dict(site=g['site'], name=g['name'], r0=max(0, rg - kg), r1=min(ny, rg + kg + 1), c0=max(0, cg - kg), c1=min(nx, cg + kg + 1),
+                               obs_peak_q_m3s=round(g['peak_q_cfs'][1] * 0.0283168, 1) if g.get('peak_q_cfs') else None))
+    qfiles = sorted(glob.glob(f'{wd}/results/res-*.Qx'))
+    if QOUT and qfiles:
+        t_ = time.time()
+        for B in XG: B.update(q_peak_m3s=0.0, q_peak_h=None)
+        for B in GQ: B.update(q_peak_m3s=0.0, q_peak_h=None, q_series=[])
+        for fq in qfiles:
+            j = int(re.search(r'-(\d+)\.Qx$', fq).group(1)); fy = fq[:-3] + '.Qy'
+            if not os.path.exists(fy): continue
+            try: Qx = np.nan_to_num(read_asc(fq)[0]); Qy = np.nan_to_num(read_asc(fy)[0])
+            except Exception as e: log('flux file unreadable', fq, repr(e)[:80]); continue
+            if Qx.shape != (ny, nx + 1) or Qy.shape != (ny + 1, nx): log('unexpected flux grid shapes', Qx.shape, Qy.shape); break
+            for B in XG + GQ:
+                qi, qo = block_throughflow(Qx, Qy, B['r0'], B['r1'], B['c0'], B['c1']); q = 0.5 * (qi + qo)
+                if 'q_series' in B: B['q_series'].append(round(qo, 2))
+                if q > B['q_peak_m3s']: B['q_peak_m3s'] = round(q, 3); B['q_peak_h'] = round(j * SAVEINT / 3600.0, 2)
+            os.remove(fq); os.remove(fy)
+        log(f'fluxes: {len(qfiles)} snapshots read in {time.time() - t_:.0f}s; gauge peak flow ' + ', '.join(f"{g['site']} {g['q_peak_m3s']:.1f} m3/s (obs {g['obs_peak_q_m3s']})" for g in GQ))
     mass = sorted(glob.glob(f'{wd}/results/res.mass'))
     mass_tail = open(mass[0]).read().strip().split('\n')[-2:] if mass else []
     # 5. run layout + one commit
@@ -594,6 +686,9 @@ def main():
     R = I['RAIN_OBS']; r3 = np.stack([R[i:i + 3].sum(0) for i in range(max(1, len(R) - 2))])
     np.savez_compressed(f'{OUT}/rainstats.npz', total=R.sum(0), peak1h=R.max(0), peak3h=r3.max(0), hour_of_peak=R.argmax(0).astype(np.int16),
                         hourly_mean=R.reshape(len(R), -1).mean(1), hourly_max=R.reshape(len(R), -1).max(1))
+    json.dump(dict(note='crossing notches: block rows r0..r1-1, cols c0..c1-1; zmin lowest ground within LF_BREACH_M, zcrest highest DEM cell of the block before the cut, '
+                        'zcut notch level, n_eq Manning n of a sized notch (LF_BREACH_SIZED), q_peak_m3s peak flow through the block (LF_QOUT, 30-min snapshots)',
+                   sized=os.environ.get('LF_BREACH_SIZED', '0') == '1', qout=QOUT, crossings=XG, gauges=GQ), open(f'{OUT}/xings.json', 'w'))
     for f in ('run.par', 'run.bci', 'lisflood_stdout.txt'): shutil.copy(f'{wd}/{f}', f'{OUT}/{f}')
     if mass: shutil.copy(mass[0], f'{OUT}/lisflood.mass')
     meta = dict(run=run_name, title=S['title'] + ' · LISFLOOD-FP benchmark', box=list(BOX), res_m=RES, shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=frames,
@@ -601,7 +696,8 @@ def main():
                 solver='acceleration (local inertial, Bates et al. 2010)' + (' on GPU (cuda)' if is_cuda else ' on CPU (OpenMP)'),
                 inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning='0.035 water/channel, 0.10 dense urban, 0.08 other',
                             rain='MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
-                            boundary='FREE on all edges', baseflow=start is not None, inflows='none'),
+                            boundary='FREE on all edges', baseflow=start is not None, inflows='none',
+                            env={k: os.environ[k] for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)}),
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8])
@@ -675,6 +771,36 @@ def selftest():
     hm, src = max_depth(d, 'res'); assert src == 'max of snapshots' and np.allclose(hm[1:], 0.2)
     write_asc(f'{d}/results/res.max', np.full((ny, nx), 0.3), x0, y0, res); hm, src = max_depth(d, 'res'); assert src == 'max file' and np.allclose(hm, 0.3)
     ok.append('output reader (.max, else max of .wd snapshots)')
+    # crossing notches sized to the culvert (LF_BREACH_SIZED) and flow through a block from face fluxes (LF_QOUT)
+    small = dict(shape='circular', rise_m=0.6, span_m=0.6, fill_m=1.0, material='concrete', inlet='headwall')
+    big = dict(shape='box', rise_m=3.0, span_m=6.0, fill_m=1.0, material='concrete', inlet='wingwall')
+    zc_s, n_s = sized_notch(small, 100.0, 103.0, 20.0); zc_b, n_b = sized_notch(big, 100.0, 103.0, 20.0)
+    assert abs(zc_s - 101.4) < 1e-6 and zc_b == 100.0 and n_s > 1.0 and n_b < n_s and 0.035 <= n_b
+    assert sized_notch(dict(shape='bridge', rise_m=2, span_m=10), 100, 103, 20) is None and sized_notch(dict(shape=None), 100, 103, 20) is None
+    assert sized_notch(dict(small, fill_m=None), 100.0, 103.0, 20.0)[0] == 100.0
+    two = sized_notch(dict(small, n_barrels=2), 100.0, 103.0, 20.0)[1]; assert abs(two - n_s / 2) / n_s < 0.02 or two == 0.035
+    ok.append('sized crossing notch (invert cap from fill + rise, HDS-5-equivalent Manning n; bridges / unknown sizes keep the default)')
+    Qx = np.zeros((5, 6)); Qy = np.zeros((6, 5)); Qx[2, :] = 3.0          # 3 m3/s eastwards along row 2
+    assert block_throughflow(Qx, Qy, 1, 4, 1, 4) == (3.0, 3.0)
+    Qy[:, 2] = -2.0; Qx[:] = 0                                              # 2 m3/s northwards along column 2
+    assert block_throughflow(Qx, Qy, 1, 4, 1, 4) == (2.0, 2.0); ok.append('flow through a block from LISFLOOD-FP face fluxes')
+    Zr = np.full((20, 20), 103.0, np.float32); Zr[:, 10] = 100.0                     # stream along column 10 under a road fill on row 5
+    Zr[4:7, :] = 104.0
+    rows_x = [dict(id='a', **small), dict(id='b', shape='bridge', rise_m=2.0, span_m=8.0), dict(id='out')]
+    xs_ = [150000 + 10.5 * 20, 150000 + 10.5 * 20, 140000]; ys_ = [905400 - 5.5 * 20, 905400 - 5.5 * 20, 905000]
+    Zd, Nd, Gd = open_crossings(Zr, rows_x, xs_, ys_, (150000, 905000, 150400, 905400), 20.0, 2, False)
+    assert len(Gd) == 2 and Zd[5, 10] == 100.0 and Zd[4:7, 9:12].max() == 100.0 and np.isnan(Nd).all() and Zr[5, 10] == 104.0
+    Zs, Ns, Gs = open_crossings(Zr, rows_x, xs_, ys_, (150000, 905000, 150400, 905400), 20.0, 2, True)
+    assert Gs[0]['n_eq'] is not None and Gs[1]['n_eq'] is None and abs(Zs[5, 10] - 100.0) < 1e-6         # bridge on top keeps the full opening
+    Zs, Ns, Gs = open_crossings(Zr, rows_x[:1], xs_[:1], ys_[:1], (150000, 905000, 150400, 905400), 20.0, 2, True)
+    assert abs(Zs[5, 10] - (104.0 - 1.6)) < 1e-5 and np.isfinite(Ns[4:7, 9:12]).all() and Gs[0]['zcut'] == 102.4
+    ok.append('crossing notches: default full opening, sized notch only where the survey gives a culvert')
+    # channel pits may be cut deeper than the cap (LF_BREACH_CHAN_MAX)
+    Zp = np.full((7, 9), 20.0, np.float32); Zp[3, :] = [20, 10, 10, 10, 16, 9, 9, 9, 8]   # river along row 3, a 6 m road fill at column 4
+    ch = np.zeros_like(Zp, bool); ch[3, :] = True
+    Zk, low_k, st_k = breach_depressions(Zp, 4.0); assert Zk[3, 4] == 16 and st_k['kept_deep'] >= 1
+    Zc_, low_c, st_c = breach_depressions(Zp, 4.0, ch, 12.0); assert Zc_[3, 4] <= 10 and st_c['chan_deep_cut'] >= 1
+    ok.append('channel pits behind a fill deeper than the cap are carved with LF_BREACH_CHAN_MAX, kept without it')
     shutil.rmtree(d)
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')

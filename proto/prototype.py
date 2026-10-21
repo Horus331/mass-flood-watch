@@ -29,10 +29,22 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.normpath(os.path.join(HERE, '..'))
 sys.path.insert(0, os.path.join(ROOT, 'sim', 'infra'))
 import impacts as IM
+import culvert as CV
 
 FAIL_M = 0.30          # closure depth (ordinary car stops)
 SIGMA_M = 0.10         # depth uncertainty for the v0 probability
 CLASS_NAME = {0: 'local / collector', 1: 'arterial', 2: 'highway'}
+CULVERT_SHAPES = ('circular', 'elliptical', 'pipe_arch', 'box', 'arch_open', 'arch_closed')
+# NAACC culvert-condition inlet blockage -> share of the barrel area lost to debris / sediment.  Design blockage factors of this size are what
+# Australian Rainfall and Runoff 2019 (Book 6 ch. 6, Weeks et al. 2013 / Ball et al. 2019) prescribes for small culverts with debris
+# supply (25-50 %, up to 100 % for openings < 1.5 m); here 'Poor' = partial (25 %), 'Critical' = severe (50 %).  Applied as an equal loss of
+# capacity: HW_blocked(Q) = HW_clear(Q / (1 - B)).  Structural condition (NAACC 'Poor') is not used: no published fragility links it to
+# overtopping in a single storm.
+BLOCKAGE = {'Poor': 0.25, 'Critical': 0.50}
+XING_SEG_M = 30.0      # a crossing closes the road segments with a road point within this distance
+Q_SIGMA_LN = 0.30      # sd of ln(peak flow) at a crossing (~ +-35 %): the culvert probability is P(Q' > Q_crest), Q' lognormal about the modelled Q
+LABEL_GROUPS = {'all': None, 'flood_closure': ('flooded', 'closed', 'impassable'),
+                'culvert_washout': ('culvert_failure', 'washout', 'sinkhole', 'bridge_damage'), 'other_damage': ('other_damage',)}
 
 
 def phi(x):
@@ -60,18 +72,105 @@ def seg_top2(n, seg, vals):
     sec = np.where(has2, v[np.minimum(idx + 1, len(v) - 1)], top1); out[sg[idx]] = sec; return out
 
 
+def culvert_probability(Xrows, xq, imp_x, meta, blockage=True):
+    """Probability that the road over each surveyed culvert is overtopped, P_c = P(HW > crest).
+    HW: FHWA HDS-5 headwater (sim/infra/culvert.py, max of inlet and outlet control) for the peak flow Q the flood model passed through the
+    crossing's notch (xings.json, LF_QOUT=1), with the NAACC barrel (shape, span, rise, material, inlet, barrels, slope, length) and the
+    NAACC inlet blockage (BLOCKAGE).  crest: road crest above the invert = rise + NAACC fill (0.6 m when fill is missing, as impacts.py).
+    HW rises monotonically with Q, so HW > crest exactly when Q > Q_crest (the flow the barrel passes at HW = crest, HDS-5 inverted), and
+    with the flow uncertain by a lognormal factor (sd Q_SIGMA_LN): P_c = Phi(ln(Q / Q_crest) / Q_SIGMA_LN).  (Phi((HW - crest)/sigma_HW)
+    with a fixed sigma_HW saturates badly: HDS-5 headwater grows ~Q^2 once the inlet is submerged.)  Without a modelled flow the modelled
+    depth at the crossing's channel cell (impacts.py hw_m) stands in for HW: P_c = Phi((HW - crest) / 0.10).  Returns a list of dicts."""
+    from pyproj import Transformer
+    tr = Transformer.from_crs(4326, 26986, always_xy=True); x0, y0, x1, y1 = meta['box']; out = []
+    for row in Xrows:
+        shape, rise, span = row.get('shape'), row.get('rise_m'), row.get('span_m')
+        if row.get('lon') is None or shape not in CULVERT_SHAPES or not rise or rise <= 0 or (shape != 'circular' and not span): continue
+        x, y = tr.transform(row['lon'], row['lat'])
+        if not (x0 <= x < x1 and y0 <= y < y1): continue
+        fill = row.get('fill_m'); crest = float(rise) + (float(fill) if fill is not None else 0.6)
+        B = BLOCKAGE.get(row.get('inlet_blockage'), 0.0) if blockage else 0.0
+        q = (xq.get(row.get('id')) or {}).get('q_peak_m3s'); rec = dict(id=row.get('id'), road=row.get('road'), stream=row.get('stream'), x=x, y=y, crest_m=round(crest, 2),
+                                                                         blockage=B, q_m3s=q)
+        if q is not None:
+            mat, inl, nb = row.get('material') or 'concrete', row.get('inlet') or 'headwall', int(row.get('n_barrels') or 1)
+            S = (row.get('slope_pct') or 1.0) / 100.0; L = row.get('length_m') or max(10.0, 2 * crest + 8.0)
+            HW = CV.headwater(q / (1.0 - B), shape, span or rise, rise, mat, inl, S, L, 0.0, nb)['hw'] if q > 0 else 0.0
+            qc = CV.q_at_headwater(crest, shape, span or rise, rise, mat, inl, S, L, 0.0, nb) * (1.0 - B)
+            z = math.log(max(q, 1e-6) / max(qc, 1e-6)) / Q_SIGMA_LN
+            rec.update(hw_m=round(HW, 2), q_crest_m3s=round(qc, 3), basis='HDS-5 headwater at the modelled peak flow')
+        else:
+            a = imp_x.get(row.get('id'))
+            if not a or a.get('hw_m') is None: continue
+            HW = float(a['hw_m']); z = (HW - crest) / SIGMA_M; rec.update(hw_m=round(HW, 2), basis='modelled depth at the crossing')
+        rec['p'] = float(phi(np.array([z]))[0]); out.append(rec)
+    return out
+
+
+def load_labels(path):
+    if not path or not os.path.exists(path): return []
+    L = []
+    for r in csv.DictReader(open(path)):
+        try: L.append(dict(r, lon=float(r['lon']), lat=float(r['lat'])))
+        except Exception: continue
+    return L
+
+
+def norm_road(s):
+    s = (s or '').lower().replace('.', '').strip()
+    for a, b in ((' street', ' st'), (' avenue', ' ave'), (' road', ' rd'), (' drive', ' dr'), (' boulevard', ' blvd'), ('route ', 'rt '), ('state rte ', 'rt '), ('rte ', 'rt ')):
+        s = s.replace(a, b)
+    return s
+
+
+def label_segments(labels, Q, props, meta):
+    """Road segments each documented site refers to.  exact coordinates: segments within 100 m; approx: segments within 300 m plus, when the
+    road is named, segments of that name within 1.5 km (the README warns road-centroid points can be 0.5-1.5 km off); town-level: skipped."""
+    from scipy.spatial import cKDTree
+    from pyproj import Transformer
+    if not labels or not len(Q['x']): return []
+    tr = Transformer.from_crs(4326, 26986, always_xy=True); x0, y0, x1, y1 = meta['box']; t = cKDTree(np.column_stack([Q['x'], Q['y']])); out = []
+    nm = np.array([norm_road(v) for v in props['road']], dtype=object)
+    for L in labels:
+        q = L.get('coord_quality', 'approx')
+        if q == 'town': continue
+        x, y = tr.transform(L['lon'], L['lat'])
+        if not (x0 <= x < x1 and y0 <= y < y1): continue
+        segs = set(np.unique(Q['seg'][t.query_ball_point([x, y], 100.0 if q == 'exact' else 300.0)]).tolist())
+        if q != 'exact' and L.get('road'):
+            names = {norm_road(v) for v in L['road'].replace(')', '(').split('(') if v.strip()}
+            cand = np.unique(Q['seg'][t.query_ball_point([x, y], 1500.0)])
+            segs |= {int(sg) for sg in cand if nm[sg] in names}
+        if segs: out.append((L, np.array(sorted(segs), int)))
+    return out
+
+
+def label_recall(matches, P, inbox, thr=0.5):
+    """Segment-level recall of documented sites at P >= thr, the share of all in-box segments flagged, and two lifts: recall / flagged share
+    (naive) and recall / the recall random flagging of the same share would get given how many segments each site matches (chance-corrected)."""
+    fl = (P >= thr) & inbox; f = float(fl[inbox].mean()) if inbox.any() else 0.0; res = dict(flagged_share=round(f, 4), n_flagged=int(fl.sum()))
+    for g, types in LABEL_GROUPS.items():
+        M = [m for m in matches if types is None or m[0].get('type') in types]
+        if not M: continue
+        hit = np.array([fl[s].any() for _, s in M]); exp_ = np.array([1 - (1 - f) ** len(s) for _, s in M])
+        res[g] = dict(n=len(M), recall=round(float(hit.mean()), 3), random_recall=round(float(exp_.mean()), 3),
+                      lift_naive=round(float(hit.mean() / f), 2) if f > 0 else None, lift=round(float(hit.mean() / exp_.mean()), 2) if exp_.mean() > 0 else None)
+    return res
+
+
 def reason(r):
     bits = [f"{r['peak_depth_m']:.2f} m of water at peak"]
     if r['hours_over_30cm'] > 0: bits.append(f"over 30 cm for {r['hours_over_30cm']:.1f} h")
     if r['arrival_h'] is not None: bits.append(f"30 cm reached {r['arrival_h']:.1f} h into the storm")
     bits.append(f"worst hour {r['peak1h_mm']:.0f} mm ({r['flashness_pct']:.0f}% of the storm)")
-    if r['culvert_overtopped_nearby']: bits.append('a culvert within 100 m is overtopped')
+    if r.get('p_culvert', 0) >= 0.1 and r.get('culvert_why'): bits.append(r['culvert_why'])
+    elif r['culvert_overtopped_nearby']: bits.append('a culvert within 100 m is overtopped')
     if r['adds_hospital_min'] and r['adds_hospital_min'] >= 5: bits.append(f"+{r['adds_hospital_min']:.0f} min to the nearest hospital")
     if r['cut_off_hospital']: bits.append('cut off from hospitals')
     return '; '.join(bits)
 
 
-def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=30):
+def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=30, culvert_rule=False, labels_csv=None, blockage=True):
     t_start = time.time(); os.makedirs(out, exist_ok=True)
     R = IM.load_run(os.path.basename(run_dir.rstrip('/')), local=run_dir); meta = R['meta']; H = R['H']; res = meta['res_m']
     R['name'] = meta.get('run') or R['name']
@@ -139,6 +238,22 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     from pyproj import Transformer
     tr = Transformer.from_crs(4326, 26986, always_xy=True)
     XC = imp['crossing_columns']; xs = [dict(zip(XC, r)) for r in imp['crossings']]
+
+    # culvert-driven closures (optional rule): P = 1 - (1 - P_depth)(1 - P_culvert), P_culvert = max over surveyed culverts within XING_SEG_M
+    xj = json.load(open(os.path.join(run_dir, 'xings.json'))) if os.path.exists(os.path.join(run_dir, 'xings.json')) else {}
+    xq = {c['id']: c for c in xj.get('crossings', []) if c.get('q_peak_m3s') is not None}
+    CP = culvert_probability(Xrows, xq, {x['id']: x for x in xs}, meta, blockage)
+    pcul = np.zeros(n, np.float32); cwhy = {}
+    if CP and len(Q['x']):
+        tq = cKDTree(np.column_stack([Q['x'], Q['y']]))
+        for c in CP:
+            for sg in np.unique(Q['seg'][tq.query_ball_point([c['x'], c['y']], XING_SEG_M)]):
+                if c['p'] > pcul[sg]:
+                    pcul[sg] = c['p']; cwhy[int(sg)] = (f"culvert ({c['stream'] or 'stream'}): headwater {c['hw_m']:.2f} m vs road crest {c['crest_m']:.2f} m"
+                                                        + (f", {int(c['blockage'] * 100)}% blocked" if c['blockage'] else '') + (f", {c['q_m3s']:.1f} m3/s" if c['q_m3s'] is not None else ''))
+    pcul = np.where(inbox, pcul, 0.0)
+    p_depth = pclose.copy(); p_comb = 1.0 - (1.0 - p_depth) * (1.0 - pcul)
+    if culvert_rule: pclose = p_comb
     over = [x for x in xs if x['status'] in ('overtopped', 'surcharged')]
     near_culv = np.zeros(n, bool)
     if over and len(Q['x']):
@@ -154,6 +269,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                  hours_over_30cm=round(float(hrs30[i]), 1), hours_over_15cm=round(float(hrs15[i]), 1),
                  arrival_h=None if np.isnan(arr30[i]) else round(float(arr30[i]), 1), storm_total_mm=round(float(tot[i])), peak1h_mm=round(float(p1[i]), 1),
                  peak3h_mm=round(float(p3[i]), 1), flashness_pct=round(float(flash[i]), 1), culvert_overtopped_nearby=bool(near_culv[i]),
+                 p_depth=round(float(p_depth[i]), 3), p_culvert=round(float(pcul[i]), 3), culvert_why=cwhy.get(int(i)),
                  adds_hospital_min=float(nt.get('iso_min') or 0.0), cut_off_hospital=bool(nt.get('cut_hosp')), cut_from_major_roads=bool(nt.get('cut_major')))
         if seg_t is not None: r['d'] = [int(min(v, 255)) for v in seg_t[:, i]]
         r['vehicle_hours_at_risk'] = round(r['p_close'] * r['aadt'] / 24.0 * max(r['hours_over_30cm'], 0.0) * (1 + r['adds_hospital_min'] / 30.0), 1)
@@ -175,25 +291,39 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                                  max_depth_m=round(float(mx[segs].max()) if len(segs) else 0.0, 2)))
             base = float((pclose[inbox] >= 0.5).mean())
             checks['massdot_repeat_sites'] = dict(in_box=len(hits), flagged_p05=sum(h['max_p_close'] >= 0.5 for h in hits), share_of_all_segments_flagged=round(base, 3), sites=hits)
+            for (i, a, b), h in zip(inb, hits):
+                segs = np.unique(Q['seg'][t.query_ball_point([a, b], 150.0)]); h['max_p_with_culverts'] = round(float(p_comb[segs].max()) if len(segs) else 0.0, 3)
+            checks['massdot_repeat_sites']['flagged_p05_with_culverts'] = sum(h['max_p_with_culverts'] >= 0.5 for h in hits)
+    # documented road flood / closure / damage sites (proto/data/labels_*): segment-level recall vs flagged share, depth rule and with culverts
+    LM = label_segments(load_labels(labels_csv), Q, props, meta)
+    if LM:
+        checks['labels_segments'] = dict(note='recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the '
+                                              'same share of segments; lift = recall / random_recall', sites_matched=len(LM),
+                                         depth_rule=label_recall(LM, p_depth, inbox), with_culverts=label_recall(LM, p_comb, inbox))
+    checks['culverts'] = dict(surveyed_in_box=len(CP), with_model_flow=sum(1 for c in CP if c['q_m3s'] is not None), p_ge_50=sum(1 for c in CP if c['p'] >= 0.5),
+                              segments_raised_to_p_ge_50=int(((p_comb >= 0.5) & (p_depth < 0.5) & inbox).sum()), rule_applied_to_p_close=bool(culvert_rule),
+                              blockage_factors=BLOCKAGE if blockage else {}, probability='Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)')
 
     # outputs
     keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
     write_geojson(os.path.join(out, 'segments.geojson'), S, keep)
     for r in rows: r.pop('d', None)
     with open(os.path.join(out, 'watchlist.csv'), 'w', newline='') as f:
-        cols = ['rank', 'p_close', 'road', 'town', 'road_class', 'peak_depth_m', 'hours_over_30cm', 'arrival_h', 'peak1h_mm', 'flashness_pct',
+        cols = ['rank', 'p_close', 'p_depth', 'p_culvert', 'road', 'town', 'road_class', 'peak_depth_m', 'hours_over_30cm', 'arrival_h', 'peak1h_mm', 'flashness_pct',
                 'culvert_overtopped_nearby', 'adds_hospital_min', 'aadt', 'segment', 'why']
         w = csv.writer(f); w.writerow(cols)
         for k, r in enumerate(rows[:top]): w.writerow([k + 1] + [r[c] for c in cols[1:]])
     summ = dict(run=R['name'], model=meta.get('model'), storm_start=meta.get('t0'), box_epsg26986=meta['box'], resolution_m=res,
                 segments_in_box=int(inbox.sum()), closures_expected=round(float(pclose[inbox].sum()), 1),
                 segments_p_ge_50=int((pclose[inbox] >= 0.5).sum()), segments_p_ge_90=int((pclose[inbox] >= 0.9).sum()),
+                segments_p_ge_50_depth_rule=int((p_depth[inbox] >= 0.5).sum()), segments_p_ge_50_with_culverts=int((p_comb[inbox] >= 0.5).sum()),
                 km_p_ge_50=round(float(np.asarray(props['len'], float)[inbox & (pclose >= 0.5)].sum() / 1000), 1),
                 culverts_overtopped=sum(1 for x in xs if x['status'] == 'overtopped'), culverts_surcharged=sum(1 for x in xs if x['status'] == 'surcharged'),
                 crossings_assessed=len(xs), cut_off_from_hospitals=imp['summary']['cut_off_from_hospitals'], worst_added_minutes=imp['summary']['worst_delay_min'],
                 rain_max_total_mm=meta.get('rain_total_max_mm'), rain_peak1h_max_mm=round(float(RS['peak1h'].max()), 1) if RS else None,
                 flood_model_runtime_s=meta.get('runtime_s'), solver=meta.get('solver'), checks=checks,
-                method=dict(closure_depth_m=FAIL_M, sigma_m=SIGMA_M, probability='Phi((peak depth - 0.30) / 0.10), physics prior v0',
+                method=dict(closure_depth_m=FAIL_M, sigma_m=SIGMA_M, probability='Phi((peak depth - 0.30) / 0.10), physics prior v0'
+                            + (' combined with culvert overtopping: 1 - (1 - P_depth)(1 - P_culvert), P_culvert = P(HDS-5 headwater > road crest) = Phi(ln(Q / Q_crest) / 0.30)' if culvert_rule else ''),
                             network='segments >= 15 cm removed; Dijkstra to nearest hospital (sim/infra/impacts.py)', culverts='FHWA HDS-5 (sim/infra/culvert.py)'),
                 frame_hours=frame_hours, closed_per_frame=[int(((seg_t[k] >= 30) & inbox).sum()) for k in range(len(frame_hours))] if seg_t is not None else [],
                 rain_hourly_mean_mm=[round(float(v), 1) for v in RS['hourly_mean']] if RS is not None and 'hourly_mean' in RS else [],
@@ -351,6 +481,26 @@ def selftest():
     assert s['segments_p_ge_50'] == 1 and s['closed_per_frame'] == [0, 1, 1], s['closed_per_frame']
     g = json.load(open(os.path.join(out, 'segments.geojson'))); assert g['features'][0]['properties']['d'] == [0, 30, 60]
     assert os.path.exists(os.path.join(out, 'frames', 'f002.png'))
+    # culvert rule: a 0.6 m pipe under dry C St (row 10) passing 3 m3/s overtops (HDS-5 HW >> crest 0.6 + 1.0 m); a 3 m box at 3 m3/s does not
+    lo, la = tr.transform([box[0] + 1000, box[0] + 400], [box[3] - 10 * res, box[3] - 10 * res])
+    cols = ['lon', 'lat', 'id', 'road', 'stream', 'shape', 'span_m', 'rise_m', 'fill_m', 'material', 'inlet', 'n_barrels', 'inlet_blockage']
+    xp = os.path.join(d, 'xings_all.json')
+    json.dump(dict(columns=cols, rows=[[lo[0], la[0], 'c1', 'C St', 'Brook', 'circular', 0.6, 0.6, 1.0, 'concrete', 'headwall', 1, 'Poor'],
+                                       [lo[1], la[1], 'c2', 'C St', 'River', 'box', 3.0, 3.0, 1.0, 'concrete', 'wingwall', 1, None]]), open(xp, 'w'))
+    json.dump(dict(crossings=[dict(id='c1', q_peak_m3s=3.0), dict(id='c2', q_peak_m3s=3.0)]), open(f'{rd}/xings.json', 'w'))
+    lp = os.path.join(d, 'labels.csv')
+    with open(lp, 'w', newline='') as f:
+        w = csv.writer(f); w.writerow(['id', 'name', 'road', 'town', 'type', 'lon', 'lat', 'coord_quality'])
+        w.writerow(['L1', 'C St culvert', 'C St', 'T', 'culvert_failure', lo[0], la[0], 'exact']); w.writerow(['L2', 'A St flood', 'A St', 'T', 'flooded', lo[1], tr.transform(box[0] + 400, box[3] - 50 * res)[1], 'exact'])
+    out2 = os.path.join(d, 'out2'); s2 = run(rd, out2, sp, xp, None, None, None, culvert_rule=True, labels_csv=lp)
+    rows2 = {r['road']: r for r in csv.DictReader(open(os.path.join(out2, 'watchlist.csv')))}
+    assert float(rows2['C St']['p_culvert']) > 0.99 and float(rows2['C St']['p_close']) > 0.99 and float(rows2['C St']['p_depth']) < 0.01, rows2['C St']
+    assert 'headwater' in rows2['C St']['why'] and '25% blocked' in rows2['C St']['why'], rows2['C St']['why']
+    cu = s2['checks']['culverts']; assert cu['surveyed_in_box'] == 2 and cu['p_ge_50'] == 1 and cu['segments_raised_to_p_ge_50'] == 1, cu
+    ls = s2['checks']['labels_segments']; assert ls['depth_rule']['all']['recall'] == 0.5 and ls['with_culverts']['all']['recall'] == 1.0, ls
+    assert ls['with_culverts']['culvert_washout']['recall'] == 1.0 and s2['segments_p_ge_50'] == 2 and s2['segments_p_ge_50_depth_rule'] == 1
+    s3 = run(rd, os.path.join(d, 'out3'), sp, xp, None, None, None, culvert_rule=False, labels_csv=lp)
+    assert s3['segments_p_ge_50'] == 1 and s3['segments_p_ge_50_with_culverts'] == 2       # rule off: reported, not applied
     print('selftest ok:', out)
 
 
@@ -362,7 +512,11 @@ if __name__ == '__main__':
     ap.add_argument('--reports', default=os.path.join(ROOT, 'docs', 'prone', 'flood_reports.json'))
     ap.add_argument('--facilities', default=os.path.join(ROOT, 'docs', 'network', 'facilities.json'))
     ap.add_argument('--repeat', default=os.path.join(HERE, 'data', 'massdot_repeat_flood_d3.csv'))
+    ap.add_argument('--labels', default=os.path.join(HERE, 'data', 'labels_sep2023_leominster.csv'))
+    ap.add_argument('--culvert-rule', action='store_true', default=os.environ.get('PROTO_CULVERT_RULE', '0') == '1',
+                    help='P(close) = 1 - (1 - P_depth)(1 - P_culvert) (HDS-5 overtopping of surveyed culverts); both versions are scored either way')
+    ap.add_argument('--no-blockage', action='store_true', help='ignore NAACC inlet blockage in the culvert rule')
     ap.add_argument('--selftest', action='store_true')
     a = ap.parse_args()
     if a.selftest: selftest()
-    else: run(a.run_dir, a.out, a.segments, a.crossings, a.reports, a.facilities, a.repeat, a.top)
+    else: run(a.run_dir, a.out, a.segments, a.crossings, a.reports, a.facilities, a.repeat, a.top, a.culvert_rule, a.labels, not a.no_blockage)
