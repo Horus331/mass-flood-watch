@@ -55,7 +55,7 @@ jobs:
         if: always()
         run: |
           mkdir -p docs/proto/${{ inputs.name }}/_logs
-          grep -rn --exclude-dir=windep -E "nc_inq_dimid|nc_inq_varid|nc_get_att|dynamicrainfilename|NC_NOWRITE|nc_open" ${{ runner.temp }}/lf/src --include=*.cpp --include=*.cu --include=*.h --include=*.cuh 2>/dev/null | head -120 > docs/proto/${{ inputs.name }}/_logs/netcdf_names.txt || true
+          (grep -rln --exclude-dir=windep "class DynamicRain\|DynamicRain<" ${{ runner.temp }}/lf/src; for f in $(grep -rl --exclude-dir=windep "class DynamicRain" ${{ runner.temp }}/lf/src); do echo "== $f"; grep -n -E "nc_|\"[a-z_]+\"" $f | head -60; done; F=$(dirname $(grep -rl --exclude-dir=windep "class DynamicRain" ${{ runner.temp }}/lf/src | head -1)); for g in $F/*rain*; do echo "== $g"; grep -n -E "nc_|\"[a-z_]+\"" $g | head -60; done) > docs/proto/${{ inputs.name }}/_logs/netcdf_names.txt 2>&1 || true
           tail -c 200000 w9_stdout.txt > docs/proto/${{ inputs.name }}/_logs/w9_stdout.txt 2>/dev/null || true
           cp ${{ runner.temp }}/lf/w9_log.txt docs/proto/${{ inputs.name }}/_logs/ 2>/dev/null || true
           for f in ${{ runner.temp }}/lf/run_*/lisflood_stdout.txt; do tail -c 100000 $f > docs/proto/${{ inputs.name }}/_logs/lisflood_stdout.txt; done 2>/dev/null || true
