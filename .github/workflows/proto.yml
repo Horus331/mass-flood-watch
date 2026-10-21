@@ -55,7 +55,7 @@ jobs:
         if: always()
         run: |
           mkdir -p docs/proto/${{ inputs.name }}/_logs
-          (F=$(find ${{ runner.temp }}/lf/src -name file_tool.cpp | grep -v windep | head -1); sed -n 300,420p $F) > docs/proto/${{ inputs.name }}/_logs/netcdf_names.txt 2>&1 || true
+          (P=$(find ${{ runner.temp }}/lf/src -name pars.cpp | grep -v windep | head -1); grep -n -o -E "\"[a-zA-Z_]+\"" $P | sort -u -t: -k2 | tr "\n" " "; echo; grep -rn --exclude-dir=windep -i -E "infil|evap|routing|routingspeed|drain" ${{ runner.temp }}/lf/src --include=*.cpp --include=*.cu --include=*.h | grep -v -i "test" | head -80) > docs/proto/${{ inputs.name }}/_logs/params.txt 2>&1 || true
           tail -c 200000 w9_stdout.txt > docs/proto/${{ inputs.name }}/_logs/w9_stdout.txt 2>/dev/null || true
           cp ${{ runner.temp }}/lf/w9_log.txt docs/proto/${{ inputs.name }}/_logs/ 2>/dev/null || true
           for f in ${{ runner.temp }}/lf/run_*/lisflood_stdout.txt; do tail -c 100000 $f > docs/proto/${{ inputs.name }}/_logs/lisflood_stdout.txt; done 2>/dev/null || true
