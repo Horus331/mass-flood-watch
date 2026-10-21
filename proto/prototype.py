@@ -112,6 +112,15 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         tot = p1 = p3 = np.zeros(n, np.float32)
     flash = np.where(tot > 0, 100.0 * p1 / np.maximum(tot, 1e-6), 0.0)
 
+    # time series: depth on every segment at every 30-min snapshot (for the animated map)
+    FRM = load_npz(os.path.join(run_dir, 'frames_cm.npz')); seg_t = None; frame_hours = []
+    if FRM is not None and len(Q['x']):
+        DC = FRM['depth_cm']; frame_hours = [round(float(h), 2) for h in FRM['hours']]
+        seg_t = np.zeros((len(DC), n), np.uint16)
+        for k in range(len(DC)): np.maximum.at(seg_t[k], Q['seg'], DC[k][Q['r'], Q['c']])
+        os.makedirs(os.path.join(out, 'frames'), exist_ok=True)
+        for k in range(len(DC)): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), DC[k].astype(np.float32) / 100.0)
+
     # 3 closure probability (v0 physics prior)
     pclose = np.where(inbox, phi((mx - FAIL_M) / SIGMA_M), 0.0)
 
@@ -136,6 +145,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                  arrival_h=None if np.isnan(arr30[i]) else round(float(arr30[i]), 1), storm_total_mm=round(float(tot[i])), peak1h_mm=round(float(p1[i]), 1),
                  peak3h_mm=round(float(p3[i]), 1), flashness_pct=round(float(flash[i]), 1), culvert_overtopped_nearby=bool(near_culv[i]),
                  adds_hospital_min=float(nt.get('iso_min') or 0.0), cut_off_hospital=bool(nt.get('cut_hosp')), cut_from_major_roads=bool(nt.get('cut_major')))
+        if seg_t is not None: r['d'] = [int(min(v, 255)) for v in seg_t[:, i]]
         r['vehicle_hours_at_risk'] = round(r['p_close'] * r['aadt'] / 24.0 * max(r['hours_over_30cm'], 0.0) * (1 + r['adds_hospital_min'] / 30.0), 1)
         rows.append(r)
     rows.sort(key=lambda r: (-r['p_close'], -r['vehicle_hours_at_risk'], -r['peak_depth_m']))
@@ -159,6 +169,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     # outputs
     keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
     write_geojson(os.path.join(out, 'segments.geojson'), S, keep)
+    for r in rows: r.pop('d', None)
     with open(os.path.join(out, 'watchlist.csv'), 'w', newline='') as f:
         cols = ['rank', 'p_close', 'road', 'town', 'road_class', 'peak_depth_m', 'hours_over_30cm', 'arrival_h', 'peak1h_mm', 'flashness_pct',
                 'culvert_overtopped_nearby', 'adds_hospital_min', 'aadt', 'segment', 'why']
@@ -174,6 +185,8 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                 flood_model_runtime_s=meta.get('runtime_s'), solver=meta.get('solver'), checks=checks,
                 method=dict(closure_depth_m=FAIL_M, sigma_m=SIGMA_M, probability='Phi((peak depth - 0.30) / 0.10), physics prior v0',
                             network='segments >= 15 cm removed; Dijkstra to nearest hospital (sim/infra/impacts.py)', culverts='FHWA HDS-5 (sim/infra/culvert.py)'),
+                frame_hours=frame_hours, closed_per_frame=[int(((seg_t[k] >= 30) & inbox).sum()) for k in range(len(frame_hours))] if seg_t is not None else [],
+                rain_hourly_mean_mm=[round(float(v), 1) for v in RS['hourly_mean']] if RS is not None and 'hourly_mean' in RS else [],
                 made=time.strftime('%Y-%m-%d %H:%M'), prototype_runtime_s=round(time.time() - t_start, 1))
     json.dump(summ, open(os.path.join(out, 'summary.json'), 'w'), indent=1)
     write_map(os.path.join(out, 'map.html'), out, meta, H, summ)
@@ -249,30 +262,51 @@ def write_report(path, s, top):
 
 
 MAP_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Road closure prototype</title>
+<title>Road closure replay</title>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<style>html,body,#m{margin:0;height:100%;font:13px system-ui,sans-serif}#p{position:absolute;top:10px;left:10px;background:#fff;padding:10px 12px;border-radius:8px;
-box-shadow:0 1px 4px #0003;max-width:300px}#p h3{margin:0 0 6px;font-size:14px}#p label{display:block;margin:2px 0}.k{display:inline-block;width:18px;height:4px;margin-right:6px;vertical-align:middle}</style>
-</head><body><div id="m"></div><div id="p"><h3>Which roads close</h3><div id="s"></div>
+<style>html,body,#m{margin:0;height:100%;font:13px system-ui,sans-serif}
+#p{position:absolute;top:10px;left:10px;background:#fff;padding:10px 12px;border-radius:8px;box-shadow:0 1px 4px #0003;max-width:290px}
+#p h3{margin:0 0 6px;font-size:14px}#p label{display:block;margin:2px 0}.k{display:inline-block;width:18px;height:4px;margin-right:6px;vertical-align:middle}
+#t{position:absolute;left:10px;right:10px;bottom:22px;background:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 1px 4px #0003;display:flex;gap:10px;align-items:center}
+#t input{flex:1}#t button{font-size:16px;width:40px;height:32px;border-radius:6px;border:1px solid #ccc;background:#f6f6f6}#clock{min-width:150px;font-weight:600}
+#cnt{min-width:120px}#rain{height:28px;width:120px}@media(max-width:600px){#p{max-width:200px;font-size:12px}#clock{min-width:100px}#rain{display:none}}</style>
+</head><body><div id="m"></div>
+<div id="p"><h3>Which roads close</h3><div id="s"></div>
 <b>Layers</b><label><input type="checkbox" data-l="depth" checked> Flood depth</label>
 <label><input type="checkbox" data-c="2" checked> Highways</label><label><input type="checkbox" data-c="1" checked> Arterials</label>
 <label><input type="checkbox" data-c="0" checked> Local / collector</label>
-<div style="margin-top:6px"><span class="k" style="background:#b2182b"></span>P(close) &ge; 50%<br><span class="k" style="background:#f4a582"></span>10&ndash;50%<br>
-<span class="k" style="background:#bbbbbb"></span>wet, &lt; 10%</div></div>
+<div style="margin-top:6px"><span class="k" style="background:#b2182b"></span>closed now (&ge; 30 cm)<br><span class="k" style="background:#f4a582"></span>15&ndash;30 cm<br>
+<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak (peak view)</div></div>
+<div id="t"><button id="play">&#9654;</button><input id="sl" type="range" min="0" value="0"><span id="clock"></span><span id="cnt"></span><svg id="rain"></svg></div>
 <script>
-const S=__SUMMARY__, C=__CORNERS__;
-document.getElementById('s').innerHTML=`${S.segments_p_ge_50} segments likely to close (${S.km_p_ge_50} km)<br>${S.culverts_overtopped} culverts overtopped<br>${S.cut_off_from_hospitals} segments cut off from hospitals<br><br>`;
+const S=__SUMMARY__, C=__CORNERS__, FH=S.frame_hours||[], NF=FH.length, T0=new Date(S.storm_start.replace('Z',':00Z'));
+const CLS={0:'local / collector',1:'arterial',2:'highway'};
+document.getElementById('s').innerHTML=`At peak: ${S.segments_p_ge_50} segments likely closed (${S.km_p_ge_50} km), ${S.culverts_overtopped} culverts overtopped.<br><br>`;
 const m=new maplibregl.Map({container:'m',center:__CENTER__,zoom:12,style:{version:8,sources:{t:{type:'raster',tileSize:256,attribution:'Esri, USGS',
 tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}']}},layers:[{id:'t',type:'raster',source:'t'}]}});
-m.on('load',()=>{m.addSource('d',{type:'image',url:'depth.png',coordinates:C});m.addLayer({id:'depth',type:'raster',source:'d',paint:{'raster-opacity':0.8,'raster-resampling':'nearest'}});
+const sl=document.getElementById('sl'); sl.max=Math.max(NF-1,0); let k=NF?NF-1:0, timer=null;
+const pad=n=>String(n).padStart(3,'0');
+function frameUrl(i){return NF?`frames/f${pad(i)}.png`:'depth.png'}
+FH.forEach((h,i)=>{if(i%6==0){const im=new Image();im.src=frameUrl(i)}});
+function show(i){k=i;sl.value=i;if(!m.getSource('d'))return;m.getSource('d').updateImage({url:frameUrl(i),coordinates:C});
+ const d=NF?['at',i,['get','d']]:['*',100,['get','peak_depth_m']];
+ if(m.getLayer('seg'))m.setPaintProperty('seg','line-color',['case',['>=',d,30],'#b2182b',['>=',d,15],'#f4a582',['>=',d,5],'#9ecae1','rgba(0,0,0,0)']),
+ m.setPaintProperty('seg','line-width',['case',['>=',d,30],4,['>=',d,15],3,2]);
+ const t=new Date(T0.getTime()+(FH[i]||0)*3600e3);document.getElementById('clock').textContent=t.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'});
+ document.getElementById('cnt').textContent=`${(S.closed_per_frame||[])[i]??''} segments closed`;
+ const r=S.rain_hourly_mean_mm||[],svg=document.getElementById('rain');if(r.length){const mx=Math.max(...r,1),w=120/r.length;
+ svg.innerHTML=r.map((v,j)=>`<rect x="${j*w}" y="${28-26*v/mx}" width="${Math.max(w-0.5,0.5)}" height="${26*v/mx}" fill="${j<=FH[i]?'#2171b5':'#c6dbef'}"/>`).join('')}}
+function play(){if(timer){clearInterval(timer);timer=null;document.getElementById('play').innerHTML='&#9654;';return}
+ if(k>=NF-1)k=0;document.getElementById('play').innerHTML='&#10074;&#10074;';timer=setInterval(()=>{if(k>=NF-1){play();return}show(k+1)},350)}
+document.getElementById('play').onclick=play;sl.oninput=e=>{if(timer)play();show(+e.target.value)};
+m.on('load',()=>{m.addSource('d',{type:'image',url:frameUrl(k),coordinates:C});m.addLayer({id:'depth',type:'raster',source:'d',paint:{'raster-opacity':0.8,'raster-resampling':'nearest','raster-fade-duration':0}});
 fetch('segments.geojson').then(r=>r.json()).then(g=>{m.addSource('s',{type:'geojson',data:g});
-m.addLayer({id:'seg',type:'line',source:'s',paint:{'line-width':['interpolate',['linear'],['get','p_close'],0,1.5,1,5],
-'line-color':['case',['>=',['get','p_close'],0.5],'#b2182b',['>=',['get','p_close'],0.1],'#f4a582','#bbbbbb']}});
-m.on('click','seg',e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'} , ${p.town}</b><br>${p.road_class}<br>P(close) ${(+p.p_close*100).toFixed(0)}%<br>${p.why}`).addTo(m)});
-m.on('mouseenter','seg',()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave','seg',()=>m.getCanvas().style.cursor='');filt();});});
-function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);if(m.getLayer('seg'))m.setFilter('seg',['in',['get','road_class'],['literal',on]]);}
-const CLS={0:'local / collector',1:'arterial',2:'highway'};
+m.addLayer({id:'peak',type:'line',source:'s',filter:['>=',['get','p_close'],0.5],paint:{'line-color':'#555','line-width':1,'line-dasharray':[2,2]}});
+m.addLayer({id:'seg',type:'line',source:'s',paint:{'line-width':3,'line-color':'#b2182b'}});
+m.on('click','seg',e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${p.why}`).addTo(m)});
+m.on('mouseenter','seg',()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave','seg',()=>m.getCanvas().style.cursor='');filt();show(0);});});
+function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);['seg','peak'].forEach(l=>{if(m.getLayer(l))m.setFilter(l,l=='peak'?['all',['>=',['get','p_close'],0.5],['in',['get','road_class'],['literal',on]]]:['in',['get','road_class'],['literal',on]])})}
 document.querySelectorAll('[data-c]').forEach(b=>b.onchange=filt);
 document.querySelector('[data-l=depth]').onchange=e=>m.setLayoutProperty('depth','visibility',e.target.checked?'visible':'none');
 </script></body></html>"""
@@ -288,6 +322,7 @@ def selftest():
     json.dump(dict(run='sep2023_test', box=box, res_m=res, shape=[ny, nx], t0='2023-09-11T16:00Z', frame_min=30, frames=[{}] * 3, model='synthetic', solver='none'), open(f'{rd}/meta.json', 'w'))
     tover30 = np.where(H >= 0.3, 3.0, 0).astype(np.float32); tarr = np.where(H >= 0.3, 5.0, np.nan).astype(np.float32)
     np.savez(f'{rd}/timing.npz', tover15=np.where(H >= 0.15, 4.0, 0).astype(np.float32), tover30=tover30, tarr30=tarr)
+    np.savez(f'{rd}/frames_cm.npz', depth_cm=np.stack([np.zeros_like(H), H * 50, H * 100]).astype(np.uint16), hours=np.array([0, 0.5, 1.0], np.float32))
     np.savez(f'{rd}/rainstats.npz', total=np.full((ny, nx), 200, np.float32), peak1h=np.full((ny, nx), 60, np.float32), peak3h=np.full((ny, nx), 150, np.float32))
     from pyproj import Transformer
     tr = Transformer.from_crs(26986, 4326, always_xy=True)
@@ -303,7 +338,9 @@ def selftest():
     assert float(rows[1]['p_close']) < 0.2 and rows[1]['road'] == 'B St', rows[1]
     assert abs(float(rows[0]['hours_over_30cm']) - 3.0) < 1e-6 and abs(float(rows[0]['flashness_pct']) - 30.0) < 0.1
     for f in ('segments.geojson', 'map.html', 'figure.png', 'summary.json', 'REPORT.md', 'depth.png'): assert os.path.exists(os.path.join(out, f)), f
-    assert s['segments_p_ge_50'] == 1
+    assert s['segments_p_ge_50'] == 1 and s['closed_per_frame'] == [0, 1, 1], s['closed_per_frame']
+    g = json.load(open(os.path.join(out, 'segments.geojson'))); assert g['features'][0]['properties']['d'] == [0, 30, 60]
+    assert os.path.exists(os.path.join(out, 'frames', 'f002.png'))
     print('selftest ok:', out)
 
 
