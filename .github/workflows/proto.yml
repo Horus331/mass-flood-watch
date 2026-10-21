@@ -33,10 +33,11 @@ jobs:
           GIT_SHA: ${{ github.sha }}
           OMP_NUM_THREADS: '4'
         run: |
-          nproc; free -g
+          set -o pipefail; nproc; free -g
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: road closures
         run: |
+          set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); echo "run dir $OUTDIR"; ls -la $OUTDIR
           python proto/prototype.py --run-dir $OUTDIR --out docs/proto/${{ inputs.name }}
           cp $OUTDIR/meta.json docs/proto/${{ inputs.name }}/flood_meta.json
@@ -50,8 +51,13 @@ jobs:
             proto_run
             docs/proto/${{ inputs.name }}
             w9_stdout.txt
-      - name: commit outputs
+      - name: commit outputs and logs
+        if: always()
         run: |
+          mkdir -p docs/proto/${{ inputs.name }}/_logs
+          tail -c 200000 w9_stdout.txt > docs/proto/${{ inputs.name }}/_logs/w9_stdout.txt 2>/dev/null || true
+          cp ${{ runner.temp }}/lf/w9_log.txt docs/proto/${{ inputs.name }}/_logs/ 2>/dev/null || true
+          for f in ${{ runner.temp }}/lf/run_*/lisflood_stdout.txt; do tail -c 100000 $f > docs/proto/${{ inputs.name }}/_logs/lisflood_stdout.txt; done 2>/dev/null || true
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add docs/proto/${{ inputs.name }}
           git commit -m "prototype outputs: ${{ inputs.name }}" || echo nothing
