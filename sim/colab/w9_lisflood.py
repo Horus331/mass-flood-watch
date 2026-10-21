@@ -313,6 +313,37 @@ def probe(exe, cuda):
 # ======================================================================================================================
 # inputs from Hugging Face / MRMS (copied from w4_flood_gpu.py, which cannot be imported: it runs at top level)
 # ======================================================================================================================
+def breach_depressions(Z, max_cut=4.0):
+    """Least-cost breaching of every closed depression to the box edge (Barnes et al. 2014 priority-flood with carving), applied to all
+    cells.  Lidar keeps road, rail and runway fill but not the pipes and culverts under them, so water ponds behind every embankment
+    with no surface outlet.  A carved one-cell path stands in for those pipes.  No cell is lowered more than max_cut m (deeper basins
+    are kept: real ponds, quarries).  Returns (carved Z, mask of lowered cells, stats)."""
+    import heapq
+    ny_, nx_ = Z.shape; Zc = Z.astype(np.float64).copy(); seen = np.zeros(Z.size, bool); par = np.full(Z.size, -1, np.int64)
+    edge = np.zeros(Z.shape, bool); edge[[0, -1], :] = True; edge[:, [0, -1]] = True
+    hq = [(float(Zc.flat[k]), int(k)) for k in np.flatnonzero(edge)]; heapq.heapify(hq); seen[np.flatnonzero(edge)] = True
+    nb8 = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)); Zf = Zc.ravel(); Zo = Z.ravel(); skipped = 0
+    while hq:
+        zc, k = heapq.heappop(hq); r, c = divmod(k, nx_)
+        for dr, dc in nb8:
+            rr, cc = r + dr, c + dc
+            if rr < 0 or cc < 0 or rr >= ny_ or cc >= nx_: continue
+            kk = rr * nx_ + cc
+            if seen[kk]: continue
+            seen[kk] = True; par[kk] = k; zn = Zf[kk]
+            if zn < zc:
+                path = []; p_ = k; ok = True
+                while p_ >= 0 and Zf[p_] > zn:
+                    if Zo[p_] - zn > max_cut: ok = False; break
+                    path.append(p_); p_ = int(par[p_])
+                if ok:
+                    for p_ in path: Zf[p_] = zn
+                else: skipped += 1
+            heapq.heappush(hq, (float(Zf[kk]), kk))
+    Zc = Zf.reshape(Z.shape).astype(np.float32); d = Z - Zc; low = d > 0.01
+    return Zc, low, dict(cells=int(low.sum()), mean_cut_m=round(float(d[low].mean()), 2) if low.any() else 0.0, max_cut_m=round(float(d.max()), 2), kept_deep=skipped)
+
+
 def build_inputs(BOX, RES, S, TOK):
     from huggingface_hub import hf_hub_download
     from scipy import ndimage
@@ -396,6 +427,10 @@ def build_inputs(BOX, RES, S, TOK):
             log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m')
         except Exception as e:
             log('crossing breach skipped:', repr(e)[:150])
+    carved = np.zeros((ny, nx), bool)
+    if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
+        t_ = time.time(); Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')))
+        log(f'depressions: {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept, {time.time() - t_:.0f}s')
     loss = None
     if os.environ.get('LF_LOSS', 'none') == 'fc':      # rain-excess approximation of w4's losses: steady soil rate + storm drains
         try:
@@ -441,7 +476,7 @@ def build_inputs(BOX, RES, S, TOK):
     if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
     if loss is not None: RAIN = np.maximum(RAIN - loss[None], 0).astype(np.float32); log(f'effective rain mean {RAIN.sum(0).mean():.0f} mm')
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS)
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved)
 
 
 # ======================================================================================================================
@@ -527,7 +562,7 @@ def main():
     np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', I['Z'].astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
     if FR: np.savez_compressed(f'{OUT}/frames_cm.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32))
-    np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan']).astype(np.uint8))
+    np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan'] | I['carved']).astype(np.uint8))
     np.savez_compressed(f'{OUT}/timing.npz', tover15=tover15, tover30=tover30, tarr30=tarr30, saveint_s=SAVEINT)
     R = I['RAIN_OBS']; r3 = np.stack([R[i:i + 3].sum(0) for i in range(max(1, len(R) - 2))])
     np.savez_compressed(f'{OUT}/rainstats.npz', total=R.sum(0), peak1h=R.max(0), peak3h=r3.max(0), hour_of_peak=R.argmax(0).astype(np.int16),
