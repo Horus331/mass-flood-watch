@@ -111,7 +111,7 @@ def write_bci(path, x0, y0, x1, y1):
 
 
 def write_par(path, resroot, sim_time, saveint=1800, massint=300, cuda=False, dem='dem.asc', manning=None, rain=None,
-              bci=None, start=None, dirroot='results', initial_tstep=10.0, infiltration=None):
+              bci=None, start=None, dirroot='results', initial_tstep=10.0, infiltration=None, extra=None):
     """LISFLOOD-FP parameter file for the local-inertial ('acceleration') solver; `cuda` selects the GPU version (8.1+)."""
     L = [f'DEMfile {dem}', f'resroot {resroot}', f'dirroot {dirroot}', f'sim_time {int(sim_time)}', f'initial_tstep {initial_tstep:g}',
          f'massint {int(massint)}', f'saveint {int(saveint)}', 'fpfric 0.08', 'acceleration']
@@ -120,7 +120,8 @@ def write_par(path, resroot, sim_time, saveint=1800, massint=300, cuda=False, de
     if rain: L.append(f'dynamicrainfile {rain}')
     if bci: L.append(f'bcifile {bci}')
     if start: L.append(f'startfile {start}')
-    if infiltration: L.append(f'infiltration {infiltration:.3e}')     # m/s on wet floodplain cells (infevap.cpp FPInfiltration)
+    if infiltration: L.append(f'infiltration {infiltration:.3e}')
+    if extra: L += list(extra)     # m/s on wet floodplain cells (infevap.cpp FPInfiltration)
     with open(path, 'w') as f: f.write('\n'.join(L) + '\n')
     return L
 
@@ -395,14 +396,15 @@ def build_inputs(BOX, RES, S, TOK):
         rr_ = np.clip(((sy1 - (y1 - (np.arange(ny) + 0.5) * RES)) / sres).astype(int), 0, M['shape'][0] - 1)
         cc_ = np.clip(((x0 + (np.arange(nx) + 0.5) * RES - sx0) / sres).astype(int), 0, M['shape'][1] - 1)
         return {f: D[f][rr_][:, cc_] for f in fields}
-    water = sea.copy(); chan = np.zeros((ny, nx), bool); burn = np.zeros((ny, nx), np.float32)
+    water = sea.copy(); chan = np.zeros((ny, nx), bool); burn = np.zeros((ny, nx), np.float32); CW = np.zeros((ny, nx), np.float32); CD = np.zeros((ny, nx), np.float32)
+    SGC = os.environ.get('LF_SGC', '0') == '1'
     if os.environ.get('LF_CHAN', 'vol') != 'none':
         try:
             CH = hf_grid('channels30/channels30.npz', 'channels30/channels30_meta.json', ['chan', 'water', 'width', 'depth'])
             water |= CH['water'].astype(bool); chan = CH['chan'].astype(bool) & ~sea
             CW = np.where(chan, CH['width'].astype(np.float32), 0); CD = np.where(chan, CH['depth'].astype(np.float32), 0)
             burn = (CD * np.minimum(CW / RES, 1.0)).astype(np.float32)          # w4 SUBGRID=0: volume-equivalent channel depth
-            Z = np.where(chan, Z - burn, Z).astype(np.float32)
+            if not SGC: Z = np.where(chan, Z - burn, Z).astype(np.float32)     # LF_SGC=1: rivers go in LISFLOOD-FP's sub-grid channel model instead
             log(f'channels: {int(chan.sum()):,} cells burnt, mean {float(burn[chan].mean()) if chan.any() else 0:.2f} m (volume-equivalent)')
         except Exception as e:
             log('no channel grid, rivers unburnt:', repr(e)[:120])
@@ -476,7 +478,7 @@ def build_inputs(BOX, RES, S, TOK):
     if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
     if loss is not None: RAIN = np.maximum(RAIN - loss[None], 0).astype(np.float32); log(f'effective rain mean {RAIN.sum(0).mean():.0f} mm')
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved)
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC)
 
 
 # ======================================================================================================================
@@ -524,10 +526,20 @@ def main():
     write_rain_nc(f'{wd}/rain.nc', rec, x0, y0, RES, th, flip_y=P['flip_y'], flip_x=P['flip_x'])
     write_bci(f'{wd}/run.bci', x0, y0, x1, y1)
     start = None
-    if os.environ.get('LF_BASEFLOW', '1') == '1' and I['chan'].any():
+    extra = []; infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4'))
+    if I['SGC'] and I['chan'].any():
+        # LISFLOOD-FP sub-grid channels (Neal et al. 2012): width raster, bank = DEM, bed = bank - bankfull depth (channels30, Bieger 2015)
+        W_ = np.where(I['chan'], np.maximum(I['CW'], 1.0), 0.0); bed = np.where(I['chan'], I['Z'] - np.maximum(I['CD'], 0.3), I['Z'])
+        write_asc(f'{wd}/sgc_width.asc', W_, x0, y0, RES, fmt='%.2f'); write_asc(f'{wd}/sgc_bank.asc', I['Z'], x0, y0, RES); write_asc(f'{wd}/sgc_bed.asc', bed, x0, y0, RES)
+        extra += ['SGCwidth sgc_width.asc', 'SGCbank sgc_bank.asc', 'SGCbed sgc_bed.asc', f"SGCn {os.environ.get('LF_SGCN', '0.035')}"]
+        if infil_mmh > 0:     # the sub-grid solver has no infiltration call; its evaporation term (mm/day, all wet cells) drains ponded water instead
+            open(f'{wd}/drain.evap', 'w').write(f'# constant drainage of ponded water as evaporation (mm/day)\n2 hours\n{infil_mmh * 24:.1f} 0\n{infil_mmh * 24:.1f} {S["hours"] + 1}\n')
+            extra.append('evaporation drain.evap'); infil_mmh = 0
+        log(f'sub-grid channels: {int(I["chan"].sum()):,} cells, width mean {float(W_[I["chan"]].mean()):.1f} m, bankfull depth mean {float((I["Z"] - bed)[I["chan"]].mean()):.2f} m')
+    elif os.environ.get('LF_BASEFLOW', '1') == '1' and I['chan'].any():
         write_asc(f'{wd}/start.wd', np.where(I['chan'], 0.3 * I['burn'], 0.0), x0, y0, RES); start = 'start.wd'     # w4: channels start a third full
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
-                    infiltration=float(os.environ.get('LF_INFIL_MMH', '4')) / 3.6e6 if float(os.environ.get('LF_INFIL_MMH', '4')) > 0 else None)
+                    infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
     log('par:', ' | '.join(par))
     # 4. run
     run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])

@@ -1,0 +1,57 @@
+name: prototype experiments (parallel configs, scored on gauges + reports)
+on:
+  workflow_dispatch:
+    inputs:
+      configs:
+        description: 'JSON list of {name, box, res, env}'
+        default: '[{"name":"ws_burn","box":"145000,904000,192000,940000","res":"20","env":"LF_SGC=0 LF_INFIL_MMH=4"},{"name":"ws_sgc","box":"145000,904000,192000,940000","res":"20","env":"LF_SGC=1 LF_INFIL_MMH=4"}]'
+      hours: {default: '48'}
+permissions:
+  contents: write
+jobs:
+  exp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg: ${{ fromJSON(inputs.configs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4
+      - name: flood depth
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.cfg.box }}
+          RES: ${{ matrix.cfg.res }}
+          HOURS: ${{ inputs.hours }}
+          LF_LOSS: fc
+          STORM: sep2023
+          RUN_DIR: runs/sep2023_exp_${{ matrix.cfg.name }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          export ${{ matrix.cfg.env }}
+          python sim/colab/w9_lisflood.py 2>&1 | tail -c 300000 > w9_stdout.txt; tail -5 w9_stdout.txt
+      - name: closures + score
+        if: always()
+        run: |
+          OUT=docs/proto/exp/${{ matrix.cfg.name }}; mkdir -p $OUT
+          RD=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
+          cp w9_stdout.txt $OUT/ 2>/dev/null; cp ${{ runner.temp }}/lf/w9_log.txt $OUT/ 2>/dev/null; for f in ${{ runner.temp }}/lf/run_*/lisflood_stdout.txt; do tail -c 50000 $f > $OUT/lisflood_stdout.txt; done
+          echo '${{ toJSON(matrix.cfg) }}' > $OUT/config.json
+          if [ -n "$RD" ]; then
+            python proto/score.py --run-dir $RD --out $OUT/score.json | tail -40
+            python proto/prototype.py --run-dir $RD --out $OUT/site | tail -5
+            cp $RD/meta.json $OUT/flood_meta.json
+          fi
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/exp/${{ matrix.cfg.name }}
+          git commit -qm "experiment ${{ matrix.cfg.name }}" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push && break; sleep $((RANDOM % 20 + 5)); done
