@@ -1,0 +1,33 @@
+name: LISFLOOD-FP source snapshot (for reading inputs/params)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  src:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch source via w9 and copy text files
+        run: |
+          pip install -q numpy requests
+          python - <<'PY'
+          import sys, os, shutil, glob
+          os.environ['LF_WORK'] = os.path.join(os.environ['RUNNER_TEMP'], 'lf')
+          sys.path.insert(0, 'sim/colab'); import w9_lisflood as W
+          os.makedirs(W.WORK, exist_ok=True); W.LOGP = os.path.join(W.WORK, 'log.txt')
+          z, ver, url = W.get_lisflood(); src = f'{W.WORK}/src'
+          if not os.path.isdir(src): W.extract_all(z, src)
+          root = W.find_source(src); dst = 'tools/lisflood_src'; shutil.rmtree(dst, ignore_errors=True)
+          n = 0
+          for p in glob.glob(f'{root}/**/*', recursive=True):
+              rel = os.path.relpath(p, root)
+              if 'windep' in rel or not os.path.isfile(p): continue
+              if os.path.splitext(p)[1].lower() in ('.cpp', '.h', '.hpp', '.cu', '.cuh', '.tpp', '.txt', '.cmake', '.md', '.par', '.py') or os.path.basename(p) in ('CMakeLists.txt', 'LICENSE', 'COPYING'):
+                  if os.path.getsize(p) > 400000: continue
+                  os.makedirs(os.path.dirname(os.path.join(dst, rel)), exist_ok=True); shutil.copy(p, os.path.join(dst, rel)); n += 1
+          open(f'{dst}/SOURCE.md', 'w').write(f'LISFLOOD-FP {ver} source text files (GPL-3.0), from {url}, copied for reading input formats. {n} files.\n')
+          print('copied', n)
+          PY
+          du -sh tools/lisflood_src
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add tools/lisflood_src && git commit -qm "LISFLOOD-FP 8.2 source snapshot (GPL) for reading input formats" && git pull --rebase -q && git push
