@@ -19,7 +19,7 @@ Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept reco
 import os, sys, re, json, time, gzip, glob, shutil, zipfile, subprocess
 import numpy as np
 
-WORK = '/content/lisflood'
+WORK = os.environ.get('LF_WORK', '/content/lisflood')
 REPO = 'mohabeldokla/mass-flood-watch-tiles'
 STORMS = {'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, title='Sept 11, 2023 flash floods'),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, title='Leominster test')}
@@ -411,8 +411,9 @@ def build_inputs(BOX, RES, S, TOK):
     RAIN = np.stack(RAIN)
     tot = RAIN.sum(0); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h; missing {MISSING}')
     if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
+    RAIN_OBS = RAIN.copy()
     if loss is not None: RAIN = np.maximum(RAIN - loss[None], 0).astype(np.float32); log(f'effective rain mean {RAIN.sum(0).mean():.0f} mm')
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx)
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS)
 
 
 # ======================================================================================================================
@@ -478,6 +479,13 @@ def main():
             h = np.nan_to_num(read_asc(snaps[j])[0], nan=0.0); hsnap = h if hsnap is None else np.maximum(hsnap, h)
             fr.update(wet_km2=round(float(((h >= 0.1) & land).sum() * RES * RES / 1e6), 1), deep_km2=round(float(((h >= 0.5) & land).sum() * RES * RES / 1e6), 1))
         frames.append(fr)
+    # time above the car-stalling depths (from every snapshot, not only frame times) and first arrival, hours
+    tover15 = np.zeros((ny, nx), np.float32); tover30 = np.zeros((ny, nx), np.float32); tarr30 = np.full((ny, nx), np.nan, np.float32)
+    for j in sorted(snaps):
+        h = np.nan_to_num(read_asc(snaps[j])[0], nan=0.0)
+        if h.shape != (ny, nx): continue
+        tover15 += (h >= 0.15) * (SAVEINT / 3600.0); tover30 += (h >= 0.30) * (SAVEINT / 3600.0)
+        tarr30 = np.where(np.isnan(tarr30) & (h >= 0.30), j * SAVEINT / 3600.0, tarr30)
     peak_wet = round(float(((hmax >= 0.1) & land).sum() * RES * RES / 1e6), 1)
     peak_frame_wet = max([f.get('wet_km2', 0) for f in frames] or [0])
     log(f'peak wet (hmax >= 10 cm, land) {peak_wet} km2; largest snapshot wet area {peak_frame_wet} km2; {len(snaps)} snapshots')
@@ -487,6 +495,10 @@ def main():
     OUT = f'{wd}/out'; os.makedirs(OUT, exist_ok=True)
     np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', I['Z'].astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
+    np.savez_compressed(f'{OUT}/timing.npz', tover15=tover15, tover30=tover30, tarr30=tarr30, saveint_s=SAVEINT)
+    R = I['RAIN_OBS']; r3 = np.stack([R[i:i + 3].sum(0) for i in range(max(1, len(R) - 2))])
+    np.savez_compressed(f'{OUT}/rainstats.npz', total=R.sum(0), peak1h=R.max(0), peak3h=r3.max(0), hour_of_peak=R.argmax(0).astype(np.int16),
+                        hourly_mean=R.reshape(len(R), -1).mean(1), hourly_max=R.reshape(len(R), -1).max(1))
     for f in ('run.par', 'run.bci', 'lisflood_stdout.txt'): shutil.copy(f'{wd}/{f}', f'{OUT}/{f}')
     if mass: shutil.copy(mass[0], f'{OUT}/lisflood.mass')
     meta = dict(run=run_name, title=S['title'] + ' · LISFLOOD-FP benchmark', box=list(BOX), res_m=RES, shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=frames,
@@ -500,7 +512,7 @@ def main():
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8])
     json.dump(meta, open(f'{OUT}/meta.json', 'w'))
     shutil.copy(LOGP, f'{OUT}/w9_log.txt')
-    if not TOK: log('no HF_TOKEN: outputs left in', OUT); return
+    if not TOK or os.environ.get('LF_NO_UPLOAD') == '1': log('no upload: outputs left in', OUT); return
     from huggingface_hub import HfApi, CommitOperationAdd
     api = HfApi(token=TOK); files = sorted(os.listdir(OUT))
     ops = [CommitOperationAdd(path_in_repo=f'{RUN_DIR}/{f}', path_or_fileobj=f'{OUT}/{f}') for f in files]

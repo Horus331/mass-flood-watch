@@ -1,0 +1,58 @@
+name: prototype (LISFLOOD-FP -> road closures)
+on:
+  workflow_dispatch:
+    inputs:
+      box: {description: 'EPSG:26986 box x0,y0,x1,y1 (default Leominster 20 x 20 km)', default: '150000,905000,170000,925000'}
+      res: {description: 'grid metres (multiple of 10)', default: '20'}
+      hours: {description: 'storm hours from t0', default: '36'}
+      loss: {description: 'none or fc (soil + drain losses)', default: 'fc'}
+      name: {description: 'output folder under docs/proto/', default: 'leominster_sep2023'}
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - name: system packages
+        run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin
+      - name: python packages
+        run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ inputs.box }}
+          RES: ${{ inputs.res }}
+          HOURS: ${{ inputs.hours }}
+          LF_LOSS: ${{ inputs.loss }}
+          STORM: sep2023
+          RUN_DIR: runs/sep2023_proto_${{ inputs.name }}
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          nproc; free -g
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: road closures
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); echo "run dir $OUTDIR"; ls -la $OUTDIR
+          python proto/prototype.py --run-dir $OUTDIR --out docs/proto/${{ inputs.name }}
+          cp $OUTDIR/meta.json docs/proto/${{ inputs.name }}/flood_meta.json
+          cp $OUTDIR/w9_log.txt docs/proto/${{ inputs.name }}/flood_log.txt
+          mkdir -p proto_run && cp $OUTDIR/* proto_run/ && cp w9_stdout.txt proto_run/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proto_${{ inputs.name }}
+          path: |
+            proto_run
+            docs/proto/${{ inputs.name }}
+            w9_stdout.txt
+      - name: commit outputs
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/${{ inputs.name }}
+          git commit -m "prototype outputs: ${{ inputs.name }}" || echo nothing
+          git pull --rebase -q && git push
