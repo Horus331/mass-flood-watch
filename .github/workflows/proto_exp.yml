@@ -28,13 +28,12 @@ jobs:
           BOX: ${{ matrix.cfg.box }}
           RES: ${{ matrix.cfg.res }}
           HOURS: ${{ inputs.hours }}
-          LF_LOSS: fc
           STORM: sep2023
           RUN_DIR: runs/sep2023_exp_${{ matrix.cfg.name }}
           OMP_NUM_THREADS: '4'
         run: |
           set -o pipefail
-          export ${{ matrix.cfg.env }}
+          export LF_LOSS=fc; export ${{ matrix.cfg.env }}
           python sim/colab/w9_lisflood.py 2>&1 | tail -c 300000 > w9_stdout.txt; tail -5 w9_stdout.txt
       - name: closures + score
         if: always()
