@@ -66,11 +66,34 @@ def reason(r):
 def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=30):
     t_start = time.time(); os.makedirs(out, exist_ok=True)
     R = IM.load_run(os.path.basename(run_dir.rstrip('/')), local=run_dir); meta = R['meta']; H = R['H']; res = meta['res_m']
+    R['name'] = meta.get('run') or R['name']
     T = load_npz(os.path.join(run_dir, 'timing.npz')); RS = load_npz(os.path.join(run_dir, 'rainstats.npz'))
     S = json.load(open(segments)); n = S['n']; props = S['props']
     Xrows, xsrc = IM.load_crossings(crossings)
     rep = json.load(open(reports)) if reports and os.path.exists(reports) else None
     fac = json.load(open(facilities))['facilities']['hospital'] if facilities and os.path.exists(facilities) else None
+
+    # roads over rivers: lidar bare earth removes bridge decks, so a road point over a channel/water cell or within 30 m of an NBI bridge
+    # reads the river depth, not the road.  Drop those points (the roadway there is the deck).
+    WM = np.load(os.path.join(run_dir, 'watermask.npy')).astype(bool) if os.path.exists(os.path.join(run_dir, 'watermask.npy')) else None
+    bx, by = [], []
+    nbi_p = os.path.join(ROOT, 'docs', 'network', 'nbi_ma.json')
+    if os.path.exists(nbi_p):
+        from pyproj import Transformer as _T
+        NB = json.load(open(nbi_p)); c = NB['columns']; il, ia, ic = c.index('lon'), c.index('lat'), c.index('culvert')
+        rows_b = [r_ for r_ in NB['rows'] if not r_[ic]]
+        bx, by = _T.from_crs(4326, 26986, always_xy=True).transform([r_[il] for r_ in rows_b], [r_[ia] for r_ in rows_b])
+    _orig_rp = IM.road_points
+    def road_points_no_bridges(S_, meta_, step=None):
+        P_ = _orig_rp(S_, meta_, step)
+        if not len(P_['x']): return P_
+        keep_ = np.ones(len(P_['x']), bool)
+        if WM is not None and WM.shape == tuple(meta_['shape']): keep_ &= ~WM[P_['r'], P_['c']]
+        if len(bx):
+            from scipy.spatial import cKDTree as _K
+            d_, _ = _K(np.column_stack([bx, by])).query(np.column_stack([P_['x'], P_['y']])); keep_ &= d_ > 30
+        return {k: v[keep_] for k, v in P_.items()}
+    IM.road_points = road_points_no_bridges
 
     # 4 first: the existing impacts layer (depth classes, network, crossings, report scores)
     imp, _ = IM.analyse([R], S, Xrows, rep, fac)

@@ -31,7 +31,7 @@ model learned from observed closures (storm reports, MassDOT records, Vermont 20
 
 Small case (any laptop or the GitHub workflow `.github/workflows/proto.yml`):
 ```
-BOX=150000,905000,170000,925000 RES=20 STORM=sep2023 HOURS=36 LF_LOSS=fc LF_NO_UPLOAD=1 LF_WORK=$PWD/lf python sim/colab/w9_lisflood.py
+BOX=168000,908000,188000,928000 RES=20 STORM=sep2023 HOURS=36 LF_LOSS=fc LF_NO_UPLOAD=1 LF_WORK=$PWD/lf python sim/colab/w9_lisflood.py
 python proto/prototype.py --run-dir lf/run_sep2023_*/out --out results/leominster
 python proto/prototype.py --selftest        # offline check of step 2-5
 ```
