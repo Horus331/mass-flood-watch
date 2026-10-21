@@ -1,0 +1,83 @@
+143:"DEMfile" 694:"L" 232:"Qfile" 410:"Roe" 420:"Roe_slow" 793:"SGCA_mode" 805:"SGC_enable" 782:"SGCa" 853:"SGCbank" 823:"SGCbed" 787:"SGCbfh_mode" 835:"SGCcat_area" 762:"SGCchan" 841:"SGCchangroup" 847:"SGCchanprams" 241:"SGCdirnfile" 829:"SGClevee" 757:"SGCm" 236:"SGCmanningfile" 777:"SGCn" 745:"SGCp" 751:"SGCr" 767:"SGCs" 799:"SGCvoutput" 814:"SGCwidth" 600:"acc_nugrid" 307:"acceleration" 300:"adaptoff" 455:"ascheader" 397:"ascii_out" 248:"bcifile" 250:"bdyfile" 390:"binary_out" 151:"binarystartfile" 460:"calcarea" 465:"calcmeandepth" 470:"calcvolume" 642:"cfl" 269:"ch_dynamic" 192:"ch_start_h" 324:"chainageoff" 948:"chanmask" 563:"checkpoint" 374:"comp_out" 965:"cuda" 907:"damfile" 915:"dammask" 369:"debug" 283:"depthoff" 679:"depththresh" 672:"dhlin" 448:"diffusive" 557:"diffusive_froude_thresh" 171:"dir" 170:"dirroot" 880:"dist_routing" 1011:"drain_nodata" 733:"drycheckoff" 995:"dynamicrainfile" 270:"dynsw" 288:"elevoff" 687:"epsilon" 499:"evaporation" 176:"fpfric" 481:"gaugefile" 863:"gravity" 895:"gzip" 355:"hazard" 208:"htol" 487:"inf" 492:"infilfile" 486:"infiltration" 202:"initial_tstep" 886:"kill" 983:"krivodonovathresh" 868:"latlong" 972:"limitslopes" 956:"linklist" 569:"loadcheck" 901:"log" 234:"manningfile" 204:"massint" 923:"max_Froude" 333:"maxdepthonly" 941:"maxint" 404:"mint_hk" 728:"momentumthresh" 739:"multiriverfile" 140:"nch" 384:"netcdf_out" 177:"nfp" 1005:"nodata_elevation" 989:"output_precision" 222:"overpass" 227:"overpassfile" 277:"porfile" 364:"profiles" 210:"qlimfact" 443:"qloutput" 329:"qoutput" 1096:"r" 506:"rainfall" 513:"rainfallmask" 535:"rainfallrouting" 575:"resettimeinit" 164:"resroot" 246:"riverfile" 550:"routesfthresh" 519:"routing" 527:"routing_mass_check" 543:"routingspeed" 206:"saveint" 934:"saveint_max" 198:"sim_time" 199:"simtime" 476:"stagefile" 379:"standard_extensions_out" 158:"startelev" 145:"startfile" 182:"startq" 259:"steady" 264:"steadytol" 651:"theta" 438:"toutput" 216:"ts_multiple" 855:"tstart" 139:"v" 338:"voutput" 344:"voutput_max" 350:"voutput_stage" 294:"vtkoff" 253:"weir" 252:"weirfile" 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:486:	if (read_numeric_param(param_name, line_number, param_value_ptr, "infiltration", &Parptr->InfilRate, verbose, mode) ||
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:487:		read_numeric_param(param_name, line_number, param_value_ptr, "inf", &Parptr->InfilRate, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:489:		Statesptr->calc_infiltration = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:492:	if (read_string_param(param_name, line_number, param_value_ptr, "infilfile", Fnameptr->infilfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:494:		Statesptr->calc_infiltration = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:495:		Statesptr->calc_distributed_infiltration = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:499:	if (read_string_param(param_name, line_number, param_value_ptr, "evaporation", Fnameptr->evapfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:501:		Statesptr->calc_evap = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:506:	if (read_string_param(param_name, line_number, param_value_ptr, "rainfall", Fnameptr->rainfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:519:	if (read_empty_param(param_name, line_number, param_value_ptr, "routing", verbose, mode)) // Enable routing scheme CCS
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:521:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:524:	// Enable routing scheme mass balance check //Toby Dunne
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:525:	// Checks each routing cell, and if total volume out exceeds total volume, reduces the routing Q
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:527:	if (read_empty_param(param_name, line_number, param_value_ptr, "routing_mass_check", verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:529:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:530:		Statesptr->routing_mass_check = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:534:	// Legacy routing keyword CCS
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:535:	if (read_string_param(param_name, line_number, param_value_ptr, "rainfallrouting", Fnameptr->rainfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:538:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:543:	if (read_numeric_param(param_name, line_number, param_value_ptr, "routingspeed", &Parptr->Routing_Speed, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:545:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:549:	// Set slope where routing replaces shallow water eqn  CCS 14/03/2012
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:552:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:556:	// Set slope where routing replaces shallow water eqn  CCS 14/03/2012
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:880:	if (read_empty_param(param_name, line_number, param_value_ptr, "dist_routing", verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:882:		Statesptr->dist_routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:883:		if (verbose == ON) printf("Using slope dependent routing velocity.\n");
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:995:	if (read_string_param(param_name, line_number, param_value_ptr, "dynamicrainfile", Fnameptr->dynamicrainfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1011:	if (read_empty_param(param_name, line_number, param_value_ptr, "drain_nodata", verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1013:		Parptr->drain_nodata = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1052:	if (Statesptr->routing == ON && Statesptr->acceleration == OFF && Statesptr->SGC == OFF && verbose == ON) // CCS disable routing if not being used with inertial or SG model:
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1054:		Statesptr->routing = OFF;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1055:		printf("\nWARNING: Routing must be used with inertial or subgrid models. Routing disabled.\n\n");
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:3:INFILTRATION AND EVAPORATION
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:13:// FLOODPLAIN INFILTRATION, MDW
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:14:void FPInfiltration(Pars *Parptr, Solver *Solverptr, Arrays *Arrptr)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:19:  // Calculate Infiltration
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:28:          cell_inf = Parptr->InfilRate * Solverptr->Tstep; //rate for depth, not area
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:39:          Parptr->InfilTotalLoss+=cell_inf*Parptr->dA;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:50:// FLOODPLAIN EVAPORATION, MDW
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:51:void Evaporation(Pars *Parptr, Solver *Solverptr, Arrays *Arrptr)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:54:  NUMERIC_TYPE cell_evap,h0,evap_rate;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:56:  evap_rate=InterpolateTimeSeries(Arrptr->evap,Solverptr->t);//constant rate across whole floodplain
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:57:  cell_evap = evap_rate * Solverptr->Tstep; //rate for depth, not area
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:59:  // Calculate Evaporation
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:69:          h0-=cell_evap;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:74:            cell_evap+=h0;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:79:          Parptr->EvapTotalLoss+=cell_evap*Parptr->dA;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:89:// Adds rainfall (only used when routing scheme is disabled; if routing is enabled, rainfall
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:90:// is added in Routing function)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:113:			//check for -ve depths (legacy support for pre-evap code when rainfall could be negative)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:129:/* The function also calculates how often the routing function is run to 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:130:obtain the default or user specified flow routing speed*/
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:134:	NUMERIC_TYPE north,south,east,west,dx,dy,Routing_Speed;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:144:	//	Parptr->RouteInt=Parptr->dx/Parptr->Routing_Speed; JCN removed as option because of both latlong and dist_routing need distributed RoutInt
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:185:						if (Statesptr->dist_routing == OFF) 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:186:							Routing_Speed = Parptr->Routing_Speed; // If distributed routing is OFF use routing speed provide 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:188:							Routing_Speed = Parptr->Routing_Speed*sqrt((Arrptr->DEM[p0] - north) / dy); // If distributed routing is ON use slope dependent routing speed
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:189:						Arrptr->RouteInt[p0] = dy / Routing_Speed; // calculate RouteInt
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:201:						if (Statesptr->dist_routing == OFF) 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:202:							Routing_Speed = Parptr->Routing_Speed; // If distributed routing is OFF use routing speed provide 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:204:							Routing_Speed = Parptr->Routing_Speed*sqrt((Arrptr->DEM[p0] - east) / dx); // If distributed routing is ON use slope dependent routing speed
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:205:						Arrptr->RouteInt[p0] = dx / Routing_Speed; // calculate RouteInt
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:217:						if (Statesptr->dist_routing == OFF)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:218:							Routing_Speed = Parptr->Routing_Speed; // If distributed routing is OFF use routing speed provide 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:220:							Routing_Speed = Parptr->Routing_Speed*sqrt((Arrptr->DEM[p0] - south) / dy); // If distributed routing is ON use slope dependent routing speed
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:221:						Arrptr->RouteInt[p0] = dy / Routing_Speed; // calculate RouteInt
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:233:						if (Statesptr->dist_routing == OFF) 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:234:							Routing_Speed = Parptr->Routing_Speed; // If distributed routing is OFF use routing speed provide 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:236:							Routing_Speed = Parptr->Routing_Speed*sqrt((Arrptr->DEM[p0] - west) / dx); // If distributed routing is ON use slope dependent routing speed
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:237:						Arrptr->RouteInt[p0] = dx / Routing_Speed; // calculate RouteInt
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:243:					no routing should occur.  This is achieved by identifying the lowest neighbour as itself in FlowDir.
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:244:					By doing this, the routing scheme will compare the cell with itself and detect no difference in water elevation,
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:249:				/* If the subgrid model is ON then we want to disable routing in cells that contain subgrid
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:263:	/* Routing needs to be disabled on all non-closed boundary cells.  This avoids routing a volume
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:299:	H for each cell while the routing loop is being calculated.  H is then updated at end of scheme.  This
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:300:	is needed to prevent flow from being routed over more than one cell per call to routing scheme.  Not needed
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:302:	if (Statesptr->routing==ON && Statesptr->SGC==OFF)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:310:void Routing(States *Statesptr, Pars *Parptr, Solver *Solverptr, Arrays *Arrptr)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/infevap.cpp:325:	//  Main routing loop
+grep: write error: Broken pipe
+grep: write error: Broken pipe
