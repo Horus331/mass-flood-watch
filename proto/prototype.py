@@ -123,9 +123,10 @@ def norm_road(s):
     return s
 
 
-def label_segments(labels, Q, props, meta):
-    """Road segments each documented site refers to.  exact coordinates: segments within 100 m; approx: segments within 300 m plus, when the
-    road is named, segments of that name within 1.5 km (the README warns road-centroid points can be 0.5-1.5 km off); town-level: skipped."""
+def label_segments(labels, Q, props, meta, strict=True):
+    """Road segments each documented site refers to (town-level coordinates skipped).  strict: segments with a road point within 30 m of the
+    site (in effect the segment it sits on).  loose: exact coordinates within 100 m; approx within 300 m plus, when the road is named,
+    segments of that name within 1.5 km (the labels README warns road-centroid points can be 0.5-1.5 km off)."""
     from scipy.spatial import cKDTree
     from pyproj import Transformer
     if not labels or not len(Q['x']): return []
@@ -136,8 +137,8 @@ def label_segments(labels, Q, props, meta):
         if q == 'town': continue
         x, y = tr.transform(L['lon'], L['lat'])
         if not (x0 <= x < x1 and y0 <= y < y1): continue
-        segs = set(np.unique(Q['seg'][t.query_ball_point([x, y], 100.0 if q == 'exact' else 300.0)]).tolist())
-        if q != 'exact' and L.get('road'):
+        segs = set(np.unique(Q['seg'][t.query_ball_point([x, y], 30.0 if strict else 100.0 if q == 'exact' else 300.0)]).tolist())
+        if not strict and q != 'exact' and L.get('road'):
             names = {norm_road(v) for v in L['road'].replace(')', '(').split('(') if v.strip()}
             cand = np.unique(Q['seg'][t.query_ball_point([x, y], 1500.0)])
             segs |= {int(sg) for sg in cand if nm[sg] in names}
@@ -295,11 +296,13 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                 segs = np.unique(Q['seg'][t.query_ball_point([a, b], 150.0)]); h['max_p_with_culverts'] = round(float(p_comb[segs].max()) if len(segs) else 0.0, 3)
             checks['massdot_repeat_sites']['flagged_p05_with_culverts'] = sum(h['max_p_with_culverts'] >= 0.5 for h in hits)
     # documented road flood / closure / damage sites (proto/data/labels_*): segment-level recall vs flagged share, depth rule and with culverts
-    LM = label_segments(load_labels(labels_csv), Q, props, meta)
-    if LM:
+    LB = load_labels(labels_csv); LM = label_segments(LB, Q, props, meta, strict=True); LL = label_segments(LB, Q, props, meta, strict=False)
+    if LM or LL:
         checks['labels_segments'] = dict(note='recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the '
-                                              'same share of segments; lift = recall / random_recall', sites_matched=len(LM),
-                                         depth_rule=label_recall(LM, p_depth, inbox), with_culverts=label_recall(LM, p_comb, inbox))
+                                              'same share of segments; lift = recall / random_recall; lift_naive = recall / flagged share. strict: segments within 30 m '
+                                              'of the site; loose: 100 m (exact) / 300 m + same-name segments within 1.5 km (approx)', sites_matched=len(LM),
+                                         depth_rule=label_recall(LM, p_depth, inbox), with_culverts=label_recall(LM, p_comb, inbox),
+                                         loose=dict(sites_matched=len(LL), depth_rule=label_recall(LL, p_depth, inbox), with_culverts=label_recall(LL, p_comb, inbox)))
     checks['culverts'] = dict(surveyed_in_box=len(CP), with_model_flow=sum(1 for c in CP if c['q_m3s'] is not None), p_ge_50=sum(1 for c in CP if c['p'] >= 0.5),
                               segments_raised_to_p_ge_50=int(((p_comb >= 0.5) & (p_depth < 0.5) & inbox).sum()), rule_applied_to_p_close=bool(culvert_rule),
                               blockage_factors=BLOCKAGE if blockage else {}, probability='Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)')
