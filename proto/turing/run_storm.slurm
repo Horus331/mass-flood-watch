@@ -13,7 +13,7 @@ set -euo pipefail
 module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
 source activate roadflood 2>/dev/null || conda activate roadflood
 export LF_WORK=${LF_WORK:-$HOME/lisflood} LF_NO_UPLOAD=1 OMP_NUM_THREADS=$SLURM_NTASKS
-export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} STORM=${STORM:-sep2023} HOURS=${HOURS:-36} LF_LOSS=${LF_LOSS:-fc}
+export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} STORM=${STORM:-sep2023} HOURS=${HOURS:-48} LF_LOSS=${LF_LOSS:-cn} LF_CN_SCALE=${LF_CN_SCALE:-0.9} LF_INFIL_MMH=${LF_INFIL_MMH:-2}
 export NAME=${NAME:-leominster_sep2023_gpu} RUN_DIR=runs/${STORM}_proto_${NAME}
 nvidia-smi || true
 /usr/bin/time -v python sim/colab/w9_lisflood.py
