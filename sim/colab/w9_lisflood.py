@@ -443,6 +443,16 @@ def build_inputs(BOX, RES, S, TOK):
             log(f'LF_LOSS=fc: mean loss {float(loss.mean()):.1f} mm/h subtracted from each hour of rain')
         except Exception as e:
             raise SystemExit(f'LF_LOSS=fc needs soils30: {e!r}')
+    CNG = None
+    if os.environ.get('LF_LOSS', 'none') == 'cn':      # NRCS curve number (TR-55): cumulative rain excess per cell, the standard event-loss method
+        SO = hf_grid('soils30/soils30.npz', 'soils30/soils30_meta.json', ['hydgrp', 'wtd'])
+        grp = np.where(SO['hydgrp'] >= 5, 4, SO['hydgrp']).astype(np.int64); grp[(SO['wtd'] < 25) & (grp > 0)] = 4
+        CNP = np.array([77.0, 36.0, 60.0, 73.0, 79.0], np.float32)[grp]        # pervious: woods/grass mix, good condition, HSG A-D (TR-55 table 2-2); 0 = unknown -> C/D
+        CNG = IMP * 98.0 + (1.0 - IMP) * CNP
+        amc = os.environ.get('LF_CN_AMC', 'II')
+        if amc == 'III': CNG = 23.0 * CNG / (10.0 + 0.13 * CNG)                  # wet antecedent conditions (Chow et al. 1988)
+        CNG = np.clip(CNG * float(os.environ.get('LF_CN_SCALE', '1')), 30, 98); CNG = np.where(water, 100.0, CNG).astype(np.float32)
+        log(f'LF_LOSS=cn: AMC {amc}, mean CN {float(CNG[~water].mean()):.1f} (HSG A-D + NLCD impervious)')
     # MRMS hourly (w4 mrms_hour)
     import requests, pygrib
     from scipy.interpolate import RegularGridInterpolator
@@ -478,6 +488,11 @@ def build_inputs(BOX, RES, S, TOK):
     if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
     if loss is not None: RAIN = np.maximum(RAIN - loss[None], 0).astype(np.float32); log(f'effective rain mean {RAIN.sum(0).mean():.0f} mm')
+    if CNG is not None:
+        Sx = 25400.0 / np.maximum(CNG, 1.0) - 254.0; Ia = 0.2 * Sx; P = np.cumsum(RAIN, axis=0)
+        Q = np.where(P > Ia, (P - Ia) ** 2 / np.maximum(P - Ia + Sx, 1e-6), 0.0)
+        RAIN = np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32)
+        log(f'effective rain (CN) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%)')
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC)
 
 
