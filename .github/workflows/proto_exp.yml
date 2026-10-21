@@ -45,6 +45,7 @@ jobs:
           echo '${{ toJSON(matrix.cfg) }}' > $OUT/config.json
           if [ -n "$RD" ]; then
             python proto/score.py --run-dir $RD --out $OUT/score.json | tail -40
+            python proto/validate_points.py --run-dir $RD --out $OUT/points.json | tail -30
             python proto/prototype.py --run-dir $RD --out $OUT/site | tail -5
             cp $RD/meta.json $OUT/flood_meta.json
           fi
