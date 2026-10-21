@@ -46,7 +46,8 @@ jobs:
             SCORE_WINDOWS=$OUT/gauge_windows.npz python proto/score.py --run-dir $RD --out $OUT/score.json | tail -40
             python proto/validate_points.py --run-dir $RD --out $OUT/points.json | tail -30
             python proto/prototype.py --run-dir $RD --out $OUT/site | tail -5
-            cp $RD/meta.json $OUT/flood_meta.json
+            python proto/diag_gauge.py --run-dir $RD --out $OUT/gauge_diag.json | tail -5 || true
+            cp $RD/meta.json $OUT/flood_meta.json; cp $RD/xings.json $OUT/ 2>/dev/null || true
           fi
       - name: commit
         if: always()
