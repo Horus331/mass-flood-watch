@@ -1,0 +1,38 @@
+15:16:03 w9 LISFLOOD-FP benchmark: sep2023_exp_ws_sgc box (145000.0, 904000.0, 192000.0, 940000.0) res 20.0 m, 48 h from 2023-09-11T16:00Z; GPU False, nvcc None
+15:16:03 downloading LISFLOOD-FP 8.2 from zenodo 13121102: LISFLOOD-FP-v8.2.zip (348 MB)
+15:18:11 source tree: /home/runner/work/_temp/lf/src/LISFLOOD-FP
+15:18:11 $ apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null
+15:18:11 E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+
+15:18:11 cmake files: ['config.default.cmake', 'CMakeLists.txt']
+15:18:11 build switches found: ['CMAKE_CUDA_ARCHITECTURES', 'CMAKE_CUDA_COMPILER', '_NETCDF']
+15:18:11 config.cmake from config.default.cmake
+15:18:11 config.cmake used:
+set(_NETCDF ON)
+add_compile_definitions(_NUMERIC_MODE=1)
+add_compile_definitions(_ONLY_RECT=1)
+add_compile_definitions(_PROFILE_MODE=0)
+add_compile_definitions(_DISABLE_WET_DRY=0)
+add_compile_definitions(_CALCULATE_Q_MODE=1)
+add_compile_definitions(_SGM_BY_BLOCKS=0)
+add_compile_definitions(_BALANCE_TYPE=0)
+
+15:18:11 $ cmake -S /home/runner/work/_temp/lf/src/LISFLOOD-FP -B /home/runner/work/_temp/lf/build_cpu -DCMAKE_BUILD_TYPE=Release -D_NETCDF=ON
+15:18:14 $ cmake --build /home/runner/work/_temp/lf/build_cpu -j 4
+15:18:32 $ ldd /home/runner/work/_temp/lf/build_cpu/lisflood
+15:18:32 built /home/runner/work/_temp/lf/build_cpu/lisflood (CUDA False) in 149s
+15:18:32 probe: {'quadrants': {'NW': 0.04406, 'NE': 0.00619, 'SW': 0.01963, 'SE': 0.00188}, 'flip_y': False, 'flip_x': False, 'scale': 1.0, 'probe_B_ratio': 0.924, 'convention': 'forward'}
+15:18:32 elevation: 6 tiles of 10 m
+15:18:39 grid 1800 x 2350 = 4.23 M cells at 20 m; sea 0.0%
+15:18:45 NLCD impervious: 6/6 tiles, mean 7.1% paved
+15:18:47 channels: 178,173 cells burnt, mean 0.18 m (volume-equivalent)
+15:18:48 crossings: 1802 road fills opened to the lowest ground within 40 m
+15:18:55 depressions: 59,139 cells carved (mean 0.28 m, max 4.0 m), 440 basins deeper than the cap kept, 8s
+15:18:57 LF_LOSS=fc: mean loss 8.4 mm/h subtracted from each hour of rain
+15:21:34 rain: max 207 mm, mean 76 mm over 48 h; missing []
+15:21:34 effective rain mean 39 mm
+15:21:38 sub-grid channels: 178,173 cells, width mean 5.9 m, bankfull depth mean 0.46 m
+15:21:38 par: DEMfile dem.asc | resroot res | dirroot results | sim_time 172800 | initial_tstep 10 | massint 300 | saveint 1800 | fpfric 0.08 | acceleration | manningfile n.asc | dynamicrainfile rain.nc | bcifile run.bci | SGCwidth sgc_width.asc | SGCbank sgc_bank.asc | SGCbed sgc_bed.asc | SGCn 0.035 | evaporation drain.evap
