@@ -66,20 +66,23 @@ def write_rain_nc(path, rain_mm, x0, y0, res, times_h, flip_y=False, flip_x=Fals
     rain_mm: (nt, ny, nx) mm in each interval (rows north -> south, like our grids).  With 1-hour intervals mm == mm/h, so the
     depth-vs-rate ambiguity of the format does not matter.  Coordinates are cell centres, x and y ascending (CF), so the file
     origin equals the DEM's xllcorner/yllcorner.  flip_y/flip_x exist only to undo an orientation the probe run detects."""
-    from scipy.io import netcdf_file
+    # LISFLOOD-FP's reader (lisflood2/file_tool.cpp, read_file_netCDF_start) uses the *variable* id of "time" as a dimension id and the
+    # *dimension* ids of x/y as variable ids, so variable ids must equal dimension ids: define time, y, x as dims AND as the first three
+    # variables in that order.  scipy.io.netcdf_file reorders variables (record variables last), which breaks this; netCDF4 keeps the order.
+    import netCDF4
     r = np.asarray(rain_mm, np.float32); nt, ny, nx = r.shape
     r = r[:, ::-1, :]                                   # north->south rows -> y ascending
     if flip_y: r = r[:, ::-1, :]
     if flip_x: r = r[:, :, ::-1]
-    f = netcdf_file(path, 'w', version=2)              # NetCDF-3 64-bit offset: readable by any netcdf-c build
+    f = netCDF4.Dataset(path, 'w', format='NETCDF3_64BIT_OFFSET')
     f.title = 'Gridded Rainfall'; f.source = 'mass-flood-watch w9_lisflood.py (MRMS QPE 01H Pass2)'
     f.comment = 'Contains time-varying gridded rainfall (mm per interval) for LISFLOOD-FP dynamicrainfile'
-    f.createDimension('time', None); f.createDimension('y', ny); f.createDimension('x', nx)
-    t = f.createVariable('time', 'd', ('time',)); t.standard_name = 'time'; t.long_name = 'time'; t.units = 'hours'; t.axis = 'T'
-    y = f.createVariable('y', 'd', ('y',)); y.standard_name = 'projection_y_coordinate'; y.long_name = 'y-coordinate in cartesian system'; y.units = 'm'; y.axis = 'Y'
-    x = f.createVariable('x', 'd', ('x',)); x.standard_name = 'projection_x_coordinate'; x.long_name = 'x-coordinate in cartesian system'; x.units = 'm'; x.axis = 'X'
-    v = f.createVariable('rainfall_depth', 'f', ('time', 'y', 'x')); v._FillValue = np.float32(-999.0); v.units = 'mm'
-    tot = f.createVariable('total_rainfall_depth', 'f', ('y', 'x')); tot._FillValue = np.float32(-999.0)
+    f.createDimension('time', nt); f.createDimension('y', ny); f.createDimension('x', nx)
+    t = f.createVariable('time', 'f8', ('time',)); t.standard_name = 'time'; t.long_name = 'time'; t.units = 'hours'; t.axis = 'T'
+    y = f.createVariable('y', 'f8', ('y',)); y.standard_name = 'projection_y_coordinate'; y.long_name = 'y-coordinate in cartesian system'; y.units = 'm'; y.axis = 'Y'
+    x = f.createVariable('x', 'f8', ('x',)); x.standard_name = 'projection_x_coordinate'; x.long_name = 'x-coordinate in cartesian system'; x.units = 'm'; x.axis = 'X'
+    v = f.createVariable('rainfall_depth', 'f4', ('time', 'y', 'x'), fill_value=np.float32(-999.0)); v.units = 'mm'
+    tot = f.createVariable('total_rainfall_depth', 'f4', ('y', 'x'), fill_value=np.float32(-999.0))
     y[:] = y0 + (np.arange(ny) + 0.5) * res; x[:] = x0 + (np.arange(nx) + 0.5) * res
     t[:] = np.asarray(times_h, np.float64); v[:] = r; tot[:] = r.sum(axis=0)
     f.close()
