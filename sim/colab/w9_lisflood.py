@@ -508,9 +508,11 @@ def main():
         frames.append(fr)
     # time above the car-stalling depths (from every snapshot, not only frame times) and first arrival, hours
     tover15 = np.zeros((ny, nx), np.float32); tover30 = np.zeros((ny, nx), np.float32); tarr30 = np.full((ny, nx), np.nan, np.float32)
+    FR, FT = [], []
     for j in sorted(snaps):
         h = np.nan_to_num(read_asc(snaps[j])[0], nan=0.0)
         if h.shape != (ny, nx): continue
+        FR.append(np.clip(np.round(h * 100), 0, 65000).astype(np.uint16)); FT.append(j * SAVEINT / 3600.0)
         tover15 += (h >= 0.15) * (SAVEINT / 3600.0); tover30 += (h >= 0.30) * (SAVEINT / 3600.0)
         tarr30 = np.where(np.isnan(tarr30) & (h >= 0.30), j * SAVEINT / 3600.0, tarr30)
     peak_wet = round(float(((hmax >= 0.1) & land).sum() * RES * RES / 1e6), 1)
@@ -522,6 +524,7 @@ def main():
     OUT = f'{wd}/out'; os.makedirs(OUT, exist_ok=True)
     np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', I['Z'].astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
+    if FR: np.savez_compressed(f'{OUT}/frames_cm.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32))
     np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan']).astype(np.uint8))
     np.savez_compressed(f'{OUT}/timing.npz', tover15=tover15, tover30=tover30, tarr30=tarr30, saveint_s=SAVEINT)
     R = I['RAIN_OBS']; r3 = np.stack([R[i:i + 3].sum(0) for i in range(max(1, len(R) - 2))])
