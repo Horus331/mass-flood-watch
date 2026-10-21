@@ -16,7 +16,7 @@ Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept reco
         4. hmax.npy (float32 m), hsnap.npy (peak of the 30-min snapshots), z.npy, meta.json -> HF RUN_DIR in ONE commit,
            so w6_validate.py scores it unchanged.
 """
-import os, sys, re, json, time, gzip, glob, shutil, zipfile, subprocess
+import math, os, sys, re, json, time, gzip, glob, shutil, zipfile, subprocess
 import numpy as np
 
 WORK = os.environ.get('LF_WORK', '/content/lisflood')
@@ -137,7 +137,10 @@ def analyse_probe(hA, hB, expect_A=0.072, expect_B_forward=0.036):
     q = {'NW': np.nanmean(hA[:n, :n]), 'NE': np.nanmean(hA[:n, n:]), 'SW': np.nanmean(hA[n:, :n]), 'SE': np.nanmean(hA[n:, n:])}
     wet = max(q, key=q.get)
     flip_y, flip_x = wet[0] == 'S', wet[1] == 'E'
-    scale = float(q[wet]) / expect_A if q[wet] > 0 else float('nan')
+    # water spreads across the flat box, so judge units by the volume (sum of the four quadrant means vs 0.072 m on one quadrant), not by NW alone
+    vol = float(sum(q.values()))
+    scale = vol / expect_A if vol > 0 else float('nan')
+    if np.isfinite(scale) and abs(scale - 1) < 0.25: scale = 1.0
     b = float(np.nanmean(hB)) / max(scale, 1e-12) if np.isfinite(scale) else float('nan')
     r = b / expect_B_forward if np.isfinite(b) else float('nan')
     conv = 'forward' if r > 0.75 else ('linear' if r > 0.25 else 'backward')
@@ -371,6 +374,27 @@ def build_inputs(BOX, RES, S, TOK):
             log(f'channels: {int(chan.sum()):,} cells burnt, mean {float(burn[chan].mean()) if chan.any() else 0:.2f} m (volume-equivalent)')
         except Exception as e:
             log('no channel grid, rivers unburnt:', repr(e)[:120])
+    # culverts are not in the lidar DEM: road fill over a culvert is a dam (USGS lidar base spec).  Open a notch at every mapped crossing
+    # to the lowest ground within LF_BREACH_M (default 40 m), so water passes under the road as it does through the culvert.
+    nb = 0
+    if os.environ.get('LF_BREACH_XINGS', '1') == '1':
+        try:
+            xp = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
+            XJ = json.load(open(xp)); C = XJ['columns']; il, ia = C.index('lon'), C.index('lat')
+            from pyproj import Transformer
+            tf = Transformer.from_crs(4326, 26986, always_xy=True)
+            pts = [(r_[il], r_[ia]) for r_ in XJ['rows'] if r_[il] is not None]
+            xx, yy = tf.transform([p[0] for p in pts], [p[1] for p in pts])
+            kw = int(math.ceil(float(os.environ.get('LF_BREACH_M', '40')) / RES))
+            for xq, yq in zip(xx, yy):
+                if not (x0 <= xq < x1 and y0 <= yq < y1): continue
+                rq, cq = int((y1 - yq) // RES), int((xq - x0) // RES)
+                r0_, r1_, c0_, c1_ = max(0, rq - kw), min(ny, rq + kw + 1), max(0, cq - kw), min(nx, cq + kw + 1)
+                zmin = float(Z[r0_:r1_, c0_:c1_].min())
+                Z[max(0, rq - 1):rq + 2, max(0, cq - 1):cq + 2] = np.minimum(Z[max(0, rq - 1):rq + 2, max(0, cq - 1):cq + 2], zmin); nb += 1
+            log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m')
+        except Exception as e:
+            log('crossing breach skipped:', repr(e)[:150])
     loss = None
     if os.environ.get('LF_LOSS', 'none') == 'fc':      # rain-excess approximation of w4's losses: steady soil rate + storm drains
         try:
@@ -498,6 +522,7 @@ def main():
     OUT = f'{wd}/out'; os.makedirs(OUT, exist_ok=True)
     np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', I['Z'].astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
+    np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan']).astype(np.uint8))
     np.savez_compressed(f'{OUT}/timing.npz', tover15=tover15, tover30=tover30, tarr30=tarr30, saveint_s=SAVEINT)
     R = I['RAIN_OBS']; r3 = np.stack([R[i:i + 3].sum(0) for i in range(max(1, len(R) - 2))])
     np.savez_compressed(f'{OUT}/rainstats.npz', total=R.sum(0), peak1h=R.max(0), peak3h=r3.max(0), hour_of_peak=R.argmax(0).astype(np.int16),
