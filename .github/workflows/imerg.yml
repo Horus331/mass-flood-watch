@@ -1,0 +1,27 @@
+name: NASA IMERG satellite rainfall
+on:
+  workflow_dispatch:
+    inputs:
+      storm: {default: 'sep2023'}
+      bbox: {description: 'lon/lat w,s,e,n', default: '-72.15,42.40,-71.55,42.75'}
+      start: {default: '2023-09-11T12:00:00Z'}
+      end: {default: '2023-09-13T12:00:00Z'}
+      compare: {description: 'run flood_meta.json to compare against (optional)', default: 'docs/proto/leominster_sep2023/flood_meta.json'}
+permissions:
+  contents: write
+jobs:
+  imerg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests h5py numpy
+      - env: {EARTHDATA_TOKEN: '${{ secrets.EARTHDATA_TOKEN }}'}
+        run: |
+          mkdir -p docs/proto/obs/_logs
+          python proto/imerg_fetch.py --storm ${{ inputs.storm }} --bbox=${{ inputs.bbox }} --start ${{ inputs.start }} --end ${{ inputs.end }} \
+            --out docs/proto/obs --compare "${{ inputs.compare }}" 2>&1 | tee docs/proto/obs/_logs/imerg_${{ inputs.storm }}.txt
+      - if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/obs && git commit -qm "IMERG rainfall: ${{ inputs.storm }}" || echo nothing
+          git pull --rebase -q && git push
