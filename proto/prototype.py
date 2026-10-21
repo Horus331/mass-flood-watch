@@ -52,6 +52,14 @@ def seg_reduce(n, seg, vals, how):
     return out
 
 
+def seg_top2(n, seg, vals):
+    """Second-highest value per segment (the highest when a segment has one point): one wet pixel cannot close a road."""
+    o = np.lexsort((-vals, seg)); sg = seg[o]; v = vals[o]
+    first = np.r_[True, sg[1:] != sg[:-1]]; idx = np.nonzero(first)[0]
+    out = np.zeros(n, np.float32); top1 = v[idx]; has2 = np.r_[idx[1:], len(sg)] - idx >= 2
+    sec = np.where(has2, v[np.minimum(idx + 1, len(v) - 1)], top1); out[sg[idx]] = sec; return out
+
+
 def reason(r):
     bits = [f"{r['peak_depth_m']:.2f} m of water at peak"]
     if r['hours_over_30cm'] > 0: bits.append(f"over 30 cm for {r['hours_over_30cm']:.1f} h")
@@ -101,6 +109,8 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
 
     # 1-2 hazard and flashness along every segment (same densified points as impacts)
     P = IM.road_points(S, meta); mx, mean, dv, inbox = IM.sample_segments(n, P, H, R['V'])
+    use0 = ~P['end'] | (np.bincount(P['seg'][~P['end']], minlength=n)[P['seg']] == 0)
+    mx = np.where(inbox, seg_top2(n, P['seg'][use0], H[P['r'][use0], P['c'][use0]]), 0).astype(np.float32)
     use = ~P['end'] | (np.bincount(P['seg'][~P['end']], minlength=n)[P['seg']] == 0); Q = {k: v[use] for k, v in P.items()}
     hrs30 = seg_reduce(n, Q['seg'], T['tover30'][Q['r'], Q['c']], 'max') if T else np.zeros(n, np.float32)
     hrs15 = seg_reduce(n, Q['seg'], T['tover15'][Q['r'], Q['c']], 'max') if T else np.zeros(n, np.float32)
@@ -117,9 +127,9 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     if FRM is not None and len(Q['x']):
         DC = FRM['depth_cm']; frame_hours = [round(float(h), 2) for h in FRM['hours']]
         seg_t = np.zeros((len(DC), n), np.uint16)
-        for k in range(len(DC)): np.maximum.at(seg_t[k], Q['seg'], DC[k][Q['r'], Q['c']])
+        for k in range(len(DC)): seg_t[k] = np.round(seg_top2(n, Q['seg'], DC[k][Q['r'], Q['c']].astype(np.float32))).astype(np.uint16)
         os.makedirs(os.path.join(out, 'frames'), exist_ok=True)
-        for k in range(len(DC)): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), DC[k].astype(np.float32) / 100.0)
+        for k in range(len(DC)): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), np.where(WM, 0, DC[k]).astype(np.float32) / 100.0 if WM is not None else DC[k].astype(np.float32) / 100.0)
 
     # 3 closure probability (v0 physics prior)
     pclose = np.where(inbox, phi((mx - FAIL_M) / SIGMA_M), 0.0)
@@ -189,7 +199,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                 rain_hourly_mean_mm=[round(float(v), 1) for v in RS['hourly_mean']] if RS is not None and 'hourly_mean' in RS else [],
                 made=time.strftime('%Y-%m-%d %H:%M'), prototype_runtime_s=round(time.time() - t_start, 1))
     json.dump(summ, open(os.path.join(out, 'summary.json'), 'w'), indent=1)
-    write_map(os.path.join(out, 'map.html'), out, meta, H, summ)
+    write_map(os.path.join(out, 'map.html'), out, meta, np.where(WM, 0, H) if WM is not None else H, summ)
     write_figure(os.path.join(out, 'figure.png'), meta, H, S, keep)
     write_report(os.path.join(out, 'REPORT.md'), summ, rows[:15])
     print(json.dumps({k: v for k, v in summ.items() if k != 'checks'}, indent=1)); print('wrote', out)

@@ -111,7 +111,7 @@ def write_bci(path, x0, y0, x1, y1):
 
 
 def write_par(path, resroot, sim_time, saveint=1800, massint=300, cuda=False, dem='dem.asc', manning=None, rain=None,
-              bci=None, start=None, dirroot='results', initial_tstep=10.0):
+              bci=None, start=None, dirroot='results', initial_tstep=10.0, infiltration=None):
     """LISFLOOD-FP parameter file for the local-inertial ('acceleration') solver; `cuda` selects the GPU version (8.1+)."""
     L = [f'DEMfile {dem}', f'resroot {resroot}', f'dirroot {dirroot}', f'sim_time {int(sim_time)}', f'initial_tstep {initial_tstep:g}',
          f'massint {int(massint)}', f'saveint {int(saveint)}', 'fpfric 0.08', 'acceleration']
@@ -120,6 +120,7 @@ def write_par(path, resroot, sim_time, saveint=1800, massint=300, cuda=False, de
     if rain: L.append(f'dynamicrainfile {rain}')
     if bci: L.append(f'bcifile {bci}')
     if start: L.append(f'startfile {start}')
+    if infiltration: L.append(f'infiltration {infiltration:.3e}')     # m/s on wet floodplain cells (infevap.cpp FPInfiltration)
     with open(path, 'w') as f: f.write('\n'.join(L) + '\n')
     return L
 
@@ -490,7 +491,8 @@ def main():
     start = None
     if os.environ.get('LF_BASEFLOW', '1') == '1' and I['chan'].any():
         write_asc(f'{wd}/start.wd', np.where(I['chan'], 0.3 * I['burn'], 0.0), x0, y0, RES); start = 'start.wd'     # w4: channels start a third full
-    par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start)
+    par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
+                    infiltration=float(os.environ.get('LF_INFIL_MMH', '4')) / 3.6e6 if float(os.environ.get('LF_INFIL_MMH', '4')) > 0 else None)
     log('par:', ' | '.join(par))
     # 4. run
     run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
