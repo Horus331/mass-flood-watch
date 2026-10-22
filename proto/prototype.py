@@ -840,17 +840,22 @@ MAP_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta 
 <label><input type="checkbox" data-c="0" checked> Local / collector</label>
 <label><input type="checkbox" data-l="may" checked> May close: stream at road level</label>
 <label><input type="checkbox" data-l="sag"> Sags / underpasses: drains overwhelmed (test layer)</label>
-<label><input type="checkbox" data-l="edge"> Edge washout: fast runoff along the road (test layer)</label>
+<label id="edl"><input type="checkbox" data-l="edge"> Edge washout: fast runoff along the road (test layer)</label>
 <label id="rkl" style="display:none"><input type="checkbox" data-l="risk"> Risk class (flagged segments)</label>
+<label id="mll" style="display:none"><input type="checkbox" data-l="ml"> Learned closure chance (ML, candidate)</label>
 <div style="margin-top:6px"><span class="k" style="background:#b2182b"></span>closed now (&ge; 30 cm)<br><span class="k" style="background:#f4a582"></span>15&ndash;30 cm<br>
-<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)<br><span class="k" style="background:#7b3294;height:3px"></span>sag / underpass (test layer)<br><span class="k" style="background:#8c510a;height:3px"></span>edge washout (test layer)</div>
+<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)<br><span class="k" style="background:#7b3294;height:3px"></span>sag / underpass (test layer)<span id="edk"><br><span class="k" style="background:#8c510a;height:3px"></span>edge washout (test layer)</span></div>
 <div id="rkk" style="display:none;margin-top:4px">Risk: <span class="k" style="background:#7f0000;width:10px"></span>Extreme <span class="k" style="background:#e34a33;width:10px"></span>High <span class="k" style="background:#fdbb84;width:10px"></span>Medium <span class="k" style="background:#c7e9c0;width:10px"></span>Low</div>
+<div id="mlk" style="display:none;margin-top:4px">Learned chance: <span id="mlb"></span><br><small id="mln">model fitted to documented Leominster 2023 closures; candidate, not in the closure count</small></div>
 <div id="rs" style="margin-top:6px;font-size:12px"></div></div>
 <div id="t"><button id="play">&#9654;</button><input id="sl" type="range" min="0" value="0"><span id="clock"></span><span id="cnt"></span><svg id="rain"></svg></div>
 <script>
 const S=__SUMMARY__, C=__CORNERS__, FH=S.frame_hours||[], NF=FH.length, T0=new Date(S.storm_start.replace('Z',':00Z'));
 const CLS={0:'local / collector',1:'arterial',2:'highway'};
-const RC={Extreme:'#7f0000',High:'#e34a33',Medium:'#fdbb84',Low:'#c7e9c0'};let RK={};
+const RC={Extreme:'#7f0000',High:'#e34a33',Medium:'#fdbb84',Low:'#c7e9c0'};let RK={},ML={};
+const MLE=[0.05,0.1,0.2,0.4],MLC=['#feebe2','#fbb4b9','#f768a1','#c51b8a','#7a0177'],MLL=['<5%','5–10%','10–20%','20–40%','≥40%'];
+if(!S.segments_edge)['edl','edk'].forEach(i=>document.getElementById(i).style.display='none');   // runs without flow speeds have no edge layer
+document.getElementById('mlb').innerHTML=MLC.map((c,i)=>`<span class="k" style="background:${c};width:10px"></span>${MLL[i]}`).join(' ');
 const fmt=v=>v==null?'–':Math.round(v).toLocaleString('en-US'),usd=v=>v==null?'–':v>=1e6?'$'+(v/1e6).toFixed(1)+'M':'$'+Math.round(v/1e3)+'k';
 const getj=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
 getj('resilience.json').then(R=>{const P=R&&R.population;if(!P||!P.worst)return;const w=P.worst,ph=P.person_hours_lost||{};
@@ -878,16 +883,18 @@ function play(){if(timer){clearInterval(timer);timer=null;document.getElementByI
  if(k>=NF-1)k=0;document.getElementById('play').innerHTML='&#10074;&#10074;';timer=setInterval(()=>{if(k>=NF-1){play();return}show(k+1)},350)}
 document.getElementById('play').onclick=play;sl.oninput=e=>{if(timer)play();show(+e.target.value)};
 m.on('load',()=>{m.addSource('d',{type:'image',url:frameUrl(k),coordinates:C});m.addLayer({id:'depth',type:'raster',source:'d',paint:{'raster-opacity':0.8,'raster-resampling':'nearest','raster-fade-duration':0}});
-Promise.all([fetch('segments.geojson').then(r=>r.json()),getj('risk_segments.json')]).then(([g,rk])=>{RK=(rk&&rk.segments)||{};
-g.features.forEach(f=>{const e=RK[f.properties.segment];if(e&&e.r)f.properties.risk=e.r.risk});if(Object.keys(RK).length){document.getElementById('rkl').style.display='block'}
+Promise.all([fetch('segments.geojson').then(r=>r.json()),getj('risk_segments.json'),getj('ml_segments.json')]).then(([g,rk,ml])=>{RK=(rk&&rk.segments)||{};ML=(ml&&ml.segments)||{};
+g.features.forEach(f=>{const q=f.properties,e=RK[q.segment];if(e&&e.r)q.risk=e.r.risk;const v=ML[q.segment]??q.p_close_ml;if(v!=null)q.p_ml=+v});if(Object.keys(RK).length){document.getElementById('rkl').style.display='block'}
+if(g.features.some(f=>f.properties.p_ml!=null)){document.getElementById('mll').style.display='block';if(ml&&ml.velocity===false)document.getElementById('mln').textContent+='; this run has no flow speeds, so the model sees still water'}
 m.addSource('s',{type:'geojson',data:g});
 m.addLayer({id:'peak',type:'line',source:'s',filter:['>=',['get','p_close'],0.5],paint:{'line-color':'#555','line-width':1,'line-dasharray':[2,2]}});
 m.addLayer({id:'may',type:'line',source:'s',filter:['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#e08214','line-width':2.5,'line-dasharray':[1,1]}});
 m.addLayer({id:'sag',type:'line',source:'s',layout:{visibility:'none'},filter:['all',['>=',['coalesce',['get','p_sag'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#7b3294','line-width':2.5,'line-dasharray':[1,1]}});
 m.addLayer({id:'edge',type:'line',source:'s',layout:{visibility:'none'},filter:['all',['>=',['coalesce',['get','p_edge'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#8c510a','line-width':2.5,'line-dasharray':[2,1]}});
 m.addLayer({id:'risk',type:'line',source:'s',layout:{visibility:'none'},filter:['has','risk'],paint:{'line-width':4,'line-color':['match',['get','risk'],'Extreme',RC.Extreme,'High',RC.High,'Medium',RC.Medium,RC.Low]}});
+m.addLayer({id:'ml',type:'line',source:'s',layout:{visibility:'none'},filter:['has','p_ml'],paint:{'line-width':6,'line-color':['step',['get','p_ml'],MLC[0],MLE[0],MLC[1],MLE[1],MLC[2],MLE[2],MLC[3],MLE[3],MLC[4]]}});
 m.addLayer({id:'seg',type:'line',source:'s',paint:{'line-width':3,'line-color':'#b2182b'}});
-const pop=e=>{if(e.originalEvent._pop)return;e.originalEvent._pop=1;const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}${(+(p.p_sag||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#7b3294">Sag / underpass: drains may be overwhelmed (${(+p.p_sag*100).toFixed(0)}%, test layer)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}% · edge washout ${(+(p.p_edge||0)*100).toFixed(0)}%</small><br>${p.why}${riskHtml(p.segment)}`).addTo(m)};m.on('click','seg',pop);m.on('click','risk',pop);m.on('click','peak',pop);m.on('click','may',pop);m.on('click','sag',pop);m.on('click','edge',pop);
+const pop=e=>{if(e.originalEvent._pop)return;e.originalEvent._pop=1;const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%${p.p_ml!=null?` · Learned model: ${(+p.p_ml*100).toFixed(0)}%`:''}<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}${(+(p.p_sag||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#7b3294">Sag / underpass: drains may be overwhelmed (${(+p.p_sag*100).toFixed(0)}%, test layer)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}% · edge washout ${(+(p.p_edge||0)*100).toFixed(0)}%</small><br>${p.why}${riskHtml(p.segment)}`).addTo(m)};m.on('click','seg',pop);m.on('click','risk',pop);m.on('click','peak',pop);m.on('click','may',pop);m.on('click','sag',pop);m.on('click','edge',pop);m.on('click','ml',pop);
 m.on('mouseenter','seg',()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave','seg',()=>m.getCanvas().style.cursor='');filt();show(0);});});
 function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);const cl=['in',['get','road_class'],['literal',on]];
  if(m.getLayer('seg'))m.setFilter('seg',cl);if(m.getLayer('peak'))m.setFilter('peak',['all',['>=',['get','p_close'],0.5],cl]);
@@ -899,6 +906,7 @@ document.querySelector('[data-l=may]').onchange=e=>{if(m.getLayer('may'))m.setLa
 document.querySelector('[data-l=sag]').onchange=e=>{if(m.getLayer('sag'))m.setLayoutProperty('sag','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=edge]').onchange=e=>{if(m.getLayer('edge'))m.setLayoutProperty('edge','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=risk]').onchange=e=>{document.getElementById('rkk').style.display=e.target.checked?'block':'none';if(m.getLayer('risk'))m.setLayoutProperty('risk','visibility',e.target.checked?'visible':'none')};
+document.querySelector('[data-l=ml]').onchange=e=>{document.getElementById('mlk').style.display=e.target.checked?'block':'none';if(m.getLayer('ml'))m.setLayoutProperty('ml','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=depth]').onchange=e=>m.setLayoutProperty('depth','visibility',e.target.checked?'visible':'none');
 </script></body></html>"""
 
