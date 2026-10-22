@@ -9,16 +9,16 @@
 # Make a domain first (any machine with internet; basins come from basins.yml):
 #   python sim/colab/lf_domain.py build --name <name> --sites <USGS sites> | --hu 8|12 --region x0,y0,x1,y1 [--rain-npz <run>/rainstats.npz --rain-min 75]
 #SBATCH -J roadflood_basin
+#SBATCH -p quick
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
 #SBATCH -t 12:00:00
 #SBATCH -o roadflood_basin_%j.out
-set -euo pipefail
-module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
-source activate roadflood 2>/dev/null || conda activate roadflood
-export LF_WORK=${LF_WORK:-$HOME/lisflood} LF_NO_UPLOAD=1 OMP_NUM_THREADS=$SLURM_NTASKS
+set -eo pipefail
+source proto/turing/env.sh
+export LF_NO_UPLOAD=1 OMP_NUM_THREADS=$SLURM_NTASKS
 export LF_DOMAIN=basin LF_DOMAIN_FILE=${DOMAIN:-docs/network/basins/domain_leominster_nn.json}
 export RES=${RES:-20} STORM=${STORM:-sep2023} HOURS=${HOURS:-48}
 export LF_LOSS=${LF_LOSS:-cn} LF_CN_AMC=${LF_CN_AMC:-II} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}

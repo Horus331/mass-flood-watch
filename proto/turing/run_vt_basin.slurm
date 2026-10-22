@@ -8,15 +8,15 @@
 #      (3DEP / NLCD / SSURGO / NHDPlus HR / OSM / USGS inputs for the domain box -> $HOME/stage/winooski_montpelier_jul2023vt, MRMS cached)
 #   3. sbatch --export=ALL,LF_EXE=<exe>,LF_EXE_CUDA=1 proto/turing/run_vt_basin.slurm
 #SBATCH -J vt_basin
+#SBATCH -p long
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=96G
 #SBATCH --gres=gpu:1
 #SBATCH -t 24:00:00
 #SBATCH -o vt_basin_%j.out
-set -euo pipefail
-module load cuda 2>/dev/null || module load cuda/12 2>/dev/null || true
-source activate roadflood 2>/dev/null || conda activate roadflood
+set -eo pipefail
+source proto/turing/env.sh
 : "${LF_EXE:?set LF_EXE (setup_lisflood.sh)}"
 export DOMAIN=${DOMAIN:-docs/network/basins/domain_winooski_montpelier.json} STORM=jul2023vt
 export STAGE=${STAGE:-$HOME/stage/$(basename $DOMAIN .json | sed 's/^domain_//')_${STORM}}
