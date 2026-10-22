@@ -272,6 +272,18 @@ def find_source(root):
     return sorted(cands)[0][1]
 
 
+def patch_source(src):
+    """Source fixes for newer toolchains (idempotent).  cuda/adaptive/utilities/cuda_utils.cuh declares `cudaError_t sync();`, which
+    clashes with glibc's `void sync(void)` from <unistd.h> on Ubuntu 24.04 ("cannot overload functions distinguished by return type
+    alone", seen on WPI Turing, 22 Oct 2026): rename the CUDA helper to lfp_cuda_sync in the cuda/ tree."""
+    n = 0
+    for p in glob.glob(f'{src}/cuda/**/*', recursive=True):
+        if not p.endswith(('.cu', '.cuh', '.h', '.hpp', '.cpp')) or not os.path.isfile(p): continue
+        t = open(p, errors='replace').read(); t2 = re.sub(r'(?<![\w:.>])sync\s*\(', 'lfp_cuda_sync(', t)
+        if t2 != t: open(p, 'w').write(t2); n += 1
+    if n: log(f'patched sync() -> lfp_cuda_sync() in {n} CUDA source files')
+
+
 def build_lisflood(src, want_cuda):
     """CMake build.  The build switches are read from the source itself (option()/set() names containing CUDA or NETCDF in
     CMakeLists.txt / *.cmake), because the 8.x tree keeps them in a user config.cmake; every name and value is logged."""
@@ -286,6 +298,7 @@ def build_lisflood(src, want_cuda):
     if not os.path.exists(f'{src}/config.cmake'):        # 8.x ships an example config to copy
         ex = [p for p in glob.glob(f'{src}/*config*.cmake') if 'example' in p.lower() or 'default' in p.lower() or 'template' in p.lower()]
         if ex: shutil.copy(ex[0], f'{src}/config.cmake'); log('config.cmake from', os.path.basename(ex[0]))
+    patch_source(src)
     cfg_txt = open(f'{src}/config.cmake').read() if os.path.exists(f'{src}/config.cmake') else ''
 
     def attempt(cuda):
@@ -302,10 +315,12 @@ def build_lisflood(src, want_cuda):
             if 'NETCDF' in nm.upper(): D.append(f'-D{nm}=ON')
             elif 'CUDA' in nm.upper() and not nm.upper().startswith('CMAKE'): D.append(f'-D{nm}={"ON" if cuda else "OFF"}')
         if cuda:
-            try:
-                cc = subprocess.run(['nvidia-smi', '--query-gpu=compute_cap', '--format=csv,noheader'], capture_output=True, text=True).stdout.split()[0]
-                D.append(f'-DCMAKE_CUDA_ARCHITECTURES={cc.replace(".", "")}')
-            except Exception: pass
+            if os.environ.get('LF_CUDA_ARCH'): D.append(f"-DCMAKE_CUDA_ARCHITECTURES={os.environ['LF_CUDA_ARCH']}")   # e.g. '80;89;90;120' for a mixed cluster
+            else:
+                try:
+                    cc = subprocess.run(['nvidia-smi', '--query-gpu=compute_cap', '--format=csv,noheader'], capture_output=True, text=True).stdout.split()[0]
+                    D.append(f'-DCMAKE_CUDA_ARCHITECTURES={cc.replace(".", "")}')
+                except Exception: pass
             D.append('-DCMAKE_CUDA_COMPILER=' + (shutil.which('nvcc') or '/usr/local/cuda/bin/nvcc'))
         sh(['cmake', '-S', src, '-B', bld] + D)
         sh(f'cmake --build {bld} -j {os.cpu_count() or 2}', timeout=3600)
