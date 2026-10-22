@@ -94,7 +94,7 @@ All numbers are order-of-magnitude, in 2023 US$, given as low–high ranges. The
 | condition | cost per lane-km | basis |
 |---|---|---|
 | inundated less than 24 h | $3k–15k | clean-up and inspection (assumption) |
-| inundated 24 h or more | $60k–150k | mill and 50 mm overlay. Prolonged submergence weakens pavement (Gaspard et al. 2007). Hot-mix asphalt priced against the MassDOT 2023 liquid-asphalt index of $625–665/t |
+| inundated 24 h or more | $60k–150k | mill and 50 mm overlay. After Katrina, submerged asphalt roads lost strength equal to about 2 in (50 mm) of new asphalt, and rehabilitation was costed at $250k per mile for a 4 in mill and overlay (Gaspard et al. 2007). That study found no significant effect of flood duration, so the 24 h split here is our own assumption. Hot-mix asphalt priced against the MassDOT 2023 liquid-asphalt index of $625–665/t |
 | washout | $0.5M–1.4M | applied over 50 m. Triggered within 30 m of an overtopped crossing with p_close ≥ 0.5, or when p_washout ≥ 0.5. Upper end = VTrans 2014 post-Irene armoring, $1.7M per mile, in 2023 $ |
 
 **Crossings.** Replacement is costed at the size the Massachusetts Stream Crossing Standards require (span ≥ 1.2 × bankfull width), from the VTrans 2014 Irene unmet-needs table × CPI-U 2023/2014 = 1.287:
