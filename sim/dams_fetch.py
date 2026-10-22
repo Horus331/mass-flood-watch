@@ -64,7 +64,7 @@ def fetch():
 
 
 # field -> regexes tried in order against the header (case-insensitive); the first header that matches is used
-FIELDS = dict(name=[r'^dam name$', r'dam.?name'], nid=[r'^nid id$', r'nidid', r'nid.?id'], lat=[r'^latitude$', r'^latitude geom$', r'lat'], lon=[r'^longitude$', r'^longitude geom$', r'lon'],
+FIELDS = dict(name=[r'^dam name$', r'^name$', r'dam.?name'], nid=[r'^nid id$', r'nidid', r'nid.?id'], lat=[r'^latitude$', r'^latitude geom$', r'lat'], lon=[r'^longitude$', r'^longitude geom$', r'lon'],
               state=[r'^state$', r'^state.?name'], county=[r'county'], river=[r'river'], owner_type=[r'primary owner type', r'owner.?type'],
               purposes=[r'^purposes?$', r'purpose'], year=[r'year completed$', r'year.?completed'], dam_type=[r'^primary dam type$', r'dam.?type'],
               nid_height_ft=[r'^nid height', r'nid.?height'], dam_height_ft=[r'^dam height', r'dam.?height'], hydraulic_height_ft=[r'hydraulic height'],
