@@ -812,6 +812,8 @@ def main():
             open(f'{wd}/run.weir', 'w').write(lf_dams_weirfile(D_)); extra.append('weirfile run.weir')
             if is_cuda: log('WARNING: LF_DAMS weirs are read by the CPU solver (fp_flow.cpp); the CUDA acceleration solver may ignore them')
         extra += D_.get('par', [])
+    for k_ in ('theta', 'cfl'):     # LF_THETA / LF_CFL: solver damping on its own (de Almeida et al. 2012); after LF_DAMS's so an explicit value wins
+        if os.environ.get('LF_' + k_.upper()): extra.append(f"{k_} {os.environ['LF_' + k_.upper()]}")
     if DOM and start: write_asc(f'{wd}/start.wd', np.where(MSK, np.nan_to_num(read_asc(f'{wd}/start.wd')[0]), 0.0), x0, y0, RES)   # no water on wall cells
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
