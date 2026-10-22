@@ -53,7 +53,7 @@ jobs:
             cp $RD/meta.json $OUT/flood_meta.json; cp $RD/xings.json $OUT/ 2>/dev/null || true
             if [ "${{ matrix.cfg.keep }}" = "1" ]; then   # small run dir (no frames) so proto/prototype.py can be re-run offline on this experiment
               mkdir -p $OUT/rundir
-              for f in meta.json hmax.npy z.npy z_raw.npz vel_max.npz watermask.npy timing.npz rainstats.npz xings.json; do cp $RD/$f $OUT/rundir/ 2>/dev/null || true; done
+              for f in meta.json hmax.npy z.npy z_raw.npz vel_max.npz watermask.npy timing.npz rainstats.npz xings.json domain_mask.npy; do cp $RD/$f $OUT/rundir/ 2>/dev/null || true; done
               du -sh $OUT/rundir
             fi
           fi

@@ -22,7 +22,8 @@ the run grid (any RES), from the polygons and the run's DEM:
      4-connected when LF_BREACH_D4=1 (the solver's face fluxes) else 8-connected;
   3. each outlet snaps to the largest-accumulation cell within LF_DOMAIN_SNAP_M (150 m); with auto_outlets, every place where M0's flow
      leaves M0 and that drains >= LF_DOMAIN_MIN_KM2 of M0 is an outlet too (HU12 sets, storm areas);
-  4. mask = cells draining to an outlet on the DEM (so every masked-in cell has a surface path out) + the corridor: the flow path from each
+  4. mask = cells draining to an outlet on the DEM (so every masked-in cell has a surface path out), at most LF_DOMAIN_CLIP_M (500 m)
+     outside the polygons, + the corridor: the flow path from each
      outlet to the box edge, widened by LF_DOMAIN_CORRIDOR_M on each side; FREE on the corridor's edge cells;
   5. w9 sets masked-out cells to WALL before breaching (carved outlets then lead to the basin outlet, never across a divide) and to NODATA
      in dem.asc; hmax / frames are zero there; z.npy keeps the lidar DEM there; out/domain_mask.npy + meta.json['domain'] record it.
@@ -283,6 +284,11 @@ def prepare(D, Z, box, res, d4=False, log=print, env=os.environ):
                                                              cell=[int(kk // nx), int(kk % nx)], kind='auto', polygon_km2_drained=round(a, 1)))
             lab = label_down(par, order, {k: i for k, i in seeds.items()})
     C = (lab > 0).reshape(ny, nx)
+    clip = float(env.get('LF_DOMAIN_CLIP_M', '500')); clipped = 0
+    if clip >= 0 and M0.any():          # the DEM catchment may not stray more than clip m outside the polygons (a flat divide or a filled depression
+        from scipy import ndimage       # spilling the wrong way would otherwise add a whole neighbouring valley; NLDI/WBD divides are the reference)
+        near = ndimage.distance_transform_edt(~M0) * res <= clip; clipped = int((C & ~near).sum()); C &= near
+        lab = np.where(C.ravel(), lab, 0)
     # corridors: outlet -> box edge along the routing, stopping where the path re-enters the domain (nested outlets)
     path = np.zeros((ny, nx), bool); Cf = C.ravel()
     for o, kk in zip(outs, seeds):
@@ -311,7 +317,7 @@ def prepare(D, Z, box, res, d4=False, log=print, env=os.environ):
                area_km2=dict(mask=round(float(mask.sum() * cell_km2), 1), catchments=round(float(C.sum() * cell_km2), 1),
                              corridor=round(float(corridor.sum() * cell_km2), 2), polygons=round(float(M0.sum() * cell_km2), 1)),
                polygon_dem_iou=round(inter / uni, 3) if uni else None, polygon_share_in_catchments=round(inter / max(float(M0.sum()), 1), 3),
-               catchment_cells_on_closed_edge=int((C & edge).sum()), free_edge_cells=int(free.sum()), bci=bci, outlets=outs,
+               catchment_cells_on_closed_edge=int((C & edge).sum()), clip_m=clip, clipped_km2=round(clipped * cell_km2, 1), free_edge_cells=int(free.sum()), bci=bci, outlets=outs,
                corridor_half_width_m=cw * res, snap_m=snap, seconds=round(time.time() - t))
     log(f"domain {D.get('name')}: {rep['cells_active']:,} of {ny * nx:,} cells active ({rep['active_share'] * 100:.0f}%), catchments {rep['area_km2']['catchments']} km2 "
         f"(polygons {rep['area_km2']['polygons']}, IoU {rep['polygon_dem_iou']}), {len(outs)} outlets "
