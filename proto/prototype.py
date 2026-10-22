@@ -231,6 +231,50 @@ def label_segments(labels, Q, props, meta, strict=True):
     return out
 
 
+def load_line_labels(path):
+    """Closed road stretches as GeoJSON lines (e.g. proto/data/vt_roadclosures_jul2023.geojson: Road, Cause, FullorPart) -> label dicts with
+    'lines' (lon/lat parts) and a type from the cause (flooding / high water -> flooded, washout, sinkhole, mudslide / trees -> other_damage,
+    none -> closed), so LABEL_GROUPS and the variants machinery score them like the point labels."""
+    G = json.load(open(path)); out = []
+    for k, f in enumerate(G.get('features', [])):
+        g = f.get('geometry') or {}; parts = g.get('coordinates') or []
+        parts = parts if g.get('type') == 'MultiLineString' else [parts]; p = f.get('properties') or {}; cz = (p.get('Cause') or '').lower()
+        typ = ('washout' if 'washout' in cz else 'sinkhole' if 'sinkhole' in cz else 'other_damage' if ('mud' in cz or 'slide' in cz or 'tree' in cz)
+               else 'flooded' if ('flood' in cz or 'water' in cz) else 'closed')
+        out.append(dict(id=f'V{k + 1:03d}', type=typ, road=p.get('Road'), name=f"{p.get('Road')}: {p.get('Cause') or 'closed'} ({p.get('FullorPart') or ''})",
+                        lines=[[(float(c[0]), float(c[1])) for c in part] for part in parts if len(part) >= 1]))
+    return out
+
+
+def label_segments_lines(labels, Q, meta, radius=30.0, share=0.5):
+    """Road segments a closed stretch (line) runs along: a segment matches when >= `share` of its road points lie within `radius` of the line, or
+    >= `share` of the line's in-box points (every 5 m) have their nearest road point within `radius` on that segment (a short closure on a long
+    segment).  Side streets touch the line at one end only and do not match."""
+    from scipy.spatial import cKDTree
+    from pyproj import Transformer
+    if not labels or not len(Q['x']): return []
+    tr = Transformer.from_crs(4326, 26986, always_xy=True); x0, y0, x1, y1 = meta['box']; RP = np.column_stack([Q['x'], Q['y']]); t = cKDTree(RP)
+    cnt = np.bincount(Q['seg']).astype(float); out = []
+    for L in labels:
+        X, Y = [], []
+        for part in L['lines']:
+            a = np.asarray(part, float); px, py = tr.transform(a[:, 0], a[:, 1]); px, py = np.atleast_1d(px), np.atleast_1d(py)
+            for k in range(max(1, len(px) - 1)):
+                if len(px) == 1: X.append(px); Y.append(py); break
+                m = max(1, int(math.ceil(math.hypot(px[k + 1] - px[k], py[k + 1] - py[k]) / 5.0))); u = np.arange(m + 1) / m
+                X.append(px[k] + u * (px[k + 1] - px[k])); Y.append(py[k] + u * (py[k + 1] - py[k]))
+        X = np.concatenate(X); Y = np.concatenate(Y); ib = (X >= x0) & (X < x1) & (Y >= y0) & (Y < y1)
+        if not ib.any(): continue
+        LP = np.column_stack([X[ib], Y[ib]])
+        d, _ = cKDTree(LP).query(RP, distance_upper_bound=radius); near = np.isfinite(d)
+        s1 = np.bincount(Q['seg'][near], minlength=len(cnt)) / np.maximum(cnt, 1)
+        d2, i2 = t.query(LP, distance_upper_bound=radius); ok = np.isfinite(d2)
+        s2 = np.bincount(Q['seg'][i2[ok]], minlength=len(cnt)) / len(LP)
+        segs = np.nonzero((s1 >= share) | (s2 >= share))[0]
+        if len(segs): out.append((L, segs.astype(int)))
+    return out
+
+
 def label_recall(matches, P, inbox, thr=0.5):
     """Segment-level recall of documented sites at P >= thr, the share of all in-box segments flagged, and two lifts: recall / flagged share
     (naive) and recall / the recall random flagging of the same share would get given how many segments each site matches (chance-corrected)."""
@@ -275,7 +319,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     # reads the river depth, not the road.  Drop those points (the roadway there is the deck).
     WM = np.load(os.path.join(run_dir, 'watermask.npy')).astype(bool) if os.path.exists(os.path.join(run_dir, 'watermask.npy')) else None
     bx, by = [], []
-    nbi_p = os.path.join(ROOT, 'docs', 'network', 'nbi_ma.json')
+    nbi_p = os.environ.get('PROTO_NBI') or os.path.join(ROOT, 'docs', 'network', 'nbi_ma.json')     # bridges whose decks the lidar removed
     if os.path.exists(nbi_p):
         from pyproj import Transformer as _T
         NB = json.load(open(nbi_p)); c = NB['columns']; il, ia, ic = c.index('lon'), c.index('lat'), c.index('culvert')
@@ -428,11 +472,16 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                 segs = np.unique(Q['seg'][t.query_ball_point([a, b], 150.0)]); h['max_p_with_culverts'] = round(float(p_comb[segs].max()) if len(segs) else 0.0, 3)
             checks['massdot_repeat_sites']['flagged_p05_with_culverts'] = sum(h['max_p_with_culverts'] >= 0.5 for h in hits)
     # documented road flood / closure / damage sites (proto/data/labels_*): segment-level recall vs flagged share, depth rule and with culverts
-    LB = load_labels(labels_csv); LM = label_segments(LB, Q, props, meta, strict=True); LL = label_segments(LB, Q, props, meta, strict=False)
+    if labels_csv and labels_csv.endswith('.geojson') and os.path.exists(labels_csv):     # closed stretches (lines): strict 30 m, loose 100 m
+        LB = load_line_labels(labels_csv); LM = label_segments_lines(LB, Q, meta, 30.0); LL = label_segments_lines(LB, Q, meta, 100.0)
+    else:
+        LB = load_labels(labels_csv); LM = label_segments(LB, Q, props, meta, strict=True); LL = label_segments(LB, Q, props, meta, strict=False)
     if LM or LL:
         checks['labels_segments'] = dict(note='recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the '
                                               'same share of segments; lift = recall / random_recall; lift_naive = recall / flagged share. strict: segments within 30 m '
-                                              'of the site; loose: 100 m (exact) / 300 m + same-name segments within 1.5 km (approx)', sites_matched=len(LM),
+                                              'of the site; loose: 100 m (exact) / 300 m + same-name segments within 1.5 km (approx). Line labels (.geojson): '
+                                              'segments with >= 50 % of their points within 30 m (loose 100 m) of the closed stretch, or holding >= 50 % of it',
+                                         labels=os.path.basename(labels_csv or ''), labels_in_file=len(LB), sites_matched=len(LM),
                                          depth_rule=label_recall(LM, p_depth, inbox), with_culverts=label_recall(LM, p_comb, inbox),
                                          loose=dict(sites_matched=len(LL), depth_rule=label_recall(LL, p_depth, inbox), with_culverts=label_recall(LL, p_comb, inbox)),
                                          variants={k_: dict(strict=label_recall(LM, v_, inbox), loose=label_recall(LL, v_, inbox), split_strict=label_split(LM, v_, inbox))
@@ -693,6 +742,15 @@ def selftest():
     assert g5['B St']['p_close'] < 0.5 and g5['B St']['p_may_close'] >= 0.9 and abs(g5['B St']['p_overtop'] - float(phi(np.array([0.2 / FB_SIGMA_M]))[0])) < 1e-3, g5['B St']
     assert s5['segments_may_close'] >= 1
     assert 'may close' in open(os.path.join(d, 'out5', 'map.html')).read()
+    # closed stretches as lines (Vermont layout): one along A St (matches A St only), one crossing all three streets (matches none)
+    def ll(xa, ya, xb, yb): return [list(tr.transform(xa, ya)), list(tr.transform(xb, yb))]
+    gp = os.path.join(d, 'closures.geojson')
+    json.dump(dict(type='FeatureCollection', features=[
+        dict(type='Feature', properties=dict(Road='A St', Cause='Flooding', FullorPart='Full'), geometry=dict(type='LineString', coordinates=ll(box[0] + 300, box[3] - 50 * res + 8, box[0] + 1200, box[3] - 50 * res + 8))),
+        dict(type='Feature', properties=dict(Road='X Rd', Cause='Washout', FullorPart='Full'), geometry=dict(type='MultiLineString', coordinates=[ll(box[0] + 1000, box[3] - 5 * res, box[0] + 1000, box[3] - 95 * res)]))]), open(gp, 'w'))
+    s6 = run(rd, os.path.join(d, 'out6'), sp, xp, None, None, None, labels_csv=gp)
+    l6 = s6['checks']['labels_segments']; assert l6['labels_in_file'] == 2 and l6['sites_matched'] == 1 and l6['sites'][0]['road'] == 'A St', l6
+    assert l6['variants']['depth']['strict']['flood_closure']['recall'] == 1.0 and l6['sites'][0]['n_segments'] == 1
     print('selftest ok:', out)
 
 
