@@ -748,12 +748,24 @@ MAP_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta 
 <label><input type="checkbox" data-c="0" checked> Local / collector</label>
 <label><input type="checkbox" data-l="may" checked> May close: stream at road level</label>
 <label><input type="checkbox" data-l="sag"> Sags / underpasses: drains overwhelmed (test layer)</label>
+<label id="rkl" style="display:none"><input type="checkbox" data-l="risk"> Risk class (flagged segments)</label>
 <div style="margin-top:6px"><span class="k" style="background:#b2182b"></span>closed now (&ge; 30 cm)<br><span class="k" style="background:#f4a582"></span>15&ndash;30 cm<br>
-<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)<br><span class="k" style="background:#7b3294;height:3px"></span>sag / underpass (test layer)</div></div>
+<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)<br><span class="k" style="background:#7b3294;height:3px"></span>sag / underpass (test layer)</div>
+<div id="rkk" style="display:none;margin-top:4px">Risk: <span class="k" style="background:#7f0000;width:10px"></span>Extreme <span class="k" style="background:#e34a33;width:10px"></span>High <span class="k" style="background:#fdbb84;width:10px"></span>Medium <span class="k" style="background:#c7e9c0;width:10px"></span>Low</div>
+<div id="rs" style="margin-top:6px;font-size:12px"></div></div>
 <div id="t"><button id="play">&#9654;</button><input id="sl" type="range" min="0" value="0"><span id="clock"></span><span id="cnt"></span><svg id="rain"></svg></div>
 <script>
 const S=__SUMMARY__, C=__CORNERS__, FH=S.frame_hours||[], NF=FH.length, T0=new Date(S.storm_start.replace('Z',':00Z'));
 const CLS={0:'local / collector',1:'arterial',2:'highway'};
+const RC={Extreme:'#7f0000',High:'#e34a33',Medium:'#fdbb84',Low:'#c7e9c0'};let RK={};
+const fmt=v=>v==null?'–':Math.round(v).toLocaleString('en-US'),usd=v=>v==null?'–':v>=1e6?'$'+(v/1e6).toFixed(1)+'M':'$'+Math.round(v/1e3)+'k';
+const getj=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
+getj('resilience.json').then(R=>{const P=R&&R.population;if(!P||!P.worst)return;const w=P.worst,ph=P.person_hours_lost||{};
+ document.getElementById('rs').innerHTML=`<b>Residents, worst time in the storm</b><br>losing coverage: fire ${fmt(w.fire_station&&w.fire_station.people)} · police ${fmt(w.police&&w.police.people)} · hospital ${fmt(w.hospital&&w.hospital.people)}<br>isolated ${fmt(P.isolated_worst&&P.isolated_worst.people)} · ${fmt(ph.sum_three_services)} person-hours without coverage`});
+function riskHtml(id){const e=RK[id];if(!e)return'';let h='';const a=e.a,r=e.r;
+ if(a)h+=`<hr style="margin:4px 0;border:0;border-top:1px solid #ddd"><b>If this segment closes</b> (residents losing access):<br>hospital 30 min ${fmt(a.h)} · fire 8 min ${fmt(a.f)} · police 10 min ${fmt(a.p)}<br>isolated ${fmt(a.iso)}${a.own?` <small>(+${fmt(a.own)} living on it)</small>`:''}<br>`;
+ if(r)h+=`Risk class: <b style="color:${RC[r.risk]}">${r.risk}</b> (L${r.L} × C${r.C}, ${r.by})<br>repair ${usd(r.repair[0])}–${usd(r.repair[1])} + delay ${usd(r.delay)}<br>`;
+ (e.x||[]).forEach(x=>{h+=`<small>crossing ${x.stream||''}: <b style="color:${RC[x.risk]}">${x.risk}</b>, replace ${usd(x.repair[0])}–${usd(x.repair[1])}</small><br>`});return h}
 document.getElementById('s').innerHTML=`At peak: ${S.segments_p_ge_50} segments likely closed (${S.km_p_ge_50} km); ${S.segments_may_close??0} more may close (${S.km_may_close??0} km); ${S.culverts_overtopped} culverts overtopped.<br><br>`;
 const m=new maplibregl.Map({container:'m',center:__CENTER__,zoom:12,style:{version:8,sources:{t:{type:'raster',tileSize:256,attribution:'Esri, USGS',
 tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}']}},layers:[{id:'t',type:'raster',source:'t'}]}});
@@ -773,12 +785,15 @@ function play(){if(timer){clearInterval(timer);timer=null;document.getElementByI
  if(k>=NF-1)k=0;document.getElementById('play').innerHTML='&#10074;&#10074;';timer=setInterval(()=>{if(k>=NF-1){play();return}show(k+1)},350)}
 document.getElementById('play').onclick=play;sl.oninput=e=>{if(timer)play();show(+e.target.value)};
 m.on('load',()=>{m.addSource('d',{type:'image',url:frameUrl(k),coordinates:C});m.addLayer({id:'depth',type:'raster',source:'d',paint:{'raster-opacity':0.8,'raster-resampling':'nearest','raster-fade-duration':0}});
-fetch('segments.geojson').then(r=>r.json()).then(g=>{m.addSource('s',{type:'geojson',data:g});
+Promise.all([fetch('segments.geojson').then(r=>r.json()),getj('risk_segments.json')]).then(([g,rk])=>{RK=(rk&&rk.segments)||{};
+g.features.forEach(f=>{const e=RK[f.properties.segment];if(e&&e.r)f.properties.risk=e.r.risk});if(Object.keys(RK).length){document.getElementById('rkl').style.display='block'}
+m.addSource('s',{type:'geojson',data:g});
 m.addLayer({id:'peak',type:'line',source:'s',filter:['>=',['get','p_close'],0.5],paint:{'line-color':'#555','line-width':1,'line-dasharray':[2,2]}});
 m.addLayer({id:'may',type:'line',source:'s',filter:['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#e08214','line-width':2.5,'line-dasharray':[1,1]}});
 m.addLayer({id:'sag',type:'line',source:'s',layout:{visibility:'none'},filter:['all',['>=',['coalesce',['get','p_sag'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#7b3294','line-width':2.5,'line-dasharray':[1,1]}});
+m.addLayer({id:'risk',type:'line',source:'s',layout:{visibility:'none'},filter:['has','risk'],paint:{'line-width':4,'line-color':['match',['get','risk'],'Extreme',RC.Extreme,'High',RC.High,'Medium',RC.Medium,RC.Low]}});
 m.addLayer({id:'seg',type:'line',source:'s',paint:{'line-width':3,'line-color':'#b2182b'}});
-const pop=e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}${(+(p.p_sag||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#7b3294">Sag / underpass: drains may be overwhelmed (${(+p.p_sag*100).toFixed(0)}%, test layer)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}%</small><br>${p.why}`).addTo(m)};m.on('click','seg',pop);m.on('click','peak',pop);m.on('click','may',pop);m.on('click','sag',pop);
+const pop=e=>{if(e.originalEvent._pop)return;e.originalEvent._pop=1;const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}${(+(p.p_sag||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#7b3294">Sag / underpass: drains may be overwhelmed (${(+p.p_sag*100).toFixed(0)}%, test layer)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}%</small><br>${p.why}${riskHtml(p.segment)}`).addTo(m)};m.on('click','seg',pop);m.on('click','risk',pop);m.on('click','peak',pop);m.on('click','may',pop);m.on('click','sag',pop);
 m.on('mouseenter','seg',()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave','seg',()=>m.getCanvas().style.cursor='');filt();show(0);});});
 function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);const cl=['in',['get','road_class'],['literal',on]];
  if(m.getLayer('seg'))m.setFilter('seg',cl);if(m.getLayer('peak'))m.setFilter('peak',['all',['>=',['get','p_close'],0.5],cl]);
@@ -787,6 +802,7 @@ function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.
 document.querySelectorAll('[data-c]').forEach(b=>b.onchange=filt);
 document.querySelector('[data-l=may]').onchange=e=>{if(m.getLayer('may'))m.setLayoutProperty('may','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=sag]').onchange=e=>{if(m.getLayer('sag'))m.setLayoutProperty('sag','visibility',e.target.checked?'visible':'none')};
+document.querySelector('[data-l=risk]').onchange=e=>{document.getElementById('rkk').style.display=e.target.checked?'block':'none';if(m.getLayer('risk'))m.setLayoutProperty('risk','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=depth]').onchange=e=>m.setLayoutProperty('depth','visibility',e.target.checked?'visible':'none');
 </script></body></html>"""
 
