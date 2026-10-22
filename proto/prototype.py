@@ -73,6 +73,32 @@ DV_SIGMA_LN = 0.35
 V_ERODE_MS = 1.5
 V_SIGMA_LN = 0.30
 ERODE_MIN_H_M = 0.10
+# ---- ELEVATED ROADS (default; PROTO_BRIDGES=0 turns it off): bridge decks the bare-earth lidar removed (sim/infra/impacts.deck_points) ----
+DECK_GAP_M = 2.0       # the road's own lidar crest drops >= 2 m below the road on both sides: the ground under a removed deck, not the road
+DECK_RADIUS_M = 150.0  # ... within 150 m along the road each way (a deck or viaduct span seen from its approaches)
+DECK_NBI_M = 100.0     # ... and an NBI bridge carrying the same route number (item 5D) within 100 m
+# ---- SAG / UNDERPASS layer (candidate, never in p_close; shown as an optional map layer) ----
+# A sag of the road profile (a low point >= 0.30 m below the road on both sides within 150 m along it) that is also a closed depression of the
+# bare-earth lidar (>= 0.30 m deep before spilling) holds water that only storm drains remove.  Not counted at road-stream crossings (a
+# mapped crossing within 50 m: the culvert rule's case) or on open water / channel cells.  Drain capacity: FHWA HEC-22 (Brown et al. 2009,
+# Urban Drainage Design Manual, 3rd ed., FHWA-NHI-10-009) Table 3-1 minimum design frequencies: 10-year for sags on local / collector roads,
+# 50-year for sag points on high-volume roads and for depressed sections / underpasses where ponded water can only leave through the drains.
+# Design intensities from NOAA Atlas 14 vol. 10 (Perica et al. 2015) for central Massachusetts, 60 min: 10-year ~1.7 in (43 mm), 50-year
+# ~2.3 in (58 mm) (approximate regional values, not read per site).  Underpass = an NBI bridge or a removed deck within 60 m, or an Interstate.
+# P_rain = Phi(ln(V_excess / V_need) / 0.5): V_excess = C (i_peak1h - i_design) x 1 h x catchment (rational method, C = 0.6 for mixed urban
+# land, HEC-22 Table 3-1 ranges), catchment = cells whose D8 descent ends in the depression (impacts.closed_depressions); V_need = the lidar
+# volume below the sag low point + 0.30 m.  sigma_ln 0.5: design intensity, C and drain condition are each uncertain by tens of percent.
+# P_pond = Phi((modelled peak water surface within 30 m - sag low point - 0.30) / 0.10): the flood model's own ponding there.
+# P_sag = 1 - (1 - P_rain)(1 - P_pond); a segment takes the largest P_sag of sags within 30 m.
+SAG_MIN_M = 0.30
+SAG_RADIUS_M = 150.0
+SAG_XING_M = 50.0
+SAG_UNDER_M = 60.0
+I10_MM = 43.0
+I50_MM = 58.0
+SAG_C = 0.6
+SAG_SIGMA_LN = 0.5
+SAG_SEG_M = 30.0
 LABEL_GROUPS = {'all': None, 'flood_closure': ('flooded', 'closed', 'impassable'),
                 'culvert_washout': ('culvert_failure', 'washout', 'sinkhole', 'bridge_damage'), 'other_damage': ('other_damage',)}
 
@@ -147,6 +173,44 @@ def adjacent_wse(H, Z, ZR, road_cells, res, radius=FB_RADIUS_M, wet=FB_WET_M):
     W = np.where((H >= wet) & ~(road_cells & ~edited), Z + H, -np.inf).astype(np.float64)
     k = max(1, int(radius // res))
     return maximum_filter(W, size=2 * k + 1, mode='constant', cval=-np.inf), edited
+
+
+def sag_probability(PA, G, ZR, Z, H, peak1h, res, cls, bad, nbi_xy, xing_xy, deck_x, deck_y):
+    """Road sags and P(the drains are overwhelmed and >= 0.30 m stands in the sag), see the SAG constants.  PA: all road points (unfiltered,
+    so the profile runs through bridges and water), G = impacts.road_graph(PA), ZR: lidar before hydraulic edits, Z + H: modelled water
+    surface, peak1h: peak 1-hour rain grid (mm) or None, bad: points never taken as a sag low point (decks, water).  Returns a list of dicts."""
+    from scipy.spatial import cKDTree
+    from scipy import ndimage
+    from scipy.ndimage import maximum_filter
+    indptr, nbr, dist = G; deg = np.diff(indptr); z = ZR[PA['r'], PA['c']].astype(np.float64)
+    if len(z) == 0: return []
+    nmin = np.full(len(z), np.inf); np.minimum.at(nmin, np.repeat(np.arange(len(z)), deg), z[nbr])
+    cand = np.nonzero((z <= nmin + 1e-6) & (deg >= 2) & ~np.asarray(bad, bool))[0]
+    rim, nd = IM.profile_rims(G, z, cand, SAG_RADIUS_M); k = (nd >= 2) & (rim - z[cand] >= SAG_MIN_M); cand, sd = cand[k], (rim - z[cand])[k]
+    F, lab, area = IM.closed_depressions(ZR, res); r, c = PA['r'][cand], PA['c'][cand]; L = lab[r, c]
+    k = (L > 0) & ((F - ZR)[r, c] >= SAG_MIN_M)
+    if len(xing_xy): k &= cKDTree(xing_xy).query(np.column_stack([PA['x'][cand], PA['y'][cand]]))[0] > SAG_XING_M
+    cand, sd, r, c, L = cand[k], sd[k], r[k], c[k], L[k]
+    if not len(cand): return []
+    o = np.lexsort((z[cand], PA['seg'][cand], L)); key = L[o].astype(np.int64) * (int(PA['seg'].max()) + 1) + PA['seg'][cand][o]   # one sag per depression and
+    first = o[np.r_[True, key[1:] != key[:-1]]]; cand, sd, r, c, L = cand[first], sd[first], r[first], c[first], L[first]               # segment: its lowest point
+    xy = np.column_stack([PA['x'][cand], PA['y'][cand]]); under = cls[PA['seg'][cand]] == 2
+    if len(nbi_xy): under |= cKDTree(nbi_xy).query(xy)[0] <= SAG_UNDER_M
+    if len(deck_x): under |= cKDTree(np.column_stack([deck_x, deck_y])).query(xy)[0] <= SAG_UNDER_M
+    ides = np.where(under, I50_MM, I10_MM); ip = peak1h[r, c].astype(np.float64) if peak1h is not None else np.zeros(len(cand))
+    zl = ZR[r, c].astype(np.float64); objs = ndimage.find_objects(lab); vneed = np.zeros(len(cand))
+    for j in range(len(cand)):
+        sl = objs[L[j] - 1]; m = lab[sl] == L[j]; vneed[j] = np.clip(np.minimum(F[sl], zl[j] + SAG_MIN_M) - ZR[sl], 0, None)[m].sum() * res * res
+    vex = SAG_C * np.maximum(ip - ides, 0.0) / 1000.0 * area[L]
+    prain = np.zeros(len(cand)); m = vex > 0
+    if m.any(): prain[m] = phi(np.log(vex[m] / np.maximum(vneed[m], 1e-6)) / SAG_SIGMA_LN)
+    W = maximum_filter(np.where(H >= FB_WET_M, Z + H, -np.inf), size=2 * max(1, int(SAG_SEG_M // res)) + 1, mode='constant', cval=-np.inf)[r, c]
+    ppond = np.zeros(len(cand)); m = np.isfinite(W)
+    if m.any(): ppond[m] = phi((W[m] - zl[m] - SAG_MIN_M) / SIGMA_M)
+    p = combine(prain, ppond)
+    return [dict(x=float(xy[j, 0]), y=float(xy[j, 1]), seg=int(PA['seg'][cand[j]]), depth_m=round(float(min(sd[j], (F - ZR)[r[j], c[j]])), 2), under=bool(under[j]),
+                 design=50 if under[j] else 10, i_design_mm=float(ides[j]), i_peak_mm=round(float(ip[j]), 1), area_ha=round(float(area[L[j]]) / 1e4, 2),
+                 v_need_m3=round(float(vneed[j])), v_excess_m3=round(float(vex[j])), p_rain=float(prain[j]), p_pond=float(ppond[j]), p=float(p[j])) for j in range(len(cand))]
 
 
 def p_freeboard(f):
@@ -298,6 +362,7 @@ def reason(r):
         bits.append(f"water beside the road {'%.2f m above' % -fb if fb < 0 else '%.2f m below' % fb} its crest (design freeboard 0.30 m; P {r['p_freeboard']:.2f})")
     if r.get('p_dv', 0) >= 0.1 and r.get('dv_m2s') is not None: bits.append(f"fast water: depth x speed {r['dv_m2s']:.2f} m2/s (small cars unstable from 0.3)")
     if r.get('p_washout', 0) >= 0.1 and r.get('peak_speed_ms') is not None: bits.append(f"overtopping at {r['peak_speed_ms']:.1f} m/s at a stream crossing (grass-covered fill erodes from ~1.5 m/s)")
+    if r.get('p_sag', 0) >= 0.1 and r.get('sag_why'): bits.append(f"{r['sag_why']} (P {r['p_sag']:.2f})")
     if r.get('p_culvert', 0) >= 0.1 and r.get('culvert_why'): bits.append(r['culvert_why'])
     elif r['culvert_overtopped_nearby']: bits.append('a culvert within 100 m is overtopped')
     if r['adds_hospital_min'] and r['adds_hospital_min'] >= 5: bits.append(f"+{r['adds_hospital_min']:.0f} min to the nearest hospital")
@@ -318,14 +383,30 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     # roads over rivers: lidar bare earth removes bridge decks, so a road point over a channel/water cell or within 30 m of an NBI bridge
     # reads the river depth, not the road.  Drop those points (the roadway there is the deck).
     WM = np.load(os.path.join(run_dir, 'watermask.npy')).astype(bool) if os.path.exists(os.path.join(run_dir, 'watermask.npy')) else None
-    bx, by = [], []
+    bx, by, broute = [], [], []
     nbi_p = os.environ.get('PROTO_NBI') or os.path.join(ROOT, 'docs', 'network', 'nbi_ma.json')     # bridges whose decks the lidar removed
     if os.path.exists(nbi_p):
         from pyproj import Transformer as _T
         NB = json.load(open(nbi_p)); c = NB['columns']; il, ia, ic = c.index('lon'), c.index('lat'), c.index('culvert')
         rows_b = [r_ for r_ in NB['rows'] if not r_[ic]]
         bx, by = _T.from_crs(4326, 26986, always_xy=True).transform([r_[il] for r_ in rows_b], [r_[ia] for r_ in rows_b])
-    _orig_rp = IM.road_points
+        bx, by = np.atleast_1d(bx), np.atleast_1d(by)
+        ir = c.index('route') if 'route' in c else None
+        broute = [int(''.join(ch for ch in str(r_[ir]) if ch.isdigit()) or 0) if ir is not None else 0 for r_ in rows_b]
+    # ELEVATED ROADS (default on; PROTO_BRIDGES=0 for the old behaviour): (1) whole bridge decks, not just 30 m around the NBI point: points
+    # in a gap of the road's own lidar profile carried by an NBI bridge of the same route (impacts.deck_points) are dropped; (2) Interstates:
+    # depth on the road = max(0, water surface - lidar road crest) (impacts.point_depth with dz = z_raw_max10 - model ground), so water in a
+    # 20 m cell beside or under an embankment / notch is not read as water on the travel lanes.  Other classes keep the cell depth: at local
+    # crossings the cell depth is the proxy that finds the documented culvert failures (crest-relative depth everywhere: Leominster recall
+    # 0.385 -> 0.08), and the 20 m crest (highest 10 m quarter) overstates a street's surface beside a bank.
+    ZRf = load_npz(os.path.join(run_dir, 'z_raw.npz')); shp = tuple(meta['shape'])
+    ZC_ = (ZRf['z_raw_max10'] if 'z_raw_max10' in ZRf else ZRf['z_raw']).astype(np.float32) if ZRf is not None and ZRf['z_raw'].shape == shp else None
+    bridges_on = os.environ.get('PROTO_BRIDGES', '1') == '1' and ZC_ is not None and R['Z'] is not None
+    geo = dict(rule='on' if bridges_on else 'off (PROTO_BRIDGES=0 or no z_raw.npz)', deck_gap_m=DECK_GAP_M, deck_radius_m=DECK_RADIUS_M, deck_nbi_m=DECK_NBI_M)
+    roads_ = S['props']['road']; cls_all = np.asarray(props['cls'])
+    import re as _re                                            # Interstates: class 2 named I-nn (MA class 2 is exactly the Interstates)
+    interstate = np.array([k_ == 2 and bool(_re.match(r'\s*I[- ]?\d', nm_ or '')) for k_, nm_ in zip(props['cls'], roads_)], bool)
+    _orig_rp = getattr(IM, '_road_points_orig', IM.road_points); IM._road_points_orig = _orig_rp; _cache = {}     # never wrap a wrapper (repeated runs)
     def road_points_no_bridges(S_, meta_, step=None):
         P_ = _orig_rp(S_, meta_, step)
         if not len(P_['x']): return P_
@@ -334,7 +415,18 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         if len(bx):
             from scipy.spatial import cKDTree as _K
             d_, _ = _K(np.column_stack([bx, by])).query(np.column_stack([P_['x'], P_['y']])); keep_ &= d_ > 30
-        return {k: v[keep_] for k, v in P_.items()}
+        dz_ = None
+        if bridges_on and tuple(meta_['shape']) == shp:
+            if 'deck' not in _cache:
+                zc_ = ZC_[P_['r'], P_['c']]; _cache['G'] = IM.road_graph(P_)
+                _cache['deck'] = IM.deck_points(P_, zc_, shp, res, roads_, bx, by, broute, DECK_GAP_M, DECK_RADIUS_M, DECK_NBI_M, G=_cache['G']) if len(bx) else np.zeros(len(zc_), bool)
+                _cache['P'] = P_
+                geo.update(deck_points_dropped=int((_cache['deck'] & keep_).sum()), deck_segments=int(len(np.unique(P_['seg'][_cache['deck'] & keep_]))))
+            keep_ &= ~_cache['deck']
+            dz_ = np.where(interstate[P_['seg']], np.maximum(ZC_[P_['r'], P_['c']] - R['Z'][P_['r'], P_['c']], 0.0), 0.0).astype(np.float32)
+        P_ = {k: v[keep_] for k, v in P_.items()}
+        if dz_ is not None: P_['dz'] = dz_[keep_]
+        return P_
     IM.road_points = road_points_no_bridges
 
     # 4 first: the existing impacts layer (depth classes, network, crossings, report scores)
@@ -344,11 +436,13 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     # 1-2 hazard and flashness along every segment (same densified points as impacts)
     P = IM.road_points(S, meta); mx, mean, dv, inbox = IM.sample_segments(n, P, H, R['V'])
     use0 = ~P['end'] | (np.bincount(P['seg'][~P['end']], minlength=n)[P['seg']] == 0)
-    mx = np.where(inbox, seg_top2(n, P['seg'][use0], H[P['r'][use0], P['c'][use0]]), 0).astype(np.float32)
     use = ~P['end'] | (np.bincount(P['seg'][~P['end']], minlength=n)[P['seg']] == 0); Q = {k: v[use] for k, v in P.items()}
-    hrs30 = seg_reduce(n, Q['seg'], T['tover30'][Q['r'], Q['c']], 'max') if T else np.zeros(n, np.float32)
-    hrs15 = seg_reduce(n, Q['seg'], T['tover15'][Q['r'], Q['c']], 'max') if T else np.zeros(n, np.float32)
-    arr30 = seg_reduce(n, Q['seg'], T['tarr30'][Q['r'], Q['c']], 'min') if T else np.full(n, np.nan, np.float32)
+    dq = IM.point_depth(Q, H)                                                   # depth on the road (crest-relative on Interstates)
+    mx = np.where(inbox, seg_top2(n, Q['seg'], dq), 0).astype(np.float32)
+    # timing grids hold the cell depth; where the crest offset leaves the road below 30 / 15 cm, the road never reached it
+    hrs30 = seg_reduce(n, Q['seg'], np.where(dq >= 0.30, T['tover30'][Q['r'], Q['c']], 0), 'max') if T else np.zeros(n, np.float32)
+    hrs15 = seg_reduce(n, Q['seg'], np.where(dq >= 0.15, T['tover15'][Q['r'], Q['c']], 0), 'max') if T else np.zeros(n, np.float32)
+    arr30 = seg_reduce(n, Q['seg'], np.where(dq >= 0.30, T['tarr30'][Q['r'], Q['c']], np.nan), 'min') if T else np.full(n, np.nan, np.float32)
     if RS:
         tot = seg_reduce(n, Q['seg'], RS['total'][Q['r'], Q['c']], 'max'); p1 = seg_reduce(n, Q['seg'], RS['peak1h'][Q['r'], Q['c']], 'max')
         p3 = seg_reduce(n, Q['seg'], RS['peak3h'][Q['r'], Q['c']], 'max')
@@ -361,7 +455,8 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     if FRM is not None and len(Q['x']):
         DC = FRM['depth_cm']; frame_hours = [round(float(h), 2) for h in FRM['hours']]
         seg_t = np.zeros((len(DC), n), np.uint16)
-        for k in range(len(DC)): seg_t[k] = np.round(seg_top2(n, Q['seg'], DC[k][Q['r'], Q['c']].astype(np.float32))).astype(np.uint16)
+        dzc = np.round(Q['dz'] * 100).astype(np.float32) if 'dz' in Q else 0.0
+        for k in range(len(DC)): seg_t[k] = np.round(seg_top2(n, Q['seg'], np.maximum(DC[k][Q['r'], Q['c']].astype(np.float32) - dzc, 0))).astype(np.uint16)
         os.makedirs(os.path.join(out, 'frames'), exist_ok=True)
         for k in range(len(DC)): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), np.where(WM, 0, DC[k]).astype(np.float32) / 100.0 if WM is not None else DC[k].astype(np.float32) / 100.0)
 
@@ -412,7 +507,9 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
             from scipy.spatial import cKDTree as _K
             xx_, yy_ = Transformer.from_crs(4326, 26986, always_xy=True).transform([a for a, _ in xl], [b for _, b in xl])
             dq, _ = _K(np.column_stack([xx_, yy_])).query(np.column_stack([Q['x'], Q['y']])); near = dq <= XING_SEG_M
-        hq = H[Q['r'], Q['c']]; vq = np.where(unm, Vg[Q['r'], Q['c']], 0.0); dq_ = np.where(unm, DVg[Q['r'], Q['c']], 0.0)
+        hq = dq; vq = np.where(unm, Vg[Q['r'], Q['c']], 0.0); hc = H[Q['r'], Q['c']]            # DV scaled to the depth on the road (Interstate crest)
+        fz = np.where(Q['dz'] > 0, np.where(hc > 1e-6, np.minimum(dq / np.maximum(hc, 1e-6), 1.0), 0.0), 1.0) if 'dz' in Q else 1.0
+        dq_ = np.where(unm, DVg[Q['r'], Q['c']] * fz, 0.0)
         pfq, pdq, pwq = p_fastwater(dq_, vq, hq, near & unm)
         pfw = np.where(inbox, seg_top2(n, Q['seg'], pfq.astype(np.float32)), 0.0).astype(np.float32)
         pdv_s = np.where(inbox, seg_top2(n, Q['seg'], pdq.astype(np.float32)), 0.0).astype(np.float32)
@@ -421,7 +518,32 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         dvs = np.where(inbox, seg_top2(n, Q['seg'], dq_.astype(np.float32)), np.nan).astype(np.float32)
         rules['fastwater'] = dict(dv0_m2s=DV0_M2S, dv_sigma_ln=DV_SIGMA_LN, v_erode_ms=V_ERODE_MS, v_sigma_ln=V_SIGMA_LN, erode_min_h_m=ERODE_MIN_H_M,
                                   road_points_near_crossing=int((near & unm).sum()), velocity_source=str(VEL.get('vmax_source', '')), dv_source=str(VEL.get('dv_source', '')))
-    VAR = {'depth': p_depth, 'overtop': combine(p_depth, pot), 'freeboard': combine(p_depth, pfb), 'fastwater': combine(p_depth, pfw), 'both': combine(p_depth, pfb, pfw)}
+    # SAG / UNDERPASS layer (optional, never in p_close): road sags whose storm drains are overwhelmed (sag_probability)
+    psag = np.zeros(n, np.float32); sag_why = {}; sags = []
+    if ZRf is not None and ZRf['z_raw'].shape == shp and len(Q['x']):
+        PA = _cache.get('P') or IM._road_points_orig(S, meta); GA = _cache.get('G') or IM.road_graph(PA)
+        dk = _cache.get('deck', np.zeros(len(PA['x']), bool))
+        xl = [(r_['lon'], r_['lat']) for r_ in Xrows if r_.get('lon') is not None]
+        xxy = np.column_stack(tr.transform([a for a, _ in xl], [b for _, b in xl])) if xl else np.zeros((0, 2))
+        bad = dk | (WM[PA['r'], PA['c']] if WM is not None and WM.shape == shp else False)
+        sags = sag_probability(PA, GA, ZRf['z_raw'].astype(np.float32), R['Z'], H, RS['peak1h'] if RS else None, res, cls_all, bad,
+                               np.column_stack([bx, by]) if len(bx) else np.zeros((0, 2)), xxy, PA['x'][dk], PA['y'][dk])
+        if sags and len(Q['x']):
+            tq = cKDTree(np.column_stack([Q['x'], Q['y']]))
+            for g_ in sags:
+                for sg in np.unique(Q['seg'][tq.query_ball_point([g_['x'], g_['y']], SAG_SEG_M)]):
+                    if g_['p'] > psag[sg] or sg not in sag_why:
+                        psag[sg] = max(psag[sg], g_['p'])
+                        sag_why[int(sg)] = (f"road sag {g_['depth_m']:.1f} m deep ({'underpass, ' if g_['under'] else ''}drains sized for the {g_['design']}-yr hour, "
+                                            f"{g_['i_design_mm']:.0f} mm; peak hour here {g_['i_peak_mm']:.0f} mm; catchment {g_['area_ha']:.1f} ha)")
+        psag = np.where(inbox, psag, 0.0).astype(np.float32)
+        rules['sag'] = dict(sags=len(sags), underpasses=sum(1 for g_ in sags if g_['under']), sags_p_ge_50=sum(1 for g_ in sags if g_['p'] >= 0.5),
+                            from_rain=sum(1 for g_ in sags if g_['p_rain'] >= 0.5), from_model_ponding=sum(1 for g_ in sags if g_['p_pond'] >= 0.5),
+                            min_depth_m=SAG_MIN_M, radius_m=SAG_RADIUS_M, i10_mm=I10_MM, i50_mm=I50_MM, runoff_c=SAG_C, sigma_ln=SAG_SIGMA_LN,
+                            note='candidate layer, not in p_close; variant sag = max(p_depth, p_sag) (the ponding half re-reads the model water the depth rule reads)')
+    rules['bridges'] = geo
+    VAR = {'depth': p_depth, 'overtop': combine(p_depth, pot), 'freeboard': combine(p_depth, pfb), 'fastwater': combine(p_depth, pfw), 'both': combine(p_depth, pfb, pfw),
+           'sag': np.maximum(p_depth, psag)}
     for k_ in list(VAR): VAR[k_ + '+culvert'] = combine(VAR[k_], pcul)
     VAR = {k_: np.where(inbox, v_, 0.0).astype(np.float32) for k_, v_ in VAR.items()}
     vkey = ('both' if freeboard and fastwater else 'freeboard' if freeboard else 'fastwater' if fastwater else 'depth') + ('+culvert' if culvert_rule else '')
@@ -443,7 +565,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                  arrival_h=None if np.isnan(arr30[i]) else round(float(arr30[i]), 1), storm_total_mm=round(float(tot[i])), peak1h_mm=round(float(p1[i]), 1),
                  peak3h_mm=round(float(p3[i]), 1), flashness_pct=round(float(flash[i]), 1), culvert_overtopped_nearby=bool(near_culv[i]),
                  p_depth=round(float(p_depth[i]), 3), p_culvert=round(float(pcul[i]), 3), culvert_why=cwhy.get(int(i)),
-                 p_overtop=round(float(pot[i]), 3), p_may_close=round(float(pmay[i]), 3),
+                 p_overtop=round(float(pot[i]), 3), p_may_close=round(float(pmay[i]), 3), p_sag=round(float(psag[i]), 3), sag_why=sag_why.get(int(i)),
                  p_freeboard=round(float(pfb[i]), 3), freeboard_m=None if np.isnan(fbm[i]) else round(float(fbm[i]), 2),
                  p_fastwater=round(float(pfw[i]), 3), p_dv=round(float(pdv_s[i]), 3), p_washout=round(float(pws_s[i]), 3),
                  peak_speed_ms=None if np.isnan(spd[i]) else round(float(spd[i]), 2), dv_m2s=None if np.isnan(dvs[i]) else round(float(dvs[i]), 2),
@@ -491,14 +613,14 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                                                      dv_m2s=None if np.isnan(dvs[sg_]).all() else round(float(np.nanmax(dvs[sg_])), 2),
                                                      peak_speed_ms=None if np.isnan(spd[sg_]).all() else round(float(np.nanmax(spd[sg_])), 2),
                                                      p_depth=round(float(p_depth[sg_].max()), 3), p_freeboard=round(float(pfb[sg_].max()), 3), p_fastwater=round(float(pfw[sg_].max()), 3),
-                                                     p_culvert=round(float(pcul[sg_].max()), 3), hit=[k_ for k_, v_ in VAR.items() if (v_[sg_] >= 0.5).any()]) for L, sg_ in LM])
+                                                     p_culvert=round(float(pcul[sg_].max()), 3), p_sag=round(float(psag[sg_].max()), 3), hit=[k_ for k_, v_ in VAR.items() if (v_[sg_] >= 0.5).any()]) for L, sg_ in LM])
     checks['rules'] = dict(rules, applied=vkey, segments_p_ge_50={k_: int((v_[inbox] >= 0.5).sum()) for k_, v_ in VAR.items()})
     checks['culverts'] = dict(surveyed_in_box=len(CP), with_model_flow=sum(1 for c in CP if c['q_m3s'] is not None), p_ge_50=sum(1 for c in CP if c['p'] >= 0.5),
                               segments_raised_to_p_ge_50=int(((p_comb >= 0.5) & (p_depth < 0.5) & inbox).sum()), rule_applied_to_p_close=bool(culvert_rule),
                               blockage_factors=BLOCKAGE if blockage else {}, probability='Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)')
 
     # outputs
-    keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['p_close'] >= 0.1 or r['p_may_close'] >= 0.1 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
+    keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['p_close'] >= 0.1 or r['p_may_close'] >= 0.1 or r['p_sag'] >= 0.1 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
     write_geojson(os.path.join(out, 'segments.geojson'), S, keep)
     for r in rows: r.pop('d', None)
     with open(os.path.join(out, 'watchlist.csv'), 'w', newline='') as f:
@@ -514,6 +636,9 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                 km_may_close=round(float(np.asarray(props['len'], float)[inbox & (pmay >= 0.5) & (pclose < 0.5)].sum() / 1000), 1),
                 may_close_rule='water beside the road reaches the road crest: Phi((0 - f) / 0.15), f = lidar crest - peak water surface within 30 m; candidate, '
                                'not in p_close until confirmed on a second storm',
+                segments_sag=int(((psag >= 0.5) & (pclose < 0.5) & inbox).sum()),
+                sag_rule='optional layer: road sag / underpass in a closed lidar depression whose drains (HEC-22 10-yr, 50-yr at underpasses) are exceeded '
+                         'by the peak-hour rain on its catchment, or where the model ponds 0.30 m; not in p_close or p_may_close',
                 segments_p_ge_50_depth_rule=int((p_depth[inbox] >= 0.5).sum()), segments_p_ge_50_with_culverts=int((p_comb[inbox] >= 0.5).sum()),
                 km_p_ge_50=round(float(np.asarray(props['len'], float)[inbox & (pclose >= 0.5)].sum() / 1000), 1),
                 culverts_overtopped=sum(1 for x in xs if x['status'] == 'overtopped'), culverts_surcharged=sum(1 for x in xs if x['status'] == 'surcharged'),
@@ -619,8 +744,9 @@ MAP_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta 
 <label><input type="checkbox" data-c="2" checked> Highways</label><label><input type="checkbox" data-c="1" checked> Arterials</label>
 <label><input type="checkbox" data-c="0" checked> Local / collector</label>
 <label><input type="checkbox" data-l="may" checked> May close: stream at road level</label>
+<label><input type="checkbox" data-l="sag"> Sags / underpasses: drains overwhelmed (test layer)</label>
 <div style="margin-top:6px"><span class="k" style="background:#b2182b"></span>closed now (&ge; 30 cm)<br><span class="k" style="background:#f4a582"></span>15&ndash;30 cm<br>
-<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)</div></div>
+<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)<br><span class="k" style="background:#7b3294;height:3px"></span>sag / underpass (test layer)</div></div>
 <div id="t"><button id="play">&#9654;</button><input id="sl" type="range" min="0" value="0"><span id="clock"></span><span id="cnt"></span><svg id="rain"></svg></div>
 <script>
 const S=__SUMMARY__, C=__CORNERS__, FH=S.frame_hours||[], NF=FH.length, T0=new Date(S.storm_start.replace('Z',':00Z'));
@@ -647,14 +773,17 @@ m.on('load',()=>{m.addSource('d',{type:'image',url:frameUrl(k),coordinates:C});m
 fetch('segments.geojson').then(r=>r.json()).then(g=>{m.addSource('s',{type:'geojson',data:g});
 m.addLayer({id:'peak',type:'line',source:'s',filter:['>=',['get','p_close'],0.5],paint:{'line-color':'#555','line-width':1,'line-dasharray':[2,2]}});
 m.addLayer({id:'may',type:'line',source:'s',filter:['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#e08214','line-width':2.5,'line-dasharray':[1,1]}});
+m.addLayer({id:'sag',type:'line',source:'s',layout:{visibility:'none'},filter:['all',['>=',['coalesce',['get','p_sag'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#7b3294','line-width':2.5,'line-dasharray':[1,1]}});
 m.addLayer({id:'seg',type:'line',source:'s',paint:{'line-width':3,'line-color':'#b2182b'}});
-const pop=e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}%</small><br>${p.why}`).addTo(m)};m.on('click','seg',pop);m.on('click','peak',pop);m.on('click','may',pop);
+const pop=e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}${(+(p.p_sag||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#7b3294">Sag / underpass: drains may be overwhelmed (${(+p.p_sag*100).toFixed(0)}%, test layer)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}%</small><br>${p.why}`).addTo(m)};m.on('click','seg',pop);m.on('click','peak',pop);m.on('click','may',pop);m.on('click','sag',pop);
 m.on('mouseenter','seg',()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave','seg',()=>m.getCanvas().style.cursor='');filt();show(0);});});
 function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);const cl=['in',['get','road_class'],['literal',on]];
  if(m.getLayer('seg'))m.setFilter('seg',cl);if(m.getLayer('peak'))m.setFilter('peak',['all',['>=',['get','p_close'],0.5],cl]);
- if(m.getLayer('may'))m.setFilter('may',['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5],cl])}
+ if(m.getLayer('may'))m.setFilter('may',['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5],cl]);
+ if(m.getLayer('sag'))m.setFilter('sag',['all',['>=',['coalesce',['get','p_sag'],0],0.5],['<',['get','p_close'],0.5],cl])}
 document.querySelectorAll('[data-c]').forEach(b=>b.onchange=filt);
 document.querySelector('[data-l=may]').onchange=e=>{if(m.getLayer('may'))m.setLayoutProperty('may','visibility',e.target.checked?'visible':'none')};
+document.querySelector('[data-l=sag]').onchange=e=>{if(m.getLayer('sag'))m.setLayoutProperty('sag','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=depth]').onchange=e=>m.setLayoutProperty('depth','visibility',e.target.checked?'visible':'none');
 </script></body></html>"""
 
@@ -729,8 +858,8 @@ def selftest():
     rows4 = {r['road']: r for r in csv.DictReader(open(os.path.join(d, 'out4', 'watchlist.csv')))}
     assert float(rows4['B St']['p_freeboard']) > 0.99 and float(rows4['B St']['p_depth']) < 0.2 and float(rows4['B St']['freeboard_m']) == -0.2, rows4['B St']
     assert float(rows4['C St']['p_dv']) > 0.97 and float(rows4['C St']['p_fastwater']) > 0.97 and 'fast water' in rows4['C St']['why'] and 'crest' in rows4['B St']['why']
-    v4 = s4['checks']['labels_segments']['variants']; assert set(v4) == {'depth', 'overtop', 'overtop+culvert', 'freeboard', 'fastwater', 'both', 'depth+culvert', 'freeboard+culvert', 'fastwater+culvert', 'both+culvert'}
-    assert s4['segments_p_ge_50'] == 3 and {k: v for k, v in s4['checks']['rules']['segments_p_ge_50'].items() if not k.startswith('overtop')} == {'depth': 1, 'freeboard': 2, 'fastwater': 2, 'both': 3, 'depth+culvert': 2,
+    v4 = s4['checks']['labels_segments']['variants']; assert set(v4) == {'depth', 'overtop', 'overtop+culvert', 'freeboard', 'fastwater', 'both', 'depth+culvert', 'freeboard+culvert', 'fastwater+culvert', 'both+culvert', 'sag', 'sag+culvert'}
+    assert s4['segments_p_ge_50'] == 3 and {k: v for k, v in s4['checks']['rules']['segments_p_ge_50'].items() if not k.startswith(('overtop', 'sag'))} == {'depth': 1, 'freeboard': 2, 'fastwater': 2, 'both': 3, 'depth+culvert': 2,
                                                                                           'freeboard+culvert': 3, 'fastwater+culvert': 2, 'both+culvert': 3}, s4['checks']['rules']
     assert v4['fastwater']['strict']['culvert_washout']['recall'] == 1.0 and 'split_strict' in v4['both'] and s4['checks']['labels_segments']['applied'] == 'both'
     st4 = {x['id']: x for x in s4['checks']['labels_segments']['sites']}; assert 'fastwater' in st4['L1']['hit'] and 'depth' not in st4['L1']['hit']
@@ -751,6 +880,37 @@ def selftest():
     s6 = run(rd, os.path.join(d, 'out6'), sp, xp, None, None, None, labels_csv=gp)
     l6 = s6['checks']['labels_segments']; assert l6['labels_in_file'] == 2 and l6['sites_matched'] == 1 and l6['sites'][0]['road'] == 'A St', l6
     assert l6['variants']['depth']['strict']['flood_closure']['recall'] == 1.0 and l6['sites'][0]['n_segments'] == 1
+    # Interstate crest: A St renamed I-99 (class 2) with its lidar crest 0.5 m above the model ground: 0.6 m in the cell is 0.1 m on the road
+    import shutil
+    rd7 = os.path.join(d, 'sep2023_i99'); shutil.copytree(rd, rd7)
+    zc7 = np.zeros((ny, nx), np.float32); zc7[45:56] = 0.5; np.savez(f'{rd7}/z_raw.npz', z_raw=np.zeros((ny, nx), np.float32), z_raw_max10=zc7)
+    S7 = json.loads(json.dumps(S)); S7['props']['road'][0] = 'I-99'; sp7 = os.path.join(d, 'segs7.json'); json.dump(S7, open(sp7, 'w'))
+    s7 = run(rd7, os.path.join(d, 'out7'), sp7, xp, None, None, None)
+    g7 = {f_['properties']['road']: f_['properties'] for f_ in json.load(open(os.path.join(d, 'out7', 'segments.geojson')))['features']}
+    assert abs(g7['I-99']['peak_depth_m'] - 0.1) < 1e-3 and g7['I-99']['p_close'] < 0.05 and g7['I-99']['d'] == [0, 0, 10] and g7['I-99']['hours_over_30cm'] == 0, g7['I-99']
+    assert s7['checks']['rules']['bridges']['rule'] == 'on' and s7['segments_p_ge_50'] == 0
+    os.environ['PROTO_BRIDGES'] = '0'
+    try: s8 = run(rd7, os.path.join(d, 'out8'), sp7, xp, None, None, None)
+    finally: os.environ.pop('PROTO_BRIDGES')
+    assert s8['segments_p_ge_50'] == 1 and s8['checks']['rules']['bridges']['rule'].startswith('off')        # old behaviour: cell depth 0.6 m
+    # sags: a road across a 1 m deep bowl (no stream, no bridge) on a 10-cell grid; drains sized for the 10-yr hour (43 mm)
+    from pyproj import Transformer as _T
+    m9 = dict(box=[150000, 905000, 150400, 905400], res_m=20, shape=[20, 20])
+    yy9, xx9 = np.mgrid[0:20, 0:20]; Z9 = (10.0 + 0.1 * np.hypot(yy9 - 9.5, xx9 - 9.5)).astype(np.float32)   # slopes in from every side
+    Z9[8:12, 6:14] = 9.0; Z9[9:11, 9:11] = 8.8
+    ll9 = _T.from_crs(26986, 4326, always_xy=True).transform([150010.0, 150390.0], [905200.0 - 10, 905200.0 - 10])
+    S9 = dict(n=1, geo=[[[round(ll9[0][0] * 1e5), round(ll9[1][0] * 1e5), round(ll9[0][1] * 1e5) - round(ll9[0][0] * 1e5), round(ll9[1][1] * 1e5) - round(ll9[1][0] * 1e5)]]],
+              props=dict(road=['B St'], town=['T'], cls=[0], low=[0], len=[380], aadt=[500]), links=[])
+    P9 = IM.road_points(S9, m9); G9 = IM.road_graph(P9); H9 = np.zeros((20, 20), np.float32)
+    def sp9(rain): return sag_probability(P9, G9, Z9, Z9, H9, np.full((20, 20), rain, np.float32), 20.0, np.array([0]), np.zeros(len(P9['x']), bool), np.zeros((0, 2)), np.zeros((0, 2)), [], [])
+    lo9, hi9 = sp9(30.0), sp9(90.0)
+    assert len(lo9) == 1 and lo9[0]['p'] == 0 and lo9[0]['design'] == 10 and lo9[0]['depth_m'] >= 1.2 and lo9[0]['area_ha'] == 16.0, lo9
+    assert hi9[0]['p_rain'] > 0.9 and hi9[0]['v_excess_m3'] > hi9[0]['v_need_m3'], hi9
+    H9[9:11, 9:11] = 0.6; assert sp9(30.0)[0]['p_pond'] > 0.9                                   # the model itself ponds 0.6 m there
+    xy9 = np.array([[hi9[0]['x'], hi9[0]['y']]])
+    sx9 = sag_probability(P9, G9, Z9, Z9, H9 * 0, None, 20.0, np.array([0]), np.zeros(len(P9['x']), bool), np.zeros((0, 2)), xy9, [], [])
+    assert all(math.hypot(g_['x'] - xy9[0, 0], g_['y'] - xy9[0, 1]) > SAG_XING_M for g_ in sx9), sx9               # near a stream crossing: culvert's case
+    assert sag_probability(P9, G9, Z9, Z9, H9 * 0, np.full((20, 20), 50.0, np.float32), 20.0, np.array([0]), np.zeros(len(P9['x']), bool), xy9 + 30, np.zeros((0, 2)), [], [])[0]['design'] == 50
     print('selftest ok:', out)
 
 
