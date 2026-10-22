@@ -42,8 +42,8 @@ def main():
     url, txt = fetch()
     if not txt:
         LOG['result'] = 'no endpoint answered'; json.dump(LOG, open('docs/network/dams_ma_fetch_log.json', 'w'), indent=1); raise SystemExit('NID not reachable')
-    lines = txt.splitlines()
-    hi = next(i for i, l in enumerate(lines[:20]) if re.search(r'latitude', l, re.I))     # the export starts with a 'last updated' line
+    LOG['text_head'] = txt[:1500]; lines = txt.splitlines(); LOG['n_lines'] = len(lines)
+    hi = next(i for i, l in enumerate(lines[:50]) if re.search(r'latitude', l, re.I))     # the export starts with a 'last updated' line
     rd = csv.reader(io.StringIO('\n'.join(lines[hi:]))); hdr = next(rd)
     col = {}
     for f, pats in FIELDS.items():
@@ -78,4 +78,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try: main()
+    except BaseException as e:
+        import traceback; LOG['error'] = traceback.format_exc()[-3000:]
+        json.dump(LOG, open('docs/network/dams_ma_fetch_log.json', 'w'), indent=1); raise
