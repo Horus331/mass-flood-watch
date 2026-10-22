@@ -1,0 +1,565 @@
+{
+ "storm": "July 10-11, 2023 Vermont flood",
+ "box_epsg26986": [
+  107000.0,
+  1096000.0,
+  127000.0,
+  1116000.0
+ ],
+ "segments_in_box": 3483,
+ "closures_in_file": 63,
+ "closures_matched_strict": 11,
+ "closures_matched_loose": 11,
+ "rules": [
+  {
+   "rule": "depth",
+   "name": "depth rule (default p_close)",
+   "closures_matched": 11,
+   "recall": 0.273,
+   "flagged_share": 0.0726,
+   "n_flagged": 253,
+   "random_recall": 0.403,
+   "lift": 0.68,
+   "lift_naive": 3.75,
+   "loose_recall": 0.364,
+   "loose_lift": 0.75,
+   "flood_only": 0.3,
+   "split": {
+    "odd": {
+     "n": 4,
+     "recall": 0.5,
+     "lift": 1.25
+    },
+    "even": {
+     "n": 7,
+     "recall": 0.143,
+     "lift": 0.35
+    }
+   },
+   "leominster": {
+    "recall": 0.385,
+    "flagged_share": 0.0465,
+    "lift": 5.83
+   }
+  },
+  {
+   "rule": "overtop",
+   "name": "overtop candidate (water beside the road reaches the crest)",
+   "closures_matched": 11,
+   "recall": 0.364,
+   "flagged_share": 0.1045,
+   "n_flagged": 364,
+   "random_recall": 0.485,
+   "lift": 0.75,
+   "lift_naive": 3.48,
+   "loose_recall": 0.364,
+   "loose_lift": 0.65,
+   "flood_only": 0.4,
+   "split": {
+    "odd": {
+     "n": 4,
+     "recall": 0.5,
+     "lift": 1.07
+    },
+    "even": {
+     "n": 7,
+     "recall": 0.286,
+     "lift": 0.58
+    }
+   },
+   "leominster": {
+    "recall": 0.744,
+    "flagged_share": 0.098,
+    "lift": 5.45
+   }
+  },
+  {
+   "rule": "freeboard",
+   "name": "freeboard (water within 0.30 m of the crest)",
+   "closures_matched": 11,
+   "recall": 0.636,
+   "flagged_share": 0.1427,
+   "n_flagged": 497,
+   "random_recall": 0.558,
+   "lift": 1.14,
+   "lift_naive": 4.46,
+   "loose_recall": 0.636,
+   "loose_lift": 1.02,
+   "flood_only": 0.6,
+   "split": {
+    "odd": {
+     "n": 4,
+     "recall": 0.75,
+     "lift": 1.4
+    },
+    "even": {
+     "n": 7,
+     "recall": 0.571,
+     "lift": 1.0
+    }
+   },
+   "leominster": {
+    "recall": 0.756,
+    "flagged_share": 0.1425,
+    "lift": 3.89
+   }
+  },
+  {
+   "rule": "depth+culvert",
+   "name": "culvert (depth + HDS-5 culvert overtopping)",
+   "closures_matched": 11,
+   "recall": 0.545,
+   "flagged_share": 0.0781,
+   "n_flagged": 272,
+   "random_recall": 0.419,
+   "lift": 1.3,
+   "lift_naive": 6.98,
+   "loose_recall": 0.545,
+   "loose_lift": 1.09,
+   "flood_only": 0.6,
+   "split": {
+    "odd": {
+     "n": 4,
+     "recall": 0.75,
+     "lift": 1.81
+    },
+    "even": {
+     "n": 7,
+     "recall": 0.429,
+     "lift": 1.02
+    }
+   },
+   "leominster": null
+  },
+  {
+   "rule": "overtop+culvert",
+   "name": "overtop + culvert",
+   "closures_matched": 11,
+   "recall": 0.545,
+   "flagged_share": 0.1094,
+   "n_flagged": 381,
+   "random_recall": 0.495,
+   "lift": 1.1,
+   "lift_naive": 4.99,
+   "loose_recall": 0.545,
+   "loose_lift": 0.96,
+   "flood_only": 0.6,
+   "split": {
+    "odd": {
+     "n": 4,
+     "recall": 0.75,
+     "lift": 1.57
+    },
+    "even": {
+     "n": 7,
+     "recall": 0.429,
+     "lift": 0.85
+    }
+   },
+   "leominster": null
+  }
+ ],
+ "overtop_verdict": {
+  "overtop_recall_higher": true,
+  "overtop_flags_le_10pct": false,
+  "overtop_lift_vs_depth": [
+   0.75,
+   0.68
+  ],
+  "holds": false
+ },
+ "gauges": [
+  {
+   "site": "04286000",
+   "name": "WINOOSKI RIVER AT MONTPELIER, VT",
+   "drain_km2": 1028.2,
+   "obs_rise_m": 4.98,
+   "model_rise_m": 0.0,
+   "rise_error_m": -4.98,
+   "obs_peak_utc": "2023-07-11T12:30Z",
+   "model_peak_utc": "2023-07-09T18:00Z",
+   "timing_error_h": -42.5,
+   "obs_peak_q_m3s": 654.1,
+   "obs_peak_wse_m": 158.85,
+   "model_peak_wse_m": 158.18,
+   "wse_error_m": -0.67,
+   "model_peak_q_m3s": 146.668,
+   "model_peak_q_h": 54.5
+  },
+  {
+   "site": "04287000",
+   "name": "DOG RIVER AT NORTHFIELD FALLS, VT",
+   "drain_km2": 197.1,
+   "obs_rise_m": 3.16,
+   "model_rise_m": 0.01,
+   "rise_error_m": -3.15,
+   "obs_peak_utc": "2023-07-10T23:45Z",
+   "model_peak_utc": "2023-07-10T13:00Z",
+   "timing_error_h": -10.8,
+   "obs_peak_q_m3s": 311.5,
+   "obs_peak_wse_m": 187.16,
+   "model_peak_wse_m": 186.68,
+   "wse_error_m": -0.49,
+   "model_peak_q_m3s": 20.582,
+   "model_peak_q_h": 27.5
+  }
+ ],
+ "rain_max_total_mm": 202,
+ "rain_peak1h_max_mm": 29.7,
+ "flood_model_runtime_s": 2916,
+ "sites": [
+  {
+   "id": "V001",
+   "type": "other_damage",
+   "name": "US-302: Mudslide and Down Tree (Full)",
+   "road": "US-302",
+   "n_segments": 5,
+   "depth_m": 0.07,
+   "freeboard_m": 0.1,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.012,
+   "p_freeboard": 0.904,
+   "p_fastwater": 0.0,
+   "p_culvert": 0.0,
+   "hit": [
+    "freeboard",
+    "both",
+    "freeboard+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V015",
+   "type": "flooded",
+   "name": "VT-62: Flooding (Full)",
+   "road": "VT-62",
+   "n_segments": 41,
+   "depth_m": 1.59,
+   "freeboard_m": -0.62,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 1.0,
+   "p_freeboard": 1.0,
+   "p_fastwater": 0.0,
+   "p_culvert": 1.0,
+   "hit": [
+    "depth",
+    "overtop",
+    "freeboard",
+    "fastwater",
+    "both",
+    "depth+culvert",
+    "overtop+culvert",
+    "freeboard+culvert",
+    "fastwater+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V022",
+   "type": "closed",
+   "name": "US-62: closed (Full)",
+   "road": "US-62",
+   "n_segments": 11,
+   "depth_m": 0.01,
+   "freeboard_m": 0.09,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.002,
+   "p_freeboard": 0.916,
+   "p_fastwater": 0.0,
+   "p_culvert": 0.0,
+   "hit": [
+    "freeboard",
+    "both",
+    "freeboard+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V026",
+   "type": "flooded",
+   "name": "US-302: Flooding (Full)",
+   "road": "US-302",
+   "n_segments": 2,
+   "depth_m": 0.0,
+   "freeboard_m": 1.29,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.001,
+   "p_freeboard": 0.0,
+   "p_fastwater": 0.0,
+   "p_culvert": 0.0,
+   "hit": []
+  },
+  {
+   "id": "V034",
+   "type": "flooded",
+   "name": "VT-110: Flooding (Full)",
+   "road": "VT-110",
+   "n_segments": 1,
+   "depth_m": 0.16,
+   "freeboard_m": 7.31,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.087,
+   "p_freeboard": 0.0,
+   "p_fastwater": 0.0,
+   "p_culvert": 1.0,
+   "hit": [
+    "depth+culvert",
+    "overtop+culvert",
+    "freeboard+culvert",
+    "fastwater+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V035",
+   "type": "flooded",
+   "name": "US-302: Flooding (Full)",
+   "road": "US-302",
+   "n_segments": 4,
+   "depth_m": 0.31,
+   "freeboard_m": 4.01,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.524,
+   "p_freeboard": 0.0,
+   "p_fastwater": 0.0,
+   "p_culvert": 0.0,
+   "hit": [
+    "depth",
+    "overtop",
+    "freeboard",
+    "fastwater",
+    "both",
+    "depth+culvert",
+    "overtop+culvert",
+    "freeboard+culvert",
+    "fastwater+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V036",
+   "type": "flooded",
+   "name": "US-2: Flooding (Full)",
+   "road": "US-2",
+   "n_segments": 7,
+   "depth_m": 0.11,
+   "freeboard_m": 0.33,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.029,
+   "p_freeboard": 0.423,
+   "p_fastwater": 0.0,
+   "p_culvert": 0.0,
+   "hit": []
+  },
+  {
+   "id": "V042",
+   "type": "flooded",
+   "name": "VT-64: Flooding (Full)",
+   "road": "VT-64",
+   "n_segments": 28,
+   "depth_m": 2.45,
+   "freeboard_m": 0.19,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 1.0,
+   "p_freeboard": 0.766,
+   "p_fastwater": 0.0,
+   "p_culvert": 1.0,
+   "hit": [
+    "depth",
+    "overtop",
+    "freeboard",
+    "fastwater",
+    "both",
+    "depth+culvert",
+    "overtop+culvert",
+    "freeboard+culvert",
+    "fastwater+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V044",
+   "type": "flooded",
+   "name": "VT-2: Flooding (Full)",
+   "road": "VT-2",
+   "n_segments": 2,
+   "depth_m": 0.15,
+   "freeboard_m": 0.15,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.068,
+   "p_freeboard": 0.845,
+   "p_fastwater": 0.0,
+   "p_culvert": 0.0,
+   "hit": [
+    "freeboard",
+    "both",
+    "freeboard+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V046",
+   "type": "flooded",
+   "name": "V-12: Flooding (Full)",
+   "road": "V-12",
+   "n_segments": 13,
+   "depth_m": 0.2,
+   "freeboard_m": -0.59,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.149,
+   "p_freeboard": 1.0,
+   "p_fastwater": 0.0,
+   "p_culvert": 1.0,
+   "hit": [
+    "overtop",
+    "freeboard",
+    "both",
+    "depth+culvert",
+    "overtop+culvert",
+    "freeboard+culvert",
+    "fastwater+culvert",
+    "both+culvert"
+   ]
+  },
+  {
+   "id": "V057",
+   "type": "flooded",
+   "name": "VT-110: Flooding (Partial)",
+   "road": "VT-110",
+   "n_segments": 1,
+   "depth_m": 0.15,
+   "freeboard_m": 2.16,
+   "dv_m2s": null,
+   "peak_speed_ms": null,
+   "p_depth": 0.063,
+   "p_freeboard": 0.0,
+   "p_fastwater": 0.0,
+   "p_culvert": 1.0,
+   "hit": [
+    "depth+culvert",
+    "overtop+culvert",
+    "freeboard+culvert",
+    "fastwater+culvert",
+    "both+culvert"
+   ]
+  }
+ ],
+ "inputs": {
+  "dem_3dep": {
+   "ok": true,
+   "s": 0,
+   "result": {
+    "107000_1096000": {
+     "x": 107000,
+     "y": 1096000,
+     "valid": 1.0,
+     "zmin": 148.9732666015625,
+     "zmax": 732.9094848632812
+    }
+   }
+  },
+  "nlcd_impervious": {
+   "ok": true,
+   "s": 0,
+   "result": 1
+  },
+  "channels_nhdplushr": {
+   "ok": true,
+   "s": 12,
+   "result": {
+    "flowlines": 1778,
+    "chan_cells": 31850,
+    "max_area_km2": 1342.1
+   }
+  },
+  "soils_ssurgo": {
+   "ok": true,
+   "s": 19,
+   "result": {
+    "box": [
+     106010,
+     1095010,
+     128000,
+     1117000
+    ],
+    "coverage": 0.974,
+    "polygons": 19174
+   }
+  },
+  "roads_osm": {
+   "ok": true,
+   "s": 111,
+   "result": {
+    "segments": 4505,
+    "by_class": {
+     "0": 3579,
+     "1": 685,
+     "2": 241
+    },
+    "links": 7331,
+    "bridge_points": 532,
+    "hospitals": 5
+   }
+  },
+  "crossings_usgs_naacc": {
+   "ok": true,
+   "s": 4,
+   "result": {
+    "U": 1494,
+    "naacc": 0,
+    "naacc_matched": 0,
+    "naacc_added": 0,
+    "vtrans": 2207,
+    "vtrans_matched": 141,
+    "vtrans_units": {
+     "size_m_per_unit": 0.0254,
+     "fill_m_per_unit": 0.3048,
+     "median_size": 18.0,
+     "median_fill": 5.0
+    },
+    "with_culvert_size": 141,
+    "bridges": 0
+   }
+  },
+  "gauges_usgs": {
+   "ok": true,
+   "s": 14,
+   "result": [
+    {
+     "site": "04286000",
+     "name": "WINOOSKI RIVER AT MONTPELIER, VT",
+     "peak_q_cfs": [
+      "2023-07-11T12:30:00+00:00",
+      23100.0
+     ],
+     "peak_stage_ft": [
+      "2023-07-11T12:30:00+00:00",
+      21.29
+     ]
+    },
+    {
+     "site": "04287000",
+     "name": "DOG RIVER AT NORTHFIELD FALLS, VT",
+     "peak_q_cfs": [
+      "2023-07-10T23:45:00+00:00",
+      11000.0
+     ],
+     "peak_stage_ft": [
+      "2023-07-10T23:45:00+00:00",
+      11.63
+     ]
+    }
+   ]
+  }
+ }
+}
