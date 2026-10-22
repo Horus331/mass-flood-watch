@@ -23,7 +23,7 @@ def discover(y0, y1, out):
     for y in range(y0, y1 + 1):
         r = OF.get('https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py', dict(sts=f'{y}-01-01T00:00Z', ets=f'{y}-12-31T23:59Z', fmt='csv', states='MA'))
         rows = list(csv.DictReader(io.StringIO(r.text))) if r is not None else []
-        keep = [x for x in rows if (x.get('TYPETEXT') or '').upper() in ('FLOOD', 'FLASH FLOOD', 'HEAVY RAIN')]
+        keep = [x for x in rows if x.get('STATE') == 'MA' and (x.get('TYPETEXT') or '').upper() in ('FLOOD', 'FLASH FLOOD', 'HEAVY RAIN')]   # states=MA is not applied by IEM
         print('LSR', y, len(rows), 'flood/rain', len(keep)); L += keep
     if L:
         with open(f'{out}/lsr_ma_flood_{y0}_{y1}.csv', 'w', newline='') as f:
@@ -43,10 +43,29 @@ def discover(y0, y1, out):
             w = csv.DictWriter(f, fieldnames=list(SE_COLS)); w.writeheader(); w.writerows(E)
 
 
+def mrms_check(C, out):
+    """Which MRMS archive holds each storm: AWS noaa-mrms-pds MultiSensor_QPE_01H_Pass2 (what w9 reads) vs the IEM mtarchive."""
+    S3 = 'https://noaa-mrms-pds.s3.amazonaws.com/'; P = 'CONUS/MultiSensor_QPE_01H_Pass2_00.00/'; R = {}
+    r = OF.get(S3, dict({'list-type': '2', 'prefix': P, 'delimiter': '/', 'max-keys': '3'}))
+    R['aws_first_days'] = re.findall(r'<Prefix>' + re.escape(P) + r'(\d{8})/</Prefix>', r.text) if r is not None else None
+    for ev in C['events']:
+        d = ev['t0'][:10].replace('-', ''); e = {}
+        r = OF.get(S3, dict({'list-type': '2', 'prefix': f'{P}{d}/', 'max-keys': '100'}), tries=2)
+        e['aws_pass2_files_on_t0_day'] = len(re.findall(r'<Key>', r.text)) if r is not None else None
+        for prod in ('MultiSensor_QPE_01H_Pass2', 'GaugeCorr_QPE_01H', 'RadarOnly_QPE_01H'):
+            u = f"https://mtarchive.geol.iastate.edu/{ev['t0'][:4]}/{ev['t0'][5:7]}/{ev['t0'][8:10]}/mrms/ncep/{prod}/"
+            r = OF.get(u, tries=1); e['iem_' + prod] = (len(re.findall(r'\.grib2\.gz', r.text)) if r is not None else 0)
+        R[ev['id']] = e; print('  mrms', ev['id'], e)
+    json.dump(R, open(f'{out}/catalog/mrms_check.json', 'w'), indent=1)
+
+
 def fetch(cat, out):
     C = json.load(open(cat))
+    try: mrms_check(C, out)
+    except Exception as e: print('  mrms check failed', repr(e)[:200])
     for ev in C['events']:
         sid, bb, a, b = ev['id'], ev['bbox_lonlat'], ev['start'], ev['end']
+        if ev.get('existing'): print('==', sid, 'existing storm: obs already in docs/proto/obs, skipped'); continue
         print('==', sid, bb, a, b, flush=True)
         try:
             G, used = OF.gauges(bb, a, b, 'auto', ('25',))
