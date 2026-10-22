@@ -8,7 +8,8 @@ North Grafton (docs/proto/exp/mb_d4), and the Leominster hydrograph recedes far 
 
 What (per NID dam in the box, docs/network/dams_ma.json from the USACE National Inventory of Dams):
   1. pool level P: the highest hydro-flattened water surface next to the dam (connected cells whose four face neighbours are all within 3 cm,
-     touching an NHD flowline / open-water cell, within LF_DAMS_ADJ_M (120 m) of the NID point, below the dam crest).  P stands in for the
+     touching an NHD flowline / open-water cell, within LF_DAMS_ADJ_M (200 m) of the NID point, below the dam crest; the highest
+     of the surfaces about as near as the nearest one).  P stands in for the
      spillway crest (normal pool of an uncontrolled spillway, the level the lidar saw).
   2. lake footprint: the cells D4-connected to that surface with lidar height in [P - 0.3, P + 0.1] m.  The footprint gets a flat bed at P - D,
      D = NID normal storage / surface area (mean depth) clipped to LF_DAMS_DEPTH (1..3 m; 1.5 m when NID has neither), and starts full
@@ -50,7 +51,7 @@ def _flat(zr, tol=0.03):
     return f
 
 
-def find_pool(Z_RAW, ZMAX10, wet, r, c, res, adj_m=120.0, win_m=400.0, min_cells=4):
+def find_pool(Z_RAW, ZMAX10, wet, r, c, res, adj_m=200.0, win_m=400.0, min_cells=4):
     """-> (P, seed cells (rows, cols) in grid coords, dam crest estimate) or (None, reason)."""
     from scipy import ndimage
     ny, nx = Z_RAW.shape; k = int(math.ceil(win_m / res)); r0, r1, c0, c1 = max(0, r - k), min(ny, r + k + 1), max(0, c - k), min(nx, c + k + 1)
@@ -69,6 +70,9 @@ def find_pool(Z_RAW, ZMAX10, wet, r, c, res, adj_m=120.0, win_m=400.0, min_cells
     # an NHD water / flowline cell on the surface, or (no flowline mapped through it) a flat surface of >= 25 cells (1 ha at 20 m)
     ok = [t for t in comps if t[2] or t[1].sum() >= 25]
     if not ok: return None, 'no hydro-flattened pool (>= %d flat cells on an NHD water cell, or >= 25 flat cells, within %.0f m, below the crest)' % (min_cells, adj_m)
+    # the pool is the highest surface among those about as close as the nearest one (a tailwater pond is lower; an upstream mill pond is
+    # farther away than the dam's own pool, whose interior starts within ~1-2 cells of the dam line)
+    dn = min(float(dist[t[1]].min()) for t in ok); ok = [t for t in ok if float(dist[t[1]].min()) <= dn + 60.0]
     P = max(t[0] for t in ok); m = np.zeros(zr.shape, bool)
     for t in ok:
         if abs(t[0] - P) <= 0.05: m |= t[1]                 # every piece of the same water surface seeds the footprint
@@ -103,7 +107,7 @@ def apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=print, dams=None):
     cd = float(os.environ.get('LF_DAMS_CD', '1.7')); mlim = float(os.environ.get('LF_DAMS_M', '0.67'))
     dmin, dmax = (float(v) for v in os.environ.get('LF_DAMS_DEPTH', '1,3').split(','))
     use_weir = os.environ.get('LF_DAMS_WEIR', '1') == '1'
-    adj_m = float(os.environ.get('LF_DAMS_ADJ_M', '120')); max_km2 = float(os.environ.get('LF_DAMS_MAX_KM2', '40'))
+    adj_m = float(os.environ.get('LF_DAMS_ADJ_M', '200')); max_km2 = float(os.environ.get('LF_DAMS_MAX_KM2', '40'))
     owner = np.zeros((ny, nx), np.int32)       # lake id + 1 per footprint cell
     lakes, skipped, inbox = [], [], 0
     cand = []
