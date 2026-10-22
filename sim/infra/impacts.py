@@ -94,14 +94,15 @@ def decode_segments(S):
             out.append((i, np.cumsum(d[0::2]) / 1e5, np.cumsum(d[1::2]) / 1e5))
     return out
 
-def densify(parts_xy, step):
-    """parts_xy: [(seg, x, y)] projected; points every <= step m along each part (vertices kept). Returns x, y, seg arrays."""
-    X, Y, SG = [], [], []
-    for seg, x, y in parts_xy:
-        if len(x) == 1: X.append(x); Y.append(y); SG.append(np.full(1, seg, np.int32)); continue
+def densify(parts_xy, step, return_part=False):
+    """parts_xy: [(seg, x, y)] projected; points every <= step m along each part (vertices kept). Returns x, y, seg arrays (+ part index)."""
+    X, Y, SG, PT = [], [], [], []
+    for j, (seg, x, y) in enumerate(parts_xy):
+        if len(x) == 1: X.append(x); Y.append(y); SG.append(np.full(1, seg, np.int32)); PT.append(np.full(1, j, np.int32)); continue
         dx, dy = np.diff(x), np.diff(y); k = np.maximum(1, np.ceil(np.hypot(dx, dy) / step).astype(int))
         e = np.repeat(np.arange(len(dx)), k); t = (np.arange(k.sum()) - np.repeat(np.cumsum(k) - k, k)) / np.repeat(k, k)
-        X.append(np.r_[x[e] + t * dx[e], x[-1]]); Y.append(np.r_[y[e] + t * dy[e], y[-1]]); SG.append(np.full(len(e) + 1, seg, np.int32))
+        X.append(np.r_[x[e] + t * dx[e], x[-1]]); Y.append(np.r_[y[e] + t * dy[e], y[-1]]); SG.append(np.full(len(e) + 1, seg, np.int32)); PT.append(np.full(len(e) + 1, j, np.int32))
+    if return_part: return np.concatenate(X), np.concatenate(Y), np.concatenate(SG), np.concatenate(PT)
     return np.concatenate(X), np.concatenate(Y), np.concatenate(SG)
 
 def road_points(S, meta, step=None):
@@ -112,10 +113,10 @@ def road_points(S, meta, step=None):
     lo, la = inv.transform([x0, x1, x0, x1], [y0, y0, y1, y1]); m = 0.01
     bb = (min(lo) - m, min(la) - m, max(lo) + m, max(la) + m)
     parts = [(s, lon, lat) for s, lon, lat in decode_segments(S) if lon.max() >= bb[0] and lon.min() <= bb[2] and lat.max() >= bb[1] and lat.min() <= bb[3]]
-    if not parts: return dict(x=np.zeros(0), y=np.zeros(0), seg=np.zeros(0, np.int32), r=np.zeros(0, int), c=np.zeros(0, int), end=np.zeros(0, bool))
+    if not parts: return dict(x=np.zeros(0), y=np.zeros(0), seg=np.zeros(0, np.int32), r=np.zeros(0, int), c=np.zeros(0, int), end=np.zeros(0, bool), part=np.zeros(0, np.int32))
     lon = np.concatenate([p[1] for p in parts]); lat = np.concatenate([p[2] for p in parts]); X, Y = tr.transform(lon, lat); k = 0; pxy = []
     for s, a, _ in parts: pxy.append((s, X[k:k + len(a)], Y[k:k + len(a)])); k += len(a)
-    x, y, sg = densify(pxy, step); c = np.floor((x - x0) / res).astype(int); r = np.floor((y1 - y) / res).astype(int)
+    x, y, sg, pt = densify(pxy, step, return_part=True); c = np.floor((x - x0) / res).astype(int); r = np.floor((y1 - y) / res).astype(int)
     # segment ends: points within one cell of a segment's first / last vertex sit on the junction shared with its neighbours; a flooded
     # junction would otherwise flag every segment meeting there.  sample_segments uses interior points when a segment has any.
     ends = {}
@@ -125,13 +126,108 @@ def road_points(S, meta, step=None):
     E = np.array([ends[s] for s in sg]); trim = max(res, 10.0)
     end = (np.hypot(x - E[:, 0], y - E[:, 1]) < trim) | (np.hypot(x - E[:, 2], y - E[:, 3]) < trim)
     ok = (r >= 0) & (r < meta['shape'][0]) & (c >= 0) & (c < meta['shape'][1])
-    return dict(x=x[ok], y=y[ok], seg=sg[ok], r=r[ok], c=c[ok], end=end[ok])
+    return dict(x=x[ok], y=y[ok], seg=sg[ok], r=r[ok], c=c[ok], end=end[ok], part=pt[ok])
+
+def road_graph(P, link_tol=2.0):
+    """Adjacency of the densified road points as a road network: consecutive points of one part are joined, and points within link_tol m
+    of a part's first / last point are joined to it (segments meet at shared vertices; grade-separated crossings share none, so a road
+    on a bridge is never joined to the road under it).  Returns (indptr, nbr, dist) CSR arrays."""
+    from scipy.sparse import coo_matrix
+    from scipy.spatial import cKDTree
+    n = len(P['x']); x, y, pt = P['x'], P['y'], P['part']
+    if n == 0: return np.zeros(1, np.int64), np.zeros(0, np.int64), np.zeros(0)
+    i = np.nonzero(pt[1:] == pt[:-1])[0]; a, b = [i], [i + 1]
+    ends = np.nonzero(np.r_[True, pt[1:] != pt[:-1]] | np.r_[pt[1:] != pt[:-1], True])[0]
+    pr = cKDTree(np.column_stack([x, y])).query_ball_point(np.column_stack([x[ends], y[ends]]), link_tol)
+    ea = np.repeat(ends, [len(v) for v in pr]); eb = np.concatenate([np.asarray(v, np.int64) for v in pr]) if len(pr) else np.zeros(0, np.int64)
+    k = ea != eb; a.append(ea[k]); b.append(eb[k]); a = np.concatenate(a); b = np.concatenate(b)
+    d = np.maximum(np.hypot(x[a] - x[b], y[a] - y[b]), 0.01)
+    M = coo_matrix((np.r_[d, d], (np.r_[a, b], np.r_[b, a])), shape=(n, n)).tocsr(); M.sum_duplicates()
+    return M.indptr, M.indices, M.data
+
+def profile_rims(G, z, cand, radius=150.0):
+    """Road-profile depressions.  For each candidate point p and each road direction leaving it (graph neighbour q, walking away from p
+    along the road up to `radius` m), the highest z met in that direction (the rim).  Returns per candidate: rim = min over directions of
+    the rim (the lowest side: a closed depression of the road profile holds water up to it) and ndir = number of directions (>= 2 for a
+    closed depression; points stacked at a junction count as separate directions)."""
+    indptr, nbr, dist = G; rim = np.full(len(cand), -np.inf); nd = np.zeros(len(cand), np.int32)
+    for j, p in enumerate(cand):
+        rims = []
+        for e in range(indptr[p], indptr[p + 1]):
+            q = nbr[e]; best = {q: dist[e]}; stack = [q]; zmax = z[q]
+            while stack:
+                u = stack.pop(); du = best[u]
+                for f in range(indptr[u], indptr[u + 1]):
+                    v = nbr[f]; dv = du + dist[f]
+                    if v == p or dv > radius or dv >= best.get(v, np.inf): continue
+                    best[v] = dv; stack.append(v); zmax = max(zmax, z[v])
+            rims.append(zmax)
+        if rims: rim[j] = min(rims); nd[j] = len(rims)
+    return rim, nd
+
+def route_number(name):
+    """Route number in a road name ('I-290' -> 290, 'Route 122' -> 122, 'Main Street (US 2)' -> 2), None for named streets."""
+    import re
+    m = re.search(r'(?:\bI-|\bRoute |\bRte |\bUS |\bSR )\s*(\d+)', name or ''); return int(m.group(1)) if m else None
+
+def deck_points(P, zc, shape, res, roads, nbi_x, nbi_y, nbi_route, gap=2.0, radius=150.0, nbi_m=100.0, G=None):
+    """Road points on a bridge deck that the bare-earth lidar removed.  3DEP bare-earth DEMs drop bridge decks (USGS Lidar Base
+    Specification: bridges are removed from the bare-earth surface), so along a road carried on a structure the lidar crest falls to the
+    ground or water beneath it.  A point is on such a deck when (1) its lidar crest is >= `gap` m below the road's own crest in BOTH
+    directions within `radius` m along the road (a gap in the road profile: profile_rims on road_graph) and (2) an NBI bridge that carries
+    this road's route number lies within `nbi_m` m (NBI item 5D, route number on the structure).  (2) keeps underpasses and stream valleys
+    out: the road under a bridge has its own route number (or none) and a real sag is not a deck.  G: road_graph(P) if already built.
+    Returns a bool mask over P."""
+    from scipy.ndimage import maximum_filter
+    from scipy.spatial import cKDTree
+    n = len(P['x']); out = np.zeros(n, bool)
+    rn = np.array([route_number(roads[s]) or 0 for s in range(len(roads))])[P['seg']] if n else np.zeros(0, int)
+    if n == 0 or not (rn > 0).any() or len(nbi_x) == 0: return out
+    RG = np.full(shape, -np.inf); np.maximum.at(RG, (P['r'], P['c']), zc)
+    k = int(radius // res); MF = maximum_filter(RG, size=2 * k + 1, mode='constant', cval=-np.inf)
+    nr = np.asarray(nbi_route); T = cKDTree(np.column_stack([nbi_x, nbi_y]))
+    cand = np.nonzero((rn > 0) & (zc <= MF[P['r'], P['c']] - gap))[0]
+    if len(cand):
+        near = T.query_ball_point(np.column_stack([P['x'][cand], P['y'][cand]]), nbi_m)
+        cand = cand[np.array([bool(len(nb)) and bool((nr[nb] == rn[i]).any()) for i, nb in zip(cand, near)], bool)]
+    if len(cand):
+        rim, nd = profile_rims(G or road_graph(P), zc.astype(np.float64), cand, radius)
+        out[cand[(nd >= 2) & (rim - zc[cand] >= gap)]] = True
+    return out
+
+def closed_depressions(Z, res):
+    """Closed depressions of a DEM: (filled surface, depression label per cell, D8 catchment area m2 draining into each label).  Filled =
+    pit filling by morphological reconstruction (Soille 2004; the priority-flood result of Barnes et al. 2014); a depression is a connected
+    set of cells with filled - Z > 1 mm; a cell's water goes to its steepest-descent (D8) neighbour, and the catchment of a depression is
+    every cell whose descent path ends in it (water from upstream pits is not routed on: a lower bound)."""
+    from skimage.morphology import reconstruction
+    from scipy import ndimage
+    Z = Z.astype(np.float64); seed = Z.copy(); seed[1:-1, 1:-1] = Z.max(); F = reconstruction(seed, Z, method='erosion')
+    lab, nl = ndimage.label((F - Z) > 1e-3, structure=np.ones((3, 3)))
+    ny, nx = Z.shape; idx = np.arange(ny * nx).reshape(ny, nx); Pd = np.pad(Z, 1, constant_values=np.inf); best = np.zeros_like(Z); rec = idx.copy()
+    for dr in (-1, 0, 1):
+        for dc in (-1, 0, 1):
+            if dr or dc:
+                s = (Z - Pd[1 + dr:1 + dr + ny, 1 + dc:1 + dc + nx]) / (res * (math.sqrt(2.0) if dr and dc else 1.0)); m = s > best; best[m] = s[m]; rec[m] = (idx + dr * nx + dc)[m]
+    rec = rec.ravel()
+    for _ in range(64):                                      # pointer jumping to each cell's terminal cell
+        r2 = rec[rec]
+        if np.array_equal(r2, rec): break
+        rec = r2
+    area = np.bincount(lab.ravel()[rec], minlength=nl + 1).astype(np.float64) * res * res; area[0] = 0.0
+    return F.astype(np.float32), lab, area
+
+def point_depth(P, H):
+    """Water depth on the road at each point: the cell depth, less P['dz'] where the road crest stands above the cell's ground (dz = lidar
+    crest - model ground, set by proto/prototype.py for Interstates: depth = max(0, water surface - crest))."""
+    d = H[P['r'], P['c']]
+    return np.maximum(d - P['dz'], 0.0).astype(d.dtype) if 'dz' in P else d
 
 def sample_segments(n, P, H, V=None):
     """Per segment: max depth, mean depth over its sampled points (interior points when it has any), max h*v, in-box flag."""
     cnt_all = np.bincount(P['seg'], minlength=n); ci = np.bincount(P['seg'][~P['end']], minlength=n)
     use = ~P['end'] | (ci[P['seg']] == 0); P = {k: v[use] for k, v in P.items()}
-    d = H[P['r'], P['c']]; cnt = np.bincount(P['seg'], minlength=n).astype(np.float64)
+    d = point_depth(P, H); cnt = np.bincount(P['seg'], minlength=n).astype(np.float64)
     mx = np.zeros(n, np.float32); np.maximum.at(mx, P['seg'], d)
     mean = np.bincount(P['seg'], weights=d, minlength=n) / np.maximum(cnt, 1)
     dv = np.zeros(n, np.float32)
@@ -306,7 +402,7 @@ def analyse(runs, S, Xrows, reports=None, facilities=None, ch_by_run=None, combi
     keep = np.nonzero(inbox & ((mx >= T_WET) | net['cut_hosp'] | net['cut_major'] | (net['iso_min'] >= 30)) | net['cut_hosp'] | net['cut_major'])[0]
     seg_rows = [[int(i), int(round(float(mx[i]) * 100)), int(round(float(mean[i]) * 100)), int(cls[i]), int(code[i]), round(float(dv[i]), 3),
                  int(net['cut_hosp'][i]), round(float(net['iso_min'][i]), 1), int(net['cut_major'][i])] for i in keep]
-    rd_pts = H[P['r'], P['c']] if len(P['x']) else np.zeros(0)
+    rd_pts = point_depth(P, H) if len(P['x']) else np.zeros(0)
     X = assess_crossings(Xrows, runs if combine else [base], P, rd_pts, ch_by_run)
     ln = np.asarray([v or 0 for v in S['props']['len']], float) / 1000
     st = {s: sum(1 for x in X if x[X_COLS.index('status')] == s) for s in ('overtopped', 'surcharged', 'ok', 'unknown')}
@@ -447,6 +543,24 @@ def selftest():
     a.reports = os.path.join(root, 'none.json'); a.facilities = os.path.join(root, 'none.json'); a.local = root; a.run = ['runs/st_rog']; a.combine = False
     a.channels = None; a.channels_meta = None; a.out = os.path.join(root, 'out'); a.no_upload = True
     main(a); check('CLI wrote impacts.json + impacts_seg.bin', os.path.exists(os.path.join(a.out, 'impacts.json')) and os.path.getsize(os.path.join(a.out, 'impacts_seg.bin')) == 16)
+    # road profile: two parts meeting at a shared vertex form one road; a 60 m gap 5 m deep (deck removed) on 'I-9'
+    xs1, ys1, sg1, pt1 = densify([(0, np.array([0.0, 200.0]), np.array([0.0, 0.0])), (1, np.array([200.0, 400.0]), np.array([0.0, 0.0]))], 10.0, return_part=True)
+    Pp = dict(x=xs1, y=ys1, seg=sg1, part=pt1, r=np.zeros(len(xs1), int), c=np.minimum((xs1 // 20).astype(int), 19), end=np.zeros(len(xs1), bool))
+    G = road_graph(Pp); check('road graph joins parts at the shared vertex', np.diff(G[0]).min() >= 1 and (np.diff(G[0]) >= 2).sum() >= len(xs1) - 2)
+    zp = np.full(len(xs1), 100.0); gap = (xs1 > 170) & (xs1 < 230); zp[gap] = 95.0
+    rim, nd = profile_rims(G, zp, np.nonzero(gap)[0], 150.0); check('profile rims: gap 5 m below both sides', np.allclose(rim - zp[gap], 5.0) and (nd >= 2).all(), (rim, nd))
+    rim, nd = profile_rims(G, zp, np.array([0]), 150.0); check('profile rims: road end has one direction', nd[0] == 1)
+    dk = deck_points(Pp, zp, (1, 20), 20.0, ['I-9', 'I-9'], np.array([200.0]), np.array([5.0]), [9])
+    check('deck: gap under an NBI bridge of the same route', dk[gap].all() and not dk[~gap].any(), dk.sum())
+    check('deck: NBI bridge of another route -> not a deck', not deck_points(Pp, zp, (1, 20), 20.0, ['I-9', 'I-9'], np.array([200.0]), np.array([5.0]), [7]).any())
+    check('deck: named street (no route number) -> never', not deck_points(Pp, zp, (1, 20), 20.0, ['Main Street', 'Main Street'], np.array([200.0]), np.array([5.0]), [0]).any())
+    zs = zp.copy(); zs[gap] = 99.5; check('deck: 0.5 m sag is not a deck', not deck_points(Pp, zs, (1, 20), 20.0, ['I-9', 'I-9'], np.array([200.0]), np.array([5.0]), [9]).any())
+    check('route numbers', route_number('I-290') == 290 and route_number('Route 12 (Main Street)') == 12 and route_number('Main Street (US 2)') == 2 and route_number('Elm Street') is None)
+    Zb = np.full((9, 9), 10.0); Zb[3:6, 3:6] = 9.0; Zb[4, 4] = 8.5; Zb[:, 8] = 5.0           # a bowl; the east column is lower (drains off)
+    Fb, lb, ab = closed_depressions(Zb, 20.0)
+    check('closed depression: bowl filled to its rim, catchment drains into it', abs(Fb[4, 4] - 10.0) < 1e-5 and lb[4, 4] > 0 and lb[0, 0] == 0 and ab[lb[4, 4]] >= 9 * 400, (Fb[4, 4], ab))
+    Pd = dict(r=np.array([0, 0]), c=np.array([0, 1]), dz=np.array([0.0, 0.5])); Hd = np.array([[0.6, 0.6]])
+    check('point depth: crest offset', np.allclose(point_depth(Pd, Hd), [0.6, 0.1]))
     print('impacts selftest', 'OK' if ok else 'FAILED', root); return ok
 
 if __name__ == '__main__':
