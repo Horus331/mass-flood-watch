@@ -147,8 +147,7 @@ def manning_map(water, chan, imp, lc=None):
     if lc is not None:
         for cls, v in NLCD_N.items(): other[lc == cls] = v
         other[np.isin(lc, NLCD_FOREST)] = float(os.environ.get('LF_N_FOREST', '0.12'))
-    ls = float(os.environ.get('LF_N_LAND_SCALE', '1'))     # ensemble hook (proto/ensemble.py): multiplies every land n (urban 0.10 included); 1 = unchanged
-    return np.where(water | chan, nch, ls * np.where(imp > 0.3, 0.10, other)).astype(np.float32)
+    return np.where(water | chan, nch, np.where(imp > 0.3, 0.10, other)).astype(np.float32)
 
 
 def nlcd_landcover(BOX, RES, ny, nx):
