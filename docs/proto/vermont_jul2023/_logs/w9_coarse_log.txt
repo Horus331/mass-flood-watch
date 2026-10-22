@@ -1,0 +1,112 @@
+17:51:34 w9 LISFLOOD-FP benchmark: jul2023vt_coarse box (90000.0, 1082000.0, 150000.0, 1142000.0) res 60.0 m, 60 h from 2023-07-09T18:00Z; GPU False, nvcc None
+17:51:34 downloading LISFLOOD-FP 8.2 from zenodo 13121102: LISFLOOD-FP-v8.2.zip (348 MB)
+17:52:33 source tree: /home/runner/work/_temp/lf/src/LISFLOOD-FP
+17:52:33 $ apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null
+17:52:33 E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+
+17:52:33 cmake files: ['config.default.cmake', 'CMakeLists.txt']
+17:52:33 build switches found: ['CMAKE_CUDA_ARCHITECTURES', 'CMAKE_CUDA_COMPILER', '_NETCDF']
+17:52:33 config.cmake from config.default.cmake
+17:52:33 config.cmake used:
+set(_NETCDF ON)
+add_compile_definitions(_NUMERIC_MODE=1)
+add_compile_definitions(_ONLY_RECT=1)
+add_compile_definitions(_PROFILE_MODE=0)
+add_compile_definitions(_DISABLE_WET_DRY=0)
+add_compile_definitions(_CALCULATE_Q_MODE=1)
+add_compile_definitions(_SGM_BY_BLOCKS=0)
+add_compile_definitions(_BALANCE_TYPE=0)
+
+17:52:33 $ cmake -S /home/runner/work/_temp/lf/src/LISFLOOD-FP -B /home/runner/work/_temp/lf/build_cpu -DCMAKE_BUILD_TYPE=Release -D_NETCDF=ON
+17:52:37 $ cmake --build /home/runner/work/_temp/lf/build_cpu -j 4
+17:53:11 $ ldd /home/runner/work/_temp/lf/build_cpu/lisflood
+17:53:11 built /home/runner/work/_temp/lf/build_cpu/lisflood (CUDA False) in 97s
+17:53:11 probe: {'quadrants': {'NW': 0.05369, 'NE': 0.00894, 'SW': 0.00894, 'SE': 0.00031}, 'flip_y': False, 'flip_x': False, 'scale': 1.0, 'probe_B_ratio': 1.0, 'convention': 'forward'}
+17:53:11 elevation: 9 tiles of 10 m
+17:53:12 edges (raw DEM at RES): N: nan 0, z 217.4..1181.5, median 399.6, >1 m below inner 387 | S: nan 0, z 138.6..813.6, median 412.0, >1 m below inner 367 | W: nan 0, z 98.4..1025.1, median 488.1, >1 m below inner 313 | E: nan 0, z 118.0..568.1, median 346.8, >1 m below inner 541
+17:53:12 row 0 (north edge) every 20th cell: 323.4 380.3 439.6 678.5 1089.9 958.9 726.8 490.2 455.4 539.4 525.7 537.6 425.1 325.5 317.3 378.2 307.8 229.1 228.3 226.8 255.4 322.5 602.1 452.4 348.5 427.7 422.4 376.4 261.0 394.4 356.3 257.7 310.1 394.7 262.7 399.2 362.1 366.1 354.0 347.8 380.1 445.0 462.9 543.0 659.4 679.0 762.6 692.2 689.3 599.2
+17:53:12 row 1 every 20th cell: 322.5 374.5 439.4 689.3 1080.5 935.1 732.2 497.1 453.9 529.0 519.8 554.0 427.8 335.8 311.7 367.5 308.6 227.2 227.2 227.3 254.2 325.2 595.7 447.7 348.5 431.3 425.1 373.3 256.9 397.9 360.9 250.4 306.8 390.8 262.4 400.0 359.1 364.4 349.9 331.8 387.7 445.7 464.5 546.8 677.3 688.8 764.5 692.4 699.2 595.8
+17:53:12 grid 1000 x 1000 = 1.00 M cells at 60 m; sea 0.0%
+17:53:12 NLCD impervious: 9/9 tiles, mean 1.5% paved
+17:53:12 no channel grid, rivers unburnt: FileNotFoundError(2, 'No such file or directory')
+17:53:12 crossings: 7863 road fills opened to the lowest ground within 60 m
+17:53:15 depressions (4-connected): 15,434 cells carved (mean 0.92 m, max 4.0 m), 789 basins deeper than the cap kept, 2s
+17:53:15 LF_LOSS=cn: AMC II, mean CN 71.7 (HSG A-D + NLCD impervious)
+17:58:47 rain: max 202 mm, mean 105 mm over 60 h; missing []
+17:58:48 effective rain (CN) mean 43 mm of 105 mm (41%)
+17:58:48 edges (model DEM): N: nan 0, z 217.4..1181.5, median 399.2, >1 m below inner 375 | S: nan 0, z 138.6..813.6, median 411.8, >1 m below inner 353 | W: nan 0, z 98.4..1025.1, median 488.1, >1 m below inner 311 | E: nan 0, z 118.0..568.1, median 346.8, >1 m below inner 518
+17:58:48 model row 0 every 20th cell: 323.4 380.3 439.6 678.5 1089.9 958.9 726.8 490.2 455.4 539.4 525.7 537.6 411.1 325.5 317.3 378.2 307.8 229.1 228.3 222.2 255.4 322.5 602.1 452.4 348.5 427.7 422.4 376.4 261.0 394.4 356.3 257.7 310.1 394.7 262.7 399.2 362.1 366.1 354.0 347.8 380.1 445.0 462.9 538.8 659.4 679.0 762.6 692.2 689.3 599.2
+17:58:48 edge flags: sea N/S/W/E 0/0/0/0, chan 0/0/0/0, water 0/0/0/0, rain total row 0 mean 44 mm vs box 43 mm
+17:58:48 Manning n: channel/water 0.035, land mean 0.080
+17:58:49 par: DEMfile dem.asc | resroot res | dirroot results | sim_time 216000 | initial_tstep 10 | massint 300 | saveint 1800 | fpfric 0.08 | acceleration | manningfile n.asc | dynamicrainfile rain.nc | bcifile run.bci | infiltration 5.556e-07 | qoutput
+18:19:40 LISFLOOD-FP run 1251s
+18:19:40  version 8.1.0 (double)
+Rectangular channels only.
+_CALCULATE_Q_MODE 1.
+***************************
+
+Loading parameters... 'run.par'
+DEMfile = dem.asc
+resroot = res
+dirroot = results
+sim_time = 216000.000
+initial_tstep = 10.000
+massint = 300.000
+saveint = 1800.000
+fpfric = 0.080
+acceleration
+
+Using acceleration formulation for floodplain flow
+manningfile = n.asc
+dynamicrainfile = rain.nc
+bcifile = run.bci
+infiltration = 0.000
+qoutput
+Reading parameters done.
+
+Reading command line.
+Reading command line done.
+
+
+Start Date: 22/10/2026 
+Start Time: 17:58:49 
+
+Loading DEM1000x1000
+BL corner	(90000.000000,1082000.000000)
+NODATA_value	-9999.000000
+Done.
+
+Loading boundary condition IDs
+FREE on N side start 90000.000000 end 150000.000000
+FREE on S side start 90000.000000 end 150000.000000
+FREE on W side start 1082000.000000 end 1142000.000000
+FREE on E side start 1082000.000000 end 1142000.000000
+Done.
+
+No bdyfile used
+Done.
+
+Loading floodplain Manning's n dataDone.
+
+Porosity off
+Floodplain infiltration set at: 0.0000005556 ms-1
+
+
+Starting time steps: acceleration mode
+
+loop time 1250.000000
+Finished.
+
+
+Finish Date: 22/10/2026 
+Finish Time: 18:19:40 
+
+
+  Total computation time: 20.85 mins
+
+
+18:20:41 peak wet (hmax >= 10 cm, land) 130.7 km2; largest snapshot wet area 90.2 km2; 121 snapshots
+18:22:02 fluxes: 121 snapshots read in 81s; gauge peak flow 01135100 0.7 m3/s (obs 0.6), 01139800 2.7 m3/s (obs 18.9), 04285500 1.2 m3/s (obs 37.4), 04286000 13.4 m3/s (obs 654.1), 04287000 46.2 m3/s (obs 311.5), 04288000 8.2 m3/s (obs 202.7), 04288230 6.7 m3/s (obs 21.4), 04288295 4.0 m3/s (obs 130.0), 04289000 0.8 m3/s (obs 60.0), IN01 31.5 m3/s (obs None), IN02 1.1 m3/s (obs None), IN03 36.2 m3/s (obs None), IN04 7.0 m3/s (obs None), IN05 1.1 m3/s (obs None), IN06 7.1 m3/s (obs None), IN07 5.1 m3/s (obs None), IN08 14.2 m3/s (obs None), IN09 3.0 m3/s (obs None), IN10 3.3 m3/s (obs None), IN11 8.3 m3/s (obs None), IN12 36.4 m3/s (obs None), IN13 5.2 m3/s (obs None), IN14 5.7 m3/s (obs None), IN15 8.7 m3/s (obs None), IN16 1.3 m3/s (obs None), IN17 5.2 m3/s (obs None), IN18 6.0 m3/s (obs None), IN19 1.3 m3/s (obs None), IN20 8.4 m3/s (obs None), IN21 1.4 m3/s (obs None), IN22 0.7 m3/s (obs None), IN23 1.3 m3/s (obs None), IN24 1.3 m3/s (obs None), IN25 0.8 m3/s (obs None)
