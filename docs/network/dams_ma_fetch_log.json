@@ -1,0 +1,28 @@
+{
+ "started": "2026-10-22T17:44:10Z",
+ "tries": [
+  {
+   "url": "https://nid.sec.usace.army.mil/api/nation/csv",
+   "status": 403,
+   "bytes": 111,
+   "ctype": "application/json; charset=utf-8",
+   "head": "{\"statusCode\":403,\"code\":\"ERR_BAD_REQUEST\",\"error\":\"Forbidden\",\"message\":\"Request failed with status code 403\"}"
+  },
+  {
+   "url": "https://nid.sec.usace.army.mil/api/states/MA/csv",
+   "status": 404,
+   "bytes": 89,
+   "ctype": "application/json; charset=utf-8",
+   "head": "{\"message\":\"Route GET:/api/states/MA/csv not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+  },
+  {
+   "url": "https://nid.sec.usace.army.mil/api/nation/csv?state=MA",
+   "status": 403,
+   "bytes": 111,
+   "ctype": "application/json; charset=utf-8",
+   "head": "{\"statusCode\":403,\"code\":\"ERR_BAD_REQUEST\",\"error\":\"Forbidden\",\"message\":\"Request failed with status code 403\"}"
+  }
+ ],
+ "result": "no endpoint answered",
+ "error": "Traceback (most recent call last):\n  File \"/home/runner/work/mass-flood-watch/mass-flood-watch/sim/dams_fetch.py\", line 81, in <module>\n    try: main()\n         ^^^^^^\n  File \"/home/runner/work/mass-flood-watch/mass-flood-watch/sim/dams_fetch.py\", line 44, in main\n    LOG['result'] = 'no endpoint answered'; json.dump(LOG, open('docs/network/dams_ma_fetch_log.json', 'w'), indent=1); raise SystemExit('NID not reachable')\n                                                                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSystemExit: NID not reachable\n"
+}
