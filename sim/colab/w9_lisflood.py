@@ -146,7 +146,8 @@ def manning_map(water, chan, imp, lc=None):
     if lc is not None:
         for cls, v in NLCD_N.items(): other[lc == cls] = v
         other[np.isin(lc, NLCD_FOREST)] = float(os.environ.get('LF_N_FOREST', '0.12'))
-    return np.where(water | chan, nch, np.where(imp > 0.3, 0.10, other)).astype(np.float32)
+    ls = float(os.environ.get('LF_N_LAND_SCALE', '1'))     # ensemble hook (proto/ensemble.py): multiplies every land n (urban 0.10 included); 1 = unchanged
+    return np.where(water | chan, nch, ls * np.where(imp > 0.3, 0.10, other)).astype(np.float32)
 
 
 def nlcd_landcover(BOX, RES, ny, nx):
@@ -645,6 +646,8 @@ def build_inputs(BOX, RES, S, TOK):
                 if kk == 3: log('  no MRMS', ts, repr(e)[:80]); RAIN.append(np.zeros((ny, nx), np.float32)); MISSING.append(ts.strftime('%Y-%m-%dT%H:%MZ'))
                 else: time.sleep(5 + 10 * kk)
     RAIN = np.stack(RAIN)
+    if os.environ.get('LF_RAIN_SCALE'):     # ensemble hook (proto/ensemble.py): storm-wide multiplicative radar-rain error; unset = MRMS as is
+        RAIN = (RAIN * float(os.environ['LF_RAIN_SCALE'])).astype(np.float32); log(f"LF_RAIN_SCALE {os.environ['LF_RAIN_SCALE']}: MRMS rain multiplied")
     tot = RAIN.sum(0); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h; missing {MISSING}')
     if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
