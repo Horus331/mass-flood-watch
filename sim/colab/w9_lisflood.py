@@ -402,6 +402,17 @@ def block_throughflow(Qx, Qy, r0, r1, c0, c1):
     return float(inw[inw > 0].sum()), float(-inw[inw < 0].sum())
 
 
+def edge_report(Z, label):
+    """One log line per box edge: NaN cells, elevation range, and cells more than 1 m below their inward neighbour (a FREE boundary on such a
+    cliff misbehaves)."""
+    out = []
+    for nm, e, inner in (('N', Z[0], Z[1]), ('S', Z[-1], Z[-2]), ('W', Z[:, 0], Z[:, 1]), ('E', Z[:, -1], Z[:, -2])):
+        f = np.isfinite(e)
+        out.append(f"{nm}: nan {int((~f).sum())}, z {np.nanmin(e) if f.any() else float('nan'):.1f}..{np.nanmax(e) if f.any() else float('nan'):.1f}, "
+                   f"median {np.nanmedian(e) if f.any() else float('nan'):.1f}, >1 m below inner {int(np.sum((inner - e) > 1.0))}")
+    log(f'edges ({label}): ' + ' | '.join(out))
+
+
 def build_inputs(BOX, RES, S, TOK):
     from huggingface_hub import hf_hub_download
     from scipy import ndimage
@@ -419,6 +430,8 @@ def build_inputs(BOX, RES, S, TOK):
     for key, v in need: paste(Z10, np.load(hf_hub_download(REPO, f'data/dem10/{key}.npy', repo_type='dataset', token=TOK)), v)
     ny, nx = ny10 // k, nx10 // k
     Z = np.nanmean(Z10[:ny * k, :nx * k].reshape(ny, k, nx, k), axis=(1, 3)).astype(np.float32); del Z10
+    edge_report(Z, 'raw DEM at RES'); log('row 0 (north edge) every 20th cell: ' + ' '.join(f'{v:.1f}' for v in Z[0, ::20]))
+    log('row 1 every 20th cell: ' + ' '.join(f'{v:.1f}' for v in Z[1, ::20]))
     nod = np.isnan(Z); low = nod | (Z <= 0.3)
     lab, _ = ndimage.label(low); edge = np.unique(np.r_[lab[0], lab[-1], lab[:, 0], lab[:, -1]]); edge = edge[edge > 0]
     sea = np.isin(lab, edge); del lab
@@ -593,6 +606,12 @@ def main():
     if abs(scale - 1) > 0.2: log(f'WARNING: probe depth {scale:.3f} x expected; rain will be divided by it')
     # 3. inputs
     I = build_inputs(BOX, RES, S, TOK); ny, nx = I['ny'], I['nx']
+    edge_report(I['Z'], 'model DEM'); log('model row 0 every 20th cell: ' + ' '.join(f'{v:.1f}' for v in I['Z'][0, ::20]))
+    log(f"edge flags: sea N/S/W/E {int(I['sea'][0].sum())}/{int(I['sea'][-1].sum())}/{int(I['sea'][:, 0].sum())}/{int(I['sea'][:, -1].sum())}, "
+        f"chan {int(I['chan'][0].sum())}/{int(I['chan'][-1].sum())}/{int(I['chan'][:, 0].sum())}/{int(I['chan'][:, -1].sum())}, "
+        f"water {int(I['water'][0].sum())}/{int(I['water'][-1].sum())}/{int(I['water'][:, 0].sum())}/{int(I['water'][:, -1].sum())}, "
+        f"rain total row 0 mean {float(I['RAIN'][:, 0].sum(0).mean()):.0f} mm vs box {float(I['RAIN'].sum(0).mean()):.0f} mm")
+    if os.environ.get('LF_INPUTS_ONLY') == '1': log('LF_INPUTS_ONLY: stopping after the inputs'); return
     wd = f'{WORK}/run_{run_name}'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
     write_asc(f'{wd}/dem.asc', I['Z'], x0, y0, RES)
     NM = manning_map(I['water'], I['chan'], I['IMP'])
