@@ -92,8 +92,8 @@ def diagnose(run_dir, obs_path, crossings_path=None, nbi_path=None, segments_pat
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('--run-dir', required=True); ap.add_argument('--out', required=True)
-    ap.add_argument('--obs', default=os.path.join(ROOT, 'docs', 'proto', 'obs', 'gauges_sep2023.json'))
-    a = ap.parse_args()
+    ap.add_argument('--obs', help='default docs/proto/obs/gauges_<storm>.json'); ap.add_argument('--storm', default=os.environ.get('STORM') or 'sep2023')
+    a = ap.parse_args(); a.obs = a.obs or os.path.join(ROOT, 'docs', 'proto', 'obs', f'gauges_{a.storm}.json')
     R = diagnose(a.run_dir, a.obs, os.path.join(ROOT, 'docs', 'network', 'crossings_all.json'), os.path.join(ROOT, 'docs', 'network', 'nbi_ma.json'),
                  os.path.join(ROOT, 'docs', 'graph_segments.json'))
     W = {}

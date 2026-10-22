@@ -6,6 +6,7 @@ on:
         description: 'JSON list of {name, box, res, env}'
         required: true
       hours: {default: '48'}
+      storm: {description: 'storm id (w9 STORMS); picks obs + labels files', default: 'sep2023'}
 permissions:
   contents: write
 jobs:
@@ -28,8 +29,8 @@ jobs:
           BOX: ${{ matrix.cfg.box }}
           RES: ${{ matrix.cfg.res }}
           HOURS: ${{ inputs.hours }}
-          STORM: sep2023
-          RUN_DIR: runs/sep2023_exp_${{ matrix.cfg.name }}
+          STORM: ${{ inputs.storm }}
+          RUN_DIR: runs/${{ inputs.storm }}_exp_${{ matrix.cfg.name }}
           OMP_NUM_THREADS: '4'
         run: |
           set -o pipefail
@@ -37,6 +38,8 @@ jobs:
           python sim/colab/w9_lisflood.py 2>&1 | tail -c 300000 > w9_stdout.txt; tail -5 w9_stdout.txt
       - name: closures + score
         if: always()
+        env:
+          STORM: ${{ inputs.storm }}
         run: |
           OUT=docs/proto/exp/${{ matrix.cfg.name }}; mkdir -p $OUT
           RD=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)

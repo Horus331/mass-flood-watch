@@ -27,7 +27,8 @@ def parse_obs(lsr=None, se=None, labels=None):
         for r in csv.DictReader(open(se)):
             if not r.get('BEGIN_LAT'): continue
             t = dt.datetime.strptime(r['BEGIN_DATE_TIME'], '%d-%b-%y %H:%M:%S').replace(tzinfo=dt.timezone(dt.timedelta(hours=-5)))
-            obs.append(dict(src='StormEvents', lon=float(r['BEGIN_LON']), lat=float(r['BEGIN_LAT']), t=t.astimezone(UTC), text=r['EVENT_NARRATIVE'][:120], radius=150.0))
+            o = dict(src='StormEvents', lon=float(r['BEGIN_LON']), lat=float(r['BEGIN_LAT']), t=t.astimezone(UTC), text=r['EVENT_NARRATIVE'][:120], radius=150.0)
+            if o not in obs: obs.append(o)      # the same event is sometimes listed twice under two EVENT_IDs
     if labels and os.path.exists(labels):
         for r in csv.DictReader(open(labels)):
             try: lon, lat = float(r['lon']), float(r['lat'])
@@ -80,7 +81,11 @@ def run(run_dir, obs, seed=0):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('--run-dir', required=True); ap.add_argument('--out')
-    ap.add_argument('--lsr', default='docs/proto/obs/lsr_sep2023.csv'); ap.add_argument('--stormevents', default='docs/proto/obs/stormevents_sep2023.csv')
-    ap.add_argument('--labels', default='proto/data/labels_sep2023_leominster.csv')
-    a = ap.parse_args(); R = run(a.run_dir, parse_obs(a.lsr, a.stormevents, a.labels)); print(json.dumps(R['summary'], indent=1))
+    ap.add_argument('--storm', default=os.environ.get('STORM') or 'sep2023', help='storm id (env STORM; default sep2023) -> default file names below')
+    ap.add_argument('--lsr', help='default docs/proto/obs/lsr_<storm>.csv'); ap.add_argument('--stormevents', help='default docs/proto/obs/stormevents_<storm>.csv')
+    ap.add_argument('--labels', help='default proto/data/labels_<storm>_*.csv')
+    a = ap.parse_args(); import glob
+    a.lsr = a.lsr or f'docs/proto/obs/lsr_{a.storm}.csv'; a.stormevents = a.stormevents or f'docs/proto/obs/stormevents_{a.storm}.csv'
+    a.labels = a.labels or (sorted(glob.glob(f'proto/data/labels_{a.storm}_*.csv')) or [None])[0]
+    R = run(a.run_dir, parse_obs(a.lsr, a.stormevents, a.labels)); print(json.dumps(R['summary'], indent=1))
     if a.out: json.dump(R, open(a.out, 'w'), indent=1, default=str)
