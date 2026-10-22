@@ -25,7 +25,7 @@ What (per NID dam in the box, docs/network/dams_ma.json from the USACE National 
      weir, Q = 1.705 b H^1.5, Chow 1959 sec. 14-6; Bos 1989), modular limit 0.67 (Bos 1989).  The outlet cell is cut to <= P - 0.2 m so the
      weir discharges freely and the breach carves its path on downstream as for any other cell.
      LF_DAMS_WEIR=0: no weir file; the outlet cell is set to the crest P instead (a DEM weir one cell wide: Manning flow over a 20 m sill).
-  5. solver damping in LF_DAMS runs: theta 0.7, cfl 0.5 in the .par (LF_DAMS_THETA / LF_DAMS_CFL; '' leaves the LISFLOOD-FP default).
+  5. solver time step in LF_DAMS runs: cfl 0.3 in the .par (LF_DAMS_CFL; LF_DAMS_THETA optional, default unset = 1; '' leaves the default).
 Not modelled: gate operations, drawn-down water-supply reservoirs (they start full here), lake bathymetry, dam failure.
 """
 import os, json, math
@@ -186,10 +186,12 @@ def apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=print, dams=None):
     for L in sorted(lakes, key=lambda L: -L['area_km2'])[:12]:
         log(f"  {L['name']} ({L['nid']}): pool {L['pool_m']} m, {L['area_km2']} km2 (NID {L['nid_area_km2']}), depth {L['bed_depth_m']} m, weir {L['weir_w_m']} m, "
             f"rim raised {L['rim_raised_cells']} cells")
-    # solver damping: with theta = 1 and cfl 0.7 the local-inertial scheme grows a checkerboard oscillation in deep, flat, low-friction water
-    # (Bates et al. 2010; de Almeida et al. 2012, WRR 48 W05528, who add theta < 1 for exactly this); found on a synthetic full lake with the
-    # LISFLOOD-FP 8.2 CPU build (mass error, stage spread of metres) and in the Leominster run.  theta 0.7 + cfl 0.5 removed it in every test.
-    par = [f'{k} {v}' for k, v in (('theta', os.environ.get('LF_DAMS_THETA', '0.7')), ('cfl', os.environ.get('LF_DAMS_CFL', '0.5'))) if v]
+    # solver stability: with cfl 0.7 the local-inertial scheme grows a checkerboard oscillation in deep, flat, low-friction water (Bates et al.
+    # 2010), found on a synthetic full lake with the LISFLOOD-FP 8.2 CPU build (mass error, stage spread of metres) and in the Leominster run.
+    # theta 0.7 (de Almeida et al. 2012) also damps it but averages each face flux with its along-row neighbours, which on a D4 staircase
+    # channel are bank faces: -24 % peak on a synthetic diagonal valley and the Worcester gauges collapsed (dm_wor_cn091_dams).  So theta stays
+    # 1 and the time step is cut: cfl 0.3 was stable in every lake test (0.4 and 0.5 were not), no effect on a no-lake channel (-0.1 %).
+    par = [f'{k} {v}' for k, v in (('theta', os.environ.get('LF_DAMS_THETA', '')), ('cfl', os.environ.get('LF_DAMS_CFL', '0.3'))) if v]
     return Z, water, dict(protect=protect, start=start, weirs=weirs, lakes=lakes, skipped=skipped, dams_in_box=inbox, source=src, owner=owner,
                           weir=use_weir, cd=cd, m=mlim, par=par)
 
