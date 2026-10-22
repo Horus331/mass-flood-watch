@@ -53,6 +53,11 @@ Q_SIGMA_LN = 0.30      # sd of ln(peak flow) at a crossing (~ +-35 %): the culve
 FB_MARGIN_M = 0.30
 FB_SIGMA_M = 0.15
 FB_RADIUS_M = 30.0     # water "beside" the road: wet cells within 30 m of the road point (3 x 3 cells at 20 m), the road's own unedited cells excluded
+# ---- OVERTOPPING layer ("may close", shown beside the main closure layer, never added to p_close) ----
+# Same freeboard geometry with margin 0: the water beside the road reaches the road crest (embankment overtopping).  The margin was chosen after
+# looking at the Sept 2023 Leominster labels (recall 0.74 at 9.8 % flagged vs 0.39 at 4.7 % for the depth rule), so it is a CANDIDATE to be
+# confirmed on an independent storm (Vermont July 2023) before it can enter p_close.
+OT_MARGIN_M = 0.0
 FB_WET_M = 0.10        # a cell counts as water when its peak depth >= 10 cm (the wet threshold of w9 / validate_points)
 EDIT_TOL_M = 0.05      # a cell lowered by more than this (channel burn, crossing notch, depression breach) is a waterway cell, not road surface
 # ---- FAST-WATER rule (--fastwater) ----
@@ -160,6 +165,13 @@ def p_fastwater(dv, v, h, near_xing):
     pw = np.zeros(v.shape); m = np.asarray(near_xing, bool) & (h >= ERODE_MIN_H_M) & (v > 1e-6)
     if m.any(): pw[m] = phi(np.log(v[m] / V_ERODE_MS) / V_SIGMA_LN)
     return 1.0 - (1.0 - pdv) * (1.0 - pw), pdv, pw
+
+
+def p_overtop(f):
+    """P(water beside the road reaches its crest): Phi((0 - f) / 0.15); 0 where no water is near."""
+    f = np.asarray(f, np.float64); out = np.zeros(f.shape)
+    ok = np.isfinite(f); out[ok] = phi((OT_MARGIN_M - f[ok]) / FB_SIGMA_M) if ok.any() else out[ok]
+    return out
 
 
 def combine(*ps):
@@ -335,7 +347,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
 
     # FREEBOARD and FAST-WATER rules (per road point, second-highest point value per segment like the depth rule)
     ZRf = load_npz(os.path.join(run_dir, 'z_raw.npz')); VEL = load_npz(os.path.join(run_dir, 'vel_max.npz')); shp = tuple(meta['shape'])
-    pfb = np.zeros(n, np.float32); fbm = np.full(n, np.nan, np.float32); pfw = np.zeros(n, np.float32); pdv_s = np.zeros(n, np.float32)
+    pot = np.zeros(n, np.float32); pfb = np.zeros(n, np.float32); fbm = np.full(n, np.nan, np.float32); pfw = np.zeros(n, np.float32); pdv_s = np.zeros(n, np.float32)
     pws_s = np.zeros(n, np.float32); spd = np.full(n, np.nan, np.float32); dvs = np.full(n, np.nan, np.float32); edited = np.zeros(shp, bool)
     rules = dict(freeboard='unavailable (no z_raw.npz in the run dir)', fastwater='unavailable (no vel_max.npz: run w9 with LF_VOUT=1)')
     if ZRf is not None and R['Z'] is not None and ZRf['z_raw'].shape == shp and len(Q['x']):
@@ -344,6 +356,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         WA, edited = adjacent_wse(H, R['Z'], ZR, road_cells, res)
         fq = (ZC[Q['r'], Q['c']] - WA[Q['r'], Q['c']]).astype(np.float64)        # +inf: no water within 30 m
         pfb = np.where(inbox, seg_top2(n, Q['seg'], p_freeboard(fq).astype(np.float32)), 0.0).astype(np.float32)
+        pot = np.where(inbox, seg_top2(n, Q['seg'], p_overtop(fq).astype(np.float32)), 0.0).astype(np.float32)
         f2 = -seg_top2(n, Q['seg'], -np.minimum(fq, 99.0).astype(np.float32)); fbm = np.where(inbox & (f2 < 99.0), f2, np.nan).astype(np.float32)
         rules['freeboard'] = dict(margin_m=FB_MARGIN_M, sigma_m=FB_SIGMA_M, radius_m=FB_RADIUS_M, wet_m=FB_WET_M, crest='z_raw_max10' if 'z_raw_max10' in ZRf else 'z_raw',
                                   road_points_with_water_near=int(np.isfinite(fq).sum()), road_points=int(len(fq)), edited_cells=int(edited.sum()))
@@ -364,11 +377,12 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         dvs = np.where(inbox, seg_top2(n, Q['seg'], dq_.astype(np.float32)), np.nan).astype(np.float32)
         rules['fastwater'] = dict(dv0_m2s=DV0_M2S, dv_sigma_ln=DV_SIGMA_LN, v_erode_ms=V_ERODE_MS, v_sigma_ln=V_SIGMA_LN, erode_min_h_m=ERODE_MIN_H_M,
                                   road_points_near_crossing=int((near & unm).sum()), velocity_source=str(VEL.get('vmax_source', '')), dv_source=str(VEL.get('dv_source', '')))
-    VAR = {'depth': p_depth, 'freeboard': combine(p_depth, pfb), 'fastwater': combine(p_depth, pfw), 'both': combine(p_depth, pfb, pfw)}
+    VAR = {'depth': p_depth, 'overtop': combine(p_depth, pot), 'freeboard': combine(p_depth, pfb), 'fastwater': combine(p_depth, pfw), 'both': combine(p_depth, pfb, pfw)}
     for k_ in list(VAR): VAR[k_ + '+culvert'] = combine(VAR[k_], pcul)
     VAR = {k_: np.where(inbox, v_, 0.0).astype(np.float32) for k_, v_ in VAR.items()}
     vkey = ('both' if freeboard and fastwater else 'freeboard' if freeboard else 'fastwater' if fastwater else 'depth') + ('+culvert' if culvert_rule else '')
     pclose = VAR[vkey]
+    pmay = np.where(inbox, combine(pclose, pot), 0.0).astype(np.float32)        # 'may close' layer: main rule OR overtopping
     over = [x for x in xs if x['status'] in ('overtopped', 'surcharged')]
     near_culv = np.zeros(n, bool)
     if over and len(Q['x']):
@@ -385,6 +399,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                  arrival_h=None if np.isnan(arr30[i]) else round(float(arr30[i]), 1), storm_total_mm=round(float(tot[i])), peak1h_mm=round(float(p1[i]), 1),
                  peak3h_mm=round(float(p3[i]), 1), flashness_pct=round(float(flash[i]), 1), culvert_overtopped_nearby=bool(near_culv[i]),
                  p_depth=round(float(p_depth[i]), 3), p_culvert=round(float(pcul[i]), 3), culvert_why=cwhy.get(int(i)),
+                 p_overtop=round(float(pot[i]), 3), p_may_close=round(float(pmay[i]), 3),
                  p_freeboard=round(float(pfb[i]), 3), freeboard_m=None if np.isnan(fbm[i]) else round(float(fbm[i]), 2),
                  p_fastwater=round(float(pfw[i]), 3), p_dv=round(float(pdv_s[i]), 3), p_washout=round(float(pws_s[i]), 3),
                  peak_speed_ms=None if np.isnan(spd[i]) else round(float(spd[i]), 2), dv_m2s=None if np.isnan(dvs[i]) else round(float(dvs[i]), 2),
@@ -434,7 +449,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                               blockage_factors=BLOCKAGE if blockage else {}, probability='Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)')
 
     # outputs
-    keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['p_close'] >= 0.1 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
+    keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['p_close'] >= 0.1 or r['p_may_close'] >= 0.1 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
     write_geojson(os.path.join(out, 'segments.geojson'), S, keep)
     for r in rows: r.pop('d', None)
     with open(os.path.join(out, 'watchlist.csv'), 'w', newline='') as f:
@@ -446,6 +461,10 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     summ = dict(run=R['name'], model=meta.get('model'), storm_start=meta.get('t0'), box_epsg26986=meta['box'], resolution_m=res,
                 segments_in_box=int(inbox.sum()), closures_expected=round(float(pclose[inbox].sum()), 1),
                 segments_p_ge_50=int((pclose[inbox] >= 0.5).sum()), segments_p_ge_90=int((pclose[inbox] >= 0.9).sum()),
+                segments_may_close=int(((pmay >= 0.5) & (pclose < 0.5) & inbox).sum()),
+                km_may_close=round(float(np.asarray(props['len'], float)[inbox & (pmay >= 0.5) & (pclose < 0.5)].sum() / 1000), 1),
+                may_close_rule='water beside the road reaches the road crest: Phi((0 - f) / 0.15), f = lidar crest - peak water surface within 30 m; candidate, '
+                               'not in p_close until confirmed on a second storm',
                 segments_p_ge_50_depth_rule=int((p_depth[inbox] >= 0.5).sum()), segments_p_ge_50_with_culverts=int((p_comb[inbox] >= 0.5).sum()),
                 km_p_ge_50=round(float(np.asarray(props['len'], float)[inbox & (pclose >= 0.5)].sum() / 1000), 1),
                 culverts_overtopped=sum(1 for x in xs if x['status'] == 'overtopped'), culverts_surcharged=sum(1 for x in xs if x['status'] == 'surcharged'),
@@ -516,6 +535,7 @@ def write_report(path, s, top):
          '| Result | Value |', '| --- | --- |',
          f"| Road segments in the area | {s['segments_in_box']:,} |", f"| Expected closures (sum of probabilities) | {s['closures_expected']} |",
          f"| Segments with closure probability >= 50% | {s['segments_p_ge_50']} ({s['km_p_ge_50']} km) |",
+         f"| Further segments that may close (stream reaches the road crest) | {s.get('segments_may_close', 0)} ({s.get('km_may_close', 0)} km) |",
          f"| Culverts overtopped / surcharged | {s['culverts_overtopped']} / {s['culverts_surcharged']} of {s['crossings_assessed']} |",
          f"| Road segments cut off from hospitals | {s['cut_off_from_hospitals']} |", f"| Worst added trip time to a hospital | {s['worst_added_minutes']} min |",
          f"| Heaviest hour of rain | {s['rain_peak1h_max_mm']} mm |", f"| Flood model run time | {s['flood_model_runtime_s']} s |", '']
@@ -549,13 +569,14 @@ MAP_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta 
 <b>Layers</b><label><input type="checkbox" data-l="depth" checked> Flood depth</label>
 <label><input type="checkbox" data-c="2" checked> Highways</label><label><input type="checkbox" data-c="1" checked> Arterials</label>
 <label><input type="checkbox" data-c="0" checked> Local / collector</label>
+<label><input type="checkbox" data-l="may" checked> May close: stream at road level</label>
 <div style="margin-top:6px"><span class="k" style="background:#b2182b"></span>closed now (&ge; 30 cm)<br><span class="k" style="background:#f4a582"></span>15&ndash;30 cm<br>
-<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak (peak view)</div></div>
+<span class="k" style="background:#9ecae1"></span>wet<br><span class="k" style="background:#555;height:2px"></span>closes at peak<br><span class="k" style="background:#e08214;height:3px"></span>may close (stream reaches road level)</div></div>
 <div id="t"><button id="play">&#9654;</button><input id="sl" type="range" min="0" value="0"><span id="clock"></span><span id="cnt"></span><svg id="rain"></svg></div>
 <script>
 const S=__SUMMARY__, C=__CORNERS__, FH=S.frame_hours||[], NF=FH.length, T0=new Date(S.storm_start.replace('Z',':00Z'));
 const CLS={0:'local / collector',1:'arterial',2:'highway'};
-document.getElementById('s').innerHTML=`At peak: ${S.segments_p_ge_50} segments likely closed (${S.km_p_ge_50} km), ${S.culverts_overtopped} culverts overtopped.<br><br>`;
+document.getElementById('s').innerHTML=`At peak: ${S.segments_p_ge_50} segments likely closed (${S.km_p_ge_50} km); ${S.segments_may_close??0} more may close (${S.km_may_close??0} km); ${S.culverts_overtopped} culverts overtopped.<br><br>`;
 const m=new maplibregl.Map({container:'m',center:__CENTER__,zoom:12,style:{version:8,sources:{t:{type:'raster',tileSize:256,attribution:'Esri, USGS',
 tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}']}},layers:[{id:'t',type:'raster',source:'t'}]}});
 const sl=document.getElementById('sl'); sl.max=Math.max(NF-1,0); let k=NF?NF-1:0, timer=null;
@@ -576,11 +597,15 @@ document.getElementById('play').onclick=play;sl.oninput=e=>{if(timer)play();show
 m.on('load',()=>{m.addSource('d',{type:'image',url:frameUrl(k),coordinates:C});m.addLayer({id:'depth',type:'raster',source:'d',paint:{'raster-opacity':0.8,'raster-resampling':'nearest','raster-fade-duration':0}});
 fetch('segments.geojson').then(r=>r.json()).then(g=>{m.addSource('s',{type:'geojson',data:g});
 m.addLayer({id:'peak',type:'line',source:'s',filter:['>=',['get','p_close'],0.5],paint:{'line-color':'#555','line-width':1,'line-dasharray':[2,2]}});
+m.addLayer({id:'may',type:'line',source:'s',filter:['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5]],paint:{'line-color':'#e08214','line-width':2.5,'line-dasharray':[1,1]}});
 m.addLayer({id:'seg',type:'line',source:'s',paint:{'line-width':3,'line-color':'#b2182b'}});
-const pop=e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br><small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}%</small><br>${p.why}`).addTo(m)};m.on('click','seg',pop);m.on('click','peak',pop);
+const pop=e=>{const p=e.features[0].properties;new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.road||'(unnamed)'}, ${p.town}</b><br>${p.road_class}<br>Chance of closing at peak: ${(+p.p_close*100).toFixed(0)}%<br>${(+(p.p_may_close||0))>=0.5&&(+p.p_close)<0.5?`<b style="color:#e08214">May close: stream reaches road level (${(+p.p_overtop*100).toFixed(0)}%)</b><br>`:''}<small>depth ${(+p.p_depth*100).toFixed(0)}% · freeboard ${(+(p.p_freeboard||0)*100).toFixed(0)}% · fast water ${(+(p.p_fastwater||0)*100).toFixed(0)}% · culvert ${(+(p.p_culvert||0)*100).toFixed(0)}%</small><br>${p.why}`).addTo(m)};m.on('click','seg',pop);m.on('click','peak',pop);m.on('click','may',pop);
 m.on('mouseenter','seg',()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave','seg',()=>m.getCanvas().style.cursor='');filt();show(0);});});
-function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);['seg','peak'].forEach(l=>{if(m.getLayer(l))m.setFilter(l,l=='peak'?['all',['>=',['get','p_close'],0.5],['in',['get','road_class'],['literal',on]]]:['in',['get','road_class'],['literal',on]])})}
+function filt(){const on=[...document.querySelectorAll('[data-c]')].filter(b=>b.checked).map(b=>CLS[b.dataset.c]);const cl=['in',['get','road_class'],['literal',on]];
+ if(m.getLayer('seg'))m.setFilter('seg',cl);if(m.getLayer('peak'))m.setFilter('peak',['all',['>=',['get','p_close'],0.5],cl]);
+ if(m.getLayer('may'))m.setFilter('may',['all',['>=',['coalesce',['get','p_may_close'],0],0.5],['<',['get','p_close'],0.5],cl])}
 document.querySelectorAll('[data-c]').forEach(b=>b.onchange=filt);
+document.querySelector('[data-l=may]').onchange=e=>{if(m.getLayer('may'))m.setLayoutProperty('may','visibility',e.target.checked?'visible':'none')};
 document.querySelector('[data-l=depth]').onchange=e=>m.setLayoutProperty('depth','visibility',e.target.checked?'visible':'none');
 </script></body></html>"""
 
@@ -655,12 +680,19 @@ def selftest():
     rows4 = {r['road']: r for r in csv.DictReader(open(os.path.join(d, 'out4', 'watchlist.csv')))}
     assert float(rows4['B St']['p_freeboard']) > 0.99 and float(rows4['B St']['p_depth']) < 0.2 and float(rows4['B St']['freeboard_m']) == -0.2, rows4['B St']
     assert float(rows4['C St']['p_dv']) > 0.97 and float(rows4['C St']['p_fastwater']) > 0.97 and 'fast water' in rows4['C St']['why'] and 'crest' in rows4['B St']['why']
-    v4 = s4['checks']['labels_segments']['variants']; assert set(v4) == {'depth', 'freeboard', 'fastwater', 'both', 'depth+culvert', 'freeboard+culvert', 'fastwater+culvert', 'both+culvert'}
-    assert s4['segments_p_ge_50'] == 3 and s4['checks']['rules']['segments_p_ge_50'] == {'depth': 1, 'freeboard': 2, 'fastwater': 2, 'both': 3, 'depth+culvert': 2,
+    v4 = s4['checks']['labels_segments']['variants']; assert set(v4) == {'depth', 'overtop', 'overtop+culvert', 'freeboard', 'fastwater', 'both', 'depth+culvert', 'freeboard+culvert', 'fastwater+culvert', 'both+culvert'}
+    assert s4['segments_p_ge_50'] == 3 and {k: v for k, v in s4['checks']['rules']['segments_p_ge_50'].items() if not k.startswith('overtop')} == {'depth': 1, 'freeboard': 2, 'fastwater': 2, 'both': 3, 'depth+culvert': 2,
                                                                                           'freeboard+culvert': 3, 'fastwater+culvert': 2, 'both+culvert': 3}, s4['checks']['rules']
     assert v4['fastwater']['strict']['culvert_washout']['recall'] == 1.0 and 'split_strict' in v4['both'] and s4['checks']['labels_segments']['applied'] == 'both'
     st4 = {x['id']: x for x in s4['checks']['labels_segments']['sites']}; assert 'fastwater' in st4['L1']['hit'] and 'depth' not in st4['L1']['hit']
     g4 = {f_['properties']['road'] for f_ in json.load(open(os.path.join(d, 'out4', 'segments.geojson')))['features']}; assert 'C St' in g4   # dry but flagged: on the map
+    # 'may close' layer (depth rule as p_close): B St, dry road with water 0.2 m above its crest beside it, is not closed but may close
+    s5 = run(rd, os.path.join(d, 'out5'), sp, xp, None, None, None, labels_csv=lp)
+    rows5 = {r['road']: r for r in csv.DictReader(open(os.path.join(d, 'out5', 'watchlist.csv')))} if os.path.exists(os.path.join(d, 'out5', 'watchlist.csv')) else {}
+    g5 = {f_['properties']['road']: f_['properties'] for f_ in json.load(open(os.path.join(d, 'out5', 'segments.geojson')))['features']}
+    assert g5['B St']['p_close'] < 0.5 and g5['B St']['p_may_close'] >= 0.9 and abs(g5['B St']['p_overtop'] - float(phi(np.array([0.2 / FB_SIGMA_M]))[0])) < 1e-3, g5['B St']
+    assert s5['segments_may_close'] >= 1
+    assert 'may close' in open(os.path.join(d, 'out5', 'map.html')).read()
     print('selftest ok:', out)
 
 

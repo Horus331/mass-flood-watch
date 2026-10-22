@@ -70,6 +70,9 @@ Results on the 78 strict-matched sites:
 Freeboard doubles recall but flags 14 % of segments and lift falls from 5.8 to 3.9, so it is not adopted. Fast water adds one site, which
 is within noise. Defaults stay depth-only. A post-hoc sensitivity check with margin 0 (water at the crest, i.e. overtopping) gives recall
 0.744 at 9.8 % flagged and lift 5.45. It was chosen after seeing the labels, so it needs a second storm before any use.
+The map shows it as a separate **"may close: stream at road level"** layer (orange dotted; `p_overtop`, `p_may_close` in
+`segments.geojson`; `segments_may_close` in `summary.json`). It never changes `p_close`; it becomes part of the closure rule only if it holds on
+an independent storm (Vermont July 2023 closures, `proto/data/vt_roadclosures_jul2023.geojson`).
 Peak speeds have numerical spikes (max 96 m/s in a few cells; p95 on wet land 3.2 m/s), so read single-cell speeds with care.
 
 ## Run it
