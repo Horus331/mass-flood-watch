@@ -24,6 +24,17 @@ flood sites (for checking only)     5. checks against what happened
 | Culverts, network | `sim/infra/impacts.py`, `sim/infra/culvert.py` | FHWA HDS-5 culvert equations; MA road-stream crossings (USGS / NAACC / MassDOT); Dijkstra routing |
 | Output map | `proto/prototype.py` | MapLibre GL, Esri topographic basemap |
 
+**Default since 22 Oct 2026 — 4-connected depression breaching + CN × 0.91.** The depression breaching used to carve 8-connected
+outlets; LISFLOOD-FP exchanges water across cell faces only, so outlets that step diagonally drained nothing and ~24 Mm³ of rain stayed
+trapped in sealed hollows (113 of the 115 segments still closed at 47 h in Leominster; Lake Quinsigamond and the Millbury gauge in
+Worcester). `LF_BREACH_D4=1` (now the default) carves face-connected outlets: dead storage 24.5 → 8.2 Mm³, roads reopen (5 segments closed
+at 47 h instead of 115). The trapped water had acted as a hidden loss, so the curve number was recalibrated (CN × 0.91): Fitchburg rise
+0.97 vs 1.00 m, peak Q 37.6 vs 43.6 m³/s; Leominster rise 3.24 vs 2.92 m, Q 197 vs 157 m³/s (peak inside the gauge's data gap);
+rising-limb timing +0.9 / +0.3 h. Label checks with the current prototype (strict, Leominster): depth rule recall 0.36 at 2.2 % flagged
+(lift 11; was 0.39 at 4.5 %); 'overtop' 0.51 at 5.3 % (was 0.74 at 9.7 %); on the 54 Leominster DPW damage points depth 0.39 (lift 15),
+overtop 0.39. Part of the earlier recall came from false pools in sealed hollows beside roads; the lower numbers are the honest baseline.
+Runs before this change (including the paragraph below) used 8-connected breaching and CN × 1.0.
+
 **Calibration and checks (Sept 2023):** rain losses use the standard NRCS curve number (TR-55, HSG + NLCD impervious, AMC II, no
 adjustment factor). Modelled peak river flow matches both in-box USGS gauges: 41 vs 44 m³/s observed at 01094400 (North Nashua at
 Fitchburg) and 167 vs 157 m³/s at 01094500 (North Nashua near Leominster); stage rise 1.29 vs 1.00 m and 3.26 vs 2.92 m. Timing
@@ -137,7 +148,7 @@ python proto/resilience.py --selftest; python proto/rating.py --selftest; python
 
 Small case (any laptop or the GitHub workflow `.github/workflows/proto.yml`):
 ```
-BOX=168000,908000,188000,928000 RES=20 STORM=sep2023 HOURS=48 LF_LOSS=cn LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_QOUT=1 LF_NO_UPLOAD=1 LF_WORK=$PWD/lf python sim/colab/w9_lisflood.py
+BOX=168000,908000,188000,928000 RES=20 STORM=sep2023 HOURS=48 LF_LOSS=cn LF_CN_SCALE=0.91 LF_INFIL_MMH=2 LF_QOUT=1 LF_NO_UPLOAD=1 LF_WORK=$PWD/lf python sim/colab/w9_lisflood.py
 python proto/prototype.py --run-dir lf/run_sep2023_*/out --out results/leominster
 python proto/prototype.py --selftest        # offline check of step 2-5
 ```
