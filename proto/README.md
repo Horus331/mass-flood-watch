@@ -26,8 +26,10 @@ flood sites (for checking only)     5. checks against what happened
 
 **Calibration and checks (Sept 2023):** rain losses use the standard NRCS curve number (TR-55, HSG + NLCD impervious, AMC II, no
 adjustment factor). Modelled peak river flow matches both in-box USGS gauges: 41 vs 44 m³/s observed at 01094400 (North Nashua at
-Fitchburg) and 167 vs 157 m³/s at 01094500 (North Nashua near Leominster); stage rise 1.29 vs 1.00 m and 3.26 vs 2.92 m. Peaks come
-0.8 h and 4 h early. Absolute water levels sit 1.1–1.3 m below the gauge datum, because the lidar DEM holds the river surface at survey
+Fitchburg) and 167 vs 157 m³/s at 01094500 (North Nashua near Leominster); stage rise 1.29 vs 1.00 m and 3.26 vs 2.92 m. Timing
+(`proto/score.py`, gap-aware): the modelled rising limb reaches half the event rise 1.7 h and 0.7 h *late* (rise50); the hydrograph centroid
+over the 48 h window is 0.4 h and 1.9 h late; the modelled crest is 0.8 h before Fitchburg's and at 00:30Z, inside the 00:30–15:00Z window
+in which Leominster's true crest must lie (see below), so its peak-time error is 0 h as an interval and the old −4 h is not a model error. Absolute water levels sit 1.1–1.3 m below the gauge datum, because the lidar DEM holds the river surface at survey
 time and the channel bed is burnt approximately, so rise and flow are the scored quantities. Every run is also scored against 13 NWS storm
 reports, 11 NOAA Storm Events records and 93 documented road flood/closure/damage sites (`proto/data/`), next to random road points.
 
@@ -35,9 +37,16 @@ reports, 11 NOAA Storm Events records and 93 documented road flood/closure/damag
 row reading past the buffer (spurious inflow of ~3×10⁹ m³). Runs before commit "Fix rain file row mapping" (including the earlier ×0.9
 calibration) are superseded.
 
-*Peak timing at Leominster (22 Oct 2026, not adopted; defaults unchanged):* the −4 h is mostly a gauge artefact. 01094500 has no 15-min
-data from 00:30Z to 04:30Z and 04:30Z to 15:00Z on 12 Sept; the only point in the gap is the USGS peak (12.54 ft, 157 m³/s at 04:30Z).
-At 00:30Z the river was still rising (3.59 m, 132 m³/s), so the true peak is somewhere in 00:30–04:30Z. What is real is the shape: the
+*Peak timing at Leominster (22 Oct 2026, not adopted; defaults unchanged):* the −4 h is a gauge artefact. USGS 01094500 has no 15-min
+stage from 00:30Z to 04:30Z and from 04:30Z to 15:00Z on 12 Sept 2023; the one value between the two gaps, 12.54 ft at 04:30Z, is the
+highest recorded, and the −4 h was measured against it. At 00:30Z the river was still rising (3.59 m, 132 m³/s) and at 15:00Z it was
+well down (9.15 ft), so the record only says the crest was at least 12.54 ft and fell somewhere in 00:30–15:00Z (USGS's estimated
+30-min discharge through the gap tops out at 04:30Z, 157 m³/s, but that is itself filled in). `proto/score.py` therefore flags gauges
+whose recorded maximum sits next to a gap > 1 h (`gap_flag`), reports the peak time as an interval (`obs_peak_interval_utc`,
+`peak_timing_error_interval_h`) and ranks runs on timing that does not need the crest: rising-limb 50 % time (`rise50_error_h`, the
+`mean_abs_timing_error_h` used for means) and hydrograph centroid (`centroid_error_h`); the raw peak-time error stays in `timing_error_h`.
+Worcester (Aug 2021) has no gaps; there the robust mean is 1.4 h against 3.8 h for raw peak times (01110000 peaks −10 h on a long flat
+crest but its rising limb is within 0.1 h). What is real is the shape: the
 model rises 1–1.5 h *late* (CN initial abstraction) and recedes far too fast (12:00Z: 13 vs 93 m³/s at Leominster, 4 vs 33 at Fitchburg;
 24-h event volume 3.3 vs 7.0 and 0.8 vs 2.2 Mm³). Half of each gauge's drainage area is outside the 20 km box (in-box 146 of 285 km² and
 68 of 166 km²) and the CN event loss has no delayed (interflow/baseflow) or reservoir component. Experiments (`docs/proto/exp/mn_*`):
