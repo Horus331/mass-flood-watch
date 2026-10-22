@@ -279,7 +279,11 @@ def patch_source(src):
     n = 0
     for p in glob.glob(f'{src}/cuda/**/*', recursive=True):
         if not p.endswith(('.cu', '.cuh', '.h', '.hpp', '.cpp')) or not os.path.isfile(p): continue
-        t = open(p, errors='replace').read(); t2 = re.sub(r'(?<![\w:.>])sync\s*\(', 'lfp_cuda_sync(', t)
+        t = open(p, errors='replace').read()
+        if '/cuda/adaptive/' in p.replace(os.sep, '/'):          # only the global helper in cuda/adaptive clashes with ::sync
+            t2 = re.sub(r'(?<![\w:.>])sync\s*\(', 'lfp_cuda_sync(', t)
+        else:                                                    # lis::cuda::sync elsewhere is namespaced and fine (undo an older wider patch)
+            t2 = t.replace('lfp_cuda_sync(', 'sync(')
         if t2 != t: open(p, 'w').write(t2); n += 1
     if n: log(f'patched sync() -> lfp_cuda_sync() in {n} CUDA source files')
 
