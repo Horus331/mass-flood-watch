@@ -9,8 +9,42 @@ os.makedirs('docs/network', exist_ok=True)
 LOG = dict(started=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), tries=[])
 H = {'User-Agent': 'mass-flood-watch research (dams for flood model)'}
 URLS = ['https://nid.sec.usace.army.mil/api/nation/csv',
-        'https://nid.sec.usace.army.mil/api/states/MA/csv',
         'https://nid.sec.usace.army.mil/api/nation/csv?state=MA']
+# ArcGIS feature services that serve the NID (USACE geospatial server) or the MA Office of Dam Safety inventory; more are discovered by search
+FS = ['https://geospatial.sec.usace.army.mil/server/rest/services/Hosted/NID_v1/FeatureServer/0',
+      'https://geospatial.sec.usace.army.mil/dls/rest/services/NID/National_Inventory_of_Dams_Public_Service/FeatureServer/0']
+SEARCH = ['title:"National Inventory of Dams" AND type:"Feature Service"', 'NID dams USACE type:"Feature Service"', 'Massachusetts dams MassGIS type:"Feature Service"']
+MA_ENV = '-73.6,41.2,-69.9,42.9'
+
+
+def arcgis_layer(u):
+    """All features of an ArcGIS layer inside the MA envelope -> CSV text (header from attribute names; lat/lon from point geometry)."""
+    feats = []; off = 0
+    while True:
+        q = dict(where='1=1', geometry=MA_ENV, geometryType='esriGeometryEnvelope', inSR=4326, outSR=4326, spatialRel='esriSpatialRelIntersects',
+                 outFields='*', returnGeometry='true', f='json', resultOffset=off, resultRecordCount=1000)
+        r = requests.get(u.rstrip('/') + '/query', params=q, timeout=300, headers=H); j = r.json()
+        if 'error' in j: raise RuntimeError(str(j['error'])[:200])
+        fs = j.get('features', []); feats += fs; off += len(fs)
+        if not fs or not j.get('exceededTransferLimit'): break
+    if len(feats) < 50: raise RuntimeError(f'only {len(feats)} features')
+    keys = list(feats[0]['attributes']); buf = io.StringIO(); w = csv.writer(buf); w.writerow(keys + ['Latitude_geom', 'Longitude_geom'])
+    for f in feats:
+        g = f.get('geometry') or {}; w.writerow([f['attributes'].get(k) for k in keys] + [g.get('y'), g.get('x')])
+    return buf.getvalue()
+
+
+def search_services():
+    out = []
+    for q in SEARCH:
+        try:
+            j = requests.get('https://www.arcgis.com/sharing/rest/search', params=dict(q=q, f='json', num=25), timeout=60, headers=H).json()
+            for it in j.get('results', []):
+                if it.get('url') and 'FeatureServer' in it['url'] and 'dam' in (it.get('title', '') + it.get('snippet', '')).lower():
+                    out.append(dict(title=it.get('title'), owner=it.get('owner'), url=it['url'].rstrip('/')))
+        except Exception as e: LOG['tries'].append(dict(search=q, error=repr(e)[:200]))
+    LOG['search'] = out
+    return [o['url'] if re.search(r'/\d+$', o['url']) else o['url'] + '/0' for o in out if 'nation' in o['title'].lower() or 'nid' in o['title'].lower() or 'massachusetts' in o['title'].lower() or 'dam' in o['title'].lower()]
 
 
 def fetch():
@@ -21,11 +55,16 @@ def fetch():
             if r.status_code == 200 and len(r.content) > 10000: return u, r.content.decode('utf-8-sig', errors='replace')
         except Exception as e:
             LOG['tries'].append(dict(url=u, error=repr(e)[:300]))
+    for u in FS + search_services():
+        try:
+            t = arcgis_layer(u); LOG['tries'].append(dict(url=u, ok=True, bytes=len(t))); return u, t
+        except Exception as e:
+            LOG['tries'].append(dict(url=u, error=repr(e)[:300]))
     return None, None
 
 
 # field -> regexes tried in order against the header (case-insensitive); the first header that matches is used
-FIELDS = dict(name=[r'^dam name$', r'dam.?name'], nid=[r'^nid id$', r'nidid', r'nid.?id'], lat=[r'^latitude$', r'lat'], lon=[r'^longitude$', r'lon'],
+FIELDS = dict(name=[r'^dam name$', r'dam.?name'], nid=[r'^nid id$', r'nidid', r'nid.?id'], lat=[r'^latitude$', r'^latitude geom$', r'lat'], lon=[r'^longitude$', r'^longitude geom$', r'lon'],
               state=[r'^state$', r'^state.?name'], county=[r'county'], river=[r'river'], owner_type=[r'primary owner type', r'owner.?type'],
               purposes=[r'^purposes?$', r'purpose'], year=[r'year completed$', r'year.?completed'], dam_type=[r'^primary dam type$', r'dam.?type'],
               nid_height_ft=[r'^nid height', r'nid.?height'], dam_height_ft=[r'^dam height', r'dam.?height'], hydraulic_height_ft=[r'hydraulic height'],
@@ -48,7 +87,7 @@ def main():
     col = {}
     for f, pats in FIELDS.items():
         for p in pats:
-            m = [i for i, h in enumerate(hdr) if re.search(p, h.strip(), re.I)]
+            m = [i for i, h in enumerate(hdr) if re.search(p, h.strip().replace('_', ' '), re.I)]
             if m: col[f] = m[0]; break
     LOG.update(url=url, header=hdr, columns_used={f: hdr[i] for f, i in col.items()})
     rows = []; cols = list(FIELDS)
