@@ -28,7 +28,15 @@ REPO = 'mohabeldokla/mass-flood-watch-tiles'
 STORMS = {'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, title='Sept 11, 2023 flash floods'),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, title='Leominster test'),
           'jul2023vt': dict(t0='2023-07-09T18:00Z', hours=60, frame_min=30, title='July 10-11, 2023 Vermont flood'),
-          'aug2021': dict(t0='2021-08-19T09:00Z', hours=18, frame_min=30, title='Aug 19, 2021 flash floods (Fred)')}   # inputs: LF_DATA_DIR (sim/colab/vt_inputs.py)
+          'aug2021': dict(t0='2021-08-19T09:00Z', hours=18, frame_min=30, title='Aug 19, 2021 flash floods (Fred)'),   # inputs: LF_DATA_DIR (sim/colab/vt_inputs.py)
+          # District 3 storm catalogue (docs/proto/obs/catalog.json, CATALOG.md: boxes, reports, gauges); MRMS Pass2 on AWS for all
+          'jul2021': dict(t0='2021-07-09T08:00Z', hours=18, frame_min=30, title='July 9, 2021 flash floods (Elsa), Worcester'),
+          'sep2021': dict(t0='2021-09-01T18:00Z', hours=24, frame_min=30, title='Sept 1-2, 2021 flash floods (Ida), Worcester'),
+          'sep2022': dict(t0='2022-09-05T06:00Z', hours=18, frame_min=30, title='Sept 5, 2022 flash floods, Webster-Southbridge'),
+          'jul2023': dict(t0='2023-07-14T08:00Z', hours=18, frame_min=30, title='July 14, 2023 flash floods, Worcester-Holden'),
+          'aug2023': dict(t0='2023-08-08T07:00Z', hours=18, frame_min=30, title='Aug 8, 2023 flash floods, MetroWest'),
+          'aug2023b': dict(t0='2023-08-18T05:00Z', hours=18, frame_min=30, title='Aug 18, 2023 flash floods, Millbury-Grafton'),
+          'aug2026': dict(t0='2026-08-03T04:00Z', hours=18, frame_min=30, title='Aug 3, 2026 flash floods, Leominster-Fitchburg')}
 ZENODO_RECORDS = ['13121102', '4073010']        # LISFLOOD-FP v8.2 (DOI 10.5281/zenodo.13121102); 4073010 = concept record (latest)
 NODATA = -9999.0
 LOGP = None
