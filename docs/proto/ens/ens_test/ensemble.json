@@ -1,0 +1,1596 @@
+{
+ "name": "ens_test",
+ "members": 1,
+ "center": {
+  "name": "m00",
+  "env": "LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_QOUT=1",
+  "center": true,
+  "mult": {}
+ },
+ "seed": 2023091,
+ "sampling": "Latin hypercube, truncated normal z",
+ "parameters": [
+  {
+   "name": "rain",
+   "env": "LF_RAIN_SCALE",
+   "kind": "lognormal_mult",
+   "sigma": 0.2,
+   "truncation_sd": 2.0,
+   "sources": "Ciach et al. 2007; Villarini & Krajewski 2010; Zhang et al. 2016 (MRMS)"
+  },
+  {
+   "name": "cn",
+   "env": "LF_CN_SCALE",
+   "kind": "normal_mult",
+   "sigma": 0.1,
+   "truncation_sd": 2.0,
+   "sources": "NRCS NEH 630 ch.10 Table 10-1 (AMC I/III); Hjelmfelt 1991"
+  },
+  {
+   "name": "n_chan",
+   "env": "LF_N_CHAN",
+   "kind": "lognormal_mult",
+   "sigma": 0.25,
+   "truncation_sd": 2.0,
+   "sources": "Chow 1959 Table 5-6; Arcement & Schneider 1989 (USGS WSP 2339)"
+  },
+  {
+   "name": "n_land",
+   "env": "LF_N_LAND_SCALE",
+   "kind": "lognormal_mult",
+   "sigma": 0.35,
+   "truncation_sd": 2.0,
+   "sources": "Chow 1959 Table 5-6 (flood plains); Arcement & Schneider 1989"
+  },
+  {
+   "name": "drain",
+   "env": "LF_INFIL_MMH",
+   "kind": "lognormal_mult",
+   "sigma": 0.4,
+   "truncation_sd": 2.0,
+   "sources": "NRCS NEH 630 ch.7 minimum infiltration rates by HSG (Musgrave 1955)"
+  }
+ ],
+ "member_design": [
+  {
+   "name": "m01",
+   "env": "LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.8429 LF_INFIL_MMH=1.191 LF_QOUT=1 LF_RAIN_SCALE=0.9731 LF_N_CHAN=0.02765 LF_N_LAND_SCALE=1.006",
+   "center": false,
+   "mult": {
+    "rain": 0.9731,
+    "cn": 0.8429,
+    "n_chan": 0.7901,
+    "n_land": 1.0064,
+    "drain": 0.5954
+   }
+  }
+ ],
+ "center_env": "LF_CN_AMC=II LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_LOSS=cn LF_NO_UPLOAD=1 LF_QOUT=1",
+ "member_summary": [
+  {
+   "name": "m00",
+   "mult": {},
+   "rain_mean_mm": 50,
+   "segments_in_box": 5100,
+   "segments_p_ge_50": 97,
+   "segments_may_close": 170,
+   "closures_expected": 123.9,
+   "culverts_overtopped": 69
+  },
+  {
+   "name": "m01",
+   "mult": {
+    "rain": 0.9731,
+    "cn": 0.8429,
+    "n_chan": 0.7901,
+    "n_land": 1.0064,
+    "drain": 0.5954
+   },
+   "rain_mean_mm": 49,
+   "segments_in_box": 5100,
+   "segments_p_ge_50": 42,
+   "segments_may_close": 77,
+   "closures_expected": 62.9,
+   "culverts_overtopped": 41
+  }
+ ],
+ "segments_in_box": 5100,
+ "closure_rules": {
+  "depth": "peak depth >= 0.30 m (second-highest road point)",
+  "overtop": "depth rule OR freeboard f < 0 (water beside the road above its lidar crest)"
+ },
+ "expected_closures": {
+  "p_ens_depth": 42.0,
+  "p_ens_overtop": 116.0,
+  "p_mean_depth": 62.2,
+  "single_p_depth": 123.4
+ },
+ "class_changes": {
+  "depth": {
+   "center_closed": 97,
+   "ens_majority_closed": 42,
+   "closed_to_open": 55,
+   "open_to_closed": 0,
+   "uncertain_0_to_1": 0,
+   "uncertain_25_75": 0,
+   "closed_in_any_member": 42,
+   "closed_in_all_members": 42
+  },
+  "overtop": {
+   "center_closed": 260,
+   "ens_majority_closed": 116,
+   "closed_to_open": 144,
+   "open_to_closed": 0,
+   "uncertain_0_to_1": 0,
+   "uncertain_25_75": 0,
+   "closed_in_any_member": 116,
+   "closed_in_all_members": 116
+  }
+ },
+ "labels": {
+  "segments": {
+   "p_ens_depth": {
+    "brier": 0.01974,
+    "brier_climatology": 0.01809,
+    "bss": -0.0907,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4585,
+      "mean_p": 0.0,
+      "obs_freq": 0.016,
+      "n_pos": 75
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 26,
+      "mean_p": 1.0,
+      "obs_freq": 0.385,
+      "n_pos": 10
+     }
+    ]
+   },
+   "p_ens_overtop": {
+    "brier": 0.02602,
+    "brier_climatology": 0.01809,
+    "bss": -0.4383,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4532,
+      "mean_p": 0.0,
+      "obs_freq": 0.014,
+      "n_pos": 63
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 79,
+      "mean_p": 1.0,
+      "obs_freq": 0.278,
+      "n_pos": 22
+     }
+    ]
+   },
+   "p_mean_depth": {
+    "brier": 0.01883,
+    "brier_climatology": 0.01809,
+    "bss": -0.0407,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4524,
+      "mean_p": 0.002,
+      "obs_freq": 0.015,
+      "n_pos": 68
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 48,
+      "mean_p": 0.1,
+      "obs_freq": 0.104,
+      "n_pos": 5
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 13,
+      "mean_p": 0.378,
+      "obs_freq": 0.154,
+      "n_pos": 2
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 6,
+      "mean_p": 0.636,
+      "obs_freq": 0.167,
+      "n_pos": 1
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 6,
+      "mean_p": 0.931,
+      "obs_freq": 0.167,
+      "n_pos": 1
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 14,
+      "mean_p": 0.997,
+      "obs_freq": 0.571,
+      "n_pos": 8
+     }
+    ]
+   },
+   "p_mean_overtop": {
+    "brier": 0.02299,
+    "brier_climatology": 0.01809,
+    "bss": -0.2705,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4439,
+      "mean_p": 0.002,
+      "obs_freq": 0.012,
+      "n_pos": 55
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 62,
+      "mean_p": 0.109,
+      "obs_freq": 0.048,
+      "n_pos": 3
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 28,
+      "mean_p": 0.396,
+      "obs_freq": 0.143,
+      "n_pos": 4
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 27,
+      "mean_p": 0.634,
+      "obs_freq": 0.333,
+      "n_pos": 9
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 24,
+      "mean_p": 0.859,
+      "obs_freq": 0.125,
+      "n_pos": 3
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 31,
+      "mean_p": 0.994,
+      "obs_freq": 0.355,
+      "n_pos": 11
+     }
+    ]
+   },
+   "single_p_depth": {
+    "brier": 0.02356,
+    "brier_climatology": 0.01809,
+    "bss": -0.3018,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4440,
+      "mean_p": 0.003,
+      "obs_freq": 0.013,
+      "n_pos": 56
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 84,
+      "mean_p": 0.116,
+      "obs_freq": 0.143,
+      "n_pos": 12
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 21,
+      "mean_p": 0.354,
+      "obs_freq": 0.143,
+      "n_pos": 3
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 16,
+      "mean_p": 0.615,
+      "obs_freq": 0.0,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 8,
+      "mean_p": 0.862,
+      "obs_freq": 0.25,
+      "n_pos": 2
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 42,
+      "mean_p": 0.988,
+      "obs_freq": 0.286,
+      "n_pos": 12
+     }
+    ]
+   },
+   "single_p_overtop": {
+    "brier": 0.04019,
+    "brier_climatology": 0.01809,
+    "bss": -1.221,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4276,
+      "mean_p": 0.003,
+      "obs_freq": 0.01,
+      "n_pos": 42
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 87,
+      "mean_p": 0.128,
+      "obs_freq": 0.092,
+      "n_pos": 8
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 46,
+      "mean_p": 0.365,
+      "obs_freq": 0.087,
+      "n_pos": 4
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 55,
+      "mean_p": 0.638,
+      "obs_freq": 0.091,
+      "n_pos": 5
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 51,
+      "mean_p": 0.853,
+      "obs_freq": 0.118,
+      "n_pos": 6
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 96,
+      "mean_p": 0.991,
+      "obs_freq": 0.208,
+      "n_pos": 20
+     }
+    ]
+   },
+   "single_class_depth": {
+    "brier": 0.02668,
+    "brier_climatology": 0.01809,
+    "bss": -0.4742,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4545,
+      "mean_p": 0.0,
+      "obs_freq": 0.016,
+      "n_pos": 71
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 66,
+      "mean_p": 1.0,
+      "obs_freq": 0.212,
+      "n_pos": 14
+     }
+    ]
+   },
+   "single_class_overtop": {
+    "brier": 0.04771,
+    "brier_climatology": 0.01809,
+    "bss": -1.6368,
+    "n": 4611,
+    "n_pos": 85,
+    "bins": [
+     {
+      "bin": "0.00-0.05",
+      "n": 4416,
+      "mean_p": 0.0,
+      "obs_freq": 0.012,
+      "n_pos": 55
+     },
+     {
+      "bin": "0.05-0.25",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.25-0.50",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.50-0.75",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.75-0.95",
+      "n": 0,
+      "mean_p": null,
+      "obs_freq": null,
+      "n_pos": 0
+     },
+     {
+      "bin": "0.95-1.00",
+      "n": 195,
+      "mean_p": 1.0,
+      "obs_freq": 0.154,
+      "n_pos": 30
+     }
+    ]
+   }
+  },
+  "sites": {
+   "p_ens_depth": {
+    "mean_p": 0.231,
+    "recall_p05": 0.231,
+    "brier_positives": 0.7692
+   },
+   "p_ens_overtop": {
+    "mean_p": 0.423,
+    "recall_p05": 0.423,
+    "brier_positives": 0.5769
+   },
+   "p_mean_depth": {
+    "mean_p": 0.247,
+    "recall_p05": 0.231,
+    "brier_positives": 0.7206
+   },
+   "p_mean_overtop": {
+    "mean_p": 0.414,
+    "recall_p05": 0.449,
+    "brier_positives": 0.5286
+   },
+   "single_p_depth": {
+    "mean_p": 0.328,
+    "recall_p05": 0.282,
+    "brier_positives": 0.6296
+   },
+   "single_p_overtop": {
+    "mean_p": 0.524,
+    "recall_p05": 0.526,
+    "brier_positives": 0.4279
+   },
+   "single_class_depth": {
+    "mean_p": 0.282,
+    "recall_p05": 0.282,
+    "brier_positives": 0.7179
+   },
+   "single_class_overtop": {
+    "mean_p": 0.513,
+    "recall_p05": 0.513,
+    "brier_positives": 0.4872
+   }
+  },
+  "site_table": [
+   {
+    "id": "L001",
+    "type": "flooded",
+    "n_segments": 2,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.09,
+     1.09
+    ]
+   },
+   {
+    "id": "L003",
+    "type": "flooded",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.195,
+    "max_depth_range_m": [
+     0.19,
+     0.19
+    ]
+   },
+   {
+    "id": "L004",
+    "type": "impassable",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.078,
+    "max_depth_range_m": [
+     0.12,
+     0.12
+    ]
+   },
+   {
+    "id": "L005",
+    "type": "flooded",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.002,
+    "max_depth_range_m": [
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "id": "L007",
+    "type": "flooded",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.044,
+    "max_depth_range_m": [
+     0.1,
+     0.1
+    ]
+   },
+   {
+    "id": "L008",
+    "type": "impassable",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.099,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L009",
+    "type": "impassable",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.61,
+     0.61
+    ]
+   },
+   {
+    "id": "L014",
+    "type": "flooded",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.171,
+    "max_depth_range_m": [
+     0.2,
+     0.2
+    ]
+   },
+   {
+    "id": "L015",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.25,
+     1.25
+    ]
+   },
+   {
+    "id": "L016",
+    "type": "closed",
+    "n_segments": 4,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.171,
+    "max_depth_range_m": [
+     0.2,
+     0.2
+    ]
+   },
+   {
+    "id": "L017",
+    "type": "impassable",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.05,
+     0.05
+    ]
+   },
+   {
+    "id": "L018",
+    "type": "closed",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.61,
+     0.61
+    ]
+   },
+   {
+    "id": "L019",
+    "type": "washout",
+    "n_segments": 2,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.25,
+     1.25
+    ]
+   },
+   {
+    "id": "L020",
+    "type": "other_damage",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.008,
+    "max_depth_range_m": [
+     0.03,
+     0.03
+    ]
+   },
+   {
+    "id": "L021",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L022",
+    "type": "washout",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.001,
+    "max_depth_range_m": [
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "id": "L023",
+    "type": "impassable",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.316,
+    "max_depth_range_m": [
+     0.12,
+     0.12
+    ]
+   },
+   {
+    "id": "L024",
+    "type": "washout",
+    "n_segments": 4,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.001,
+    "max_depth_range_m": [
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "id": "L025",
+    "type": "flooded",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.002,
+    "max_depth_range_m": [
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "id": "L026",
+    "type": "flooded",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.008,
+    "max_depth_range_m": [
+     0.03,
+     0.03
+    ]
+   },
+   {
+    "id": "L027",
+    "type": "flooded",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.316,
+    "max_depth_range_m": [
+     0.12,
+     0.12
+    ]
+   },
+   {
+    "id": "L029",
+    "type": "flooded",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L032",
+    "type": "impassable",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.05,
+     0.05
+    ]
+   },
+   {
+    "id": "L033",
+    "type": "closed",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.05,
+     0.05
+    ]
+   },
+   {
+    "id": "L034",
+    "type": "sinkhole",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.86,
+    "max_depth_range_m": [
+     0.11,
+     0.11
+    ]
+   },
+   {
+    "id": "L035",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.018,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L036",
+    "type": "closed",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.09,
+     1.09
+    ]
+   },
+   {
+    "id": "L038",
+    "type": "closed",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.171,
+    "max_depth_range_m": [
+     0.2,
+     0.2
+    ]
+   },
+   {
+    "id": "L039",
+    "type": "closed",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.016,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L040",
+    "type": "closed",
+    "n_segments": 2,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.25,
+     1.25
+    ]
+   },
+   {
+    "id": "L041",
+    "type": "closed",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.409,
+    "max_depth_range_m": [
+     0.14,
+     0.14
+    ]
+   },
+   {
+    "id": "L042",
+    "type": "closed",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.012,
+    "max_depth_range_m": [
+     0.04,
+     0.04
+    ]
+   },
+   {
+    "id": "L043",
+    "type": "washout",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L044",
+    "type": "bridge_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.171,
+    "max_depth_range_m": [
+     0.2,
+     0.2
+    ]
+   },
+   {
+    "id": "L045",
+    "type": "sinkhole",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.171,
+    "max_depth_range_m": [
+     0.2,
+     0.2
+    ]
+   },
+   {
+    "id": "L046",
+    "type": "bridge_damage",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.09,
+     1.09
+    ]
+   },
+   {
+    "id": "L047",
+    "type": "washout",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.1,
+    "max_depth_range_m": [
+     0.13,
+     0.13
+    ]
+   },
+   {
+    "id": "L048",
+    "type": "other_damage",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.004,
+    "max_depth_range_m": [
+     0.02,
+     0.02
+    ]
+   },
+   {
+    "id": "L049",
+    "type": "culvert_failure",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.034,
+    "max_depth_range_m": [
+     0.03,
+     0.03
+    ]
+   },
+   {
+    "id": "L050",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.018,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L051",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.017,
+    "max_depth_range_m": [
+     0.07,
+     0.07
+    ]
+   },
+   {
+    "id": "L052",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.019,
+    "max_depth_range_m": [
+     0.03,
+     0.03
+    ]
+   },
+   {
+    "id": "L053",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.026,
+    "max_depth_range_m": [
+     0.08,
+     0.08
+    ]
+   },
+   {
+    "id": "L054",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.012,
+    "max_depth_range_m": [
+     0.06,
+     0.06
+    ]
+   },
+   {
+    "id": "L055",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.019,
+    "max_depth_range_m": [
+     0.03,
+     0.03
+    ]
+   },
+   {
+    "id": "L056",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.71,
+     0.71
+    ]
+   },
+   {
+    "id": "L058",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.997,
+    "max_depth_range_m": [
+     0.44,
+     0.44
+    ]
+   },
+   {
+    "id": "L060",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.997,
+    "max_depth_range_m": [
+     0.44,
+     0.44
+    ]
+   },
+   {
+    "id": "L061",
+    "type": "washout",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.997,
+    "max_depth_range_m": [
+     0.44,
+     0.44
+    ]
+   },
+   {
+    "id": "L062",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     1.09,
+     1.09
+    ]
+   },
+   {
+    "id": "L063",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.003,
+    "max_depth_range_m": [
+     0.02,
+     0.02
+    ]
+   },
+   {
+    "id": "L064",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.003,
+    "max_depth_range_m": [
+     0.02,
+     0.02
+    ]
+   },
+   {
+    "id": "L065",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.003,
+    "max_depth_range_m": [
+     0.02,
+     0.02
+    ]
+   },
+   {
+    "id": "L066",
+    "type": "other_damage",
+    "n_segments": 2,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.69,
+     0.69
+    ]
+   },
+   {
+    "id": "L068",
+    "type": "other_damage",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.195,
+    "max_depth_range_m": [
+     0.05,
+     0.05
+    ]
+   },
+   {
+    "id": "L069",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.971,
+    "max_depth_range_m": [
+     0.24,
+     0.24
+    ]
+   },
+   {
+    "id": "L070",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.003,
+    "max_depth_range_m": [
+     0.02,
+     0.02
+    ]
+   },
+   {
+    "id": "L071",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.011,
+    "max_depth_range_m": [
+     0.04,
+     0.04
+    ]
+   },
+   {
+    "id": "L072",
+    "type": "bridge_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.25,
+     0.25
+    ]
+   },
+   {
+    "id": "L073",
+    "type": "other_damage",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.001,
+    "max_depth_range_m": [
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "id": "L074",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.34,
+     0.34
+    ]
+   },
+   {
+    "id": "L075",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.34,
+     0.34
+    ]
+   },
+   {
+    "id": "L076",
+    "type": "culvert_failure",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.848,
+    "max_depth_range_m": [
+     0.12,
+     0.12
+    ]
+   },
+   {
+    "id": "L077",
+    "type": "other_damage",
+    "n_segments": 2,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.003,
+    "max_depth_range_m": [
+     0.01,
+     0.01
+    ]
+   },
+   {
+    "id": "L078",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.169,
+    "max_depth_range_m": [
+     0.14,
+     0.14
+    ]
+   },
+   {
+    "id": "L079",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.002,
+    "max_depth_range_m": [
+     0.01,
+     0.01
+    ]
+   },
+   {
+    "id": "L080",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.027,
+    "max_depth_range_m": [
+     0.04,
+     0.04
+    ]
+   },
+   {
+    "id": "L082",
+    "type": "other_damage",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.007,
+    "max_depth_range_m": [
+     0.02,
+     0.02
+    ]
+   },
+   {
+    "id": "L083",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.027,
+    "max_depth_range_m": [
+     0.08,
+     0.08
+    ]
+   },
+   {
+    "id": "L084",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.164,
+    "max_depth_range_m": [
+     0.12,
+     0.12
+    ]
+   },
+   {
+    "id": "L085",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.014,
+    "max_depth_range_m": [
+     0.04,
+     0.04
+    ]
+   },
+   {
+    "id": "L086",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.436,
+    "max_depth_range_m": [
+     0.13,
+     0.13
+    ]
+   },
+   {
+    "id": "L087",
+    "type": "washout",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.93,
+     0.93
+    ]
+   },
+   {
+    "id": "L089",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 1.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 1.0,
+    "max_depth_range_m": [
+     0.93,
+     0.93
+    ]
+   },
+   {
+    "id": "L090",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.061,
+    "max_depth_range_m": [
+     0.1,
+     0.1
+    ]
+   },
+   {
+    "id": "L091",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.061,
+    "max_depth_range_m": [
+     0.1,
+     0.1
+    ]
+   },
+   {
+    "id": "L092",
+    "type": "other_damage",
+    "n_segments": 3,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 1.0,
+    "single_p_depth": 0.018,
+    "max_depth_range_m": [
+     0.05,
+     0.05
+    ]
+   },
+   {
+    "id": "L093",
+    "type": "culvert_failure",
+    "n_segments": 1,
+    "p_ens_depth": 0.0,
+    "p_ens_overtop": 0.0,
+    "single_p_depth": 0.002,
+    "max_depth_range_m": [
+     0.01,
+     0.01
+    ]
+   }
+  ],
+  "note": "y = 1: segments with a road point within 30 m of a documented site (any type); y = 0: in-box segments not within the loose match of any site (100-300 m / same-name) -- unreported is not proof of dry, so y = 0 is noisy and Brier is dominated by negatives"
+ },
+ "gauges": [
+  {
+   "site": "01094400",
+   "name": "NORTH NASHUA RIVER AT FITCHBURG, MA",
+   "members": 1,
+   "rise_m": {
+    "p05": 0.42,
+    "p50": 0.42,
+    "p95": 0.42,
+    "min": 0.42,
+    "max": 0.42,
+    "obs": 0.68,
+    "obs_inside_5_95": false,
+    "center": 0.55
+   },
+   "peak_q_m3s": {
+    "p05": 1.419,
+    "p50": 1.419,
+    "p95": 1.419,
+    "min": 1.419,
+    "max": 1.419,
+    "obs": 43.6,
+    "obs_inside_5_95": false,
+    "center": 1.419
+   },
+   "peak_h": {
+    "p05": 6.0,
+    "p50": 6.0,
+    "p95": 6.0,
+    "min": 6.0,
+    "max": 6.0,
+    "obs": 6.0,
+    "obs_inside_5_95": true,
+    "center": 6.0
+   }
+  },
+  {
+   "site": "01094500",
+   "name": "NORTH NASHUA RIVER NEAR LEOMINSTER, MA",
+   "members": 1,
+   "rise_m": {
+    "p05": 0.0,
+    "p50": 0.0,
+    "p95": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "obs": 0.43,
+    "obs_inside_5_95": false,
+    "center": 0.0
+   },
+   "peak_q_m3s": {
+    "p05": 4.796,
+    "p50": 4.796,
+    "p95": 4.796,
+    "min": 4.796,
+    "max": 4.796,
+    "obs": 157.4,
+    "obs_inside_5_95": false,
+    "center": 4.796
+   },
+   "peak_h": {
+    "p05": 0.0,
+    "p50": 0.0,
+    "p95": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "obs": 6.0,
+    "obs_inside_5_95": false,
+    "center": 0.0
+   }
+  }
+ ],
+ "made": "2026-10-22 11:16"
+}
