@@ -195,14 +195,38 @@ def deck_points(P, zc, shape, res, roads, nbi_x, nbi_y, nbi_route, gap=2.0, radi
         out[cand[(nd >= 2) & (rim - zc[cand] >= gap)]] = True
     return out
 
+def priority_flood(Z):
+    """Depression filling by priority flood (Barnes, Lehman & Mulla 2014): grow inward from the grid edge, lowest cell first; a cell is
+    raised to the level of the cell it was reached from.  Pure Python heap, O(N log N)."""
+    import heapq
+    ny, nx = Z.shape; F = Z.copy().ravel(); done = np.zeros(ny * nx, bool); heap = []
+    edge = np.zeros((ny, nx), bool); edge[0] = edge[-1] = True; edge[:, 0] = edge[:, -1] = True
+    for i in np.nonzero(edge.ravel())[0]: heap.append((F[i], int(i))); done[i] = True
+    heapq.heapify(heap); Fl = F.tolist(); off = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+    while heap:
+        z, i = heapq.heappop(heap); r, c = divmod(i, nx)
+        for dr, dc in off:
+            rr, cc = r + dr, c + dc
+            if 0 <= rr < ny and 0 <= cc < nx:
+                j = rr * nx + cc
+                if not done[j]:
+                    done[j] = True
+                    if Fl[j] < z: Fl[j] = z
+                    heapq.heappush(heap, (Fl[j], j))
+    return np.asarray(Fl).reshape(ny, nx)
+
 def closed_depressions(Z, res):
     """Closed depressions of a DEM: (filled surface, depression label per cell, D8 catchment area m2 draining into each label).  Filled =
     pit filling by morphological reconstruction (Soille 2004; the priority-flood result of Barnes et al. 2014); a depression is a connected
     set of cells with filled - Z > 1 mm; a cell's water goes to its steepest-descent (D8) neighbour, and the catchment of a depression is
     every cell whose descent path ends in it (water from upstream pits is not routed on: a lower bound)."""
-    from skimage.morphology import reconstruction
     from scipy import ndimage
-    Z = Z.astype(np.float64); seed = Z.copy(); seed[1:-1, 1:-1] = Z.max(); F = reconstruction(seed, Z, method='erosion')
+    Z = Z.astype(np.float64)
+    try:
+        from skimage.morphology import reconstruction
+        seed = Z.copy(); seed[1:-1, 1:-1] = Z.max(); F = reconstruction(seed, Z, method='erosion')
+    except ImportError:                                      # no scikit-image (the Actions runners): priority-flood fill, same result
+        F = priority_flood(Z)
     lab, nl = ndimage.label((F - Z) > 1e-3, structure=np.ones((3, 3)))
     ny, nx = Z.shape; idx = np.arange(ny * nx).reshape(ny, nx); Pd = np.pad(Z, 1, constant_values=np.inf); best = np.zeros_like(Z); rec = idx.copy()
     for dr in (-1, 0, 1):
@@ -559,6 +583,11 @@ def selftest():
     Zb = np.full((9, 9), 10.0); Zb[3:6, 3:6] = 9.0; Zb[4, 4] = 8.5; Zb[:, 8] = 5.0           # a bowl; the east column is lower (drains off)
     Fb, lb, ab = closed_depressions(Zb, 20.0)
     check('closed depression: bowl filled to its rim, catchment drains into it', abs(Fb[4, 4] - 10.0) < 1e-5 and lb[4, 4] > 0 and lb[0, 0] == 0 and ab[lb[4, 4]] >= 9 * 400, (Fb[4, 4], ab))
+    Zr = np.random.default_rng(1).normal(0, 1, (30, 40)).cumsum(0); Fr = priority_flood(Zr)
+    try:
+        from skimage.morphology import reconstruction
+        sd_ = Zr.copy(); sd_[1:-1, 1:-1] = Zr.max(); check('priority flood = morphological reconstruction', np.allclose(Fr, reconstruction(sd_, Zr, method='erosion')))
+    except ImportError: check('priority flood fills (no scikit-image to compare)', (Fr >= Zr).all())
     Pd = dict(r=np.array([0, 0]), c=np.array([0, 1]), dz=np.array([0.0, 0.5])); Hd = np.array([[0.6, 0.6]])
     check('point depth: crest offset', np.allclose(point_depth(Pd, Hd), [0.6, 0.1]))
     print('impacts selftest', 'OK' if ok else 'FAILED', root); return ok

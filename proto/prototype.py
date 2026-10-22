@@ -526,8 +526,11 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         xl = [(r_['lon'], r_['lat']) for r_ in Xrows if r_.get('lon') is not None]
         xxy = np.column_stack(tr.transform([a for a, _ in xl], [b for _, b in xl])) if xl else np.zeros((0, 2))
         bad = dk | (WM[PA['r'], PA['c']] if WM is not None and WM.shape == shp else False)
-        sags = sag_probability(PA, GA, ZRf['z_raw'].astype(np.float32), R['Z'], H, RS['peak1h'] if RS else None, res, cls_all, bad,
-                               np.column_stack([bx, by]) if len(bx) else np.zeros((0, 2)), xxy, PA['x'][dk], PA['y'][dk])
+        try:
+            sags = sag_probability(PA, GA, ZRf['z_raw'].astype(np.float32), R['Z'], H, RS['peak1h'] if RS else None, res, cls_all, bad,
+                                   np.column_stack([bx, by]) if len(bx) else np.zeros((0, 2)), xxy, PA['x'][dk], PA['y'][dk])
+        except Exception as e_:                                  # optional layer: never stops the closure outputs
+            sags = []; print('sag layer failed:', repr(e_)[:300]); rules['sag_error'] = repr(e_)[:300]
         if sags and len(Q['x']):
             tq = cKDTree(np.column_stack([Q['x'], Q['y']]))
             for g_ in sags:
