@@ -1,7 +1,6 @@
 #!/bin/bash
 # Storm-drain capacity test (sim/colab/lf_drains.py): Leominster, with and without the City of Leominster pipe network, on the CPU solver.
-#   1. copy the pipe file to Turing yourself (it is shared for research only: never commit it, never put it under the repo):
-#        mkdir -p ~/private && chmod 700 ~/private && scp leominster_drain_pipe.zip turing:~/private/
+#   1. the pipe network (City of Leominster DPW, published with their agreement) is in proto/data/drains/
 #   2. cd ~/mass-flood-watch && sbatch proto/turing/run_drains.slurm
 #      CASES="base drains design" sbatch --export=ALL proto/turing/run_drains.slurm     # add the generic design-storm fallback case
 #      STORMS_RUN=aug2026 sbatch --export=ALL proto/turing/run_drains.slurm            # one storm only
@@ -22,10 +21,9 @@ set -eo pipefail
 source proto/turing/env.sh
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-16}
 export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} LF_LOSS=${LF_LOSS:-cn} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}
-DRAINS_FILE=${DRAINS_FILE:-$HOME/private/leominster_drain_pipe.zip}
+DRAINS_FILE=${DRAINS_FILE:-proto/data/drains/leominster_drain_pipe.zip}
 CASES=${CASES:-base drains}; STORMS_RUN=${STORMS_RUN:-sep2023 aug2026}
-case "$(realpath -m "$DRAINS_FILE")" in "$(realpath -m .)"/*) echo "DRAINS_FILE is inside the repo: move it to ~/private"; exit 1;; esac
-[[ " $CASES " == *" drains "* ]] && [ ! -f "$DRAINS_FILE" ] && { echo "no $DRAINS_FILE (copy the pipe zip there first)"; exit 1; }
+[[ " $CASES " == *" drains "* ]] && [ ! -f "$DRAINS_FILE" ] && { echo "no $DRAINS_FILE (git pull first)"; exit 1; }
 
 # CPU build with the mfw-drains patch (rebuilt only when missing or older than the patched source)
 python - <<'PY'

@@ -69,8 +69,8 @@ several GB of RAM and ~10–20 min for these steps, within a 64 GB node.
 The drain sink runs on the **CPU** build only (patched `FPInfiltration`; the CUDA acceleration solver has no per-cell sink unless built
 with the untested `LF_PATCH_CUDA_SINK=1`). The job builds `$LF_WORK/build_cpu/lisflood` with the patch, sets `LF_EXE` to it (env.sh
 would pick the GPU build) and runs Leominster (box 168000,908000,188000,928000, 20 m) for Sept 2023 (48 h) and Aug 3, 2026 (t0
-2026-08-03T04:00Z, 18 h), each without and with `LF_DRAINS=~/private/leominster_drain_pipe.zip` (copied there by hand, never into the
-repo): 4 CPU runs of ~15–25 min on 16 cores (`-p long`). Results stay on Turing unless `PUBLISH=1` (then only score/points/meta json).
+2026-08-03T04:00Z, 18 h), each without and with `LF_DRAINS=proto/data/drains/leominster_drain_pipe.zip` (City of Leominster pipe
+network, published with their agreement): 4 CPU runs of ~15–25 min on 16 cores (`-p long`). Set `PUBLISH=1` to push score/points/meta json.
 
 **Storage:** a District 3 run at 20 m with depth saved every 30 min is ~5 GB (about 20 GB at 10 m). Keeping the storm corpus plus
 forecast replays needs about **0.5–1 TB** of project storage.
