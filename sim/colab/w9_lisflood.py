@@ -794,6 +794,8 @@ def main():
     if QOUT: extra.append('qoutput')          # .Qx/.Qy face fluxes (m3/s) at every saveint: flow through each crossing notch, river flow at gauges
     VOUT = os.environ.get('LF_VOUT', '0') == '1'
     if VOUT: extra.append('hazard')           # voutput + voutput_max + hazard (pars.cpp): .Vx/.Vy (m/s) per saveint, .maxVc/.maxVcd/.maxHaz at the end
+    for k_, kw_ in (('LF_THETA', 'theta'), ('LF_CFL', 'cfl')):     # opt-in solver stability: theta < 1 = q-centred diffusion (de Almeida et al. 2012 suggest 0.7), cfl default 0.7
+        if os.environ.get(k_): extra.append(f'{kw_} {float(os.environ[k_]):g}')
     if I['SGC'] and I['chan'].any():
         # LISFLOOD-FP sub-grid channels (Neal et al. 2012): width raster, bank = DEM, bed = bank - bankfull depth (channels30, Bieger 2015)
         W_ = np.where(I['chan'], np.maximum(I['CW'], 1.0), 0.0); bed = np.where(I['chan'], I['Z'] - np.maximum(I['CD'], 0.3), I['Z'])
