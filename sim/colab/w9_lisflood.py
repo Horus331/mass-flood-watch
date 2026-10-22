@@ -359,19 +359,23 @@ def probe(exe, cuda):
 # ======================================================================================================================
 # inputs from Hugging Face / MRMS (copied from w4_flood_gpu.py, which cannot be imported: it runs at top level)
 # ======================================================================================================================
-def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None):
+def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None, d4=False):
     """Least-cost breaching of every closed depression to the box edge (Barnes et al. 2014 priority-flood with carving), applied to all
     cells.  Lidar keeps road, rail and runway fill but not the pipes and culverts under them, so water ponds behind every embankment
     with no surface outlet.  A carved one-cell path stands in for those pipes.  No cell is lowered more than max_cut m (deeper basins
     are kept: real ponds, quarries).  chan / max_cut_chan (LF_BREACH_CHAN_MAX): a pit whose bottom is a mapped channel cell may be cut
     up to max_cut_chan instead.  A river never runs uphill and a real dam holds a flat pool level with its crest, so a closed pit on a
     mapped river is a DEM artifact (bridge deck or road fill left in the bare earth, culvert fill); the default cap leaves those deeper
-    than max_cut as dead storage that never drains.  Returns (carved Z, mask of lowered cells, stats)."""
+    than max_cut as dead storage that never drains.  d4 (LF_BREACH_D4=1): search and carve over the 4 face neighbours only.  LISFLOOD-FP
+    exchanges water across cell faces (x and y fluxes, Bates et al. 2010), never corner to corner, so an 8-connected one-cell path that
+    steps diagonally is no outlet at all: the pit behind it stays closed and its water can only leave by infiltration.
+    Returns (carved Z, mask of lowered cells, stats)."""
     import heapq
     ny_, nx_ = Z.shape; Zc = Z.astype(np.float64).copy(); seen = np.zeros(Z.size, bool); par = np.full(Z.size, -1, np.int64)
     edge = np.zeros(Z.shape, bool); edge[[0, -1], :] = True; edge[:, [0, -1]] = True
     hq = [(float(Zc.flat[k]), int(k)) for k in np.flatnonzero(edge)]; heapq.heapify(hq); seen[np.flatnonzero(edge)] = True
-    nb8 = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)); Zf = Zc.ravel(); Zo = Z.ravel(); skipped = 0
+    nb8 = ((-1, 0), (0, -1), (0, 1), (1, 0)) if d4 else ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+    Zf = Zc.ravel(); Zo = Z.ravel(); skipped = 0
     chf = chan.ravel() if (chan is not None and max_cut_chan is not None) else None; chan_deep = 0
     while hq:
         zc, k = heapq.heappop(hq); r, c = divmod(k, nx_)
@@ -593,8 +597,9 @@ def build_inputs(BOX, RES, S, TOK):
     carved = np.zeros((ny, nx), bool)
     if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
         t_ = time.time(); mcc = os.environ.get('LF_BREACH_CHAN_MAX')
-        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None)
-        log(f'depressions: {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept'
+        D4 = os.environ.get('LF_BREACH_D4', '0') == '1'     # carve 4-connected outlets (the solver's face fluxes); default 8-connected as before
+        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None, d4=D4)
+        log(f'depressions ({"4" if D4 else "8"}-connected): {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept'
             + (f', {st_["chan_deep_cut"]} channel pits cut deeper than the cap (LF_BREACH_CHAN_MAX={mcc})' if mcc else '') + f', {time.time() - t_:.0f}s')
     loss = None
     if os.environ.get('LF_LOSS', 'none') == 'fc':      # rain-excess approximation of w4's losses: steady soil rate + storm drains
@@ -942,6 +947,12 @@ def selftest():
     Zk, low_k, st_k = breach_depressions(Zp, 4.0); assert Zk[3, 4] == 16 and st_k['kept_deep'] >= 1
     Zc_, low_c, st_c = breach_depressions(Zp, 4.0, ch, 12.0); assert Zc_[3, 4] <= 10 and st_c['chan_deep_cut'] >= 1
     ok.append('channel pits behind a fill deeper than the cap are carved with LF_BREACH_CHAN_MAX, kept without it')
+    # LF_BREACH_D4: a pit whose only low exit is a corner-to-corner step is closed for the face-flux solver; d4 carves a face-connected outlet
+    Zq = np.full((5, 5), 7.0, np.float32); Zq[2, 2] = 5.0; Zq[3, 3] = 4.0; Zq[4, 4] = 3.0     # pit (2,2) drains diagonally to the SE corner
+    Z8, _, _ = breach_depressions(Zq, 4.0); Z4, low4, _ = breach_depressions(Zq, 4.0, d4=True)
+    assert Z8[2, 3] == 7 and Z8[3, 2] == 7                                       # 8-connected: no face-connected outlet carved
+    assert min(Z4[2, 3], Z4[3, 2]) <= 5.0 and low4.any()                            # 4-connected: a face neighbour is cut to the pit level
+    ok.append('LF_BREACH_D4 carves face-connected (4-neighbour) outlets; 8-connected carving leaves corner-only exits')
     # velocity output (LF_VOUT): cell speed as LISFLOOD-FP's UpdateV, peaks from snapshots and from .maxVc / .maxVcd
     Vx = np.zeros((2, 4)); Vy = np.zeros((3, 3)); Vx[0, 1] = -3.0; Vx[0, 2] = 1.0; Vy[1, 0] = 4.0
     sp = cell_speed(Vx, Vy); assert abs(sp[0, 0] - 5.0) < 1e-6 and abs(sp[0, 1] - 3.0) < 1e-6 and abs(sp[1, 0] - 4.0) < 1e-6 and sp[1, 2] == 0
