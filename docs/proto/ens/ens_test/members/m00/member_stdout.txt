@@ -1,0 +1,53 @@
+{
+ "run": "sep2023_ens_ens_test_m00",
+ "model": "LISFLOOD-FP 8.2",
+ "storm_start": "2023-09-11T16:00Z",
+ "box_epsg26986": [
+  168000.0,
+  908000.0,
+  188000.0,
+  928000.0
+ ],
+ "resolution_m": 20.0,
+ "segments_in_box": 5100,
+ "closures_expected": 123.9,
+ "segments_p_ge_50": 97,
+ "segments_p_ge_90": 66,
+ "segments_may_close": 170,
+ "km_may_close": 101.0,
+ "may_close_rule": "water beside the road reaches the road crest: Phi((0 - f) / 0.15), f = lidar crest - peak water surface within 30 m; candidate, not in p_close until confirmed on a second storm",
+ "segments_p_ge_50_depth_rule": 97,
+ "segments_p_ge_50_with_culverts": 122,
+ "km_p_ge_50": 61.0,
+ "culverts_overtopped": 69,
+ "culverts_surcharged": 6,
+ "crossings_assessed": 713,
+ "cut_off_from_hospitals": 637,
+ "worst_added_minutes": 20.6,
+ "rain_max_total_mm": 147,
+ "rain_peak1h_max_mm": 89.3,
+ "flood_model_runtime_s": 158,
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "method": {
+  "closure_depth_m": 0.3,
+  "sigma_m": 0.1,
+  "variant": "depth",
+  "probability": "Phi((peak depth - 0.30) / 0.10), physics prior v0",
+  "network": "segments >= 15 cm removed; Dijkstra to nearest hospital (sim/infra/impacts.py)",
+  "culverts": "FHWA HDS-5 (sim/infra/culvert.py)"
+ },
+ "frame_hours": [],
+ "closed_per_frame": [],
+ "rain_hourly_mean_mm": [
+  0.1,
+  0.7,
+  1.2,
+  1.9,
+  14.6,
+  32.0
+ ],
+ "made": "2026-10-22 11:15",
+ "prototype_runtime_s": 57.9
+}
+wrote docs/proto/ens/ens_test/members/m00/_proto
+member m00 segments 5100 p>=0.5 97 gauges 2
