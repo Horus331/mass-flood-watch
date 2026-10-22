@@ -83,22 +83,26 @@ sources and the Leominster numbers are in [`docs/proto/advisors/resilience.md`](
 * `proto/resilience.py` builds functionality curves Q(t) every 30 min, with segments closed at ≥ 30 cm and slowed at 5–30 cm by the
   Pregnolato curve. It has three variants:
   * Q_eff: global efficiency (Latora & Marchiori 2001).
-  * Q_access: road-km within 30 min of a hospital, 8 min of a fire station (NFPA 1710) and 10 min of police.
+  * Q_access: residents (2020 Census blocks, `docs/network/census_blocks_ma.npz` from `proto/census_blocks.py` / the census
+    workflow, each block on its nearest road segment) within 30 min of a hospital, 8 min of a fire station (NFPA 1710) and 10 min
+    of police; it also reports people losing each service at the worst time, person-hours of lost coverage and isolated residents.
+    Q_access_km, the earlier road-km version, is kept for comparison.
   * Q_traffic: AADT-weighted serviceable km.
 
   For each variant it reports the Bruneau et al. (2003) resilience loss ∫(100 − Q)dt, robustness (min Q), rapidity (hours back to
   90/95 %) and AADT-weighted vehicle-hours of delay. Outputs: `resilience.json`, `resilience.png`, `resilience_segments.csv`.
-  Leominster: min Q is 59 / 68 / 68 % (eff / access / traffic), RL is 1,284 / 937 / 1,061 %·h over 48 h, and delay is about 510,000
-  vehicle-hours. No variant recovers to 90 % within 48 h, because ponded depressions keep about 115 segments closed.
+  Leominster: min Q is 59 / 67 / 68 % (eff / access by residents / traffic), RL is 1,284 / 876 / 1,061 %·h over 48 h, and delay is
+  about 510,000 vehicle-hours. Of 120,789 residents in the box, 27,000 / 49,000 / 39,000 lose hospital / fire / police coverage at
+  the worst time (7–7.5 h), 3.0 million person-hours of coverage are lost over 48 h, and 22,600 are isolated at the peak. No variant recovers to 90 % within 48 h, because ponded depressions keep about 115 segments closed.
 * `proto/rating.py` computes a flash-flood index from three things: lead time from heavy-rain onset (≥ 7.6 mm/h) to 30 cm, rise time
   from 5 to 30 cm, and `flashness_pct`. It also writes `warning_priority = p_close × (0.5 + 0.5 FFI)` with warning tiers
   (`warning_priority.csv`), and the event Richards-Baker flashiness at gauges (`rating.json`). Leominster: the median lead of likely
   closures is 2.5 h, and 97 % close within 6 h of the onset.
 * `proto/risk.py` builds the risk matrix: likelihood (p_close, or P(overtop) for crossings) × consequence. Consequence is pavement
   repair plus culvert replacement at Stream-Crossing-Standard size (VTrans 2014 unit costs, CPI to 2023), plus user delay
-  (USDOT 2016 VOT → $18.13 / person-h × 1.67), plus critical access lost. It writes `risk_matrix.csv` (top 50, Low / Medium / High /
-  Extreme), `risk_matrix.png` and `risk.json`. All costs are order-of-magnitude. Leominster: 22 items are Extreme (12 segments,
-  10 crossings), and the expected cost is about $68M.
+  (USDOT 2016 VOT → $18.13 / person-h × 1.67), plus critical access lost (residents losing access when the segment alone is closed; classes 0 / ≤ 50 / ≤ 500 / ≤ 5,000 / more). It writes `risk_matrix.csv` (top 50, Low / Medium / High /
+  Extreme), `risk_matrix.png` and `risk.json`. All costs are order-of-magnitude. Leominster: 32 items are Extreme (17 segments,
+  15 crossings; 22 with the earlier road-km bands), and the expected cost is about $68M.
 
 ```
 python proto/resilience.py --out docs/proto/leominster_sep2023          # ~9 min (all-pairs efficiency, 97 frames x 2)

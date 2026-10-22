@@ -19,7 +19,8 @@ The workflow `.github/workflows/proto.yml` runs all three after every prototype 
 | variant | definition | why |
 |---|---|---|
 | Q_eff | global efficiency E(t) / E_dry. E = mean of 1 / (shortest travel time) over all pairs of the 5,183 segments in the box | Latora & Marchiori (2001); used for road networks by Ganin et al. (2017). Measures how well the whole network still moves traffic |
-| Q_access | road-km within the response standard of an open facility, now / dry, averaged over three services: hospital 30 min (Carr et al. 2009), fire station 8 min (NFPA 1710, full first alarm 480 s), police 10 min (assumption) | Critical access. Road-km stands in for population, because there is no census layer in the repo |
+| Q_access | residents within the response standard of an open facility, now / dry, averaged over three services: hospital 30 min (Carr et al. 2009), fire station 8 min (NFPA 1710, full first alarm 480 s), police 10 min (assumption). Residents are 2020 Census block counts (see below) | Critical access, weighted by the people who need it |
+| Q_access_km | the same with in-box road-km in place of residents | The earlier proxy, kept for comparison (and the fallback when the census file is missing) |
 | Q_traffic | Σ AADT·L·f(t) / Σ AADT·L, where f is the Pregnolato speed ratio (0 when closed) | Serviceability weighted by use (Sun, Bocchini & Davison 2020) |
 
 **Metrics over the 48 h window:**
@@ -29,24 +30,30 @@ The workflow `.github/workflows/proto.yml` runs all three after every prototype 
 - Robustness = min Q.
 - Rapidity: hours from the minimum back to 90 % and to 95 %, and the mean recovery rate.
 
-| | Q_eff | Q_access | Q_traffic | Q_eff, 15 cm cut |
-|---|---|---|---|---|
-| robustness (min Q) | **59.0 %** at 7.0 h | **68.5 %** at 7.0 h | **68.3 %** at 9.0 h | 48.5 % at 8.5 h |
-| resilience loss RL (%·h, 48 h) | 1,284 | 937 | 1,061 | 1,520 |
-| resilience index R | 0.73 | 0.80 | 0.78 | 0.68 |
-| recovery to 90 % / 95 % | not within 48 h | not within 48 h | not within 48 h | not within 48 h |
-| recovery rate after the minimum | 0.32 %/h | 0.28 %/h | 0.21 %/h | 0.53 %/h |
-| Q at 48 h | 71.9 % | 79.9 % | 76.4 % | 69.4 % |
+| | Q_eff | Q_access (residents) | Q_access_km | Q_traffic | Q_eff, 15 cm cut |
+|---|---|---|---|---|---|
+| robustness (min Q) | **59.0 %** at 7.0 h | **66.8 %** at 7.0 h | 68.4 % at 7.0 h | **68.3 %** at 9.0 h | 48.5 % at 8.5 h |
+| resilience loss RL (%·h, 48 h) | 1,284 | 876 | 937 | 1,061 | 1,520 |
+| resilience index R | 0.73 | 0.82 | 0.80 | 0.78 | 0.68 |
+| recovery to 90 % / 95 % | not within 48 h | not within 48 h | not within 48 h | not within 48 h | not within 48 h |
+| Q at 48 h | 71.9 % | 80.8 % | 79.9 % | 76.4 % | 69.4 % |
 
-The three services separately:
+**Population.** The box's residents come from the 2020 Census: TIGER/Line tabulation blocks (TABBLOCK20) for Massachusetts, whose attribute table carries POP20 and HOUSING20 (P.L. 94-171 counts) and an internal point per block. The `census` workflow downloads the file and `proto/census_blocks.py` keeps the 88,207 populated MA blocks (7,029,917 people, the 2020 count) in `docs/network/census_blocks_ma.npz` (1.1 MB; Vermont, 17,976 blocks, in `census_blocks_vt.npz`). Each block whose internal point lies in the box is put on the in-box road segment with the nearest road point. The Leominster box holds **120,789 residents** (49,634 housing units) in 1,663 blocks. The median block point is 44 m from its road (90th percentile 176 m). 19 blocks (2,015 people) are more than 500 m from any road and are still assigned to the nearest one. Residents of a segment that is closed count as without coverage.
 
-| service | min share | RL (%·h) | back to 90 % |
-|---|---|---|---|
-| hospital | 79.2 % | 518 | after 36 h |
-| fire station | 57.0 % | 1,260 | not within 48 h |
-| police | 67.2 % | 1,032 | not within 48 h |
+The three services, by residents (the road-km share in brackets):
 
-In dry conditions, 99 % of the box's road-km is within 30 min of a hospital, 92 % within 8 min of a fire station, and 95 % within 10 min of police.
+| service | within the standard, dry | min share | people losing it at the worst time | person-hours of lost coverage (48 h) | back to 90 % |
+|---|---|---|---|---|---|
+| hospital, 30 min | 118,684 (98.3 %) | 77.2 % (79.2 %) | **27,037** at 7.5 h | **620,000** | after 33 h |
+| fire station, 8 min | 113,543 (94.0 %) | 56.6 % (57.0 %) | **49,317** at 7.0 h | **1,297,000** | not within 48 h |
+| police, 10 min | 116,533 (96.5 %) | 66.2 % (67.2 %) | **39,366** at 7.0 h | **1,123,000** | not within 48 h |
+| at least one of the three | | | **55,244** at 7.0 h | 1,465,000 | |
+
+Person-hours = ∫ (residents within the standard dry but not now) dt, trapezoid over the 48 h window. At 48 h, 13,000 / 28,000 / 25,000 residents are still outside the hospital / fire / police standard, because ponded depressions keep roads closed.
+
+**Isolated residents** (no route at all to any open hospital, fire station or police station: their own segment is closed, or the part of the open network they are on holds no facility): **22,559 at 7.5 h**, of whom 4,754 live on a flooded segment and the rest are cut off on dry roads; 631,000 person-hours over 48 h. 2,105 of them are already "isolated" on the dry network (blocks on road pieces that the graph does not connect to the rest), so the storm adds about 20,500. 13,224 are still isolated at 48 h.
+
+The population weighting changes Q_access little (min 66.8 % against 68.4 % by road-km): the flooded roads in this box are spread over both dense and sparse areas, so road-km was a fair proxy here. The people numbers are new information: tens of thousands of residents lose fire and police coverage for many hours.
 
 **Delay.** Total delay is about **510,000 vehicle-hours**:
 
@@ -110,23 +117,25 @@ All numbers are order-of-magnitude, in 2023 US$, given as low–high ranges. The
 
 **User delay.** Vehicle-hours from section 1 × 1.67 persons per vehicle (2017 NHTS) × $18.13 per person-hour. That is the USDOT 2016 VOT for local travel, all purposes, $14.10 in 2015 $, × CPI-U 2023/2015.
 
-**Critical access** (not in $). Road-km in the box that lose access within the standard to a hospital, fire station or police when the segment alone is closed. This is link importance as in Jenelius et al. (2006).
+**Critical access** (not in $). Residents of the box who lose access within the standard to a hospital, fire station or police (at least one) when the segment alone is closed on the dry network. This is link importance as in Jenelius et al. (2006). The segment's own residents are not counted (they are in `residents_on_segment`); a crossing takes the value of the segment it carries. Road-km lost stays in the CSV for comparison.
 
 **Matrix.** Likelihood is p_close for segments and P(overtop) for crossings, in five bands: L1 < 0.1, L2 0.1–0.3, L3 0.3–0.5, L4 0.5–0.9, L5 ≥ 0.9. Consequence is the higher of two classes:
 
 - the $ class: < 50k, < 250k, < 1M, < 5M, ≥ 5M;
-- the access class: 0, ≤ 2, ≤ 10, ≤ 40, > 40 km.
+- the access class, by residents losing access: C1 0, C2 1–50, C3 51–500, C4 501–5,000, C5 > 5,000. One decade per class, as for the $ classes, anchored on census geography: 50 is one or two blocks (MA averages 80 residents per populated block), 500 is below a block group (600–3,000 people), 5,000 is about a census tract (1,200–8,000, optimum 4,000). The earlier road-km bands (0, ≤ 2, ≤ 10, ≤ 40, > 40 km) are kept as the fallback and for comparison (`risk_with_km_bands`).
 
 Risk = L × C: Low 1–4, Medium 5–9, High 10–16, Extreme 20–25.
 
 **Leominster.** 658 items were scored: 395 segments with p_close ≥ 0.1 and 263 crossings (overtopped, surcharged, or NAACC culverts with P ≥ 0.1).
 
-| class | segments | crossings |
-|---|---|---|
-| Extreme | 12 | 10 |
-| High | 145 | 157 |
-| Medium | 92 | 79 |
-| Low | 146 | 17 |
+| class | segments | crossings | (road-km bands: segments / crossings) |
+|---|---|---|---|
+| Extreme | 17 | 15 | 12 / 10 |
+| High | 146 | 146 | 145 / 157 |
+| Medium | 75 | 82 | 92 / 79 |
+| Low | 157 | 20 | 146 / 17 |
+
+Moving from road-km to residents changes the class of 85 of the 658 items: 19 High → Extreme, 9 Extreme → High, 11 Medium → High, 10 High → Medium, 11 Low → Medium, 24 Medium → Low, 1 High → Low. Short urban segments that cut off dense blocks move up (Litchfield Street, Union Street and the Decicco Drive crossing in Leominster: under 2.5 km of road but 500–870 residents); long rural roads with few residents move down. 217 items cut someone off; the largest is 1,810 residents.
 
 | total | amount |
 |---|---|
@@ -142,14 +151,16 @@ Top of `risk_matrix.csv`:
 | 1 | I-190, Lancaster | 1.00 | $1.6M ($1.5–1.8M), 44,000 vehicle-hours | cost (delay) |
 | 2 | I-190, Lancaster | 1.00 | $1.1M ($1.05–1.24M) | cost (delay) |
 | 3 | I-190, Lancaster | 1.00 | $1.0M ($0.9–1.16M) | cost |
-| 4 | Route 12, Leominster | 1.00 | $0.56M; 13 km lose access | access |
-| 5 | Justice Hill Cutoff crossing (2.8 m box) | 1.00 | $0.43M; 12 km lose access | access |
-| 6–10 | Lancaster Ave (Lunenburg), Leominster Rd and Catacunemaug Rd (Shirley), Route 31 (Princeton), Route 12 (Leominster) | 1.00 | $0.17–0.31M; 14–27 km lose access | access |
+| 4 | Route 12, Leominster | 1.00 | $0.56M; 1,428 residents lose access (13 km) | access |
+| 5 | Decicco Drive crossing, Leominster | 1.00 | $0.43M; 623 residents (0.9 km) | access |
+| 6–7 | Litchfield Street, Union Street, Leominster | 1.00 | $0.36–0.42M; 515–865 residents (1–2.4 km) | access |
+| 8–10 | Lancaster Ave (Lunenburg), Leominster Rd and Catacunemaug Rd (Shirley) | 1.00 | $0.27–0.31M; 524–1,217 residents (14–27 km) | access |
 
 ## Caveats
 
 - Likelihood is the physics prior `p_close`, not a calibrated failure probability. Overtopping a crossing does not mean the crossing fails. Its replacement cost is the consequence if it does fail.
-- 75 % of local-road AADT values are the 1,000 vpd default. There is no lane count, so 2 lanes are assumed. There is no population layer, so road-km is the proxy.
+- 75 % of local-road AADT values are the 1,000 vpd default. There is no lane count, so 2 lanes are assumed.
+- Population is the 2020 Census night-time (residential) count at block internal points, each block on its nearest road segment only. A block with several access roads loses coverage when that one segment closes, and residents of a closed segment count as isolated even if they could stay home safely. Daytime population (workplaces, schools) is not included. Coverage counts residents, not calls for service.
 - The 6 h scale, the equal weights in the flash-flood index, and the class bands are transparent choices. None was fitted.
 
 ## Sources
@@ -173,4 +184,5 @@ Top of `risk_matrix.csv`:
 - Massachusetts River and Stream Crossing Standards (2011).
 - MassDOT 2023 period prices.
 - Gaspard et al. (2007) LTRC Technical Assistance Report 07-2TA.
+- US Census Bureau (2021) 2020 TIGER/Line Shapefiles, TABBLOCK20 (POP20, HOUSING20, internal points); Census Bureau block group and tract population criteria.
 - Jenelius, Petersen & Mattsson (2006) Transportation Research Part A 40(7) 537–560.
