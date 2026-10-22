@@ -728,6 +728,20 @@ def main():
     write_bci(f'{wd}/run.bci', x0, y0, x1, y1)
     start = None
     extra = []; infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4'))
+    INFLOW = None
+    if os.environ.get('LF_INFLOW', 'none') == 'usgs':     # opt-in: upstream inflow point sources from USGS gauges (sim/colab/lf_inflow.py)
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_inflow
+            from pyproj import Transformer
+            tg_ = Transformer.from_crs(4326, 26986, always_xy=True); gp_ = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'proto', 'obs', f'gauges_{STORM}.json')
+            gl_ = [g for g in (json.load(open(gp_))['gauges'] if os.path.exists(gp_) else []) if x0 <= tg_.transform(g['lon'], g['lat'])[0] < x1 and y0 <= tg_.transform(g['lon'], g['lat'])[1] < y1]
+            INFLOW = lf_inflow.build_inflows(BOX, RES, I['Z'], I['chan'], S['t0'], S['hours'], gl_, log=log)
+            if INFLOW['n']:
+                with open(f'{wd}/run.bci', 'a') as f_: f_.write('\n'.join(INFLOW['bci_lines']) + '\n')
+                open(f'{wd}/run.bdy', 'w').write(INFLOW['bdy']); extra.append('bdyfile run.bdy')
+            log(f"LF_INFLOW=usgs: {INFLOW['n']} inflow point sources")
+        except Exception as e:
+            log('LF_INFLOW failed, running without inflows:', repr(e)[:300])
     QOUT = os.environ.get('LF_QOUT', '0') == '1'
     if QOUT: extra.append('qoutput')          # .Qx/.Qy face fluxes (m3/s) at every saveint: flow through each crossing notch, river flow at gauges
     VOUT = os.environ.get('LF_VOUT', '0') == '1'
@@ -829,13 +843,14 @@ def main():
                         'zcut notch level, n_eq Manning n of a sized notch (LF_BREACH_SIZED), q_peak_m3s peak flow through the block (LF_QOUT, 30-min snapshots)',
                    sized=os.environ.get('LF_BREACH_SIZED', '0') == '1', qout=QOUT, crossings=XG, gauges=GQ), open(f'{OUT}/xings.json', 'w'))
     for f in ('run.par', 'run.bci', 'lisflood_stdout.txt'): shutil.copy(f'{wd}/{f}', f'{OUT}/{f}')
+    if os.path.exists(f'{wd}/run.bdy'): shutil.copy(f'{wd}/run.bdy', f'{OUT}/run.bdy')
     if mass: shutil.copy(mass[0], f'{OUT}/lisflood.mass')
     meta = dict(run=run_name, title=S['title'] + ' · LISFLOOD-FP benchmark', box=list(BOX), res_m=RES, shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=frames,
                 crs='EPSG:26986', model=model, model_source=src_url, model_build=dict(cuda=bool(is_cuda), exe=os.path.basename(exe), build_s=round(build_s)),
                 solver='acceleration (local inertial, Bates et al. 2010)' + (' on GPU (cuda)' if is_cuda else ' on CPU (OpenMP)'),
                 inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning=f"{os.environ.get('LF_N_CHAN', '0.035')} water/channel, 0.10 dense urban, " + ('NLCD table (forest ' + os.environ.get('LF_N_FOREST', '0.12') + ')' if LC is not None else os.environ.get('LF_N_FP', '0.08') + ' other'),
                             rain='MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
-                            boundary='FREE on all edges', baseflow=start is not None, inflows='none',
+                            boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
                             env={k: os.environ[k] for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)}),
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
