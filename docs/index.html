@@ -1,1237 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mass Flood Watch</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Flash-flood road-closure forecasting for MassDOT Highway District 3 in central Massachusetts. PhD research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<link rel="icon" href="wpi-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-/* Layout: full-bleed nautical-chart map; floating control card (left) and readout drawer (right); slim status bar on top. Stacks under the map on phones.
-   Palette: chart-paper sea and land, MassDOT-style road hierarchy, a hazard ramp kept apart from the basemap hues. */
 :root{
-  --bg:#e9eef1; --panel:#ffffff; --panel2:#f5f7f8; --ink:#13222c; --muted:#5a6a75; --line:#d6dee3; --accent:#0d5d88; --accent-ink:#ffffff;
-  --sea:#c3d9e6; --sea-edge:#a9c7d8; --land:#f3f2ee; --land-out:#e6e5df; --townline:#cbc6bb; --lake:#b7d3e3; --river:#93bed8;
-  --road:#ffffff; --road-case:#c8c4ba; --art:#fff1bf; --art-case:#d6b45c; --hwy:#f6b45f; --hwy-case:#b4702a; --path:#cfcac0;
-  --label:#2f3b44; --halo:#f3f2ee; --townlabel:#54493d; --water-label:#3f6f8e;
-  --r1:#f2c14e; --r2:#e8833a; --r3:#c8322b; --r4:#7a1022; --deep:#1450a8; --shallow:#35a4d8; --flood-ring:#ffffff;
-  --ok:#2f7d4f; --warn:#c77c11; --bad:#b3261e; --shadow:0 6px 24px rgba(15,35,50,.16);
-  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0a131a; --panel:#111c24; --panel2:#0e171e; --ink:#e2eaef; --muted:#93a5b1; --line:#23333e; --accent:#5fb3e3; --accent-ink:#06131b;
-  --sea:#08121a; --sea-edge:#0e1d28; --land:#17222b; --land-out:#121b22; --townline:#2b3a45; --lake:#0c1c28; --river:#1b3a50;
-  --road:#2d3b47; --road-case:#0c141b; --art:#4b4733; --art-case:#1b1d15; --hwy:#8a6430; --hwy-case:#2b1e0e; --path:#2a3640;
-  --label:#c7d3db; --halo:#17222b; --townlabel:#a3b3bf; --water-label:#6ea3c4;
-  --r1:#e9c25a; --r2:#f0924a; --r3:#ff5c4d; --r4:#ff9aa8; --deep:#3d8cff; --shallow:#5fd0ff; --flood-ring:#08121a;
-  --ok:#5cc28a; --warn:#e7a94a; --bad:#ff6b5e; --shadow:0 6px 28px rgba(0,0,0,.5); color-scheme:dark}}
+  --bg:#f4f6f7;--surface:#ffffff;--surface-2:#e9eef1;--ink:#15212b;--muted:#53616c;--rule:#d3dbe0;
+  --accent:#ac2b37;--water:#2171b5;--closed:#b2182b;--may:#c4620a;
+  --sans:Overpass,"Segoe UI",system-ui,-apple-system,sans-serif;--serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e151b;--surface:#16212a;--surface-2:#1d2a35;--ink:#e3eaef;--muted:#9eacb7;--rule:#2b3945;
+  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0a131a; --panel:#111c24; --panel2:#0e171e; --ink:#e2eaef; --muted:#93a5b1; --line:#23333e; --accent:#5fb3e3; --accent-ink:#06131b;
-  --sea:#08121a; --sea-edge:#0e1d28; --land:#17222b; --land-out:#121b22; --townline:#2b3a45; --lake:#0c1c28; --river:#1b3a50;
-  --road:#2d3b47; --road-case:#0c141b; --art:#4b4733; --art-case:#1b1d15; --hwy:#8a6430; --hwy-case:#2b1e0e; --path:#2a3640;
-  --label:#c7d3db; --halo:#17222b; --townlabel:#a3b3bf; --water-label:#6ea3c4;
-  --r1:#e9c25a; --r2:#f0924a; --r3:#ff5c4d; --r4:#ff9aa8; --deep:#3d8cff; --shallow:#5fd0ff; --flood-ring:#08121a;
-  --ok:#5cc28a; --warn:#e7a94a; --bad:#ff6b5e; --shadow:0 6px 28px rgba(0,0,0,.5); color-scheme:dark}
-*,*::before,*::after{box-sizing:border-box}
-html,body{height:100%}
-[hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45}
-.app{height:100%;display:grid;grid-template-rows:auto 1fr;position:relative}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--panel);border-bottom:1px solid var(--line);z-index:5}
-.brand{display:flex;flex-direction:column;line-height:1.05}
-h1{font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:.06em;margin:0;text-transform:uppercase}
-.brand small{color:var(--muted);font-size:11px;letter-spacing:.02em}
-.tabs{display:flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:3px;flex-wrap:wrap}
-.tab{font:600 12.5px var(--body);padding:6px 9px;border:0;background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;white-space:nowrap}
-.tab:hover{color:var(--ink)}
-.tab[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
-.status{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-@media (max-width:1480px){.clock{display:none}}
-.livechip{display:flex;align-items:center;gap:8px;font:500 12.5px var(--body);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 8px;background:var(--panel2)}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);position:relative;flex:none}
-.dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid currentColor;color:inherit;opacity:0;animation:ping 2.4s infinite}
-.dot.ok{color:var(--ok)} .dot.warn{background:var(--warn);color:var(--warn)} .dot.bad{background:var(--bad);color:var(--bad)}
-@keyframes ping{0%{transform:scale(.6);opacity:.8}100%{transform:scale(2.1);opacity:0}}
-.clock{font:500 12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
-.btn{font:600 12.5px var(--body);padding:6px 11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:7px;cursor:pointer}
-.btn:hover{border-color:var(--accent)}
-.tab:focus-visible,select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.stage{position:relative;min-height:0;background:var(--sea);overflow:hidden}
-canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
-canvas#map:active{cursor:grabbing}
-canvas#flow{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:1}
-.card{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:3}
-.rail{left:max(14px,env(safe-area-inset-left,0px));top:14px;width:292px;max-height:calc(100% - 28px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
-.readout{right:max(14px,env(safe-area-inset-right,0px));top:14px;width:356px;max-height:calc(100% - 112px);overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
-.readout>*{flex-shrink:0}
-.legend{left:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));padding:9px 11px;font-size:12px;display:flex;flex-direction:column;gap:5px;max-width:300px}
-.legend b{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.mapctl{position:absolute;right:calc(386px + env(safe-area-inset-right,0px));top:14px;display:flex;flex-direction:column;gap:6px;z-index:3}
-.mapctl button{width:34px;height:34px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:600 17px var(--body);cursor:pointer;box-shadow:var(--shadow)}
-.scalebar{position:absolute;right:calc(386px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:flex-end;gap:10px;pointer-events:none}
-.scalebar .bar{height:7px;border:1.5px solid var(--ink);border-top:0;font:500 11px var(--mono);color:var(--ink);position:relative}
-.scalebar .bar span{position:absolute;bottom:9px;right:0;white-space:nowrap;text-shadow:0 0 3px var(--halo),0 0 3px var(--halo)}
-.north{width:26px;height:34px}
-.byline{position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:3;width:356px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
-.byline .logo{flex:none;height:40px;display:flex;align-items:center}
-.byline .logo svg{height:40px;width:auto;display:block}
-.byline .logo .wm{fill:var(--ink)}
-.byline .who{font-weight:650;font-size:14px;color:var(--ink);line-height:1.2}
-.byline .what{font-size:11.5px;color:var(--muted);line-height:1.35}
-.app.present .byline{right:max(18px,env(safe-area-inset-right,0px))}
-.credit{position:absolute;right:max(8px,env(safe-area-inset-right,0px));bottom:calc(2px + env(safe-area-inset-bottom,0px));font-size:10px;color:var(--muted);z-index:2;pointer-events:none;text-shadow:0 0 3px var(--halo)}
-.lbl{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.ctl{display:flex;flex-direction:column;gap:6px}
-.subtabs{display:flex;flex-wrap:wrap;gap:6px}
-.readout a,.rail a{color:var(--accent);font-weight:600}
-details.more{border-top:1px solid var(--line);padding-top:8px}details.more>summary{cursor:pointer;font:600 12.5px var(--body);color:var(--accent);margin-bottom:8px}details.more[open]{display:flex;flex-direction:column;gap:12px}.subtabs:empty{display:none}
-.subtabs button{font:600 12.5px var(--body);padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
-.subtabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
-.wplay{display:flex;gap:8px;align-items:center}.wplay .btn{min-width:74px}.wtime{font:600 15px var(--mono);letter-spacing:.02em}
-.wchart{width:100%;height:120px;display:block;margin-top:4px}.wchart text{font:10px var(--mono);fill:var(--muted)}
-select,input[type=range],input[type=search]{width:100%}
-select,input[type=search]{font:14px var(--body);padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink)}
-input[type=range]{accent-color:var(--accent)}
-.val{font-family:var(--mono);font-size:13px}
-.note{color:var(--muted);font-size:12.5px;margin:0}
-.engine{font:500 11.5px var(--mono);color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
-.engine b{color:var(--ok);font-weight:500}
-.tip{position:absolute;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px;max-width:270px;box-shadow:var(--shadow);z-index:6}
-.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:7px;vertical-align:-2px}
-.sw.dotsw{border-radius:50%;box-shadow:0 0 0 1.5px var(--flood-ring) inset}
-tr.wnow td{background:color-mix(in srgb,var(--r3) 14%,transparent)}tr.wdone td{opacity:.55}
-.ramp{display:flex;gap:0;margin-top:2px}.ramp span{flex:1;height:9px}.ramp span:first-child{border-radius:3px 0 0 3px}.ramp span:last-child{border-radius:0 3px 3px 0}
-.rampl{display:flex;justify-content:space-between;font:500 10.5px var(--mono);color:var(--muted)}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.stat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.stat b{display:block;font:600 24px var(--display);letter-spacing:.02em;font-variant-numeric:tabular-nums}
-.stat span{font-size:12px;color:var(--muted)}
-table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
-th{font:600 10.5px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--line);padding:4px}
-td{padding:4px;border-bottom:1px solid var(--line);vertical-align:top}
-td.n{text-align:right;font-family:var(--mono)}
-tr.go{cursor:pointer} tr.go:hover td{background:var(--panel2)}
-.tblwrap{overflow-x:auto}
-.pill{display:inline-block;padding:1px 7px;border-radius:999px;font:600 11px var(--body);border:1px solid currentColor;white-space:nowrap}
-.p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)}
-.gauges{display:flex;flex-direction:column;gap:8px}
-.g{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}
-.g h4{margin:0;font:600 14px var(--body)} .g .m{font-family:var(--mono);font-size:11.5px;color:var(--muted);grid-column:1/-1}
-.g svg{grid-column:1/-1;width:100%;height:66px;display:block}
-ul{margin:0;padding-left:18px}
-h2{font-family:var(--display);font-size:21px;font-weight:600;margin:0;letter-spacing:.04em;text-transform:uppercase;text-wrap:balance}
-.empty{color:var(--muted);font-style:italic}
-.gmark{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);z-index:2;pointer-events:none}
-.gmark::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--accent);animation:ping 2.8s infinite}
-.gmark.warn{background:var(--warn)} .gmark.warn::after{border-color:var(--warn)} .gmark.bad{background:var(--bad)} .gmark.bad::after{border-color:var(--bad)}
-.titlecard{left:max(18px,env(safe-area-inset-left,0px));top:18px;padding:14px 18px;max-width:520px}
-.titlecard h3{font:700 30px/1 var(--display);letter-spacing:.05em;text-transform:uppercase;margin:0}
-.titlecard p{margin:6px 0 0;color:var(--muted);font-size:13.5px}
-.titlecard .kick{font:600 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
-.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:7;background:var(--sea);font:500 13px var(--mono);color:var(--muted)}
-.app.present{grid-template-rows:1fr}
-.app.present header,.app.present .rail,.app.present .readout,.app.present .mapctl{display:none}
-.app.present .scalebar{right:max(18px,env(safe-area-inset-right,0px))}
-.app.present .legend{left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px))}
-.exitpresent{position:absolute;right:max(14px,env(safe-area-inset-right,0px));top:14px;z-index:4;opacity:.25}
-.exitpresent:hover,.exitpresent:focus-visible{opacity:1}
-@media (max-width:1100px){.readout{width:320px}.byline{width:320px}.mapctl,.scalebar{right:calc(350px + env(safe-area-inset-right,0px))}}
-@media (max-width:820px){
-  .app{display:flex;flex-direction:column;height:auto;min-height:100%}
-  header{gap:10px}.status{margin-left:0}
-  .stage{height:auto;flex:none;overflow:visible;padding-top:64vh;display:flex;flex-direction:column}
-  canvas#map,canvas#flow{height:64vh;bottom:auto}
-  .scalebar{bottom:auto;top:calc(64vh - 84px)} .credit{bottom:auto;top:calc(64vh - 15px)} .byline{bottom:auto;top:calc(64vh - 50px);width:auto;max-width:calc(100% - 24px);padding:5px 9px} .byline .logo svg{height:22px} .byline .who{font-size:12px} .byline .what{display:none}
-  .legend{position:static;max-width:none;box-shadow:none;border-radius:0;border-left:0;border-right:0;order:-1}
-  .rail{order:-2} .readout{order:-1} .legend{order:0!important}
-  .rail,.readout{position:static;width:auto;max-height:none;box-shadow:none;border-radius:0;border-left:0;border-right:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-  .mapctl,.scalebar,.byline{right:max(12px,env(safe-area-inset-right,0px))}
+  --bg:#0e151b;--surface:#16212a;--surface-2:#1d2a35;--ink:#e3eaef;--muted:#9eacb7;--rule:#2b3945;
+  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--serif);overflow-x:hidden}
+a{color:inherit;text-decoration-color:color-mix(in srgb,var(--accent) 60%,transparent);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+h1,h2,h3,.sans{font-family:var(--sans)}
+h2{font-size:30px;line-height:1.15;font-weight:800;margin:0 0 12px;letter-spacing:-.01em}
+h3{font-size:17px;line-height:1.3;font-weight:800;margin:0 0 6px}
+p{margin:0 0 14px;max-width:68ch}
+.lede{font-size:19px;color:var(--ink)}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums lining-nums}
+
+/* header */
+.top{border-bottom:1px solid var(--rule);background:var(--surface)}
+.top .wrap{display:flex;align-items:center;gap:18px;min-height:68px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+.logo{height:34px;width:auto;display:block;background:#fff;border-radius:4px;padding:3px 5px}
+.ident{display:flex;flex-direction:column;font-family:var(--sans);line-height:1.25}
+.ident b{font-size:19px;font-weight:800;letter-spacing:-.005em}
+.ident span{font-size:13.5px;color:var(--muted)}
+.nav{margin-left:auto;display:flex;gap:18px;align-items:center;font:600 14px var(--sans)}
+.nav a{text-decoration:none;color:var(--muted)}
+.nav a:hover{color:var(--ink)}
+.theme{background:none;border:1px solid var(--rule);border-radius:5px;padding:4px 9px 3px;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
+
+/* hero */
+.hero{padding:56px 0 28px}
+.hero h1{font-size:clamp(34px,5.2vw,60px);line-height:1.04;font-weight:800;letter-spacing:-.02em;margin:0 0 18px;max-width:17ch}
+.hero .lede{max-width:60ch}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);margin:38px 0 0;border-top:3px solid var(--ink)}
+.fact{padding:16px 22px 4px 0;border-right:1px solid var(--rule);margin-right:22px}
+.fact:last-child{border-right:0;margin-right:0}
+.fact .v{font:800 clamp(30px,3.6vw,44px)/1 var(--sans);letter-spacing:-.02em;display:block;margin-bottom:8px}
+.fact .v small{font-size:.5em;font-weight:600;color:var(--muted);letter-spacing:0}
+.fact p{font:15px/1.45 var(--serif);margin:0 0 8px}
+.fact .src{font:13px/1.4 var(--sans);color:var(--muted)}
+
+/* replay */
+.replay{padding:40px 0 18px}
+.replay-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+.replay-head p{margin:0}
+.frame{position:relative;height:min(78vh,760px);min-height:560px;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.open{font:600 14px var(--sans);white-space:nowrap}
+
+/* sections */
+section.block{padding:56px 0 8px}
+.cols{display:block}.cols>div:first-child{margin-bottom:34px}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:0;counter-reset:s;border-top:1px solid var(--rule)}
+.steps li{position:relative;padding:18px 26px 10px 0;counter-increment:s}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface);border:2px solid var(--water);color:var(--water);font:800 14px var(--sans);margin:-33px 0 12px;position:relative}
+.steps li p{font-size:15px;line-height:1.5;margin:0}
+.loop{margin:22px 0 0;padding:16px 20px;border-left:3px solid var(--accent);background:var(--surface)}
+.loop p{margin:0;font-size:16px}
+
+table{border-collapse:collapse;width:100%;font:14.5px/1.4 var(--sans)}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+thead th{font-weight:800;background:var(--surface-2);border-bottom:1px solid var(--rule)}
+thead th span{display:block;font-weight:400;color:var(--muted);font-size:13px}
+tbody th{font-weight:600;width:30%}
+tbody th span{display:block;font-weight:400;color:var(--muted);font-size:13px}
+td b{font-weight:800}
+td{font-variant-numeric:tabular-nums}
+tr:last-child th,tr:last-child td{border-bottom:0}
+.note{font-size:14.5px;color:var(--muted);margin-top:12px}
+.limits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 40px;margin:26px 0 0;padding:0;list-style:none}
+.limits li{font-size:16px;line-height:1.5;padding-left:16px;border-left:2px solid var(--rule)}
+.limits b{font-family:var(--sans);font-weight:800}
+
+.impact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:20px 22px}
+.panel h3{margin-bottom:2px}
+.panel .sub{font:13.5px var(--sans);color:var(--muted);margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:0;font:15px/1.35 var(--sans);margin:0}
+.kv dt,.kv dd{padding:7px 0;border-bottom:1px solid var(--rule);margin:0}
+.kv dd{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;padding-left:12px}
+.kv dt span{display:block;color:var(--muted);font-size:13px}
+.kv dt:last-of-type,.kv dd:last-of-type{border-bottom:0}
+.top5{margin:16px 0 0;padding:0;list-style:none;font:14px/1.4 var(--sans)}
+.top5 li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px dashed var(--rule)}
+.top5 li span:last-child{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cls{display:inline-block;font:700 12px var(--sans);padding:0 6px;border-radius:3px;background:#67000d;color:#fff;margin-right:6px}
+
+footer{margin-top:64px;border-top:1px solid var(--rule);background:var(--surface);padding:34px 0 40px;font:14px/1.6 var(--sans);color:var(--muted)}
+footer .wrap{display:grid;grid-template-columns:2fr 1fr;gap:30px}
+footer h3{color:var(--ink);font-size:14px}
+footer p{max-width:none;margin:0 0 8px}
+footer .disc{color:var(--ink);font-weight:600}
+
+@media (max-width:980px){
+  .facts{grid-template-columns:repeat(2,1fr)}
+  .fact{margin-right:0;padding-right:18px;border-right:0;border-bottom:1px solid var(--rule)}
+  .fact:nth-child(odd){border-right:1px solid var(--rule);margin-right:18px}
+  .steps{grid-template-columns:1fr;border-top:0;border-left:1px solid var(--rule);margin-left:14px}
+  .steps li{padding:0 0 18px 26px}
+  .steps li::before{position:absolute;left:-15px;top:-3px;margin:0}
+  .cols{grid-template-columns:1fr;gap:10px}
+  .impact,.limits{grid-template-columns:1fr}
+  footer .wrap{grid-template-columns:1fr}
 }
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:640px){
+  body{font-size:16px}
+  .wrap{padding:0 16px}
+  .nav a{display:none}
+  .top .wrap{flex-wrap:nowrap;gap:12px}
+  .ident{min-width:0}
+  .ident b{font-size:17px}.ident span{font-size:12.5px}
+  .logo{height:28px}
+  .hero{padding:34px 0 18px}
+  .facts{grid-template-columns:1fr}
+  .fact,.fact:nth-child(odd){border-right:0;margin-right:0;padding-right:0}
+  h2{font-size:25px}
+  .frame{height:82vh;min-height:620px;border-radius:6px}
+  th,td{padding:9px 10px}
+  .tablewrap table{min-width:640px}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
 </style>
-
-<div class="app" id="app">
-  <header>
-    <div class="brand"><h1>Mass Flood Watch</h1><small>Road flooding from rain and the sea · MassDOT Districts 3–6</small></div>
-    <div class="tabs" role="group" aria-label="View">
-      <button class="tab" data-tab="now" aria-pressed="true" id="t-now">Now</button>
-      <button class="tab" data-tab="replay" aria-pressed="false" id="t-replay">Replay a storm</button>
-      <button class="tab" data-tab="future" aria-pressed="false" id="t-future">Future</button>
-      <button class="tab" data-tab="check" aria-pressed="false" id="t-check">How good is it</button>
-    </div>
-    <div class="status">
-      <span class="livechip" id="livechip"><span class="dot ok" id="livedot"></span><span id="livetxt">Loading…</span></span>
-      <button class="livechip" id="progchip" title="Work in progress on this model" style="cursor:pointer;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="dot" style="background:var(--accent)"></span><span id="progtxt">Work log</span></button>
-      <a class="livechip" href="v2/" title="New map engine: GPU-drawn tiles, statewide 30 m runs" style="text-decoration:none;color:inherit"><span class="dot" style="background:#1f6fd0"></span>v2 map</a>
-      <span class="clock" id="clock"></span>
-      <button class="btn" id="present">Presentation view</button>
-    </div>
-  </header>
-
-  <div class="stage" id="stage">
-    <canvas id="map" aria-label="Map of Massachusetts roads, towns and flood model results"></canvas>
-    <canvas id="flow" aria-hidden="true"></canvas>
-    <div id="gmarks"></div>
-    <aside class="card rail" aria-label="Controls">
-      <div class="subtabs" id="subtabs" role="group" aria-label="View"></div>
-      <div class="ctl"><label class="lbl" for="find">Go to a town</label><input type="search" id="find" list="townlist" placeholder="e.g. Quincy" autocomplete="off"><datalist id="townlist"></datalist></div>
-      <div id="controls"></div>
-      <div class="ctl"><span class="lbl">How to read it</span><p class="note" id="howto"></p></div>
-      <div class="engine" id="engine"></div>
-    </aside>
-    <aside class="card readout" aria-label="Results" id="readout"></aside>
-    <div class="mapctl"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Reset view">⌂</button></div>
-    <div class="card legend" id="legend"></div>
-    <div class="scalebar"><svg class="north" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 2 L21 28 L13 22 L5 28 Z" fill="var(--ink)"/><path d="M13 2 L13 22 L5 28 Z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1"/><text x="13" y="34" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="8" font-weight="600" fill="var(--ink)">N</text></svg><div class="bar" id="scale"><span></span></div></div>
-    <div class="byline" id="byline"><div class="logo" id="wpilogo" role="img" aria-label="WPI logo"></div><div><div class="who">Mohab Eldokla</div><div class="what">PhD in Civil Engineering<br>Graduation project · Worcester Polytechnic Institute</div></div></div>
-    <div class="credit">Roads: MassGIS/MassDOT · Water: USGS NHD · Towns: MassGIS · Model: Mohab Eldokla, WPI</div>
-    <div class="card titlecard" id="titlecard" hidden><div class="kick" id="tc-kick"></div><h3 id="tc-title"></h3><p id="tc-sub"></p></div>
-    <button class="btn exitpresent" id="exitpresent" hidden>Exit presentation (Esc)</button>
-    <div class="tip" id="tip" hidden></div>
-    <div class="loading" id="loading">Loading map data…</div>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <img class="logo" src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="105" height="34">
+    <div class="ident"><b>Mass Flood Watch</b><span>PhD research · Mohab Eldokla · Worcester Polytechnic Institute</span></div>
+    <nav class="nav" aria-label="Sections">
+      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a>
+      <button class="theme" id="theme" type="button" aria-label="Colour theme">Auto</button>
+    </nav>
   </div>
-</div>
+</header>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<main>
+<section class="hero">
+  <div class="wrap">
+    <h1>Which roads a flash flood will close, when, and why</h1>
+    <p class="lede">Mass Flood Watch turns radar rainfall into a road-by-road forecast of flash-flood closures for MassDOT Highway District 3 in central Massachusetts: where water reaches the road, when each segment closes and reopens, and who loses access to a hospital, fire station or police station while it is shut.</p>
+    <div class="facts" role="list">
+      <div class="fact" role="listitem">
+        <span class="v num">35<small>%</small></span>
+        <p>of 79 documented closure and damage sites flagged, while flagging only 1.5% of the district’s road segments: 16.4 times better than flagging at random.</p>
+        <span class="src">All of District 3, Sept 11, 2023 storm. Sites matched within 30 m.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">80<small>% vs 15%</small></span>
+        <p>of 121 storm reports and documented sites had at least 30 cm of modelled water nearby, against 15% of 2,000 random road points.</p>
+        <span class="src">All of District 3, Sept 11, 2023. NWS storm reports, NOAA Storm Events, city and MassDOT records.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">994<small> s</small></span>
+        <p>to model 48 hours of flooding over all of District 3: 17.6 million cells at 20 m, on one GPU of WPI’s Turing cluster.</p>
+        <span class="src">LISFLOOD-FP 8.2, Sept 11, 2023 storm, 44,335 road segments assessed.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">88<small> s vs 1,343 s</small></span>
+        <p>for the same Leominster storm on one GPU against a 4-core CPU, about 15 times faster. The whole GPU job, closures included, took 310 s.</p>
+        <span class="src">20 × 20 km Leominster box at 20 m, Sept 11, 2023 storm.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="replay" id="replay">
+  <div class="wrap">
+    <div class="replay-head">
+      <div>
+        <h2>Storm replay</h2>
+        <p class="muted">Press play to watch the modelled water rise and roads close through the storm. Click a road for when it closes, why, and who loses access. Switch storms at the top of the map.</p>
+      </div>
+      <a class="open" href="viewer.html?run=leominster_sep2023">Open the replay full screen</a>
+    </div>
+    <div class="frame"><iframe id="viewer" title="Storm replay map" src="viewer.html?run=leominster_sep2023&amp;embed=1" loading="lazy" allow="fullscreen"></iframe></div>
+  </div>
+</section>
+
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h2>How it works</h2>
+        <p class="muted">Rain goes in; closed roads and what they cost come out. Every step uses public data and open-source code.</p>
+      </div>
+      <div>
+        <ol class="steps">
+          <li><h3>Rain</h3><p>NOAA MRMS radar-and-gauge rainfall, 1 km, every hour of the storm.</p></li>
+          <li><h3>Flood model</h3><p>LISFLOOD-FP 8.2 spreads the rain over USGS 3DEP lidar terrain at 20 m. Soils and land cover set how much soaks in. Runs on a GPU on WPI’s Turing cluster.</p></li>
+          <li><h3>Water on every road</h3><p>Depth on each road segment every 30 minutes: when water arrives, how deep, and for how long.</p></li>
+          <li><h3>Closure rules</h3><p>30 cm of water stops an ordinary car, so the chance of closing rises steeply past 30 cm. A stream reaching road level marks a road that may close. Culverts are checked against FHWA HDS-5.</p></li>
+          <li><h3>Network impact</h3><p>Residents from the 2020 Census who lose a hospital within 30 min, a fire station within 8 min or police within 10 min; detour delay; risk class and repair cost.</p></li>
+        </ol>
+        <div class="loop"><p>Every run is scored against what happened: USGS river gauges, NWS storm reports, NOAA Storm Events, and documented city and MassDOT closure and damage sites, each compared with random road points.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="validation">
+  <div class="wrap">
+    <h2>Validation</h2>
+    <p class="muted">Three runs. Leominster is the storm the settings were checked on. Worcester is a blind test with the same settings. The District 3 run covers the whole district in one model.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th scope="col">Check</th>
+          <th scope="col">Leominster, Sept 2023<span>tuned case, 5,096 segments</span></th>
+          <th scope="col">Worcester, Aug 2021<span>blind test, 8,354 segments</span></th>
+          <th scope="col">All of District 3, Sept 2023<span>GPU run, 44,335 segments</span></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Documented sites caught, depth rule<span>share of sites with a segment of 50% or more chance of closing within 30 m</span></th>
+            <td><b>36%</b> of 78 at 2.2% flagged, lift 11.1</td><td><b>33%</b> of 12 at 1.5% flagged, lift 19.8</td><td><b>35%</b> of 79 at 1.5% flagged, lift 16.4</td></tr>
+          <tr><th scope="row">Documented sites caught, stream at road level<span>same test with the “may close” rule added</span></th>
+            <td><b>51%</b> of 78 at 5.3% flagged, lift 6.8</td><td><b>58%</b> of 12 at 3.8% flagged, lift 13.3</td><td><b>53%</b> of 79 at 2.6% flagged, lift 14.1</td></tr>
+          <tr><th scope="row">Reports with 30 cm of water nearby<span>storm reports and documented sites, against 2,000 random road points</span></th>
+            <td><b>78%</b> of 116 vs 33% random</td><td><b>56%</b> of 16 vs 22% random</td><td><b>80%</b> of 121 vs 15% random</td></tr>
+          <tr><th scope="row">MassDOT repeat flood sites flagged<span>sites with a likely-closed segment within 150 m</span></th>
+            <td><b>2</b> of 4</td><td><b>3</b> of 10</td><td><b>7</b> of 30</td></tr>
+          <tr><th scope="row">USGS river gauges<span>mean error in stage rise and in rise timing</span></th>
+            <td><b>0.17 m</b>, 0.6 h at 2 gauges</td><td><b>0.37 m</b>, 1.6 h at 3 gauges</td><td><b>0.44 m</b>, 22.1 h at 10 gauges</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Lift is the share of sites caught divided by the share caught when the same number of segments is flagged at random. Documented sites are the 93 Sept 2023 closures, washouts and failed culverts in the Leominster area (the District 3 run is scored on the same set) and 14 Aug 2021 sites in the Worcester area. Sources: <a href="proto/leominster_sep2023/summary.json">Leominster</a>, <a href="proto/worcester_aug2021/summary.json">Worcester</a> and <a href="proto/turing/d3_sep2023_20m/summary.json">District 3</a> run summaries, with gauge and report scores in each run’s score.json and points.json.</p>
+    <h3 style="margin-top:34px">Known limits</h3>
+    <ul class="limits">
+      <li><b>20 m grid.</b> Curbs, gutters and narrow ditches are smaller than one cell, so water on city streets is smoothed out.</li>
+      <li><b>Storm drains and small culverts are not resolved yet.</b> The model drains no more than 2 mm of rain per hour through pipes, so some low spots stay flooded longer than they did.</li>
+      <li><b>Short urban downpours are under-predicted.</b> In the Worcester 2021 storm only 56% of reports had 30 cm of modelled water nearby.</li>
+      <li><b>River floods need basin-scale runs.</b> Large rivers drain land outside the model box and keep rising after the 48-hour window; 5 of the 10 District 3 gauges show no modelled rise, hence the 22 h timing error.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="block" id="impact">
+  <div class="wrap">
+    <h2>Network impact and risk</h2>
+    <p class="muted">What the closures mean for the people who live there and for the agency that repairs the roads. Residents are 2020 Census counts, each placed on its nearest road. Response standards: hospital within 30 min, fire station within 8 min, police within 10 min.</p>
+    <div class="impact">
+      <div class="panel">
+        <h3>Leominster, Sept 11, 2023</h3>
+        <p class="sub">120,789 residents in the 20 × 20 km box, 48 hours modelled</p>
+        <dl class="kv">
+          <dt>Residents losing at least one service<span>worst moment, 7 h into the replay</span></dt><dd>38,092</dd>
+          <dt>Losing fire coverage, 8 min</dt><dd>33,502</dd>
+          <dt>Losing police coverage, 10 min</dt><dd>26,145</dd>
+          <dt>Losing hospital access, 30 min</dt><dd>18,665</dd>
+          <dt>Cut off from every facility<span>worst moment, 6.5 h in</span></dt><dd>12,370</dd>
+          <dt>Traffic delay</dt><dd>63,472 vehicle-h</dd>
+          <dt>Roads and crossings rated Extreme or High<span>73 segments and 136 stream crossings</span></dt><dd>209</dd>
+          <dt>Repair cost if all rated items fail<span>2023 dollars; expected cost $31.9M</span></dt><dd>$19.3M–$105.5M</dd>
+        </dl>
+        <ol class="top5" aria-label="Highest-risk items">
+          <li><span><i class="cls">Extreme</i>Fall Brook crossing, Decicco Dr</span><span>623 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Route 12, Leominster</span><span>1,810 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Catacunemaug Road, Shirley</span><span>665 residents</span></li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>Worcester, Aug 19, 2021</h3>
+        <p class="sub">295,856 residents in the 20 × 20 km box, 18 hours modelled</p>
+        <dl class="kv">
+          <dt>Residents losing at least one service<span>worst moment, 6.5 h into the replay</span></dt><dd>67,695</dd>
+          <dt>Losing fire coverage, 8 min</dt><dd>53,134</dd>
+          <dt>Losing police coverage, 10 min</dt><dd>48,704</dd>
+          <dt>Losing hospital access, 30 min</dt><dd>11,599</dd>
+          <dt>Cut off from every facility<span>worst moment, 7.5 h in</span></dt><dd>11,341</dd>
+          <dt>Traffic delay</dt><dd>51,478 vehicle-h</dd>
+          <dt>Roads and crossings rated Extreme or High<span>58 segments and 171 stream crossings</span></dt><dd>229</dd>
+          <dt>Repair cost if all rated items fail<span>2023 dollars; expected cost $30.4M</span></dt><dd>$13.9M–$145.1M</dd>
+        </dl>
+        <ol class="top5" aria-label="Highest-risk items">
+          <li><span><i class="cls">Extreme</i>Providence Road, Sutton</span><span>3,111 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Providence Street, Millbury</span><span>861 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Stafford Street, Worcester</span><span>734 residents</span></li>
+        </ol>
+      </div>
+    </div>
+    <p class="note">Residents in the lists lose access within the standard if that one road closes. Night-time population; staying home is not modelled. Detours have no congestion, so delay is a lower bound. Risk class is likelihood × consequence on a 5 × 5 matrix. Sources: each storm’s <a href="proto/leominster_sep2023/resilience.json">resilience.json</a> and <a href="proto/leominster_sep2023/risk.json">risk.json</a> (<a href="proto/worcester_aug2021/resilience.json">Worcester</a>, <a href="proto/worcester_aug2021/risk.json">risk</a>).</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <h3>Data</h3>
+      <p>Rain: NOAA MRMS. Terrain and river gauges: USGS 3DEP and NWIS. Roads, traffic counts and repeat flood sites: MassGIS and MassDOT. Culverts: North Atlantic Aquatic Connectivity Collaborative (NAACC). Bridges: FHWA National Bridge Inventory. Residents: US Census 2020. Hospitals, fire and police stations: © OpenStreetMap contributors. Storm reports: NOAA National Weather Service. Flood model: LISFLOOD-FP 8.2, University of Bristol. Basemap: Esri.</p>
+      <p><a href="proto/advisors/pipeline.html">Pipeline diagram</a> · <a href="proto/advisors/datasets.md">Dataset list</a></p>
+    </div>
+    <div>
+      <h3>About</h3>
+      <p>PhD research by Mohab Eldokla, Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute.</p>
+      <p class="disc">Research prototype; not an official WPI or MassDOT product.</p>
+    </div>
+  </div>
+</footer>
 <script>
-(async function(){
-const $ = s => document.querySelector(s);
-const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-fetch('wpi-logo.svg').then(r => r.ok ? r.text() : '').then(t => { if (t.includes('<svg')) document.getElementById('wpilogo').innerHTML = t; else document.getElementById('wpilogo').remove(); }).catch(() => document.getElementById('wpilogo')?.remove());
-const getJSON = async u => { const r = await fetch(u, {cache: u.startsWith('live') ? 'no-store' : 'default'}); if (!r.ok) throw new Error(u); return r.json(); };
-let D, BM, TW, WA, NB, MAN = {tiles:[]};
-try {
-  [D, BM, TW, WA, NB] = await Promise.all(['data.json','major.json','towns.json','water.json','neighbors.json'].map(getJSON));
-} catch(e){ $('#loading').textContent = 'Map data could not be loaded. Refresh the page; if it keeps happening, a data file is missing from the published page.'; return; }
-performance.mark('fetched'); try { MAN = await getJSON('manifest.json'); } catch(e){}
-try { const L = await getJSON('live.json'); if (L && L.asof) D.live = L; } catch(e){}
-getJSON('findings.json').then(F => { window.__findings = F; if (state.mode === 'check' && typeof goTab === 'function') goTab('check'); }).catch(() => {});
-
-/* ================= projection: world = (lon, -mercator(lat)) in degrees ================= */
-const RAD = Math.PI/180, mY = lat => -Math.log(Math.tan(Math.PI/4 + lat*RAD/2))/RAD, iY = y => (2*Math.atan(Math.exp(-y*RAD)) - Math.PI/2)/RAD;
-const [OX, OY, Q] = BM.origin;
-function decode(arr, start){ const n = (arr.length - start)/2, out = new Float32Array(n*2); let x=0, y=0;
-  for (let i=0;i<n;i++){ x += arr[start+2*i]; y += arr[start+2*i+1]; out[2*i] = OX + x/Q; out[2*i+1] = mY(OY + y/Q); } return out; }
-function addLine(p, c){ p.moveTo(c[0], c[1]); for (let i=2;i<c.length;i+=2) p.lineTo(c[i], c[i+1]); }
-function addRing(p, c){ addLine(p, c); p.closePath(); }
-const VIEW0 = [-72.35, mY(42.88), -69.9, mY(41.22)];
-
-/* ================= build basemap geometry ================= */
-const G0 = {};
-G0.neigh = new Path2D(); for (const pl of NB.polys) addRing(G0.neigh, decode(pl.r, 0));
-G0.land = new Path2D(); const townGeo = new Map();
-for (const t of TW.towns){ const p = new Path2D(); let bb=[1e9,1e9,-1e9,-1e9];
-  for (const poly of t.p) for (const ring of poly){ const c = decode(ring, 0); addRing(p, c); for (let i=0;i<c.length;i+=2){ bb[0]=Math.min(bb[0],c[i]); bb[2]=Math.max(bb[2],c[i]); bb[1]=Math.min(bb[1],c[i+1]); bb[3]=Math.max(bb[3],c[i+1]); } }
-  townGeo.set(t.n, {path:p, bb, label:[t.l[0], mY(t.l[1])], area:t.a}); }
-G0.water = false;                                                    // lakes and rivers are built right after the first paint
-function chunked(rings, start, close){ const out = []; let p = null; rings.forEach((r,i)=>{ if (i % 200 === 0){ p = new Path2D(); out.push(p); } const c = decode(r, start); close ? addRing(p, c) : addLine(p, c); }); return out; }   // many small shapes build ~100x faster than one giant one
-function buildWater(){ G0.lakes = chunked(WA.lakes||[], 0, true); G0.areas = chunked(WA.areas||[], 0, true); G0.rivers = chunked(WA.rivers||[], 1, false); G0.water = true; scheduleDraw(true); }
-const BIG = new Set(['BOSTON','WORCESTER','CAMBRIDGE','QUINCY','LOWELL','BROCKTON','NEW BEDFORD','FALL RIVER','LYNN','PLYMOUTH','BARNSTABLE','FRAMINGHAM','SALEM','TAUNTON','GLOUCESTER','PROVINCETOWN','NANTUCKET','CHATHAM','NEWBURYPORT','FITCHBURG','LEOMINSTER','MARLBOROUGH','HAVERHILL','LAWRENCE','FALMOUTH','ATTLEBORO','NEWTON','WALTHAM','EDGARTOWN','HYANNIS']);
-const US_RT = new Set(['1','3','5','6','7','20','44','202']), I_RT = new Set(['84','90','91','93','95','190','195','290','291','295','391','395','495']);
-const ROADS = [];
-function bbox(c){ let a=1e9,b=1e9,cc=-1e9,d=-1e9; for (let i=0;i<c.length;i+=2){ if(c[i]<a)a=c[i]; if(c[i]>cc)cc=c[i]; if(c[i+1]<b)b=c[i+1]; if(c[i+1]>d)d=c[i+1]; } return [a,b,cc,d]; }
-const BCELL = 0.08, BK = new Map();                                 // spatial buckets: draw and label only what is on screen
-for (const r of BM.roads){ const c = decode(r, 4), cls = r[0], ramp = /\bramp\b/i.test(BM.names[r[1]]||'') ? 1 : 0;
-  const key = ramp ? 'ramp' : cls<=1 ? 'c1' : cls===2 ? 'c2' : cls===3 ? 'c3' : 'c4';
-  const rec = {c, cls, ramp, name: BM.names[r[1]]||'', rt: r[2]>=0 ? BM.names[r[2]] : '', bb: bbox(c)}; ROADS.push(rec);
-  const bk = Math.floor((rec.bb[0]+rec.bb[2])/2/BCELL)+'_'+Math.floor((rec.bb[1]+rec.bb[3])/2/BCELL);
-  let b = BK.get(bk); if (!b){ b = {bb:[1e9,1e9,-1e9,-1e9], k:{c1:[], c2:[], c3:[], c4:[], ramp:[]}, p:{}, recs:[]}; BK.set(bk, b); }
-  b.k[key].push(c); b.recs.push(rec); b.bb[0]=Math.min(b.bb[0],rec.bb[0]); b.bb[1]=Math.min(b.bb[1],rec.bb[1]); b.bb[2]=Math.max(b.bb[2],rec.bb[2]); b.bb[3]=Math.max(b.bb[3],rec.bb[3]); }
-const BKS = [...BK.values()];
-function bpath(b, key){ let p = b.p[key]; if (!p){ p = new Path2D(); for (const c of b.k[key]) addLine(p, c); b.p[key] = p; } return p; }   // built the first time it is needed
-performance.mark('basemap-built'); const TILES = new Map(), tileSet = new Set(MAN.tiles||[]);
-async function loadTile(k){ if (TILES.has(k)) return; TILES.set(k, null);
-  try { const t = await getJSON('t/'+k+'.json'); const p5 = new Path2D(), p6 = new Path2D(), recs = [];
-    for (const r of t.roads){ const c = decode(r, 4); addLine(r[0]>=6 ? p6 : p5, c); recs.push({c, cls:r[0], name:t.names[r[1]]||'', rt:'', bb:bbox(c)}); }
-    TILES.set(k, {p5, p6, recs}); scheduleDraw(true); } catch(e){ TILES.delete(k); } }
-
-/* ================= model data ================= */
-const R = D.coastal_roads, GA = D.gauges, M = D.inland_model;
-const tprops = new Map((D.towns.features||[]).map(f=>[f.properties.name, f.properties]));
-const RW = new Float32Array(R.lat.length*2); for (let i=0;i<R.lat.length;i++){ RW[2*i]=R.lon[i]; RW[2*i+1]=mY(R.lat[i]); }
-const rquad = d3.quadtree().x(i=>RW[2*i]).y(i=>RW[2*i+1]).addAll(d3.range(R.lat.length));
-performance.mark('model-data'); const TOPR = (D.top_roads||[]).map(r=>({town:r[0], x:r[2], y:mY(r[1]), street:r[3], pct:r[4]}));
-const tquad = d3.quadtree().x(r=>r.x).y(r=>r.y).addAll(TOPR);
-const closureGeo = {};
-for (const [k,v] of Object.entries(D.closures||{})) closureGeo[k] = v.geo.features.map(f=>{ const p = new Path2D(); const g = f.geometry;
-  const lines = g.type==='LineString' ? [g.coordinates] : g.type==='MultiLineString' ? g.coordinates : [];
-  for (const ln of lines){ ln.forEach(([x,y],j)=> j? p.lineTo(x, mY(y)) : p.moveTo(x, mY(y))); } return {p, f}; });
-const sig = x => 1/(1+Math.exp(-x));
-function inlandChance(p, rain, api, month){
-  const f = {rain_max:rain, rain_mean:rain*0.8, api, month_sin:Math.sin(2*Math.PI*month/12), month_cos:Math.cos(2*Math.PI*month/12),
-    n:p.n, sags:p.sags, sag_density:p.sag_density, sag_depth_mean:p.sag_depth_mean, major_frac:p.major_frac, elev_p10:p.elev_p10, elev_med:p.elev_med};
-  let z = M.intercept; M.features.forEach((k,j)=>{ let x = +f[k]||0; if (j<3 || j>=5) x = Math.log1p(Math.max(0,x)); z += M.coef[j]*(x-M.mu[j])/M.sd[j]; }); return sig(z);
-}
-function floodedRoads(aepByGauge){ const out = new Uint8Array(R.lat.length); const fb = Math.min(...Object.values(aepByGauge).filter(Number.isFinite), 1);
-  for (let i=0;i<out.length;i++){ const a = aepByGauge[R.gauge[i]]; const aa = Number.isFinite(a)? a : fb; if (R.thr[i]!=null && aa < 0.95 && aa <= R.thr[i]) out[i]=1; } return out; }
-const yrs = a => a>=0.999 ? '<1' : Math.round(1/Math.max(a,1e-4)).toLocaleString();
-const WZ = (D.validation&&D.validation.coastal||{}).zone_wave_model;
-const BUOY_FOR = {'8443970':'44013','8447386':'44097','8447435':'44020','8447930':'44020'};
-const waveChance = (aep, hs) => (!WZ || aep==null || hs==null) ? null : sig(WZ.intercept + WZ.coef[0]*Math.log1p(-Math.log10(Math.min(Math.max(aep,1e-4),1))) + WZ.coef[1]*Math.log1p(Math.max(hs,0)));
-const rarityPill = a => `<span class="pill ${a<=0.02?'p-bad':a<=0.2?'p-warn':'p-ok'}">1-in-${yrs(a)} yr</span>`;
-const fmt = (x,d=0) => x==null||!isFinite(x) ? '–' : x.toLocaleString(undefined,{maximumFractionDigits:d, minimumFractionDigits:d});
-const titleCase = s => (s==null || s!==s ? '' : String(s)).toLowerCase().replace(/(^|[\s\-\/'(])(\w)/g,(m,a,b)=>a+b.toUpperCase());
-const month = new Date().getMonth()+1;
-function engine(txt){ $('#engine').innerHTML = txt; }
-function timed(fn){ const t = performance.now(); const r = fn(); return [r, performance.now()-t]; }
-
-/* ================= view ================= */
-const stage = $('#stage'), canvas = $('#map'), ctx = canvas.getContext('2d');
-let W=0, H=0, dpr=1, base={s:1,x:0,y:0}, T = d3.zoomIdentity, C = {}, CLU = null, MA_CLIP = null;
-function readColors(){ ['--sea','--sea-edge','--land','--land-out','--townline','--lake','--river','--road','--road-case','--art','--art-case','--hwy','--hwy-case','--path','--label','--halo','--townlabel','--water-label','--r1','--r2','--r3','--r4','--deep','--shallow','--flood-ring','--accent','--ink','--panel','--muted'].forEach(k=>C[k.slice(2)] = css(k)); }
-function fit(){ const [x0,y0,x1,y1] = VIEW0, padL = W>820? 300:16, padR = W>820? 370:16;
-  const s = Math.max(1, Math.min((W-padL-padR-20)/(x1-x0), (H-30)/(y1-y0))); base = {s, x: padL + (W-padL-padR - s*(x1-x0))/2 - s*x0, y: (H - s*(y1-y0))/2 - s*y0}; }
-const ps = () => T.k*base.s;                                    // screen pixels per world degree
-const toScreen = (wx,wy) => [T.x + T.k*(base.x + base.s*wx), T.y + T.k*(base.y + base.s*wy)];
-const toWorld = (sx,sy) => [((sx - T.x)/T.k - base.x)/base.s, ((sy - T.y)/T.k - base.y)/base.s];
-const mpp = () => 111320*Math.cos(42.2*RAD)/ps();                 // metres per pixel
-function setWorld(){ ctx.setTransform(dpr*ps(),0,0,dpr*ps(), dpr*(T.x+T.k*base.x), dpr*(T.y+T.k*base.y)); }
-function resize(){ const r = canvas.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio||1, 2); W = r.width; H = r.height;
-  canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr); fit(); scheduleDraw(true); }
-
-/* ================= layers set by the active view ================= */
-let layer = {};
-const riskColor = p => p==null||p<0.02 ? null : p<0.05 ? C.r1 : p<0.15 ? C.r2 : p<0.35 ? C.r3 : C.r4;
-
-/* ================= drawing ================= */
-let settled = true, rafId = 0, settleTimer = 0, T0 = null; const snap = document.createElement('canvas'), sctx = snap.getContext('2d');
-function scheduleDraw(full){ cancelAnimationFrame(rafId); if (full) settled = true; rafId = requestAnimationFrame(full || !T0 ? draw : drawQuick); }
-function drawQuick(){                                               // while dragging or zooming: move the last sharp picture
-  const s = T.k/T0.k; ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = C.sea; ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.imageSmoothingEnabled = true; ctx.drawImage(snap, (T.x - T0.x*s)*dpr, (T.y - T0.y*s)*dpr, snap.width*s, snap.height*s);
-  placeGauges(); updateScale(); }
-function viewBB(pad){ const [a,b] = toWorld(-pad,-pad), [c,d] = toWorld(W+pad,H+pad); return [a,b,c,d]; }
-const meets = (bb, v) => bb[2]>=v[0] && bb[0]<=v[2] && bb[3]>=v[1] && bb[1]<=v[3];
-function strokeW(path, px, color){ ctx.lineWidth = px/ps(); ctx.strokeStyle = color; ctx.stroke(path); }
-function visibleTiles(){ const [a,b] = toWorld(0,0), [c,d] = toWorld(W,H); const lon0=a, lon1=c, lat1=iY(b), lat0=iY(d), out=[];
-  for (let i=Math.floor((lon0-OX)/0.2); i<=Math.floor((lon1-OX)/0.2); i++) for (let j=Math.floor((lat0-OY)/0.2); j<=Math.floor((lat1-OY)/0.2); j++){ const k = i+'_'+j; if (!tileSet.size || tileSet.has(k)) out.push(k); } return out; }
-// group nearby points into bubbles: size = how many, colour = most serious inside; minN=0 draws every point on its own
-const SEV = c => { const o = [C.r4, C.r3, C.deep, C.r2, C.shallow, C.r1]; const j = o.indexOf(c); return j < 0 ? 9 : j; };
-function clusterDraw(items, k, kind, minN = 1){
-  const rad = n => n === 1 ? 3.4 : Math.min(15, 5 + 1.7*Math.sqrt(n));
-  let out;
-  if (!minN) out = items.map(t => ({x: t.x, y: t.y, n: 1, col: t.col, s: SEV(t.col), i: t.i, ids: [t.i]}));
-  else { const cell = 34/k, bins = new Map();
-    for (const t of items){ const key = Math.floor(t.x/cell) + ',' + Math.floor(t.y/cell); let b = bins.get(key); if (!b){ b = {x:0, y:0, n:0, col: t.col, s: 9, i: t.i, ids: []}; bins.set(key, b); }
-      b.x += t.x; b.y += t.y; b.n++; b.ids.push(t.i); const sv = SEV(t.col); if (sv < b.s){ b.s = sv; b.col = t.col; } }
-    out = []; for (const b of [...bins.values()].map(b => ({...b, x: b.x/b.n, y: b.y/b.n})).sort((a, b) => b.n - a.n)){
-      const hit = out.find(a => Math.hypot(a.x - b.x, a.y - b.y)*k < (rad(a.n) + rad(b.n))*0.95);
-      if (hit){ hit.n += b.n; hit.ids = hit.ids.concat(b.ids); if (b.s < hit.s){ hit.s = b.s; hit.col = b.col; } } else out.push(b); } }
-  out.sort((a, b) => a.n - b.n);
-  for (const b of out){ const r = rad(b.n)/k; b.r = r*k; b.kind = kind;
-    ctx.beginPath(); ctx.arc(b.x, b.y, r + 1.6/k, 0, 6.2832); ctx.fillStyle = C['flood-ring']; ctx.fill();
-    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.globalAlpha = b.n === 1 ? 1 : 0.85; ctx.fillStyle = b.col; ctx.fill(); ctx.globalAlpha = 1; }
-  return out; }
-// the map under the hazard layers (land, towns, rivers, roads, flood-prone picture) only changes when the view or the layer set changes,
-// so it is drawn once and reused while a simulation plays
-const BASE = document.createElement('canvas'), bctx = BASE.getContext('2d'); let BASE_KEY = '', LAYER_ID = 0; const LIDS = new WeakMap();
-function draw(){
-  if (W < 20 || H < 20) return;
-  const m = mpp(), k = ps();
-  if (!LIDS.has(layer)) LIDS.set(layer, ++LAYER_ID);
-  const bkey = [T.k, T.x, T.y, canvas.width, canvas.height, LIDS.get(layer), TILES.size, PRONE ? PIMG.size + ':' + [...PIMG.values()].filter(okImg).length : 0, state.liveLayer, C.sea, C.road].join('|');
-  const local = m < 26, tiles = local ? visibleTiles() : [];
-  if (bkey === BASE_KEY && BASE.width === canvas.width && BASE.height === canvas.height){
-    ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(BASE, 0, 0); setWorld(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  } else {
-  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle = C.sea; ctx.fillRect(0,0,W,H);
-  setWorld(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  // land
-  ctx.fillStyle = C['land-out']; ctx.fill(G0.neigh); strokeW(G0.neigh, 0.8, C.townline);
-  ctx.lineWidth = 3.2/k; ctx.strokeStyle = C['sea-edge']; for (const g of townGeo.values()) ctx.stroke(g.path);
-  ctx.fillStyle = C.land; for (const g of townGeo.values()) ctx.fill(g.path);
-  // hazard fill on towns
-  if (layer.townFill){ ctx.globalAlpha = layer.prone && PRONE ? 0.3 : 0.62; for (const [n,g] of townGeo){ const col = layer.townFill(n); if (col){ ctx.fillStyle = col; ctx.fill(g.path); } } ctx.globalAlpha = 1; }
-  // water on land
-  if (G0.water){ ctx.fillStyle = C.lake; for (const p of G0.areas) ctx.fill(p, 'evenodd'); for (const p of G0.lakes) ctx.fill(p, 'evenodd');
-    if (m < 260){ ctx.lineWidth = (m < 40 ? 1.6 : 0.9)/k; ctx.strokeStyle = C.river; for (const p of G0.rivers) ctx.stroke(p); } }
-  // town lines
-  ctx.lineWidth = (m < 60 ? 1 : 0.6)/k; ctx.strokeStyle = C.townline; for (const g of townGeo.values()) ctx.stroke(g.path);
-  // roads
-  if (local) tiles.forEach(t=>{ if (!TILES.has(t)) loadTile(t); });
-  const z = (lo,hi,a,b) => m>=a ? lo : m<=b ? hi : lo + (hi-lo)*(a-m)/(a-b);       // width by zoom
-  if (local){ const wl = z(0.4, 4, 26, 1.2);
-    for (const t of tiles){ const g = TILES.get(t); if (!g) continue; ctx.setLineDash([3/k,3/k]); strokeW(g.p6, Math.max(0.6, wl*0.35), C.path); ctx.setLineDash([]); strokeW(g.p5, wl+1.4, C['road-case']); }
-    for (const t of tiles){ const g = TILES.get(t); if (g) strokeW(g.p5, wl, C.road); } }
-  const w4 = z(0.3, 4.5, 140, 1.2), w3 = z(0.45, 5.5, 260, 1.2), w2 = z(0.55, 6, 300, 1.2), w1 = z(0.8, 7, 400, 1.2), wr = z(0.3, 3, 60, 1.2);
-  const vb = viewBB(40), vis = BKS.filter(b=>meets(b.bb, vb));
-  const SR = (key, px, col) => { ctx.lineWidth = px/k; ctx.strokeStyle = col; for (const b of vis) if (b.k[key].length) ctx.stroke(bpath(b, key)); };
-  if (m < 140) SR('c4', w4+0.8, C['road-case']); if (m < 60) SR('ramp', wr+0.8, C['hwy-case']);
-  SR('c3', w3+0.9, C['art-case']); SR('c2', w2+1, C['art-case']); SR('c1', w1+1.1, C['hwy-case']);
-  if (m < 140) SR('c4', w4, C.road); if (m < 60) SR('ramp', wr, C.hwy);
-  SR('c3', w3, C.art); SR('c2', w2, C.art); SR('c1', w1, C.hwy);
-  if (layer.prone) drawProne();
-  if (layer.drain) drawStreams();
-  if (BASE.width !== canvas.width || BASE.height !== canvas.height){ BASE.width = canvas.width; BASE.height = canvas.height; }
-  bctx.setTransform(1,0,0,1,0,0); bctx.clearRect(0, 0, BASE.width, BASE.height); bctx.drawImage(canvas, 0, 0); BASE_KEY = bkey; setWorld();
-  }
-  const vb = viewBB(40);
-  // simulated water (Water tab), over the roads so flooded streets disappear under it
-  if (layer.water) layer.water();
-  // hazard: closures
-  if (layer.closures){ const set = closureGeo[layer.closures]||[]; const mx = d3.max(set, s=>s.f.properties.veh_hours_joint)||1;
-    for (const s of set){ const w = 2.5 + 7*Math.sqrt((s.f.properties.veh_hours_joint||0)/mx); strokeW(s.p, w+3, C['flood-ring']); strokeW(s.p, w, C.r3); } }
-  // hazard: road pieces
-  CLU = null;
-  if (layer.roadColor){ const rr = Math.min(6.5, Math.max(2.4, 0.00025*k))/k, groups = new Map();
-    if (false){ const it = []; for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (col) it.push({x, y, col, i}); }
-      CLU = clusterDraw(it, k, 'road');
-    } else {
-    for (let i=0;i<R.lat.length;i++){ const x = RW[2*i], y = RW[2*i+1]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; const col = layer.roadColor(i); if (!col) continue;
-      let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } p.moveTo(x+rr, y); p.arc(x, y, rr, 0, 6.2832); }
-    for (const [col, p] of groups){ strokeW(p, 2.6, C['flood-ring']); ctx.fillStyle = col; ctx.fill(p); } } }
-  // past flood reports (always grouped, so they never pile up)
-  if (layer.reports && REPORTS){ const it = []; for (let i = 0; i < REPORTS.n; i++){ const x = REPORTS.x[i], y = REPORTS.y[i]; if (x<vb[0]||x>vb[2]||y<vb[1]||y>vb[3]) continue; it.push({x, y, col: REPORTS.col[i], i}); }
-    const c2 = clusterDraw(it, k, 'report', m > 6 ? 1 : 0); CLU = (CLU || []).concat(c2); }
-  // segment graph (District 3): coloured road segments, links between connected segments when zoomed in
-  if (layer.segColor && GSEG){ const v = viewBB(40), groups = new Map();
-    if (m < 30 && state.mode === 'graph'){ ctx.lineWidth = 1/k; ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; const LP = new Path2D();
-      for (const [a,b] of GSEG.links){ const A = GSEG.mid[a], B = GSEG.mid[b]; if ((A[0]<v[0]&&B[0]<v[0])||(A[0]>v[2]&&B[0]>v[2])||(A[1]<v[1]&&B[1]<v[1])||(A[1]>v[3]&&B[1]>v[3])) continue; LP.moveTo(A[0],A[1]); LP.lineTo(B[0],B[1]); }
-      ctx.stroke(LP); ctx.globalAlpha = 1;
-      const NP = new Path2D(), rr = 2.2/k; for (let i=0;i<GSEG.n;i++){ const A = GSEG.mid[i]; if (A[0]<v[0]||A[0]>v[2]||A[1]<v[1]||A[1]>v[3]) continue; NP.moveTo(A[0]+rr, A[1]); NP.arc(A[0], A[1], rr, 0, 6.2832); }
-      ctx.fillStyle = C.muted; ctx.fill(NP); }
-    for (let i=0;i<GSEG.n;i++){ const bb = GSEG.bb[i]; if (bb[2]<v[0]||bb[0]>v[2]||bb[3]<v[1]||bb[1]>v[3]) continue; const col = layer.segColor(i); if (!col) continue;
-      let p = groups.get(col); if (!p){ p = new Path2D(); groups.set(col, p); } for (const c of GSEG.geo[i]) addLine(p, c); }
-    const ww = Math.min(4, Math.max(1.2, 0.0003*k));
-    for (const [col, p] of groups){ strokeW(p, ww+2.4, C['flood-ring']); strokeW(p, ww, col); }
-    if (layer.segRing){ const P = new Path2D(); for (const i of layer.segRing){ for (const c of GSEG.geo[i]) addLine(P, c); } strokeW(P, ww+7, C.ink); strokeW(P, ww+3, C.panel); }
-  }
-  // most flood-prone roads in towns at risk (diamonds), only when zoomed in
-  if (layer.topTown && m < 140){ const sz = 4.5/k, ring = 1.6/k, P1 = new Path2D(), P2 = new Path2D();
-    for (const r of TOPR){ if (r.x<vb[0]||r.x>vb[2]||r.y<vb[1]||r.y>vb[3] || !layer.topTown(r.town)) continue;
-      P1.moveTo(r.x, r.y-sz-ring); P1.lineTo(r.x+sz+ring, r.y); P1.lineTo(r.x, r.y+sz+ring); P1.lineTo(r.x-sz-ring, r.y); P1.closePath();
-      P2.moveTo(r.x, r.y-sz); P2.lineTo(r.x+sz, r.y); P2.lineTo(r.x, r.y+sz); P2.lineTo(r.x-sz, r.y); P2.closePath(); }
-    ctx.fillStyle = C['flood-ring']; ctx.fill(P1); ctx.fillStyle = C.r4; ctx.fill(P2); }
-  // labels (after the view settles)
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  drawLabels(m, tiles);
-  if (CLU){ ctx.font = '700 10.5px "IBM Plex Sans",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (const b of CLU){ if (b.n < 3 || b.r < 9) continue; const [sx, sy] = toScreen(b.x, b.y); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.strokeText(b.n > 999 ? Math.round(b.n/100)/10 + 'k' : b.n, sx, sy); ctx.fillStyle = '#fff'; ctx.fillText(b.n > 999 ? Math.round(b.n/100)/10 + 'k' : b.n, sx, sy); }
-    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic'; }
-  placeGauges(); updateScale();
-  if (snap.width !== canvas.width || snap.height !== canvas.height){ snap.width = canvas.width; snap.height = canvas.height; }
-  sctx.setTransform(1,0,0,1,0,0); sctx.clearRect(0,0,snap.width,snap.height); sctx.drawImage(canvas, 0, 0); T0 = T;
-}
-/* ---------- labels ---------- */
-let boxes = [];
-const hit = (b) => { for (const o of boxes) if (b[0]<o[2] && b[2]>o[0] && b[1]<o[3] && b[3]>o[1]) return true; return false; };
-function haloText(t, x, y){ ctx.strokeText(t, x, y); ctx.fillText(t, x, y); }
-function shield(rt, x, y){ const isI = I_RT.has(rt), isUS = US_RT.has(rt); ctx.font = '700 10.5px "IBM Plex Sans",sans-serif'; const w = Math.max(18, ctx.measureText(rt).width + 9), h = 16;
-  const b = [x-w/2-2, y-h/2-2, x+w/2+2, y+h/2+2]; if (hit(b)) return; boxes.push(b);
-  ctx.beginPath(); if (isI){ ctx.moveTo(x-w/2, y-h/2); ctx.lineTo(x+w/2, y-h/2); ctx.lineTo(x+w/2, y+h/4); ctx.quadraticCurveTo(x+w/2, y+h/2+2, x, y+h/2+3); ctx.quadraticCurveTo(x-w/2, y+h/2+2, x-w/2, y+h/4); ctx.closePath(); }
-  else ctx.roundRect(x-w/2, y-h/2, w, h, isUS?2:8);
-  ctx.fillStyle = isI ? '#1d4f9c' : '#ffffff'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = isI ? '#ffffff' : '#222'; ctx.stroke();
-  if (isI){ ctx.fillStyle = '#c8202f'; ctx.fillRect(x-w/2+1, y-h/2+1, w-2, 3.5); }
-  ctx.fillStyle = isI ? '#ffffff' : '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(rt, x, y+ (isI?1.5:0.5)); }
-function lineLabel(rec, text, minLen){
-  const c = rec.c; let best = null, run = [], len = 0, ang0 = null;
-  const pts = []; for (let i=0;i<c.length;i+=2) pts.push(toScreen(c[i], c[i+1]));
-  for (let i=1;i<pts.length;i++){ const dx = pts[i][0]-pts[i-1][0], dy = pts[i][1]-pts[i-1][1], L = Math.hypot(dx,dy), a = Math.atan2(dy,dx);
-    if (ang0==null || Math.abs(((a-ang0+3*Math.PI)%(2*Math.PI))-Math.PI) < 0.35){ run.push([pts[i-1],pts[i]]); len += L; ang0 = ang0==null? a : ang0; }
-    else { run = [[pts[i-1],pts[i]]]; len = L; ang0 = a; }
-    if (len >= minLen && (!best || len > best.len)) best = {len, a: Math.atan2(run[run.length-1][1][1]-run[0][0][1], run[run.length-1][1][0]-run[0][0][0]), p0: run[0][0], p1: run[run.length-1][1]}; }
-  if (!best) return false;
-  const cx = (best.p0[0]+best.p1[0])/2, cy = (best.p0[1]+best.p1[1])/2; if (cx<0||cy<0||cx>W||cy>H) return false;
-  let a = best.a; if (a > Math.PI/2) a -= Math.PI; if (a < -Math.PI/2) a += Math.PI;
-  const w = ctx.measureText(text).width, h = 12, ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
-  const bw = w*ca + h*sa, bh = w*sa + h*ca, b = [cx-bw/2, cy-bh/2, cx+bw/2, cy+bh/2]; if (hit(b)) return false; boxes.push(b);
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(a); haloText(text, 0, 0); ctx.restore(); return true; }
-function drawLabels(m, tiles){
-  boxes = []; const [wx0, wy0] = toWorld(-50,-50), [wx1, wy1] = toWorld(W+50,H+50);
-  const inView = bb => bb[2]>=wx0 && bb[0]<=wx1 && bb[3]>=wy0 && bb[1]<=wy1;
-  // panels reserve space so labels do not hide under them
-  if (W > 820 && !$('#app').classList.contains('present')){ boxes.push([0,0,320,H],[W-386,0,W,H]); }
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-  // towns first (big places win)
-  const tl = [...townGeo.entries()].filter(([n,g])=>{ const [x,y]=toScreen(...g.label); return x>-40&&y>-20&&x<W+40&&y<H+20; }).sort((a,b)=>(BIG.has(b[0])-BIG.has(a[0])) || b[1].area-a[1].area);
-  ctx.strokeStyle = C.halo; ctx.lineWidth = 3.5;
-  for (const [n,g] of tl){ const pxArea = g.area*1e6/(m*m), big = BIG.has(n); if (!big && pxArea < 1800 && m > 20) continue;
-    const size = Math.max(big ? 12 : 10, Math.min(m < 8 ? 18 : 15, 8 + Math.log10(pxArea)*1.6 + (big ? 1.5 : 0))); ctx.font = `600 ${size.toFixed(1)}px "Barlow Condensed","Arial Narrow",sans-serif`;
-    const t = titleCase(n).toUpperCase().split('').join(String.fromCharCode(8202)); const w = ctx.measureText(t).width; const [x,y] = toScreen(...g.label);
-    const b = [x-w/2-3, y-size/2-2, x+w/2+3, y+size/2+2]; if (hit(b)) continue; boxes.push(b); ctx.fillStyle = C.townlabel; haloText(t, x, y); }
-  // route shields
-  const visRecs = []; { const v = viewBB(50); for (const b of BKS) if (meets(b.bb, v)) for (const r of b.recs) visRecs.push(r); }
-  if (m < 160){ const seen = []; for (const r of visRecs){ if (!r.rt || r.ramp || !inView(r.bb)) continue; const c = r.c, mid = Math.floor(c.length/4)*2; const [x,y] = toScreen(c[mid], c[mid+1]);
-      if (x<8||y<8||x>W-8||y>H-8) continue; if (seen.some(s=>s[0]===r.rt && Math.hypot(s[1]-x, s[2]-y) < (m<20?260:190))) continue; const before = boxes.length; shield(r.rt, x, y); if (boxes.length>before) seen.push([r.rt,x,y]); } }
-  // street names
-  if (m < 22){ ctx.font = '500 11px "IBM Plex Sans",sans-serif'; ctx.fillStyle = C.label; ctx.strokeStyle = C.halo; ctx.lineWidth = 3; const named = new Map();
-    const tryRec = (r, minLen) => { if (!r.name || r.name.length < 2 || !inView(r.bb)) return; const prev = named.get(r.name)||[];
-      const c = r.c, mid = Math.floor(c.length/4)*2, [x,y] = toScreen(c[mid], c[mid+1]); if (prev.some(p=>Math.hypot(p[0]-x,p[1]-y) < 320)) return;
-      ctx.font = r.cls<=3 ? '600 11px "IBM Plex Sans",sans-serif' : '500 11px "IBM Plex Sans",sans-serif'; const w = ctx.measureText(r.name).width;
-      if (lineLabel(r, r.name, Math.max(minLen, w + 10))){ prev.push([x,y]); named.set(r.name, prev); } };
-    for (const r of visRecs) if (!r.ramp && r.cls >= 2) tryRec(r, 40);
-    if (m < 7) for (const t of tiles){ const g = TILES.get(t); if (g) for (const r of g.recs) if (r.cls < 6) tryRec(r, 30); } }
-  // water names: big lakes need no extra data; label the ocean
-  ctx.font = 'italic 500 13px "IBM Plex Sans",sans-serif'; ctx.fillStyle = C['water-label']; ctx.strokeStyle = C.sea; ctx.lineWidth = 3;
-  [['Massachusetts Bay', -70.62, 42.33], ['Cape Cod Bay', -70.33, 41.86], ['Buzzards Bay', -70.83, 41.56], ['Nantucket Sound', -70.25, 41.47], ['Atlantic Ocean', -70.05, 42.62], ['Vineyard Sound', -70.78, 41.43], ['Narragansett Bay', -71.33, 41.62]]
-    .forEach(([t,lo,la])=>{ const [x,y] = toScreen(lo, mY(la)); const w = ctx.measureText(t).width; const b = [x-w/2, y-8, x+w/2, y+8]; if (x>0&&x<W&&y>0&&y<H && !hit(b)){ boxes.push(b); haloText(t, x, y); } });
-}
-/* ---------- gauges as live DOM markers ---------- */
-function placeGauges(){ const box = $('#gmarks'); if (!layer.gauges){ box.innerHTML=''; return; }
-  if (!box.children.length) box.innerHTML = Object.keys(GA).map(k=>`<span class="gmark" data-g="${k}"></span>`).join('');
-  for (const el of box.children){ const g = GA[el.dataset.g]; const [x,y] = toScreen(g.lon, mY(g.lat)); el.style.left = x+'px'; el.style.top = y+'px';
-    const a = layer.gauges[el.dataset.g]; el.className = 'gmark' + (a!=null && a<=0.02 ? ' bad' : a!=null && a<=0.2 ? ' warn' : ''); } }
-function updateScale(){ const m = mpp(); const target = 110*m; const steps = [10,20,50,100,200,500,1000,2000,5000,10000,20000,50000];
-  const v = steps.find(s=>s>=target*0.5) || 50000; const px = v/m; const el = $('#scale'); el.style.width = px+'px'; el.firstChild.textContent = v>=1000 ? (v/1000)+' km' : v+' m'; }
-
-/* ================= interaction ================= */
-const zoom = d3.zoom().scaleExtent([0.7, 400]).on('zoom', e=>{ T = e.transform; tip.hidden = true; scheduleDraw(false); clearTimeout(settleTimer); settleTimer = setTimeout(()=>scheduleDraw(true), 160); });
-d3.select(canvas).call(zoom).on('dblclick.zoom', null);
-canvas.addEventListener('dblclick', ev=>{ const r = canvas.getBoundingClientRect(); d3.select(canvas).transition().duration(350).call(zoom.scaleBy, 2.2, [ev.clientX-r.left, ev.clientY-r.top]); });
-$('#zin').onclick = ()=>d3.select(canvas).transition().duration(280).call(zoom.scaleBy, 2);
-$('#zout').onclick = ()=>d3.select(canvas).transition().duration(280).call(zoom.scaleBy, 0.5);
-$('#zreset').onclick = ()=>d3.select(canvas).transition().duration(450).call(zoom.transform, d3.zoomIdentity);
-function flyTo(bb, maxMpp){ const [x0,y0,x1,y1] = bb; const kx = (W*0.5)/((x1-x0)*base.s||1), ky = (H*0.6)/((y1-y0)*base.s||1);
-  let kk = Math.min(kx, ky, 400); const cx = base.x + base.s*(x0+x1)/2, cy = base.y + base.s*(y0+y1)/2;
-  const t = d3.zoomIdentity.translate(W/2 - kk*cx + (W>820? -30:0), H/2 - kk*cy).scale(kk); d3.select(canvas).transition().duration(900).call(zoom.transform, t); }
-$('#townlist').innerHTML = [...townGeo.keys()].sort().map(n=>`<option value="${titleCase(n)}">`).join('');
-$('#find').addEventListener('change', e=>{ const g = townGeo.get(e.target.value.trim().toUpperCase()); if (g) flyTo(g.bb); });
-const tip = $('#tip');
-let hoverRaf = 0;
-canvas.addEventListener('click', ev=>{ if (!CLU || ev.defaultPrevented) return; const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top;
-  const b = CLU.find(b => b.n > 1 && Math.hypot(toScreen(b.x, b.y)[0] - sx, toScreen(b.x, b.y)[1] - sy) <= b.r + 3); if (!b) return;
-  const h = 60/ps(); flyTo([b.x - h, b.y - h, b.x + h, b.y + h]); });
-canvas.addEventListener('mousemove', ev0=>{ if (ev0.buttons) return; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(()=>hover(ev0)); });
-function hover(ev){ const r = canvas.getBoundingClientRect(), sx = ev.clientX-r.left, sy = ev.clientY-r.top; const [wx,wy] = toWorld(sx,sy); let html = null;
-  if (CLU && CLU.length){ let best = null, bd = 1e9; for (const b of CLU){ const [bx, by] = toScreen(b.x, b.y), d = Math.hypot(bx - sx, by - sy); if (d <= b.r + 3 && d < bd){ bd = d; best = b; } }
-    if (best) html = best.kind === 'report' ? reportTip(best) : best.n === 1 ? layer.roadTip(best.i) : `<b>${best.n.toLocaleString()} road spots here</b><br>colour = the worst of them<br><span class="muted">click or scroll in to split this bubble</span>`; }
-  if (!html && layer.roadColor && !(CLU||[]).some(b => b.kind === "road")){ const i = rquad.find(wx, wy, 7/ps()); if (i!=null && layer.roadColor(i)) html = layer.roadTip(i); }
-  if (!html && layer.segColor && GSEG){ const i = GSEG.quad.find(wx, wy, 9/ps()); if (i!=null && (layer.segColor(i) || mpp() < 30)) html = layer.segTip(i); }
-  if (!html && layer.topTown && mpp() < 140){ const r = tquad.find(wx, wy, 8/ps()); if (r && layer.topTown(r.town)) html = `<b>${titleCase(r.street)||'Road'}</b><br>${titleCase(r.town)}<br>one of the town's most flood-prone road spots (top ${Math.max(1,Math.round((1-r.pct)*100))}% by terrain: low, in a dip, below its surroundings)`; }
-  if (!html && layer.closures){ setWorld(); ctx.lineWidth = 10/ps(); const s = (closureGeo[layer.closures]||[]).find(s=>ctx.isPointInStroke(s.p, sx*dpr, sy*dpr)); if (s) html = layer.closureTip(s.f.properties); ctx.setTransform(dpr,0,0,dpr,0,0); }
-  if (!html){ setWorld(); let name = null; for (const [n,g] of townGeo){ if (wx>=g.bb[0]&&wx<=g.bb[2]&&wy>=g.bb[1]&&wy<=g.bb[3] && ctx.isPointInPath(g.path, sx*dpr, sy*dpr)){ name = n; break; } } ctx.setTransform(dpr,0,0,dpr,0,0);
-    if (name) html = layer.townTip ? layer.townTip(name) : `<b>${titleCase(name)}</b>`; }
-  if (html){ tip.innerHTML = html; tip.hidden = false; tip.style.left = Math.min(sx+14, W-285)+'px'; tip.style.top = Math.min(sy+14, H-110)+'px'; } else tip.hidden = true; }
-canvas.addEventListener('mouseleave', ()=> tip.hidden = true);
-
-/* ================= legend helpers ================= */
-// ---------- flood-prone roads across Districts 3-6 (pre-rendered picture of every road, coloured by the model) + past reports ----------
-let PRONE = null, REPORTS = null; const PIMG = new Map();
-getJSON('prone/flood_prone_meta.json').then(m => { PRONE = m; if (state.mode === 'live' && layer.prone){ mLive(); scheduleDraw(true); } }).catch(() => {});
-function loadReports(){ if (REPORTS) return; REPORTS = {n: 0}; getJSON('prone/flood_reports.json').then(j => { const r = j.rows, n = r.length, x = new Float64Array(n), y = new Float64Array(n), col = new Array(n);
-  r.forEach((v, i) => { x[i] = v[0]; y[i] = mY(v[1]); col[i] = v[3] === 'crash' ? C.r1 : C.r3; }); REPORTS = {n, x, y, col, rows: r}; scheduleDraw(true); }).catch(() => {}); }
-const SRC_NAME = {crash: 'police crash report coded "water on road"', storm_report: 'National Weather Service storm report', 'D3 report': 'flood report (District 3 record)'};
-function reportTip(b){ const R_ = REPORTS.rows, ids = b.ids.slice().sort((p, q) => R_[p][2] < R_[q][2] ? -1 : 1);
-  if (ids.length === 1){ const v = R_[ids[0]]; return `<b>Flooded road reported</b><br>${v[2]}<br><span class="muted">${SRC_NAME[v[3]] || v[3]}</span>`; }
-  const yrs = new Map(); for (const i of ids){ const y = R_[i][2].slice(0, 4); yrs.set(y, (yrs.get(y) || 0) + 1); } const topY = [...yrs].sort((a, b) => b[1] - a[1]).slice(0, 3);
-  return `<b>${ids.length} flooded-road reports here</b><br>${R_[ids[0]][2].slice(0, 4)}–${R_[ids[ids.length - 1]][2].slice(0, 4)}<br>busiest years: ${topY.map(t => t[0] + ' (' + t[1] + ')').join(', ')}<br><span class="muted">click or scroll in to split</span>`; }
-function pimg(file){ let im = PIMG.get(file); if (!im){ im = new Image(); im.onload = () => scheduleDraw(true); im.src = 'prone/' + file; PIMG.set(file, im); } return im.complete && im.naturalWidth ? im : null; }
-function drawProne(){ const P = PRONE; if (!P) return; const vb = viewBB(0), scr = ps()*(P.bounds[2] - P.bounds[0]);
-  const vis = ts => ts.filter(t => { const [a, b, c, d] = t.bounds; return !(a > vb[2] || c < vb[0] || mY(d) > vb[3] || mY(b) < vb[1]); });
-  const put = (t, im) => { const [a, b, c, d] = t.bounds; ctx.drawImage(im, a, mY(d), c - a, mY(b) - mY(d)); };
-  ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.95;
-  const det = scr > P.overview.w*1.3 ? vis(P.detail.tiles) : [], dIm = det.map(t => pimg(t.file));
-  if (!det.length || dIm.some(x => !x)){ const o = P.overview.tiles[0], im = pimg(o.file); if (im) put(o, im); }
-  det.forEach((t, j) => { if (dIm[j]) put(t, dIm[j]); });
-  ctx.globalAlpha = 1; }
-function proneLegend(){ if (!PRONE) return ''; const cs = PRONE.colours.map(c => `rgba(${c[1].slice(0, 3).join(',')},${(c[1][3]/255).toFixed(2)})`);
-  return `<div class="lsec"><b>Flood-prone roads, Districts 3–6</b><div class="ramp">${cs.slice(1).map(c => `<span style="background:${c}"></span>`).join('')}</div><div class="rampl"><span>typical</span><span>top 10%</span><span>top 1%</span></div><span class="note">same heavy storm (45 mm in an hour) on every road; long segments rank a little high</span></div>`; }
-function legend(html){ $('#legend').innerHTML = html; }
-const rampLegend = title => `<b>${title}</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2%</span><span>5%</span><span>15%</span><span>35%+</span></div>`;
-const dotLegend = (col, t) => `<div><span class="sw dotsw" style="background:${col}"></span>${t}</div>`;
-function townTable(rows, cols, goKey){ if (!rows.length) return '<p class="empty">Nothing above the lowest band.</p>';
-  return `<div class="tblwrap"><table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr${goKey?` class="go" data-town="${goKey(r)}"`:''}>${cols.map(c=>`<td class="${c[2]||''}">${c[1](r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
-function wireGo(){ document.querySelectorAll('#readout tr.go').forEach(tr=>tr.onclick=()=>{ const g = townGeo.get(tr.dataset.town); if (g) flyTo(g.bb); }); }
-function roadSummary(fl){ const byTown = {}; let n=0; for (let i=0;i<fl.length;i++) if (fl[i]){ n++; byTown[R.town[i]] = (byTown[R.town[i]]||0)+1; }
-  return {n, towns:Object.keys(byTown).length, top:Object.entries(byTown).sort((a,b)=>b[1]-a[1]).slice(0,12)}; }
-function streetsOf(fl){ const s = {}; for (let i=0;i<fl.length;i++) if (fl[i] && R.street[i]) { const k = titleCase(R.street[i])+' · '+titleCase(R.town[i]); s[k]=(s[k]||0)+1; } return Object.entries(s).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>x[0]); }
-const roadTipBase = (i, extra='') => `<b>${titleCase(R.street[i])||'Unnamed road'}</b>${R.rt[i]&&R.rt[i]!=='0'&&R.rt[i]!=='nan'?' · Route '+R.rt[i]:''}<br>${titleCase(R.town[i])}<br>road surface ${fmt(R.elev[i],1)} m above sea datum · floods ${R.thr[i]>=0.999?'about every year':'about once in '+yrs(R.thr[i])+' years'} at 2030 sea level${extra}`;
-const scen = k => { const m = /^(\d{4})_(\d\d)_(\d\d)_(.*)$/.exec(k); if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T12:00`).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) + ' · ' + titleCase(m[4].replace(/_/g,' ')).replace('Nor Easter',"Nor'easter");
-  const f = /mc_frm_1_storm_(\d{4})/.exec(k); if (f) return `1%-per-year storm at ${f[1]} sea level`; return titleCase(k.replace(/_/g,' ')); };
-function setTitle(kick, title, sub){ $('#tc-kick').textContent = kick; $('#tc-title').textContent = title; $('#tc-sub').textContent = sub; }
-
-/* ================= tide chart ================= */
-function tideChart(k, g){ const cv = g.curve; if (!cv || !cv.pred || !cv.pred.length) return '';
-  const n = cv.pred.length, t0 = Date.parse(cv.t0), now = Date.now(), gi = GA[k]||{};
-  const vals = cv.pred.concat(cv.obs.filter(v=>v!=null), (cv.stofs||[]).filter(v=>v!=null)); const yr = gi.mu; let lo = Math.min(...vals), hi = Math.max(...vals, yr!=null? yr+0.05 : -9);
-  const w = 300, h = 66, pad = 4, X = i => pad + (w-2*pad)*i/(n-1), Y = v => h-12 - (h-20)*(v-lo)/((hi-lo)||1);
-  const line = arr => arr.map((v,i)=> v==null? null : [X(i),Y(v)]).reduce((s,p,i,a)=> p? s + (i && a[i-1]? 'L':'M') + p[0].toFixed(1)+','+p[1].toFixed(1) : s, '');
-  const nowI = (now - t0)/3.6e6; const nx = nowI>=0 && nowI<=n-1 ? X(nowI) : null;
-  const area = 'M'+X(0)+','+(h-12)+' '+cv.pred.map((v,i)=>'L'+X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')+' L'+X(n-1)+','+(h-12)+'Z';
-  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Tide at ${gi.name}: observed and predicted water level">
-    <path d="${area}" fill="${C.accent}" opacity=".09"/>
-    ${yr!=null && yr<=hi ? `<line x1="${pad}" x2="${w-pad}" y1="${Y(yr)}" y2="${Y(yr)}" stroke="${C.r3}" stroke-dasharray="3 3" stroke-width="1"/><text x="${w-pad}" y="${Y(yr)-3}" text-anchor="end" font-size="9" fill="${C.r3}" font-family="IBM Plex Mono,monospace">typical yearly high ${fmt(yr,2)} m</text>`:''}
-    <path d="${line(cv.pred)}" fill="none" stroke="${C.muted}" stroke-width="1.2" stroke-dasharray="2 2"/>
-    ${cv.stofs? `<path d="${line(cv.stofs.map((v,i)=> i>=nowI-1? v : null))}" fill="none" stroke="${C.r3}" stroke-width="1.6"/>` : ''}
-    <path d="${line(cv.obs)}" fill="none" stroke="${C.accent}" stroke-width="2"/>
-    ${nx!=null? `<line x1="${nx}" x2="${nx}" y1="2" y2="${h-12}" stroke="${C.ink}" stroke-width="1" opacity=".5"/><text x="${nx+3}" y="${h-2}" font-size="9" fill="${C.muted}" font-family="IBM Plex Mono,monospace">now</text>`:''}
-    <text x="${pad}" y="${h-2}" font-size="9" fill="${C.muted}" font-family="IBM Plex Mono,monospace">−26 h</text><text x="${w-pad}" y="${h-2}" text-anchor="end" font-size="9" fill="${C.muted}" font-family="IBM Plex Mono,monospace">+48 h</text></svg>`; }
-
-/* ================= views ================= */
-const state = {mode:'live', liveLayer:'chance', coastal:{pick:'2018-01-04', rp:10}, inland:{pick:'slider', rain:60, wet:'now'}, traffic:{pick:Object.keys(D.closures||{})[0]}, future:{year:2050}, tsunami:{amp:2, runup:'1'}};
-/* four tabs, each with a few views (the old tab names still work as links) */
-const TABS = {
-  now:    {views: [['overview', 'Overview'], ['segments', 'Road segments'], ['water', 'Water forecast'], ['drain', 'Where rain goes']]},
-  replay: {views: [['water', 'Flash flood water'], ['coastal', 'Coastal water'], ['segments', 'Road segments'], ['rain', 'Rain by town'], ['traffic', 'Traffic']]},
-  future: {views: [['seawater', 'Storm on a higher sea'], ['sea', 'Flood zones 2030–2070'], ['tsunami', 'Tsunami what-if']]},
-  check:  {views: [['check', 'Results']]}};
-const VIEW_MODE = {'now/drain': 'drain', 'now/overview': 'live', 'now/segments': 'graph', 'now/water': 'water', 'replay/water': 'water', 'replay/segments': 'graph', 'replay/rain': 'inland',
-  'replay/coastal': 'water', 'replay/traffic': 'traffic', 'future/seawater': 'water', 'future/sea': 'future', 'future/tsunami': 'tsunami', 'check/check': 'check'};
-const OLD_HASH = {live: 'now/overview', graph: 'now/segments', water: 'replay/water', coastal: 'replay/coastal', inland: 'replay/rain', traffic: 'replay/traffic', future: 'future/sea', tsunami: 'future/tsunami', check: 'check/check'};
-state.tab = 'now'; state.view = {now: 'overview', replay: 'water', future: 'seawater', check: 'check'};
-function readHash(){ let h = location.hash.slice(1).toLowerCase(); if (OLD_HASH[h]) h = OLD_HASH[h]; const [t, v] = h.split('/');
-  if (TABS[t]){ state.tab = t; if (v && TABS[t].views.some(x => x[0] === v)) state.view[t] = v; return true; } return false; }
-if (!readHash()) { try { const m = JSON.parse(localStorage.getItem('mfw-tab') || 'null'); if (m && TABS[m.t]){ state.tab = m.t; Object.assign(state.view, m.v || {}); } } catch(e){} }
-window.addEventListener('hashchange', ()=>{ if (readHash() && typeof MODES !== 'undefined') goTab(state.tab); });
-
-function mLive(){
-  const L = D.live || {gauges:{}, towns_qpf24:{}, alerts:[], tsunami:[]};
-  const aep = {}; for (const [k,v] of Object.entries(L.gauges||{})) aep[k]=v.aep;
-  const [res, ms] = timed(()=>{ const fl = floodedRoads(aep); const ch = new Map([...tprops].map(([n,p])=>[n, inlandChance(p, (L.towns_qpf24||{})[n]||0, p.api_now||0, month)])); return {fl, ch}; });
-  const {fl, ch} = res, s = roadSummary(fl);
-  const qcol = mm => mm==null||mm<2 ? null : mm<10 ? C.r1 : mm<25 ? C.r2 : mm<50 ? C.r3 : C.r4;
-  if (state.prone == null) state.prone = true; if (state.reports) loadReports();
-  layer = {gauges: aep, prone: state.prone, reports: !!state.reports, roadColor: i=>fl[i]? C.deep : null, roadTip: i=>roadTipBase(i), topTown: n=> (ch.get(n)||0) >= 0.05,
-    townFill: n => state.liveLayer==='rain' ? qcol((L.towns_qpf24||{})[n]) : riskColor(ch.get(n)),
-    townTip: n => tprops.has(n) ? `<b>${titleCase(n)}</b><br>rain forecast, next 24 h: ${fmt((L.towns_qpf24||{})[n],1)} mm<br>chance of a reported road flood: ${fmt(100*ch.get(n),1)}%` : `<b>${titleCase(n)}</b><br><span class="note">outside the inland model area (MassDOT Districts 3–6)</span>`};
-  legend((state.liveLayer==='rain' ? `<b>Rain forecast, next 24 h</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>2 mm</span><span>10</span><span>25</span><span>50+</span></div>` : rampLegend('Chance of a reported road flood, next 24 h')) + dotLegend(C.deep, 'coastal road the next high tides would flood') + (state.reports ? dotLegend(C.r3, 'past flooded-road report (NWS)') + dotLegend(C.r1, 'past crash on a flooded road') : '') + (state.prone ? proneLegend() : ''));
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="livelayer">Color towns by</label><select id="livelayer"><option value="chance">Flood chance (model)</option><option value="rain">Rain forecast (NWS)</option></select></div>
-    <div class="ctl"><span class="lbl">Show on the map</span><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lprone"> flood-prone roads, all of D3–6</label></div>`;
-  $('#lprone').checked = state.prone;
-  $('#lprone').onchange = e => { state.prone = e.target.checked; mLive(); scheduleDraw(true); };
-  $('#livelayer').value = state.liveLayer; $('#livelayer').onchange = e=>{ state.liveLayer = e.target.value; mLive(); scheduleDraw(true); };
-  $('#howto').textContent = 'Every town is scored by the flood model running in this page, using the National Weather Service rain forecast and how wet the ground already is. Blue dots are coastal road pieces the predicted tide plus today\'s storm surge would put under water.';
-  engine(`Model run in your browser: <b>${tprops.size} towns</b> + <b>${R.lat.length.toLocaleString()} coastal road pieces</b> in ${ms.toFixed(1)} ms`);
-  const gcards = Object.entries(L.gauges||{}).map(([k,v])=>{ const bw = (L.waves||{})[BUOY_FOR[k]]; const wc = bw ? waveChance(v.aep, bw.hs_m) : null;
-    return `<div class="g"><h4>${(GA[k]||{}).name||k}</h4>${rarityPill(v.aep)}${tideChart(k,v)}<span class="m">now ${fmt(v.now,2)} m · surge ${v.surge_now>=0?'+':''}${fmt(v.surge_now,2)} m · next 48 h peak ${fmt(v.next48_max,2)} m${v.stofs_next48!=null && v.stofs_next48>=v.next48_max-0.005?' (NOAA surge model)':' (tide + current surge)'}${v.stofs_next48!=null?` · STOFS ${fmt(v.stofs_next48,2)} m`:''}</span>${wc!=null?`<span class="m">with ${fmt(bw.hs_m,1)} m waves offshore: ${fmt(100*wc, wc<0.1?1:0)}% chance of coastal flood reports in this area</span>`:''}</div>`; }).join('') || '<p class="empty">No gauge data in this refresh.</p>';
-  const ranked = [...ch.entries()].sort((a,b)=>b[1]-a[1]), best = ranked[0]||['–',0]; const top = ranked.slice(0,10).filter(x=>x[1]>=0.005);
-  const wet = [...Object.entries(L.towns_qpf24||{})].filter(x=>x[1]!=null).sort((a,b)=>b[1]-a[1]).slice(0,3);
-  $('#readout').innerHTML = `<h2>What to watch</h2>
-   <div class="stats"><div class="stat"><b>${fmt(s.n/10,1)} km</b><span>coastal road at risk, next 48 h</span></div><div class="stat"><b>${fmt(100*best[1], best[1]<0.1?1:0)}%</b><span>top town flood chance (${titleCase(best[0])})</span></div>
-     <div class="stat"><b id="ov-rep">–</b><span>flooded-road reports expected, District 3 segments (24 h)</span></div><div class="stat"><b id="ov-water">–</b><span id="ov-water-l">water forecast</span></div></div>
-   <p class="note">Wettest forecast: ${wet.map(w=>`${titleCase(w[0])} ${fmt(w[1],0)} mm`).join(', ')||'no rain in the forecast'}.</p>
-   <span class="lbl">NWS alerts</span>${(L.alerts||[]).length? '<ul>'+L.alerts.slice(0,8).map(a=>`<li><b>${a.event}</b> · ${a.area}</li>`).join('')+'</ul>' : '<p class="empty">No active alerts for Massachusetts.</p>'}
-   <span class="lbl">Towns to watch</span>${townTable(top, [['Town',r=>titleCase(r[0])],['Chance',r=>fmt(100*r[1],1)+'%','n'],['Rain 24 h',r=>fmt((L.towns_qpf24||{})[r[0]],0)+' mm','n']], r=>r[0])}
-   <div id="ov-segs"></div>
-   <details class="more"><summary>Tide gauges, waves and tsunami messages</summary>
-   <span class="lbl">Tide gauges · observed (solid) · tide table (dashed) · NOAA surge forecast (red)</span><div class="gauges">${gcards}</div>
-   <span class="lbl">Offshore waves · NOAA buoys</span>${Object.keys(L.waves||{}).length ? townTable(Object.values(L.waves), [['Buoy',r=>r.name],['Wave height',r=>fmt(r.hs_m,1)+' m','n'],['Period',r=>r.period_s? fmt(r.period_s,0)+' s':'–','n']]) : '<p class="empty">No buoy data in this refresh.</p>'}
-   <span class="lbl">Tsunami warning center (Atlantic)</span>${(L.tsunami||[]).length? '<ul>'+L.tsunami.map(t=>`<li>${t.title} <span class="note">${(t.updated||'').slice(0,10)}</span></li>`).join('')+'</ul>':'<p class="empty">No messages.</p>'}</details>`;
-  getJSON('graph_live.json').then(G => { if (state.mode !== 'live') return; const e = $('#ov-rep'); if (e) e.textContent = G.expected_reports != null ? fmt(G.expected_reports, 1) : fmt(G.n_scored);
-    const sc = G.scale || 1000, top = (G.top || []).slice(0, 5);
-    $('#ov-segs').innerHTML = `<span class="lbl">Road segments most at risk (District 3)</span>` + (top.length ? `<div class="tblwrap"><table><tbody>${top.map(([i, q, rd, tw]) => `<tr><td>${rd || 'Road segment ' + i}${tw ? `<br><span class="note">${tw}</span>` : ''}</td><td class="n">${fmt(q / sc * 100, 2)}%</td></tr>`).join('')}</tbody></table></div><p class="note"><a href="#now/segments">Open the road segments view</a> to see them on the map.</p>` : `<p class="empty">No segment is forecast to get 20 mm of rain.</p>`); }).catch(() => {});
-  getJSON('sim/forecast/meta.json').then(F => { if (state.mode !== 'live') return; const e = $('#ov-water'), l = $('#ov-water-l'); if (!e) return;
-    if (F.status === 'dry' || !F.n){ e.textContent = 'No heavy rain'; l.textContent = `water forecast: most rain ${fmt(F.max_rain_mm, 0)} mm in 30 h`; }
-    else { const pk = Math.max(...F.frames.map(f => f.wet_km2)); e.textContent = fmt(pk, 0) + ' km²'; l.innerHTML = `peak area under water in the <a href="#now/water">water forecast</a>`; } }).catch(() => {});
-  wireGo(); setTitle('Live · ' + (L.asof||''), 'Flood outlook, next 24–48 hours', 'Town flood chance from the NWS rain forecast and a model trained on 2002–2026 flood reports; coastal roads from NOAA tide gauges.');
-}
-
-function mCoastal(){
-  const reps = Object.keys(D.coastal_replays||{});
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="cpick">Storm</label><select id="cpick">${reps.map(d=>`<option value="${d}">${d} (replay)</option>`).join('')}<option value="rp">Pick a storm strength</option></select></div>
-   <div class="ctl" id="rpbox"><label class="lbl" for="rp">Storm strength (same rarity at every gauge)</label><input type="range" id="rp" min="0" max="100" step="1"><span class="val" id="rpv"></span></div>`;
-  const sel = $('#cpick'), rp = $('#rp'); sel.value = state.coastal.pick;
-  const toRp = v => Math.round(Math.pow(10, v/100*2.7)); rp.value = Math.round(Math.log10(state.coastal.rp)/2.7*100);
-  const go = ()=>{ state.coastal.pick = sel.value; state.coastal.rp = toRp(+rp.value); $('#rpbox').hidden = sel.value!=='rp'; $('#rpv').textContent = `1-in-${state.coastal.rp} year storm`;
-    let aep = {}, info = '';
-    if (sel.value==='rp'){ for (const k in GA) aep[k] = 1/state.coastal.rp; info = `Every gauge at a 1-in-${state.coastal.rp} year water level.`; }
-    else { const r = D.coastal_replays[sel.value]; const hs = (D.coastal_replay_waves||{})[sel.value]; for (const [k,v] of Object.entries(r)) aep[k]=v.aep;
-      info = Object.entries(r).map(([k,v])=>`${(GA[k]||{}).name||k}: ${fmt(v.wl,2)} m ${rarityPill(v.aep)}`).join('<br>') + (hs? `<br>Biggest offshore waves that day: ${fmt(hs,1)} m (NOAA buoys). With them, the chance of coastal flood reports near Boston was ${fmt(100*waveChance(r['8443970']&&r['8443970'].aep, hs),0)}%.`:''); }
-    const [fl, ms] = timed(()=>floodedRoads(aep)); const s = roadSummary(fl);
-    layer = {gauges: aep, roadColor: i=>fl[i]? (R.d30[i]!=null && R.d30[i]>=0.3 ? C.deep : C.shallow) : null, roadTip: i=>roadTipBase(i, R.d30[i]!=null?`<br>depth in a 1% storm: ${fmt(R.d30[i],2)} m`:'')};
-    legend(`<b>Coastal road under water</b>${dotLegend(C.shallow,'shallow (under 30 cm in a 1% storm)')}${dotLegend(C.deep,'deeper')}`);
-    engine(`Model run in your browser: <b>${R.lat.length.toLocaleString()} road pieces</b> checked against 4 tide gauges in ${ms.toFixed(1)} ms`);
-    const title = sel.value==='rp' ? `1-in-${state.coastal.rp} year storm` : new Date(sel.value+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
-    $('#readout').innerHTML = `<h2>${title}</h2><p class="note">${info}</p>
-      <div class="stats"><div class="stat"><b>${fmt(s.n/10,1)} km</b><span>road under water</span></div><div class="stat"><b>${s.towns}</b><span>towns with flooded roads</span></div></div>
-      <span class="lbl">Streets with the most flooded length</span><ul>${streetsOf(fl).map(x=>`<li>${x}</li>`).join('')||'<li class="empty">none</li>'}</ul>
-      <span class="lbl">By town</span>${townTable(s.top, [['Town',r=>titleCase(r[0])],['Road under water',r=>fmt(r[1]/10,1)+' km','n']], r=>r[0])}
-      <p class="note">A road piece floods when the day's water at its nearest tide gauge is at least as rare as that piece's yearly flood chance in the state coastal model (MC-FRM, 2030 sea level). Tested on NOAA coastal flood reports since 1996: AUC 0.83. Storm waves are part of MC-FRM's flood chances on average; how rough one particular storm's waves were is not.</p>`;
-    wireGo(); setTitle('Coastal storm' + (sel.value==='rp'?'':' replay'), title, `${fmt(s.n/10,1)} km of coastal road under water in ${s.towns} towns`); scheduleDraw(true); };
-  sel.onchange = go; rp.oninput = go; go();
-  $('#howto').textContent = 'Replay a past storm, or set a storm strength and watch the water spread. Each dot is a 100 m road piece the sea reaches; hover for the street and how often it floods.';
-}
-
-function mInland(){
-  const reps = Object.keys(D.inland_replays||{});
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="ipick">Rain</label><select id="ipick"><option value="slider">Set the rain</option>${reps.map(d=>`<option value="${d}">${d} (replay)</option>`).join('')}</select></div>
-   <div class="ctl" id="rbox"><label class="lbl" for="rain">Rain in 24 hours, every town</label><input type="range" id="rain" min="0" max="200" step="5"><span class="val" id="rainv"></span>
-   <label class="lbl" for="wet">Ground wetness (rain of the past days)</label><select id="wet"><option value="now">As it is now</option><option value="dry">Dry (0 mm)</option><option value="wet">Soaked (80 mm)</option></select></div>`;
-  const sel=$('#ipick'), rain=$('#rain'), wet=$('#wet'); sel.value=state.inland.pick; rain.value=state.inland.rain; wet.value=state.inland.wet;
-  const go=()=>{ state.inland.pick=sel.value; state.inland.rain=+rain.value; state.inland.wet=wet.value; $('#rbox').hidden = sel.value!=='slider'; $('#rainv').textContent = `${rain.value} mm (${(rain.value/25.4).toFixed(1)} in)`;
-    const rp = sel.value==='slider'? null : D.inland_replays[sel.value]; const mo = rp? +sel.value.slice(5,7) : month;
-    const [ch, ms] = timed(()=>new Map([...tprops].map(([n,p])=>{ let r, a; if (rp){ const v = rp[n]; if (!v) return [n, null]; r = v.rain; a = v.api; } else { r = +rain.value; a = wet.value==='now'? p.api_now : wet.value==='dry'? 0 : 80; } return [n, inlandChance(p, r, a, mo)]; })));
-    const rec = rp? Object.entries(rp).filter(x=>x[1].rec).map(x=>x[0]) : [];
-    layer = {topTown: n=> (ch.get(n)||0) >= 0.05, townFill: n=>riskColor(ch.get(n)), townTip: n=>{ if (!tprops.has(n)) return `<b>${titleCase(n)}</b><br><span class="note">outside the inland model area</span>`; const v = rp&&rp[n]; if (rp && !v) return `<b>${titleCase(n)}</b><br><span class="note">no rain record for this replay (replays cover Districts 4–6)</span>`; return `<b>${titleCase(n)}</b><br>chance: ${fmt(100*ch.get(n),1)}%${v?`<br>rain ${fmt(v.rain,0)} mm · ${v.rec?'flood recorded':'no flood record'}`:''}`; }};
-    legend(rampLegend('Chance of a reported road flood') + (TOPR.length? `<div><span class="sw" style="background:${C.r4};transform:rotate(45deg) scale(.8)"></span>most flood-prone road spots (zoom in; towns at 5%+)</div>` : '') +(rec.length? `<div class="note">${rec.length} towns had a recorded flood that day</div>`:''));
-    engine(`Model run in your browser: <b>${tprops.size} towns</b> scored in ${ms.toFixed(1)} ms`);
-    const top=[...ch.entries()].filter(x=>x[1]!=null).sort((a,b)=>b[1]-a[1]).slice(0,15);
-    const title = rp? new Date(sel.value+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : rain.value+' mm in 24 hours';
-    $('#readout').innerHTML = `<h2>${title}</h2>
-      ${rp? `<p class="note">Towns with a recorded flood that day: ${rec.map(titleCase).join(', ')||'none'}. The model never saw this year while learning.</p>`:''}
-      ${townTable(top, [['Town',r=>titleCase(r[0])+(rec.includes(r[0])?' <span class="pill p-bad">recorded</span>':'')],['Chance',r=>fmt(100*r[1],1)+'%','n']], r=>r[0])}
-      <p class="note">Town-day model trained on ${M.trained_on}. Tested one year at a time on years it never saw: AUC ${fmt(VI.combined_all?VI.combined_all.AUC:0.874,2)} (95% range ${VI.combined_all?VI.combined_all.AUC_95CI.join('–'):'–'}). A version trained only on Districts 4–6 scored ${VI.transfer_D3?VI.transfer_D3.AUC:'–'} on District 3 towns it had never seen. Ground wetness as of ${D.inland_api_asof}.</p>`;
-    wireGo(); setTitle(rp?'Inland rain replay':'Inland rain what-if', title, 'Chance that at least one road in each town floods badly enough to be reported'); scheduleDraw(true); };
-  sel.onchange=go; rain.oninput=go; wet.onchange=go; go();
-  $('#howto').textContent = 'Drag the rain slider and the model rescores every town instantly. Replays show real storms the model never saw while learning, with the towns that actually reported floods.';
-}
-
-function mTraffic(){
-  const ks = Object.keys(D.closures||{});
-  if (!ks.length){ $('#controls').innerHTML='<p class="empty">No traffic scenarios computed yet.</p>'; $('#readout').innerHTML=''; layer={}; return; }
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="tpick">Scenario</label><select id="tpick">${ks.map(k=>`<option value="${k}">${scen(k)}</option>`).join('')}</select></div>`;
-  const sel=$('#tpick'); if (state.traffic.pick && ks.includes(state.traffic.pick)) sel.value = state.traffic.pick;
-  const go=()=>{ state.traffic.pick=sel.value; const c = D.closures[sel.value];
-    const ctip = p => `<b>${titleCase(p.street)||'Road'}</b>${p.rt&&p.rt!=='0'?' · Route '+p.rt:''}<br>${titleCase(p.town)}<br>${fmt(p.aadt)} cars a day · ${(p.cluster_extra_min??p.extra_min_joint)>=60?'cut off, no detour within an hour':'detour +'+fmt(p.cluster_extra_min??p.extra_min_joint,0)+' min'}<br>${fmt(p.veh_hours_joint)} vehicle-hours lost`;
-    layer = {closures: sel.value, closureTip: ctip};
-    legend(`<b>Closed by flooding</b><div><span class="sw" style="background:${C.r3}"></span>line width = vehicle-hours lost</div>`);
-    engine(`Detours computed on the MassDOT road graph (${fmt(c.units)} closed stretches)`);
-    const grp = new Map(); for (const f of c.geo.features){ const p=f.properties; const k=(p.street||'–')+'|'+p.town; const g=grp.get(k);
-      if (!g || (p.veh_hours_joint||0) > (g.veh_hours_joint||0)) grp.set(k, Object.assign({}, p, {pieces:(g?g.pieces:0)+1})); else g.pieces++; }
-    const rows = [...grp.values()].sort((a,b)=>b.veh_hours_joint-a.veh_hours_joint).slice(0,15);
-    const mult = c.total_veh_hours_alone? c.total_veh_hours_joint/c.total_veh_hours_alone : null;
-    $('#readout').innerHTML = `<h2>${scen(sel.value)}</h2>
-      <div class="stats"><div class="stat"><b>${fmt(c.total_veh_hours_joint)}</b><span>vehicle-hours lost in a day, closures together</span></div><div class="stat"><b>${mult?fmt(mult,1)+'×':'–'}</b><span>cascade: together vs one at a time (${fmt(c.total_veh_hours_alone)})</span></div></div>
-      ${townTable(rows, [['Road',r=>`${titleCase(r.street)||'–'}${r.rt&&r.rt!=='0'?' · Rt '+r.rt:''}<br><span class="note">${titleCase(r.town)}</span>`],['Cars/day',r=>fmt(r.aadt),'n'],['Detour',r=>{const m = r.cluster_extra_min ?? r.extra_min_joint; return m>=60?'cut off':fmt(m,0)+' min';},'n'],['Veh-h',r=>fmt(r.veh_hours_joint),'n']], r=>r.town)}
-      <p class="note">${fmt(c.units)} closed stretches (${fmt(c.km,1)} km) in ${c.clusters??'–'} flooded areas; ${c.cut_off??'–'} are cut off with no way around within an hour. Detours run on the MassDOT road network at posted speeds. One stretch at a time, the same closures would cost ${fmt(c.total_veh_hours_alone)} vehicle-hours.</p>`;
-    wireGo(); setTitle('Traffic cascade', scen(sel.value), `${fmt(c.total_veh_hours_joint)} vehicle-hours lost together vs ${fmt(c.total_veh_hours_alone)} one at a time (${mult?fmt(mult,1)+'×':''})`); scheduleDraw(true); };
-  sel.onchange=go; go();
-  $('#howto').textContent = 'Closing many roads at once costs far more than the same closures one at a time, because the detours are flooded too. That gap is the cascade.';
-}
-
-function mFuture(){
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="yr">Sea level year</label><select id="yr"><option>2030</option><option>2050</option><option>2070</option></select></div>`;
-  const sel=$('#yr'); sel.value = state.future.year;
-  const go=()=>{ state.future.year=+sel.value; const dd = R['d'+String(sel.value).slice(2)];
-    layer = {roadColor: i=>dd[i]!=null&&dd[i]>0? (dd[i]>=0.3? C.deep : C.shallow) : null, roadTip: i=>roadTipBase(i, `<br>${sel.value} 1% storm depth: ${fmt(dd[i],2)} m`)};
-    legend(`<b>${sel.value} · 1%-per-year storm</b>${dotLegend(C.shallow,'under water, less than 30 cm')}${dotLegend(C.deep,'30 cm or deeper')}`);
-    const rows = (D.longterm||[]).filter(r=>r.year===+sel.value); const lt = rows.slice().sort((a,b)=>b.km_in_1pct_zone-a.km_in_1pct_zone).slice(0,12);
-    const tot = rows.reduce((s,r)=>s+r.km_in_1pct_zone,0); const fx = (D.fixes||[]).slice(0,10);
-    engine(`Depths from the state coastal flood model (MC-FRM) at ${R.lat.length.toLocaleString()} road pieces`);
-    $('#readout').innerHTML = `<h2>Sea level ${sel.value}</h2>
-      <div class="stats"><div class="stat"><b>${fmt(tot)} km</b><span>road inside the 1%-per-year flood zone</span></div><div class="stat"><b>${fmt(rows.reduce((s,r)=>s+r.expected_km_flooded_per_year,0),0)} km</b><span>road expected to flood each year</span></div></div>
-      ${townTable(lt, [['Town',r=>titleCase(r.town)],['In 1% zone',r=>fmt(r.km_in_1pct_zone,1)+' km','n'],['Deeper than 30 cm',r=>fmt(r.km_deeper_30cm,1)+' km','n']], r=>r.town)}
-      <span class="lbl">Fix screening · raise the road above the 2050 1% flood</span>
-      ${fx.length? townTable(fx, [['Road',r=>`${titleCase(r.street)||'–'}<br><span class="note">${titleCase(r.town)}</span>`],['Raise',r=>fmt(r.raise_m,1)+' m','n'],['Benefit ÷ cost',r=>`${fmt(r.bcr_high_cost,1)}–${fmt(r.bcr_low_cost,1)}`,'n']], r=>r.town) : '<p class="empty">Run the scenarios step to fill this table.</p>'}
-      <p class="note">Screening level only: unit costs are assumed ranges, and the benefit counts only avoided traffic delay.</p>`;
-    wireGo(); setTitle('Long-term · sea level rise', `${sel.value}: ${fmt(tot)} km of road in the 1% flood zone`, 'Coastal flood depth in a 1%-per-year storm, from the state MC-FRM model'); scheduleDraw(true); };
-  sel.onchange=go; go();
-  $('#howto').textContent = 'Flood depths come from the state coastal flood model (MC-FRM) for a 1%-per-year storm at each sea level year.';
-}
-
-function mTsunami(){
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="amp">Wave height at the coast, above normal high tide</label><input type="range" id="amp" min="0.5" max="5" step="0.5"><span class="val" id="ampv"></span></div>
-    <div class="ctl"><label class="lbl" for="runup">Run-up on land</label><select id="runup"><option value="1">1× · water stays at wave height (flat)</option><option value="1.5">1.5× · typical run-up</option><option value="2">2× · steep or funnel-shaped shore</option></select></div>
-    <p class="note">What-if only. The state rates tsunami likelihood in Massachusetts as very low. This shows where water would reach, not a forecast.</p>`;
-  const sel=$('#amp'), ru=$('#runup'); sel.value = state.tsunami.amp; ru.value = state.tsunami.runup||'1';
-  const go=()=>{ state.tsunami.amp=+sel.value; state.tsunami.runup=ru.value; const f=+ru.value, a0=+sel.value, a=a0*f; $('#ampv').textContent = `${a0} m (${(a0*3.28).toFixed(0)} ft)`;
-    const [fl, ms] = timed(()=>{ const o = new Uint8Array(R.lat.length); for (let i=0;i<o.length;i++){ const g=GA[R.gauge[i]]; const mm = g&&g.mhhw_navd!=null? g.mhhw_navd : 1.0; if (R.elev[i]!=null && R.elev[i] < mm + a) o[i]=1; } return o; });
-    layer = {roadColor: i=>fl[i]? C.r3 : null, roadTip: i=>roadTipBase(i, `<br>water depth in this what-if: ${fmt(((GA[R.gauge[i]]||{}).mhhw_navd??1)+a-R.elev[i],1)} m`)};
-    legend(`<b>${a0} m wave${f>1?' × '+f+' run-up = '+fmt(a,1)+' m':''} on top of high tide</b>${dotLegend(C.r3,'road under water')}`);
-    engine(`Model run in your browser: <b>${R.lat.length.toLocaleString()} road pieces</b> in ${ms.toFixed(1)} ms`);
-    const n = fl.reduce((s,v)=>s+v,0); const near = [1,2,3,5].reduce((p,c)=>Math.abs(c-a)<Math.abs(p-a)?c:p, 1);
-    const tt = (D.tsunami||[]).filter(r=>r.wave_m===near).sort((x,y)=>y.km-x.km).slice(0,14);
-    $('#readout').innerHTML = `<h2>${fmt(a,1)} m above high tide</h2>${f>1?`<p class="note">${a0} m wave climbing to ${fmt(a,1)} m on land (${f}× run-up).</p>`:''}
-      <div class="stats"><div class="stat"><b>${fmt(n/10,1)} km</b><span>mapped coastal road under water</span></div><div class="stat"><b>${fmt((D.tsunami||[]).filter(r=>r.wave_m===near).reduce((s,r)=>s+r.km,0),0)} km</b><span>all roads the sea reaches (${near} m run)</span></div></div>
-      ${townTable(tt, [['Town',r=>titleCase(r.town)],['Road under water',r=>fmt(r.km,1)+' km','n'],['Median depth',r=>fmt(r.median_depth_m,1)+' m','n']], r=>r.town)}
-      <p class="note">Real tsunami waves climb higher on land than their height at the shore: about 1–2× on most coasts, more where the shore funnels the water. The run-up setting raises the water to cover that. Bending around headlands and draining back are not modelled.</p>`;
-    wireGo(); setTitle('Tsunami what-if', `${a0} m wave${f>1?', '+f+'× run-up':''} on top of high tide`, `${fmt(n/10,1)} km of mapped coastal road under water`); scheduleDraw(true); };
-  sel.oninput=go; ru.onchange=go; go();
-  $('#howto').textContent = 'Raises the sea by the chosen height wherever the sea can reach and marks roads below that level.';
-}
-
-const VI = (D.validation||{}).inland||{}, VC = (D.validation||{}).coastal||{};
-/* ---------- model check ---------- */
-function ciBars(rows, lo=0.6, hi=1){ const w=320, rh=30, h=rows.length*rh+30, x=v=>110+(w-120)*(v-lo)/(hi-lo);
-  const ticks=[0.4,0.5,0.6,0.7,0.8,0.9,1.0].filter(t=>t>=lo&&t<=hi);
-  return `<svg viewBox="0 0 ${w} ${h}" style="display:block;width:100%;aspect-ratio:${w}/${h};flex:none" role="img" aria-label="AUC with 95% ranges">${ticks.map(t=>`<line x1="${x(t)}" x2="${x(t)}" y1="4" y2="${h-16}" stroke="${C.muted}" stroke-opacity=".25"/><text x="${x(t)}" y="${h-4}" font-size="9" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${t.toFixed(1)}</text>`).join('')}
-  ${rows.map((r,i)=>{ const y=i*rh+22; return `<text x="0" y="${y+4}" font-size="10.5" fill="${C.ink}" font-family="IBM Plex Sans,sans-serif">${r[0]}</text>${r[2]?`<line x1="${x(r[2][0])}" x2="${x(r[2][1])}" y1="${y}" y2="${y}" stroke="${r[3]||C.accent}" stroke-width="3" stroke-opacity=".45" stroke-linecap="round"/>`:''}<circle cx="${x(r[1])}" cy="${y}" r="4.5" fill="${r[3]||C.accent}"/><text x="${x(r[1])}" y="${y-8}" font-size="9.5" text-anchor="middle" fill="${C.ink}" font-family="IBM Plex Mono,monospace">${r[1].toFixed(3)}</text>`; }).join('')}</svg>`; }
-function relPlot(pts, maxv){ const w=300, h=210, m=34, X=v=>m+(w-m-10)*Math.sqrt(v/maxv), Y=v=>h-m+((m+6)-(h-m))*Math.sqrt(v/maxv), tk=[0.01,0.05,0.2,0.5].filter(t=>t<=maxv);
-  return `<svg viewBox="0 0 ${w} ${h}" style="display:block;width:100%;aspect-ratio:${w}/${h};flex:none" role="img" aria-label="Predicted against observed flood rate"><line x1="${X(0)}" y1="${Y(0)}" x2="${X(maxv)}" y2="${Y(maxv)}" stroke="${C.muted}" stroke-dasharray="4 3"/>
-  ${tk.map(t=>`<text x="${X(t)}" y="${h-m+14}" font-size="9" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${Math.round(t*100)}%</text><text x="${m-4}" y="${Y(t)+3}" font-size="9" text-anchor="end" fill="${C.muted}" font-family="IBM Plex Mono,monospace">${Math.round(t*100)}%</text>`).join('')}
-  <text x="${(w+m)/2}" y="${h-4}" font-size="9.5" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Sans,sans-serif">model said</text><text x="10" y="${(h-m)/2}" font-size="9.5" text-anchor="middle" fill="${C.muted}" font-family="IBM Plex Sans,sans-serif" transform="rotate(-90 10 ${(h-m)/2})">really happened</text>
-  ${pts.map(p=>`<circle cx="${X(Math.min(p.p,maxv))}" cy="${Y(Math.min(p.o,maxv))}" r="${3+Math.min(6,Math.log10(p.n))}" fill="${p.c}" fill-opacity=".8" stroke="${C.panel}"/>`).join('')}</svg>`; }
-function mCheckSeg(){
-  Promise.all(['graph_results.json', 'graph_experiments.json', 'graph_replay_hrrr.json', 'graph_transfer.json'].map(u => getJSON(u).catch(() => null))).then(([R_, X_, H_, T_]) => {
-    const el = $('#chk-seg'); if (!el || state.mode !== 'check') return; let h = '';
-    if (R_ && R_.results) h += `<span class="lbl">Road segment models · District 3 · test storms 2017–2026</span><div class="tblwrap" style="max-height:none"><table><thead><tr><th>Model</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${R_.results.map(r => `<tr><td>${r.model.replace(/^\d+[ab]?\. /, '')}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct * 100)}%</td></tr>`).join('')}</tbody></table></div>`;
-    if (T_ && T_.results) h += `<span class="lbl">Across districts: same features, never-seen region</span><div class="tblwrap" style="max-height:none"><table><thead><tr><th>Trained → tested</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${T_.results.filter(r => r.days).map(r => `<tr><td>${r.model}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct * 100)}%</td></tr>`).join('')}</tbody></table></div><p class="note">${T_.note || ''}</p>`;
-    if (H_ && H_.summary){ const v = (k, m) => H_.summary[k] && H_.summary[k].average && H_.summary[k].average[m] ? H_.summary[k].average[m].mean : null;
-      h += `<span class="lbl">With only the NOAA forecast · ${H_.days} storm days</span><div class="tblwrap" style="max-height:none"><table><tbody>${[['obs', 'Measured rain (hindsight)'], ['same_day', 'Forecast from the evening before'], ['day_ahead', 'Forecast ~16 h earlier']].map(([k, nm]) => `<tr><td>${nm}</td><td class="n">${fmt(v(k, 'auc_wet'), 3)}</td><td class="n">${v(k, 'top5_all') == null ? '–' : Math.round(v(k, 'top5_all') * 100) + '%'}</td></tr>`).join('')}</tbody></table></div>`; }
-    if (X_ && X_.rows) h += `<span class="lbl">Upgrades tried</span><div class="tblwrap" style="max-height:none"><table><tbody>${X_.rows.map(r => `<tr><td>${r.name}</td><td class="n">${r.auc.toFixed(3)}</td></tr>`).join('')}</tbody></table></div>`;
-    el.innerHTML = h; });
-}
-function mCheck(){ setTimeout(mCheckSeg, 0);
-  layer = {townFill: n=>{ const p=tprops.get(n); if (!p) return null; return String(p.district)==='3' ? C.shallow : C.accent; }, townTip: n=>{ const p=tprops.get(n); return `<b>${titleCase(n)}</b><br>${p? (String(p.district)==='3'?'District 3: used as an unseen test region, then added to training':'Districts 4–6: original training region') : 'outside the model area'}`; }};
-  legend(`<b>Rain model coverage</b><div><span class="sw" style="background:${C.accent}"></span>Districts 4–6 (original training)</div><div><span class="sw" style="background:${C.shallow}"></span>District 3 (tested blind, then added)</div>`);
-  $('#controls').innerHTML = `<p class="note">Every score here comes from leave-one-year-out testing: the model is trained without a year, then scored on that year, for every year. Ranges are 95% bootstrap intervals over storm days.</p>`;
-  $('#howto').textContent = 'AUC is the chance the model ranks a real flood above a non-flood (0.5 = coin flip, 1 = perfect). The reliability chart checks whether a forecast of X% comes true X% of the time: dots on the dashed line are perfectly calibrated.';
-  engine('Validation numbers computed overnight in Colab from the saved training tables');
-  const rc = (VI.reliability_combined||[]).map(r=>({p:r.predicted,o:r.observed,n:r.n,c:C.accent})), rco = (VC.reliability||[]).map(r=>({p:r[2],o:r[3],n:r[1],c:C.r2}));
-  const cm = VC.models||[], hw = VC.hwm||{}, sy = VC.same_years_check||{};
-  const FD = window.__findings || [];
-  $('#readout').innerHTML = `<h2>How good is it?</h2>
-   ${FD.length ? `<span class="lbl">Findings so far</span><div class="tblwrap" style="max-height:none"><table><tbody>${FD.map(f => `<tr><td><b>${f.t}</b> <span style="font-family:var(--mono);color:var(--accent);white-space:nowrap">${f.v}</span><br><span class="note">${f.n}</span></td></tr>`).join('')}</tbody></table></div>` : ''}
-   <div id="chk-seg"></div>
-   <span class="lbl">Rain flooding · town-days ${fmt((VI.combined_all||{}).rows)} tested, ${fmt((VI.combined_all||{}).floods)} with a flood</span>
-   ${ciBars([['Districts 4–6', (VI.east_D46||{}).AUC||0, (VI.east_D46||{}).AUC_95CI], ['District 3, never seen', (VI.transfer_D3||{}).AUC||0, (VI.transfer_D3||{}).AUC_95CI, C.shallow], ['All, combined model', (VI.combined_all||{}).AUC||0, (VI.combined_all||{}).AUC_95CI]])}
-   <p class="note">Trained only on Districts 4–6, the model ranked floods in District 3 towns as well as at home. The map now uses one model trained on all four districts.</p>
-   <span class="lbl">Coastal flooding · ${fmt(VC.zone_days)} zone-days, ${fmt(VC.reports)} with NOAA reports</span>
-   ${ciBars(cm.filter(r=>r[1]==='lr'||r[0].includes('waves')).map(r=>[r[0].replace(' (current)','')+(r[1]==='trees'?' (trees)':''), r[2], r[3], r[0].includes('waves')?C.r2:C.accent]), 0.6, 1)}
-   <p class="note">Adding the day's biggest offshore wave height (NOAA buoys) lifts the score from ${sy.lr?sy.lr[0]:'–'} to ${sy.lr?sy.lr[1]:'–'} on the same ${sy.years||''} days. Waves alone score ${sy.waves_alone||'–'}.</p>
-   <span class="lbl">Reliability · does X% happen X% of the time?</span>
-   ${relPlot(rc.concat(rco), 0.7)}
-   <p class="note"><span class="sw" style="background:${C.accent}"></span>rain model &nbsp; <span class="sw" style="background:${C.r2}"></span>coastal model (with waves). Bigger dots = more days.</p>
-   <span class="lbl">Checked against USGS high-water marks</span>
-   <div class="stats"><div class="stat"><b>${hw.detection_2018_01?hw.detection_2018_01[0]+' of '+hw.detection_2018_01[1]:'–'}</b><span>Jan 2018 marks near roads (water above the road surface) where the model had the road under water</span></div><div class="stat"><b>+${fmt((hw.local_minus_gauge_m||{}).median,2)} m</b><span>median: water at the marks above water at the nearest tide gauge (waves and wind push)</span></div></div>
-   <p class="note">${fmt(hw.marks)} USGS marks in eastern Massachusetts from 6 storms (1978–2018). The road check uses the January 2018 nor'easter, the one storm both on the map's replay list and surveyed by USGS. Marks only exist where water was, so this measures misses, not false alarms.</p>${checkExtra()}`;
-}
-function checkExtra(){ const VR=(D.validation||{}).roads; let s='';
-  if (VR) s += `<span class="lbl">Which roads in a town flood first · ${fmt(VR.town_days)} flooded town-days</span>
-   ${ciBars([['Lowest roads first', VR.baseline||0.5, null, C.muted], ['Road model', VR.mean_auc||0.5, VR.ci||null, C.r2]], 0.4, 1)}
-   <div class="stats"><div class="stat"><b>${Math.round((VR.share_top10||0)*100)}%</b><span>of reported flooded roads were in the model's top 10% of that town's roads</span></div></div>
-   <p class="note">Each road piece was scored from lidar terrain: how low it sits compared with roads around it (250 m and 600 m) and within its town. It beats "lowest roads first" but is <b>not shown on the map yet</b>: many top-ranked streets sit on hills, a sign that report locations (often placed at a town centre or a crossroads) are too rough to teach street-level detail. Needs exact flood locations (311 calls, MassDOT closure logs) before it can be trusted.</p>`;
-  const O4=(D.validation||{}).forecast_o4, O6=(D.validation||{}).forecast_stofs;
-  if (O4) s += `<span class="lbl">Can the live tab see a storm coming? (48 h ahead)</span>
-   <table><thead><tr><th>Gauge, 1996–2026</th><th>Storms</th><th>Tide table + current surge</th></tr></thead><tbody>${Object.entries(O4).map(([k,v])=>`<tr><td>${k}</td><td>${v.storm_days}</td><td>${v.tide_plus_surge_pos.storms_caught.split('/')[0]} caught · peak ${fmt(-v.tide_plus_surge_pos.bias_storm_cm,0)} cm too low</td></tr>`).join('')}</tbody></table>
-   <p class="note">Keeping today's surge constant misses almost every storm: the surge has not arrived when the forecast is made. "Storm" = the next 48 h reached a 1-in-2-year level.</p>`;
-  if (O6) s += `<span class="lbl">Fix: NOAA's STOFS surge model · ${O6.forecast_days} forecasts ${O6.period}</span>
-   <table><thead><tr><th>Forecast</th><th>High-water days caught</th><th>False alarms</th></tr></thead><tbody>${O6.rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
-   <p class="note">Each day's 12 UTC STOFS-2D-Global run (public NOAA archive), levelled to each gauge on the 6 hours before issue, scored on the next 48 h. High-water day = the ${O6.threshold} or higher. The live tab now takes the higher of STOFS and the old shortcut, and draws the STOFS curve on each tide chart (red line).</p>`;
-  return s; }
-/* ================= District 3 road segment graph ================= */
-let GSEG = null, GLIVE = null, GREP = null, GRES = null, GHR = null, GEXP = null, gLoading = null;
-// ---------- knock-on effects on the road network: segments that are dry but cut off, and roads that take the detour traffic ----------
-let GNET = null;
-function gNet(){ if (GNET) return GNET; const n = GSEG.n, deg = new Int32Array(n + 1); for (const [a, b] of GSEG.links){ deg[a + 1]++; deg[b + 1]++; }
-  for (let i = 0; i < n; i++) deg[i + 1] += deg[i]; const nb = new Int32Array(deg[n]), fill = deg.slice(0, n);
-  for (const [a, b] of GSEG.links){ nb[fill[a]++] = b; nb[fill[b]++] = a; }
-  const major = Uint8Array.from(GSEG.P.cls, c => c >= 1 ? 1 : 0);
-  GNET = {n, off: deg, nb, major}; GNET.base = reach(new Uint8Array(n)); return GNET; }
-function reach(blocked){ const {n, off, nb, major} = GNET, seen = new Uint8Array(n), q = new Int32Array(n); let h = 0, t = 0;   // every dry segment that can still reach a numbered route
-  for (let i = 0; i < n; i++) if (major[i] && !blocked[i]){ seen[i] = 1; q[t++] = i; }
-  while (h < t){ const i = q[h++]; for (let j = off[i]; j < off[i + 1]; j++){ const v = nb[j]; if (!seen[v] && !blocked[v]){ seen[v] = 1; q[t++] = v; } } }
-  return seen; }
-function cascade(flooded){ const G = gNet(), {n, off, nb} = G, now = reach(flooded), cut = new Uint8Array(n), extra = new Float32Array(n), A = GSEG.P.aadt;
-  let nCut = 0, kmCut = 0, moved = 0, top = -1;
-  for (let i = 0; i < n; i++) if (!flooded[i] && G.base[i] && !now[i]){ cut[i] = 1; nCut++; kmCut += GSEG.P.len[i] / 1000; }
-  for (let i = 0; i < n; i++){ if (!flooded[i]) continue; const a = A[i] || 0; moved += a;          // traffic on a flooded segment spills onto the dry roads around it (1 and 2 links away)
-    if (top < 0 || a > (A[top] || 0)) top = i;
-    const h1 = []; for (let j = off[i]; j < off[i + 1]; j++){ const v = nb[j]; if (!flooded[v]) h1.push(v); }
-    for (const v of h1) extra[v] += 0.6 * a / h1.length;
-    const h2 = []; for (const v of h1) for (let j = off[v]; j < off[v + 1]; j++){ const u = nb[j]; if (!flooded[u] && u !== i) h2.push(u); }
-    for (const u of h2) extra[u] += 0.4 * a / h2.length; }
-  let nBusy = 0; for (let i = 0; i < n; i++) if (extra[i] >= 1000 && !cut[i]) nBusy++;
-  return {cut, extra, nCut, kmCut, moved, nBusy, top}; }
-async function loadGraph(){
-  if (GSEG) return; if (gLoading) return gLoading;
-  gLoading = (async () => {
-    const [S_, L_, R_, X_, H_, E_] = await Promise.all(['graph_segments.json', 'graph_live.json', 'graph_replays.json', 'graph_results.json', 'graph_replay_hrrr.json', 'graph_experiments.json'].map(u => getJSON(u).catch(() => null)));
-    if (!S_) throw new Error('graph data missing');
-    const geo = [], bb = [], mid = [];
-    for (const parts of S_.geo){ const segs = []; let b = [1e9,1e9,-1e9,-1e9];
-      for (const d of parts){ const out = new Float32Array(d.length); let x = 0, y = 0; for (let j=0;j<d.length;j+=2){ x += d[j]; y += d[j+1]; out[j] = x/1e5; out[j+1] = mY(y/1e5); b[0]=Math.min(b[0],out[j]); b[2]=Math.max(b[2],out[j]); b[1]=Math.min(b[1],out[j+1]); b[3]=Math.max(b[3],out[j+1]); } segs.push(out); }
-      geo.push(segs); bb.push(b); const c = segs[0], h = Math.floor(c.length/4)*2; mid.push(c.length ? [c[h], c[h+1]] : [0,0]); }
-    GSEG = {n: S_.n, geo, bb, mid, links: S_.links, P: S_.props}; GSEG.quad = d3.quadtree().x(i=>mid[i][0]).y(i=>mid[i][1]).addAll(d3.range(S_.n));
-    GLIVE = L_; GREP = R_ || {}; GRES = X_; GHR = H_; GEXP = E_;
-  })();
-  return gLoading;
-}
-const rankColor = r => r==null||r<90 ? null : r<95 ? C.r1 : r<98 ? C.r2 : r<99 ? C.r3 : C.r4;
-const MODEL_NAMES = {RF:'H-V-C risk index', SPR:'Rule-based spreading', ML:'Segment-only ML (trees)', GNN:'Graph neural network', GNN2:'Graph network on top of trees'};
-const segName = i => { const P = GSEG.P; return `<b>${P.road[i] || 'Road segment'}</b><br>${P.town[i]} · ${fmt(P.len[i])} m · ${P.aadt[i] ? fmt(P.aadt[i]) + ' vehicles/day' : ''}`; };
-async function mGraph(){
-  setTitle('District 3 · MassDOT road segments', 'Road segment graph', 'Every road segment is a node; segments that meet at a junction are linked. Four models rank which segments flood.');
-  legend('<b>Loading the road graph…</b>'); $('#readout').innerHTML = '<h2>Road segment graph</h2><p class="note">Loading 52,698 segments…</p>'; layer = {};
-  try { await loadGraph(); } catch(e){ $('#readout').innerHTML = '<h2>Road segment graph</h2><p class="empty">The graph files are not published yet.</p>'; return; }
-  if (state.mode !== 'graph') return;
-  const st = state.graph || (state.graph = {view: 'live', day: Object.keys(GREP||{})[0], model: 'ML'});
-  if (state.lock === 'now') st.view = 'live'; else if (state.lock === 'replay' && Object.keys(GREP||{}).length) st.view = 'replay';
-  const days = Object.keys(GREP||{});
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="gview">Show</label><select id="gview"><option value="live">Live: next 24 hours (NOAA forecast)</option>${days.length ? '<option value="replay">Replay a past storm</option>' : ''}</select></div>
-    <div class="ctl" id="greplay" ${st.view==='replay'?'':'hidden'}><label class="lbl" for="gday">Storm</label><select id="gday">${days.map(d=>`<option value="${d}">${new Date(d+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})} · ${GREP[d].floods.length} flooded segments</option>`).join('')}</select>
-    <label class="lbl" for="gmodel" style="margin-top:8px">Model</label><select id="gmodel">${Object.entries(MODEL_NAMES).filter(([k])=>GREP[days[0]]?.ranks[k]).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>`;
-  $('#gview').value = st.view; if (st.day) $('#gday').value = st.day; $('#gmodel').value = st.model;
-  if (state.lock) $('#gview').closest('.ctl').hidden = true;
-  $('#gview').onchange = e => { st.view = e.target.value; mGraph(); scheduleDraw(true); };
-  if ($('#gday')) $('#gday').onchange = e => { st.day = e.target.value; mGraph(); scheduleDraw(true); };
-  if ($('#gmodel')) $('#gmodel').onchange = e => { st.model = e.target.value; mGraph(); scheduleDraw(true); };
-  $('#howto').textContent = st.view==='live' ? 'Coloured segments are where the model expects a reported road flood in the next 24 hours, from the latest NOAA HRRR rain forecast (refreshed every 6 hours). Zoom in to see the graph itself: dots are segments, grey lines join segments that meet at a junction.' : 'Colours show where the chosen model ranked each segment that day (top 10%, 5%, 2%, 1% of segments that got 20 mm or more). Outlined segments are where a flood was actually recorded. A good model puts the outlines inside the dark colours.';
-  const res = (GRES && GRES.results) || [];
-  const table = res.length ? `<div class="tblwrap"><table><thead><tr><th>Model, test storms 2017–2026</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>${res.map(r=>`<tr><td>${r.model.replace(/^\d+[ab]?\. /,'')}</td><td class="n">${r.mean_daily_auc.toFixed(3)}</td><td class="n">${Math.round(r.top5pct*100)}%</td></tr>`).join('')}</tbody></table></div><p class="note">AUC: chance a flooded segment is ranked above a dry one on the same storm day (0.5 = coin flip). Top 5%: share of recorded floods inside the day's top 5% of segments. Trained on 2002–2016 only.</p>` : '';
-  const etable = GEXP ? `<span class="lbl">Upgrades tried (same 108 test storm days)</span><div class="tblwrap" style="max-height:none"><table><thead><tr><th>Change</th><th class="n">AUC</th><th class="n">vs base</th></tr></thead><tbody>${GEXP.rows.map(r => `<tr><td>${r.name}</td><td class="n">${r.auc.toFixed(3)}</td><td class="n">${r.gain == null ? '–' : (r.gain >= 0 ? '+' : '') + r.gain.toFixed(3)}</td></tr>`).join('')}</tbody></table></div><p class="note">${GEXP.note}</p>` : '';
-  const hs = GHR && GHR.summary, hv = (k, mo, m) => hs && hs[k] && hs[k][mo] && hs[k][mo][m] ? hs[k][mo][m].mean : null;
-  const ftable = hs ? `<span class="lbl">Forecast test: the model fed only NOAA's HRRR forecast</span><div class="tblwrap"><table><thead><tr><th>${GHR.days} storm days, 2018–2026</th><th class="n">AUC</th><th class="n">Top 5%</th></tr></thead><tbody>
-    ${[['obs', 'Observed rain (hindsight)'], ['same_day', 'Forecast issued the evening before'], ['day_ahead', 'Forecast issued ~16 h before']].map(([k, nm]) => `<tr><td>${nm}</td><td class="n">${fmt(hv(k, 'average', 'auc_wet'), 3)}</td><td class="n">${hv(k, 'average', 'top5_all') == null ? '–' : Math.round(hv(k, 'average', 'top5_all') * 100) + '%'}</td></tr>`).join('')}</tbody></table></div>
-    <p class="note">Average of trees and graph network. AUC on segments that really got 20 mm or more; Top 5%: recorded floods inside the day's top 5% of all District 3 segments. Recorded floods where HRRR forecast 20 mm or more: ${fmt(GHR.floods_where_hrrr_forecast_20mm.same_day)} of ${fmt(GHR.floods_total)}.</p>` : '';
-  if (st.view === 'live'){
-    const L = GLIVE || {p1000: []}, P = L.p1000, SC = L.scale || 1000, RK = L.rank100, pct = v => (v||0) / SC * 100;
-    const chance = i => { const c = pct(P[i]); return c <= 0 ? 'not scored (under 20 mm forecast)' : `<b>${c < 0.1 ? fmt(c, 3) : fmt(c, 2)}%</b> (about 1 in ${fmt(100 / c)})`; };
-    layer = RK ? {segColor: i => rankColor(RK[i]), segTip: i => segName(i) + `<br>chance of a reported flood here, next 24 h: ${chance(i)}${RK[i] ? `<br>top ${Math.max(1, 100 - RK[i])}% of segments in the rain` : ''}`}
-               : {segColor: i => riskColor((P[i]||0)/SC), segTip: i => segName(i) + `<br>flood chance next 24 h: <b>${fmt(pct(P[i]), 1)}%</b>`};
-    legend((RK ? `<b>Rank among segments forecast to get 20 mm+</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>top 10%</span><span>5%</span><span>2%</span><span>1%</span></div>` : rampLegend('Chance of a reported flood on the segment, next 24 h')) + '<div class="note">Hover a segment for its calibrated chance. Zoom in to see the graph links.</div>');
-    engine(`Model: ${L.model||'–'} · NOAA HRRR ${L.hrrr_latest||'–'} (${L.runs||0} runs) · ground wetness: ${L.wetness||'–'} · updated ${L.asof||'–'}`);
-    const top = (L.top||[]).slice(0, 12);
-    $('#readout').innerHTML = `<h2>Next 24 hours</h2>
-      <div class="stats"><div class="stat"><b>${fmt(L.max_rain_1h_mm,1)} mm</b><span>heaviest 1-hour rain forecast in District 3</span></div><div class="stat"><b>${fmt(L.n_scored)}</b><span>segments forecast to get 20 mm or more</span></div>${L.expected_reports != null ? `<div class="stat"><b>${fmt(L.expected_reports, 1)}</b><span>flooded-road reports expected in District 3 (calibrated)</span></div>` : ''}</div>
-      <span class="lbl">Segments most at risk</span>${top.length ? `<div class="tblwrap"><table><tbody>${top.map(([i,q])=>`<tr class="go" data-seg="${i}"><td>${GSEG.P.road[i]||'Road'}<br><span class="note">${GSEG.P.town[i]}</span></td><td class="n">${fmt(pct(q), pct(q) < 0.1 ? 3 : 2)}%</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No segment is forecast to get 20 mm of rain. Dry spell: nothing to flag.</p>'}
-      <span class="lbl">How the four models compare</span>${table}${ftable}${etable}`;
-  } else {
-    const rp = GREP[st.day], rk = (rp.ranks[st.model] || []);
-    const rec = new Set(rp.floods);
-    layer = {segColor: i => rankColor(rk[i]), segRing: rp.floods, segTip: i => segName(i) + `<br>${MODEL_NAMES[st.model]}: ${rk[i] ? 'top ' + Math.max(1, 100 - rk[i]) + '% of wet segments' : 'not in the wet area'}${rec.has(i) ? '<br><b>flood recorded here that day</b>' : ''}`};
-    legend(`<b>${MODEL_NAMES[st.model]}: rank that day</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>top 10%</span><span>5%</span><span>2%</span><span>1%</span></div><div><span class="sw" style="background:${C.panel};outline:2px solid ${C.ink}"></span>recorded flood</div>`);
-    const caught = k => { const r = rp.ranks[k]||[]; return rp.floods.filter(i => (r[i]||0) >= 95).length; };
-    engine(`Replay ${st.day} · ${fmt(rp.wet)} segments got 20 mm or more · heaviest rain cell ${fmt(rp.rain_max_mm)} mm`);
-    $('#readout').innerHTML = `<h2>${new Date(st.day+'T12:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</h2>
-      <span class="lbl">Recorded floods inside each model's top 5%</span>
-      <div class="tblwrap" style="max-height:none"><table><tbody>${Object.keys(MODEL_NAMES).filter(k=>rp.ranks[k]).map(k=>`<tr${k===st.model?' style="font-weight:600"':''}><td>${MODEL_NAMES[k]}</td><td class="n">${caught(k)} of ${rp.floods.length}</td></tr>`).join('')}</tbody></table></div>
-      <span class="lbl">Flooded segments that day</span><div class="tblwrap"><table><tbody>${rp.floods.slice(0,15).map(i=>`<tr class="go" data-seg="${i}"><td>${GSEG.P.road[i]||'Road'}<br><span class="note">${GSEG.P.town[i]}</span></td><td class="n">top ${rk[i] ? Math.max(1, 100 - rk[i]) : '–'}%</td></tr>`).join('')}</tbody></table></div>
-      <span class="lbl">All test storms</span>${table}`;
-  }
-  document.querySelectorAll('#readout tr[data-seg]').forEach(tr => tr.onclick = () => { const b = GSEG.bb[+tr.dataset.seg]; const pad = 0.004; flyTo([b[0]-pad, b[1]-pad, b[2]+pad, b[3]+pad]); });
-  scheduleDraw(true);
-}
-/* ================= water movement simulation (Water tab) ================= */
-window.__W = () => ({WSIM, st: state.water}); const WSIM = {}, SIM_IDS = ['forecast', 'flash_state', 'flash', 'flash_fcst', 'flash_fcst18', 'attleboro', 'boston', 'southshore', 'coastal'], SIM_LABEL = {flash_state: 'Flash flood · Sept 11, 2023 · whole area D3–6', flash_fcst18: 'Forecast test · Sept 11, 2023 · HRRR from 2 pm', flash_fcst: 'Forecast test · Sept 11, 2023 · HRRR from that morning', attleboro: 'Flash flood · Sept 11, 2023 · North Attleborough', forecast: 'Forecast · next 30 h (live, NOAA HRRR)', flash: 'Flash flood · Sept 11, 2023 · Leominster', boston: "Coastal · Jan 4, 2018 · Boston Harbor (zoomed)", southshore: "Coastal · Jan 4, 2018 · South Shore (zoomed)", coastal: "Coastal · Jan 4, 2018 · whole coast (overview)"}; let wTimer = 0;
-Object.assign(SIM_LABEL, {northshore: 'Coastal · Jan 4, 2018 · North Shore (zoomed)', boston_slr05: 'Same storm, sea +0.5 m (about 2050–60) · Boston', boston_slr10: 'Same storm, sea +1.0 m (about 2080–90) · Boston'});
-SIM_LABEL.boston = 'Coastal · Jan 4, 2018 · Boston Harbor (zoomed)';
-SIM_IDS.push('northshore', 'boston_slr05', 'boston_slr10');
-const MOSAIC = {flash_mosaic: Array.from({length: 29}, (_, i) => 'fm' + String(i).padStart(2, '0')), dec_mosaic: Array.from({length: 29}, (_, i) => 'dm' + String(i).padStart(2, '0')),
-  coast_mosaic: ['northshore', 'southshore', 'cm_plymouth', 'cm_ccbay', 'cm_outer', 'cm_southcape', 'cm_buzzards', 'cm_fallriver', 'cm_vineyard', 'cm_nantucket', 'boston']};
-Object.assign(SIM_LABEL, {dec_state: 'Statewide rain · Dec 18, 2023 · one connected model (rivers, 100 m)', dec_mosaic: 'Statewide rain · Dec 18, 2023 · all of Districts 3–6 (paved ground + wet soil)', flash_mosaic: 'All of Districts 3–6 · Sept 11, 2023 (every town, 50 m)', coast_mosaic: 'Whole Massachusetts coast · Jan 4, 2018 (every harbor)'});
-SIM_IDS.push('flash_mosaic', 'coast_mosaic', 'dec_mosaic', 'dec_state');
-const SIM_GROUPS = {now: ['forecast'], 'replay/water': ['dec_mosaic', 'dec_state', 'flash_mosaic', 'flash_state', 'flash', 'attleboro', 'flash_fcst', 'flash_fcst18'], 'replay/coastal': ['coast_mosaic', 'coastal', 'boston', 'northshore', 'southshore'], 'future/seawater': ['boston_slr05', 'boston_slr10', 'boston']};
-// a mosaic is many tiles of the same storm on the same clock, drawn together as one scene
-async function loadMosaic(id){ const got = await Promise.all(MOSAIC[id].map(t => loadSim(t).catch(() => null)));
-  const T = got.filter(t => t && t.status !== 'dry' && t.n); if (!T.length) throw new Error('no tiles yet');
-  const ref = T.reduce((a, b) => b.n > a.n ? b : a, T[0]), tiles = T.filter(t => t.n === ref.n && t.frame_min === ref.frame_min);
-  const isF = ref.kind === 'flash', gauge = tiles.find(t => t.station === '8443970') || ref;
-  const frames = ref.frames.map((f, k) => { const o = {t: f.t, wet_km2: 0, deep_km2: 0, roads_wet: 0, rain_max_mmph: 0, rain_mmph: 0, soaked_mm: 0};
-    for (const t of tiles){ const g = t.frames[k]; o.wet_km2 += g.wet_km2 || 0; o.deep_km2 += g.deep_km2 || 0; o.roads_wet += g.roads_wet || 0; o.rain_max_mmph = Math.max(o.rain_max_mmph, g.rain_max_mmph || 0); o.rain_mmph += (g.rain_mmph || 0) / tiles.length; o.soaked_mm += (g.soaked_mm || 0) / tiles.length; }
-    if (!isF) o.level_navd_m = gauge.frames[k].level_navd_m; if (ref.frames[k].soaked_mm == null) delete o.soaked_mm; return o; });
-  const m = {id, mosaic: true, tiles: tiles.sort((a, b) => b.cell_m - a.cell_m), kind: ref.kind, status: 'ok', n: ref.n, frame_min: ref.frame_min, frames, colors: ref.colors, show_m: ref.show_m,
-    title: (isF ? (id === 'dec_mosaic' ? 'Dec 18, 2023 radar rain over all of Districts 3–6, with NLCD paved surfaces and ground already wet' : 'Sept 11, 2023 radar rain over all of Districts 3–6') : "Jan 4, 2018 nor'easter along the whole Massachusetts coast") + ` · ${tiles.length} of ${MOSAIC[id].length} tiles ready`,
-    bounds: [Math.min(...tiles.map(t => t.bounds[0])), Math.min(...tiles.map(t => t.bounds[1])), Math.max(...tiles.map(t => t.bounds[2])), Math.max(...tiles.map(t => t.bounds[3]))],
-    shape: [tiles.reduce((a, t) => a + t.shape[0] * t.shape[1], 0), 1], cell_m: Math.min(...tiles.map(t => t.cell_m)), steps: tiles.reduce((a, t) => a + t.steps, 0), runtime_s: tiles.reduce((a, t) => a + t.runtime_s, 0),
-    rain_total_max_mm: Math.max(...tiles.map(t => t.rain_total_max_mm || 0)), rain_total_mean_mm: tiles.reduce((a, t) => a + (t.rain_total_mean_mm || 0), 0) / tiles.length,
-    station: isF ? null : [...new Set(tiles.map(t => t.station))].join(', '), peak_navd_m: gauge.peak_navd_m, mhhw_navd_m: gauge.mhhw_navd_m, peak_utc: gauge.peak_utc, vel_step: tiles.some(t => t.vel_step) ? 3 : 0, rain_frames: null, rainTiles: isF, rain_colors: ref.rain_colors};
-  const withRoads = tiles.filter(t => t.roads); if (withRoads.length){ const N = withRoads[0].rf.length; m.rf = new Int16Array(N).fill(-1); m.rl = new Int16Array(N).fill(-1); m.rp = new Float32Array(N);
-    m.roads = {kind: withRoads[0].roads.kind, first: {}, names: {}};
-    for (const t of withRoads){ for (const [i, v] of Object.entries(t.roads.first)){ if (m.rf[+i] < 0 || v < m.rf[+i]) m.rf[+i] = v; m.roads.first[i] = m.rf[+i]; } Object.assign(m.roads.names, t.roads.names || {});
-      for (let i = 0; i < N; i++){ if (t.rl[i] > m.rl[i]) m.rl[i] = t.rl[i]; if (t.rp[i] > m.rp[i]) m.rp[i] = t.rp[i]; } } }
-  m.img = Array.from({length: m.n}, (_, k) => ({complete: true, get naturalWidth(){ return m.tiles.every(t => { const n = tileNeed(t); return n === 0 || (n === 2 ? okImg(t.img[k]) : okImg((t.oimg || {})[k])); }) ? 1 : 0; }}));
-  m.maxProxy = {complete: true, get naturalWidth(){ return m.tiles.every(t => okImg(t.maxImg)) ? 1 : 0; }};
-  m.partial = tiles.length < MOSAIC[id].length; m.at = Date.now(); return (WSIM[id] = m); }
-async function loadSim(id){ if (WSIM[id] && WSIM[id].partial && Date.now() - WSIM[id].at > 60000) delete WSIM[id]; if (WSIM[id]) return WSIM[id]; if (MOSAIC[id]) return loadMosaic(id); const m = await getJSON('sim/' + id + '/meta.json'); m.img = new Array(m.n); m.ver = m.runtime_s + '-' + m.steps; WSIM[id] = m; if (m.rain_frames) m.rain_frames = m.rain_frames.map(([t, file]) => ({ms: Date.parse(t.replace('Z', ':00Z')), file}));
-  if (m.roads){ const N = m.roads.kind === 'coastal' ? R.lat.length : 60000; m.rf = new Int16Array(N).fill(-1); m.rl = new Int16Array(N).fill(-1); m.rp = new Float32Array(N);
-    for (const [i, v] of Object.entries(m.roads.first)) m.rf[+i] = v; for (const [i, v] of Object.entries(m.roads.last||{})) m.rl[+i] = v; for (const [i, v] of Object.entries(m.roads.peak||{})) m.rp[+i] = v[0]; }
-  return m; }
-function tileNeed(t){ const vb = viewBB(0), [a, b, c, d] = t.bounds; if (a > vb[2] || c < vb[0] || mY(b) < vb[1] || mY(d) > vb[3]) return 0; return t.pool && ps()*(c - a)/t.shape[1] < 2 ? 1 : 2; }   // 0 off screen, 1 small copy, 2 full frame
-function simImg(m, k){ if (m.mosaic){ m.tiles.forEach(t => { const n = tileNeed(t); if (n === 2) simImg(t, k); else if (n === 1) poolImg(t, k); }); return k === 'max' ? m.maxProxy : m.img[k]; }
-  if (k === 'max'){ if (!m.maxImg){ m.maxImg = new Image(); m.maxImg.onload = () => { if (state.mode === 'water') scheduleDraw(true); }; m.maxImg.src = `sim/${m.id}/max.png?v=${m.ver}`; } return m.maxImg; }
-  if (!m.img[k]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); wLoaded(m); }; im.src = `sim/${m.id}/f${String(k).padStart(3, '0')}.png?v=${m.ver}`; m.img[k] = im; } return m.img[k]; }
-const okImg = im => im && im.complete && im.naturalWidth > 0;
-function poolImg(m, k){ m.oimg = m.oimg || {}; if (!m.oimg[k]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); };
-  im.src = `sim/${m.id}/o${k === 'max' ? 'max' : String(k).padStart(3, '0')}.png?v=${m.ver}`; m.oimg[k] = im; }
-  return m.oimg[k]; }
-const simDay = m => m && m.kind === 'flash' && m.frames && m.frames.length && m.roads && m.roads.kind === 'graph' ? (() => { const d = new Date(Date.parse(m.frames[0].t.replace('Z', ':00Z'))).toLocaleDateString('en-CA', {timeZone: 'America/New_York'}); return GREP && GREP[d] ? d : null; })() : null;
-const simMs = (m, f) => { const k = Math.max(0, Math.min(m.frames.length - 1, Math.floor(f))), a = f - k, t0 = Date.parse(m.frames[k].t.replace('Z', ':00Z')); return t0 + a * m.frame_min * 60000; };
-function rainImg(m, i){ m.rimg = m.rimg || []; if (!m.rimg[i]){ const im = new Image(); im.onload = () => { if (state.mode === 'water' && !wTimer) scheduleDraw(true); }; im.src = `sim/${m.id}/${m.rain_frames[i].file}?v=${m.ver}`; m.rimg[i] = im; } return m.rimg[i]; }
-function wLoaded(m){ const cur = state.water && WSIM[state.water.id]; if (cur && cur.mosaic && cur !== m) m = cur; const n = m.img.filter(okImg).length; const e = $('#wload'); if (e) e.textContent = n < m.n ? `Loading frames ${n}/${m.n}…` : ''; }
-const simTime = (m, f) => new Date(Date.parse(m.frames[Math.max(0, Math.min(m.frames.length - 1, Math.round(f)))].t.replace('Z', ':00Z')));
-const etFmt = d => d.toLocaleString('en-US', {timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) + ' ET';
-function wChart(m){ const w = 300, h = 120, pl = 30, pr = 30, pt = 8, pb = 18, X = i => pl + (w - pl - pr) * i / (m.n - 1);
-  const A = m.frames.map(f => f.wet_km2), amax = Math.max(1e-6, ...A), isF = m.kind === 'flash';
-  const B = m.frames.map(f => isF ? f.rain_mmph : f.level_navd_m), bmin = isF ? 0 : Math.min(...B), bmax = Math.max(bmin + 1e-6, ...B);
-  const Ya = v => h - pb - (h - pt - pb) * v / amax, Yb = v => h - pb - (h - pt - pb) * (v - bmin) / (bmax - bmin);
-  const area = 'M' + X(0) + ',' + Ya(0) + A.map((v, i) => 'L' + X(i).toFixed(1) + ',' + Ya(v).toFixed(1)).join('') + 'L' + X(m.n - 1) + ',' + Ya(0) + 'Z';
-  const bars = isF ? B.map((v, i) => `<rect x="${(X(i) - 1.2).toFixed(1)}" y="${Yb(v).toFixed(1)}" width="2.4" height="${(h - pb - Yb(v)).toFixed(1)}" fill="var(--muted)" opacity=".55"/>`).join('')
-    : `<path d="${'M' + B.map((v, i) => X(i).toFixed(1) + ',' + Yb(v).toFixed(1)).join('L')}" fill="none" stroke="var(--ink)" stroke-width="1.4"/>`
-      + (m.mhhw_navd_m != null ? `<line x1="${pl}" x2="${w - pr}" y1="${Yb(m.mhhw_navd_m)}" y2="${Yb(m.mhhw_navd_m)}" stroke="var(--muted)" stroke-dasharray="3 3"/><text x="${w - pr + 2}" y="${Yb(m.mhhw_navd_m) + 3}">MHHW</text>` : '');
-  return `<svg class="wchart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" id="wsvg">${bars}<path d="${area}" fill="#3d8fd6" opacity=".35" stroke="#1f6fb5" stroke-width="1.2"/>
-    <text x="2" y="${pt + 6}">${fmt(amax, 0)} km²</text><text x="${w - pr + 2}" y="${pt + 6}">${isF ? fmt(bmax, 0) + ' mm/h' : fmt(bmax, 1) + ' m'}</text>
-    <text x="${pl}" y="${h - 4}">${etFmt(simTime(m, 0)).replace(/^\w+, /, '')}</text><text x="${w - pr}" y="${h - 4}" text-anchor="end">+${Math.round((m.n - 1) * m.frame_min / 60)} h</text>
-    <line id="wcur" x1="${pl}" x2="${pl}" y1="${pt}" y2="${h - pb}" stroke="var(--accent)" stroke-width="2"/></svg>
-    <div class="note"><span class="sw" style="background:#3d8fd6"></span>area under water · ${isF ? '<span class="sw" style="background:var(--muted)"></span>rain (district average, MRMS radar)' : '<span class="sw" style="background:var(--ink)"></span>Boston tide gauge (NAVD88)'}</div>`; }
-async function mWater(){
-  setTitle('Water movement simulation', 'Watch the water move', 'A 2-D flow model routes real radar rain over lidar terrain, and pushes a real storm tide over the coast.');
-  layer = {}; legend('<b>Loading the simulation…</b>');
-  const grp = state.lock === 'now' ? 'now' : state.tab + '/' + state.view[state.tab], IDS = SIM_GROUPS[grp] || SIM_IDS;
-  const st = state.water || (state.water = {id: (location.search.match(/sim=(\w+)/)||[])[1] || 'flash', f: 0, speed: 4, showMax: false, rain: true, roads: true});
-  if (st.grp !== grp){ st.grp = grp; st.flown = false; if (!IDS.includes(st.id)) { st.id = IDS[0]; st.f = 0; } }
-  if (!IDS.includes(st.id)) { st.id = IDS[0]; st.f = 0; }
-  let m; try { m = await loadSim(st.id); } catch(e){ console.warn('sim load', st.id, e); $('#readout').innerHTML = '<h2>Water</h2><p class="empty">The simulation frames are still being computed. Check back in a little while.</p>'; $('#controls').innerHTML = ''; legend(''); return; }
-  if (state.mode !== 'water') return;
-  if (m.status === 'dry' || !m.n){
-    $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>`;
-    $('#wsc').value = st.id; $('#wsc').onchange = e => { wStop(); st.id = e.target.value; st.f = 0; mWater().then(() => { const mm = WSIM[st.id]; if (mm && mm.n) wFly(mm); }); };
-    layer = {}; legend(''); $('#howto').textContent = 'Every 6 hours the map checks NOAA\'s HRRR rain forecast. When 20 mm or more is forecast anywhere in District 3, the same 2-D water model runs on the forecast rain and this scene shows where the water is expected to collect over the next 30 hours.';
-    engine(`Forecast check: NOAA HRRR ${m.issued || '–'} · ${m.built || ''}`);
-    $('#readout').innerHTML = `<h2>Water forecast</h2><div class="stats"><div class="stat"><b>${fmt(m.max_rain_mm, 1)} mm</b><span>most rain forecast anywhere in District 3, next 30 h</span></div></div><p class="empty">No heavy rain in the forecast (under ${fmt(m.threshold_mm)} mm), so there is no water to simulate. Pick a past storm above to watch one.</p>`;
-    scheduleDraw(true); return; }
-  if (m.roads && m.roads.kind === 'graph') { try { await loadGraph(); } catch(e){} if (state.mode !== 'water') return; }
-  let base2018 = null; if (m.sea_rise_m){ try { base2018 = await loadSim('boston'); } catch(e){} if (state.mode !== 'water') return; }
-  st.f = Math.min(st.f, m.n - 1);
-  $('#controls').innerHTML = `<div class="ctl"><label class="lbl" for="wsc">Scenario</label><select id="wsc">${IDS.map(i => `<option value="${i}">${SIM_LABEL[i]}</option>`).join('')}</select></div>
-    <div class="ctl"><span class="lbl">Time</span><div class="wtime" id="wtime"></div><input type="range" id="wbar" min="0" max="${(m.n - 1) * 20}" step="1" value="${Math.round(st.f * 20)}" aria-label="Simulation time">
-    <div class="wplay"><button class="btn" id="wplay">▶ Play</button><select id="wspd" aria-label="Speed" style="width:auto"><option value="2">slow</option><option value="4">normal</option><option value="8">fast</option></select>
-    <label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wmax"> highest water</label></div>
-    <div class="wplay">${m.rain_frames || m.rainTiles ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrain"> radar rain</label>' : ''}${m.roads ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wroads"> flooded roads</label>' : ''}${m.vel_step ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wflow"> moving streaks</label>' : ''}${m.roads && m.roads.kind === 'graph' ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wknock"> knock-on effects</label>' : ''}${simDay(m) ? '<label class="note" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="wrank"> model ranking that day</label>' : ''}</div><span class="note" id="wload"></span></div>`;
-  if ($('#wrain')){ $('#wrain').checked = st.rain; $('#wrain').onchange = e => { st.rain = e.target.checked; mWater(); }; }
-  if ($('#wknock')){ $('#wknock').checked = st.knock !== false; $('#wknock').onchange = e => { st.knock = e.target.checked; mWater(); }; }
-  if ($('#wflow')){ $('#wflow').checked = st.flow !== false; $('#wflow').onchange = e => { st.flow = e.target.checked; }; }
-  if (m.vel_step) flowStart();
-  if ($('#wrank')){ $('#wrank').checked = !!st.rank; $('#wrank').onchange = e => { st.rank = e.target.checked; mWater(); }; }
-  if ($('#wroads')){ $('#wroads').checked = st.roads; $('#wroads').onchange = e => { st.roads = e.target.checked; mWater(); }; }
-  $('#wsc').value = st.id; $('#wspd').value = String(st.speed); $('#wmax').checked = st.showMax;
-  $('#wsc').onchange = e => { wStop(); st.id = e.target.value; st.f = 0; mWater().then(() => { const mm = WSIM[st.id]; if (mm) wFly(mm); }); };
-  $('#wbar').oninput = e => { wStop(); st.f = +e.target.value / 20; st.showMax = false; $('#wmax').checked = false; wUpdate(); };
-  $('#wplay').onclick = () => wTimer ? wStop() : wStart();
-  $('#wspd').onchange = e => { st.speed = +e.target.value; };
-  $('#wmax').onchange = e => { st.showMax = e.target.checked; wUpdate(); };
-  const isF = m.kind === 'flash';
-  $('#howto').innerHTML = isF ? `Drag the bar or press play. Blue is water deeper than ${Math.round(m.show_m * 100)} cm: rain from NOAA's MRMS radar (1 km, every hour) falls on USGS lidar terrain, flows downhill and pools, and keeps soaking into the ground (Horton infiltration, fast at first, slower once the soil is wet) with a light storm-drain sink, so after the rain the flooded area shrinks as water soaks in and drains away. Everything is computed every few seconds with a 2-D shallow-water model (local-inertial, as in LISFLOOD-FP). Red roads are District 3 road segments under 30 cm or more of water at that moment.`
-    : `Drag the bar or press play. The sea follows the real Boston tide gauge record (6-minute readings), and a 2-D shallow-water model lets the water flow over the lidar ground and drain back with the tide, so low ground far from an opening floods less than a "bathtub" fill would show. Blue is water on ground that is normally dry (above the average higher high tide). Dark red marks are streets under 30 cm or more at that moment; the list on the right gives every street in the order the water reaches it (click one to jump there).`;
-  const drawOne = (tm, rainOn) => { const [lon0, lat0, lon1, lat1] = tm.bounds, x = lon0, y = mY(lat1), w = lon1 - lon0, h = mY(lat0) - mY(lat1);
-    if (y > VB[3] || y + h < VB[1] || x > VB[2] || x + w < VB[0]) return;
-    if (rainOn && tm.rain_frames && st.rain && !st.showMax){ const t = simMs(tm, st.f), RF = tm.rain_frames; let i = RF.findIndex(r => r.ms >= t - 1); if (i < 0) i = RF.length - 1;
-      const A = rainImg(tm, i); if (okImg(A)){ ctx.globalAlpha = 0.5; ctx.drawImage(A, x, y, w, h); ctx.globalAlpha = 1; } }
-    const cellPx = ps()*w/tm.shape[1], img = tm.pool && cellPx < 2 ? poolImg : simImg;   // zoomed out: small copies that keep each block's deepest cell
-    const soft = cellPx > 3 && !wTimer && !m.mosaic;                                       // zoomed in and paused: soften the grid (costly, so not while playing)
-    if (soft){ ctx.save(); ctx.filter = `blur(${Math.min(10, cellPx*0.4*dpr).toFixed(1)}px)`; }
-    if (st.showMax){ const im = img(tm, 'max'); if (okImg(im)) ctx.drawImage(im, x, y, w, h); }
-    else { const k = Math.floor(st.f), a = st.f - k, A = img(tm, k);
-      if (okImg(A)) ctx.drawImage(A, x, y, w, h);
-      if (!m.mosaic && a > 0.02){ const B = img(tm, Math.min(k + 1, tm.n - 1)); if (okImg(B)){ ctx.globalAlpha = a; ctx.drawImage(B, x, y, w, h); ctx.globalAlpha = 1; } } }
-    if (soft) ctx.restore(); };
-  let VB = [-1e9, -1e9, 1e9, 1e9];
-  layer.water = () => { VB = viewBB(0); ctx.save(); ctx.imageSmoothingEnabled = true;
-    if (m.mosaic || m.bounds[2] - m.bounds[0] > 1.5){ if (!MA_CLIP){ MA_CLIP = new Path2D(); for (const g of townGeo.values()) MA_CLIP.addPath(g.path); } ctx.clip(MA_CLIP); }   // keep statewide water on Massachusetts land
-    if (m.mosaic){ for (const t of m.tiles) drawOne(t, !!m.rainTiles); } else drawOne(m, true);
-    ctx.restore(); };
-  const on = i => { if (!m.rf || m.rf[i] < 0) return false; if (st.showMax) return true; const k = Math.round(st.f); return m.rf[i] <= k && m.rl[i] >= k; };
-  const roadInfo = i => `<br>under 30 cm+ of water from ${etFmt(simTime(m, m.rf[i])).replace(/^\w+, /, '')} to ${etFmt(simTime(m, m.rl[i])).replace(/^\w+, /, '')}<br>deepest: <b>${fmt(m.rp[i], 1)} m</b>`;
-  if (m.roads && st.roads && m.roads.kind === 'coastal'){ layer.roadColor = i => on(i) ? C.r4 : null; layer.roadTip = i => roadTipBase(i, roadInfo(i)); }
-  const CUT = '#7b3fb5';
-  const casc = () => { const k = st.showMax ? 'max' : Math.round(st.f); if (st._ck !== k || st._cm !== m.id){ const fl = new Uint8Array(GSEG.n); for (let i = 0; i < GSEG.n; i++) fl[i] = on(i) ? 1 : 0; st._cc = cascade(fl); st._ck = k; st._cm = m.id; } return st._cc; };
-  if (m.roads && st.roads && m.roads.kind === 'graph' && GSEG){
-    if (st.knock !== false){ layer.segColor = i => { if (on(i)) return C.r4; const c = casc(); return c.cut[i] ? CUT : c.extra[i] >= 3000 ? C.r2 : c.extra[i] >= 1000 ? C.r1 : null; };
-      layer.segTip = i => { const c = casc(); return segName(i) + (on(i) ? roadInfo(i) : c.cut[i] ? '<br><b>Not flooded, but cut off</b>: every way out to a numbered route crosses a flooded segment' : c.extra[i] >= 1000 ? `<br><b>Likely detour traffic</b>: about ${fmt(Math.round(c.extra[i] / 100) * 100)} extra vehicles/day pushed here from flooded roads nearby` : (m.rf[i] >= 0 ? roadInfo(i) : '')); }; }
-    else { layer.segColor = i => on(i) ? C.r4 : null; layer.segTip = i => segName(i) + (m.rf[i] >= 0 ? roadInfo(i) : ''); } }
-  const rkDay = st.rank && simDay(m), RK = rkDay && GREP && GREP[rkDay] && (GREP[rkDay].ranks.GNN || GREP[rkDay].ranks.ML);
-  if (RK && GSEG){ layer.segColor = i => rankColor(RK[i]); if (st.roads) Object.defineProperty(layer, 'segRing', {get: () => { const out = []; for (let i = 0; i < GSEG.n; i++) if (on(i)) out.push(i); return out; }, configurable: true});
-    layer.segTip = i => segName(i) + `<br>graph network that day: ${RK[i] ? 'top ' + Math.max(1, 100 - RK[i]) + '% of wet segments' : 'not in the wet area'}` + (m.rf[i] >= 0 ? roadInfo(i) : ''); }
-  legend(`<b>Water depth</b><div class="ramp">${m.colors.map(c => `<span style="background:rgba(${c[1][0]},${c[1][1]},${c[1][2]},${(c[1][3] / 255).toFixed(2)})"></span>`).join('')}</div><div class="rampl"><span>${Math.round(m.show_m * 100)} cm</span><span>30 cm</span><span>1 m</span><span>2.5 m</span><span>5 m+</span></div>${st.roads && m.roads ? `<div><span class="sw" style="background:${C.r4}"></span>road under 30 cm or more</div>` : ''}${st.roads && m.roads && m.roads.kind === 'graph' && st.knock !== false ? `<div><span class="sw" style="background:#7b3fb5"></span>dry but cut off (every way out is flooded)</div><div><span class="sw" style="background:${C.r2}"></span>detour traffic, 3,000+ vehicles/day</div><div><span class="sw" style="background:${C.r1}"></span>detour traffic, 1,000–3,000</div>` : ''}${(m.rain_frames || m.rainTiles) && st.rain ? `<b style="margin-top:6px;display:block">Radar rain (mm per hour)</b><div class="ramp">${m.rain_colors.map(c => `<span style="background:rgba(${c[1][0]},${c[1][1]},${c[1][2]},${Math.min(1, c[1][3] / 180).toFixed(2)})"></span>`).join('')}</div><div class="rampl">${m.rain_colors.map(c => `<span>${c[0]}</span>`).join('')}</div>` : ''}`);
-  if (RK) $('#legend').insertAdjacentHTML('beforeend', `<b style="margin-top:6px;display:block">Graph network's rank that day</b><div class="ramp"><span style="background:${C.r1}"></span><span style="background:${C.r2}"></span><span style="background:${C.r3}"></span><span style="background:${C.r4}"></span></div><div class="rampl"><span>top 10%</span><span>5%</span><span>2%</span><span>1%</span></div><div class="note">White outline: under 30 cm+ of water in the simulation at this moment</div>`);
-  engine(m.mosaic ? `2-D local-inertial model in ${m.tiles.length} tiles · ${fmt(m.shape[0] / 1e6, 1)} million cells (${fmt(m.cell_m)}–${fmt(Math.max(...m.tiles.map(t => t.cell_m)))} m) · ${fmt(m.steps)} time steps · ${fmt(m.runtime_s / 60, 0)} min of GitHub Actions time` : `2-D local-inertial model · ${m.shape[1]}×${m.shape[0]} cells of ${fmt(m.cell_m)} m · ${fmt(m.steps)} time steps · computed on GitHub Actions in ${fmt(m.runtime_s / 60, 0)} min · ${isF ? 'NOAA MRMS rain, USGS 3DEP terrain' : 'NOAA tide gauge ' + m.station + ', USGS 3DEP terrain'}`);
-  $('#readout').innerHTML = `<h2>${isF ? 'Flash flood' : 'Coastal flood'}</h2><p class="note">${m.title}</p>
-    <div class="stats"><div class="stat"><b id="ws1"></b><span id="ws1l"></span></div><div class="stat"><b id="ws2"></b><span>under water (${Math.round(m.show_m * 100)} cm or more)</span></div>
-    <div class="stat"><b id="ws3"></b><span>deeper than 50 cm</span></div><div class="stat"><b id="ws4"></b><span>${m.roads && m.roads.kind === 'graph' ? 'road segments' : 'road points'} under 30 cm+</span></div>${isF && m.frames[0].soaked_mm != null ? '<div class="stat"><b id="ws5"></b><span>soaked into the ground so far (average)</span></div>' : ''}</div>
-    ${base2018 ? `<span class="lbl">Same storm, higher sea vs. what really happened in 2018</span><div class="stats"><div class="stat"><b>${fmt(Math.max(...m.frames.map(f => f.wet_km2)), 1)} vs ${fmt(Math.max(...base2018.frames.map(f => f.wet_km2)), 1)} km²</b><span>peak area under water, +${m.sea_rise_m} m sea vs 2018</span></div><div class="stat"><b>${fmt(Object.keys(m.roads.first).length)} vs ${fmt(Object.keys(base2018.roads.first).length)}</b><span>road points under 30 cm+ (${fmt(Object.keys(m.roads.first).length / Math.max(1, Object.keys(base2018.roads.first).length), 1)}× as many)</span></div></div>` : ''}
-    ${m.roads && m.roads.kind === 'graph' && st.knock !== false ? `<span class="lbl">Knock-on effects on the road network, at this moment</span><div class="stats"><div class="stat"><b id="wk1">–</b><span>dry segments cut off (no way out to a numbered route)</span></div><div class="stat"><b id="wk2">–</b><span id="wk2l">busiest flooded road (vehicles/day that must go elsewhere)</span></div><div class="stat"><b id="wk3">–</b><span>dry segments taking 1,000+ extra vehicles/day</span></div></div>` : ''}
-    <span class="lbl">The whole storm</span>${wChart(m)}
-    ${m.roads ? '<span class="lbl">Streets in the order the water reaches them</span><div id="wstreets"></div>' : ''}
-    ${m.compare ? `<span class="lbl">Forecast vs radar rain (same storm)</span><div class="stats"><div class="stat"><b>${Math.round(m.compare.caught_share * 100)}%</b><span>of the ${fmt(m.compare.ref_roads)} road segments flooded in the radar-rain run also flood here</span></div><div class="stat"><b>${fmt(m.compare.fcst_peak_km2, 0)} vs ${fmt(m.compare.ref_peak_km2, 0)} km²</b><span>peak area under water: forecast vs radar rain</span></div></div><p class="note">${Math.round(m.compare.false_share * 100)}% of the roads flooded in this forecast run stayed dry with the real rain. ${m.issued ? 'Forecast issued ' + etFmt(new Date(m.issued.replace('Z', ':00Z'))).replace(/^\w+, /, '') + '.' : ''}</p>` : ''}
-    ${isF ? `<p class="note">Storm total: up to ${fmt(m.rain_total_max_mm)} mm in the box (district average ${fmt(m.rain_total_mean_mm)} mm). Rivers start dry and water entering from outside the box is not included, so big rivers (the Nashua) look smaller than they were; small streams, low streets and ponds behind road embankments are what to watch.</p>`
-          : `<p class="note">Peak at the gauge: ${fmt(m.peak_navd_m, 2)} m NAVD88 (${etFmt(new Date(m.peak_utc.replace(' ', 'T'))).replace(/^\w+, /, '')}), ${fmt(m.peak_navd_m - m.mhhw_navd_m, 2)} m above the average higher high tide. One gauge drives the whole coast and waves are left out, so wave-exposed beaches (Scituate, Marshfield) flooded more than shown.</p>`}`;
-  st._sk = -1; wUpdate(); wPreload(m);
-  if (!st.flown){ st.flown = true; wFly(m); }
-}
-function wFly(m){ const [lon0, lat0, lon1, lat1] = m.bounds; flyTo([lon0, mY(lat1), lon1, mY(lat0)]); }
-function wPreload(m){ let k = Math.floor(state.water.f); const order = []; for (let j = 0; j < m.n; j++) order.push((k + j) % m.n); let i = 0;
-  const next = () => { if (i >= order.length || state.mode !== 'water' || WSIM[state.water.id] !== m) return; for (let c = 0; c < 4 && i < order.length; c++) simImg(m, order[i++]); setTimeout(next, 120); }; next(); simImg(m, 'max'); if (m.rain_frames) m.rain_frames.forEach((_, i) => rainImg(m, i)); }
-// streets in the order the water reaches them (grouped by street + town)
-function streetOrder(m){ if (m._so) return m._so; const g = new Map(), co = m.roads.kind === 'coastal';
-  for (const [is, f] of Object.entries(m.roads.first)){ const i = +is; let nm = '', tw = '';
-    if (co){ const n = (m.roads.names || {})[is] || ['', '']; nm = n[0]; tw = n[1]; } else if (GSEG){ nm = GSEG.P.road[i] || ''; tw = GSEG.P.town[i] || ''; }
-    if (!nm) continue; const key = nm + '|' + tw; let r = g.get(key); if (!r){ r = {nm, tw, f, l: m.rl[i], pk: 0, n: 0, i}; g.set(key, r); }
-    if (f < r.f){ r.f = f; r.i = i; } r.l = Math.max(r.l, m.rl[i]); r.pk = Math.max(r.pk, m.rp[i] || 0); r.n++; }
-  return (m._so = [...g.values()].filter(r => r.n >= (co ? 2 : 1)).sort((a, b) => a.f - b.f || b.pk - a.pk)); }
-function streetList(m){ const el = $('#wstreets'); if (!el) return; const st = state.water, k = Math.round(st.f), L = streetOrder(m);
-  const now = L.filter(r => r.f <= k && r.l >= k).length, done = L.filter(r => r.l < k).length;
-  el.innerHTML = `<p class="note">${st.showMax ? L.length + ' named streets go under 30 cm+ at some point.' : `<b>${now}</b> streets under water now · ${done} drained · ${L.length - now - done} not reached yet`}</p><div class="tblwrap" style="max-height:260px"><table><thead><tr><th>Street</th><th>Under water</th><th class="n">Deepest</th></tr></thead><tbody>${
-    L.slice(0, 80).map((r, j) => { const s_ = st.showMax ? '' : r.f <= k && r.l >= k ? ' class="wnow"' : r.l < k ? ' class="wdone"' : '';
-      return `<tr${s_} data-j="${j}" style="cursor:pointer"><td><b>${titleCase(r.nm)}</b><br><span class="muted">${titleCase(r.tw)}</span></td><td>${etFmt(simTime(m, r.f)).replace(/^\w+, /, '').replace(/^\w+ \d+, /, '').replace(' ET', '')}–${etFmt(simTime(m, r.l)).replace(/^\w+, /, '').replace(/^\w+ \d+, /, '').replace(' ET', '')}</td><td class="n">${fmt(r.pk, 1)} m</td></tr>`; }).join('')}</tbody></table></div>`;
-  el.querySelectorAll('tr[data-j]').forEach(tr => tr.onclick = () => { const r = L[+tr.dataset.j], co = m.roads.kind === 'coastal'; const x = co ? RW[2*r.i] : GSEG.mid[r.i][0], y = co ? RW[2*r.i+1] : GSEG.mid[r.i][1], h = 0.014;
-    wStop(); st.f = r.f; st.showMax = false; if ($('#wmax')) $('#wmax').checked = false; flyTo([x - h, y - h, x + h, y + h]); wUpdate(); }); }
-function wUpdate(){ const st = state.water, m = WSIM[st.id]; if (!m || state.mode !== 'water' || !m.frames) return; st.f = Math.max(0, Math.min(m.n - 1, st.f)); const k = Math.round(st.f), fr = m.frames[k], isF = m.kind === 'flash';
-  const pk = m.frames.reduce((a, b) => b.wet_km2 > a.wet_km2 ? b : a, m.frames[0]);
-  const show = st.showMax ? {wet_km2: Math.max(...m.frames.map(f => f.wet_km2)), deep_km2: Math.max(...m.frames.map(f => f.deep_km2)), roads_wet: m.rf ? m.rf.reduce((a, v) => a + (v >= 0), 0) : null} : fr;
-  if ($('#wtime')) $('#wtime').textContent = st.showMax ? 'Highest water, whole storm' : etFmt(simTime(m, st.f));
-  if ($('#wbar') && document.activeElement !== $('#wbar')) $('#wbar').value = Math.round(st.f * 20);
-  if ($('#ws1')){ $('#ws1').textContent = isF ? `${fmt(fr.rain_max_mmph, 0)} mm/h` : `${fmt(fr.level_navd_m, 2)} m`; $('#ws1l').textContent = isF ? 'heaviest rain this hour (MRMS radar)' : 'Boston tide gauge, NAVD88'; if ($('#ws5')) $('#ws5').textContent = fr.soaked_mm != null ? `${fmt(fr.soaked_mm, 0)} mm` : '–';
-    $('#ws2').textContent = `${fmt(show.wet_km2, 1)} km²`; $('#ws3').textContent = `${fmt(show.deep_km2, 1)} km²`; $('#ws4').textContent = show.roads_wet == null ? '–' : fmt(show.roads_wet); }
-  const cur = $('#wcur'); if (cur){ const x = 30 + 240 * st.f / (m.n - 1); cur.setAttribute('x1', x); cur.setAttribute('x2', x); }
-  if (m.roads && (st._sk !== k || st._sm !== st.showMax)){ st._sk = k; st._sm = st.showMax; streetList(m); }
-  if ($('#wk1') && m.roads && m.roads.kind === 'graph' && GSEG && m.rf){ const on_ = i => m.rf[i] >= 0 && (st.showMax || (m.rf[i] <= k && m.rl[i] >= k)), key = (st.showMax ? 'max' : k) + m.id;
-    if (st._wk !== key){ st._wk = key; const fl = new Uint8Array(GSEG.n); for (let i = 0; i < GSEG.n; i++) fl[i] = on_(i) ? 1 : 0; const c = cascade(fl); st._cc = c; st._ck = st.showMax ? 'max' : k; st._cm = m.id;
-      $('#wk1').textContent = `${fmt(c.nCut)} (${fmt(c.kmCut, 1)} km)`; $('#wk2').textContent = c.top >= 0 ? fmt(GSEG.P.aadt[c.top]) : '0'; $('#wk2l').textContent = c.top >= 0 ? `busiest flooded road: ${titleCase(GSEG.P.road[c.top] || 'road segment')}, ${titleCase(GSEG.P.town[c.top] || '')} (vehicles/day that must go elsewhere)` : 'no road under water right now'; $('#wk3').textContent = fmt(c.nBusy); } }
-  scheduleDraw(true); }
-function wStart(){ const st = state.water, m = WSIM[st.id]; if (!m) return; if (st.f >= m.n - 1.01) st.f = 0; st.showMax = false; if ($('#wmax')) $('#wmax').checked = false;
-  $('#wplay').textContent = '❚❚ Pause'; let last = performance.now();
-  const tickW = now => { if (!wTimer) return; const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    const k = Math.floor(st.f); const nextOk = okImg(m.img[Math.min(k + 1, m.n - 1)]);   // wait for frames that are still loading
-    if (!nextOk){ simImg(m, Math.min(k + 1, m.n - 1)); simImg(m, Math.min(k + 2, m.n - 1)); }        // and ask for them (the view may have moved since preloading)
-    if (nextOk) st.f = Math.min(m.n - 1, st.f + dt * st.speed);
-    wUpdate(); if (st.f >= m.n - 1){ wStop(); return; } wTimer = requestAnimationFrame(tickW); };
-  wTimer = requestAnimationFrame(tickW); }
-function wStop(){ if (wTimer) cancelAnimationFrame(wTimer); wTimer = 0; const b = $('#wplay'); if (b) b.textContent = '▶ Play'; }
-
-
-/* ---------- 10 m drainage tiles (USGS NHDPlus HR flow grids, EPSG:5070) streamed from Hugging Face ---------- */
-const HF = 'https://huggingface.co/datasets/mohabeldokla/mass-flood-watch-tiles/resolve/main/';
-const ALB = (() => { const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, e = Math.sqrt(e2), R = Math.PI / 180, lat1 = 29.5 * R, lat2 = 45.5 * R, lat0 = 23 * R, lon0 = -96 * R;
-  const m = p => Math.cos(p) / Math.sqrt(1 - e2 * Math.sin(p) ** 2), q = p => { const s = Math.sin(p); return (1 - e2) * (s / (1 - e2 * s * s) - (1 / (2 * e)) * Math.log((1 - e * s) / (1 + e * s))); };
-  const n = (m(lat1) ** 2 - m(lat2) ** 2) / (q(lat2) - q(lat1)), C = m(lat1) ** 2 + n * q(lat1), rho0 = a * Math.sqrt(C - n * q(lat0)) / n;
-  return {fwd: (lon, lat) => { const th = n * (lon * R - lon0), rho = a * Math.sqrt(C - n * q(lat * R)) / n; return [rho * Math.sin(th), rho0 - rho * Math.cos(th)]; },
-    inv: (x, y) => { const rho = Math.hypot(x, rho0 - y), th = Math.atan2(x, rho0 - y), qq = (C - (rho * n / a) ** 2) / n; let p = Math.asin(Math.max(-1, Math.min(1, qq / 2)));
-      for (let i = 0; i < 6; i++){ const s = Math.sin(p); p += ((1 - e2 * s * s) ** 2 / (2 * Math.cos(p))) * (qq / (1 - e2) - s / (1 - e2 * s * s) + (1 / (2 * e)) * Math.log((1 - e * s) / (1 + e * s))); }
-      return [(lon0 + th / n) / R, p / R]; }}; })();
-let D10 = null; const D10T = new Map();
-async function loadDrain10(){ if (D10) return D10; const ix = await getJSON(HF + 'data/drain10/index.json'); D10 = {ix, have: new Set(ix.tiles.map(t => t[0] + ',' + t[1]))}; return D10; }
-function d10tile(r, c){ const key = r + ',' + c; if (!D10.have.has(key)) return null; let t = D10T.get(key); if (t) return t.F ? t : null;
-  t = {}; D10T.set(key, t); const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const x = cv.getContext('2d'); x.drawImage(im, 0, 0);
-    const d = x.getImageData(0, 0, im.width, im.height).data, n = im.width * im.height, F = new Uint8Array(n); for (let i = 0; i < n; i++) F[i] = d[i * 4]; t.F = F; t.w = im.width; t.h = im.height; };
-  im.src = HF + `data/drain10/d_${r}_${c}.png`; return null; }
-function d10cell(x, y){ const ix = D10.ix, col = (x - ix.x0) / ix.res, row = (ix.y1 - y) / ix.res; if (col < 0 || row < 0 || col >= ix.nx || row >= ix.ny) return 0;
-  const t = d10tile(Math.floor(row / ix.tile), Math.floor(col / ix.tile)); if (!t) return -1; return t.F[(Math.floor(row) % ix.tile) * t.w + (Math.floor(col) % ix.tile)]; }
-/* ---------- where rain goes: drainage network from 3DEP elevation, with water particles running downhill to the sea ---------- */
-let DRAIN = null, dRaf = 0, DP = null;
-async function loadDrain(){ if (DRAIN) return DRAIN; const meta = await getJSON('drain/meta.json'); const st = await getJSON('drain/streams.json');
-  const im = new Image(); im.src = 'drain/flow.png?v=' + encodeURIComponent(meta.built); await im.decode();
-  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
-  const d = x.getImageData(0, 0, im.width, im.height).data, n = im.width * im.height, F = new Uint8Array(n); for (let i = 0; i < n; i++) F[i] = d[i * 4];
-  const land = []; for (let i = 0; i < n; i += 7) if (F[i]) land.push(i);
-  const lines = st.lines.map(([a, xy]) => { const out = new Float32Array(xy.length); for (let j = 0; j < xy.length; j += 2){ out[j] = xy[j]; out[j + 1] = mY(xy[j + 1]); } let b = [1e9, 1e9, -1e9, -1e9]; for (let j = 0; j < out.length; j += 2){ b[0] = Math.min(b[0], out[j]); b[2] = Math.max(b[2], out[j]); b[1] = Math.min(b[1], out[j + 1]); b[3] = Math.max(b[3], out[j + 1]); } return {a, c: out, bb: b}; }).sort((p, q) => p.a - q.a);
-  const [lon0, lat0, lon1, lat1] = meta.bounds; DRAIN = {meta, F, w: im.width, h: im.height, land, lines, lon0, ww: lon1 - lon0, y0: mY(lat1), hh: mY(lat0) - mY(lat1)}; return DRAIN; }
-function drawStreams(){ const D = DRAIN; if (!D) return; const k = ps(), vb = viewBB(20), minA = mpp() > 300 ? 200 : mpp() > 120 ? 50 : mpp() > 40 ? 15 : 4;
-  ctx.strokeStyle = C.river; ctx.lineCap = 'round';
-  for (const L of D.lines){ if (L.a < minA || L.bb[2] < vb[0] || L.bb[0] > vb[2] || L.bb[3] < vb[1] || L.bb[1] > vb[3]) continue;
-    ctx.lineWidth = Math.min(4, 0.4 + 0.55 * Math.log10(L.a)) / k; ctx.globalAlpha = Math.min(0.75, 0.25 + 0.14 * Math.log10(L.a));
-    ctx.beginPath(); ctx.moveTo(L.c[0], L.c[1]); for (let j = 2; j < L.c.length; j += 2) ctx.lineTo(L.c[j], L.c[j + 1]); ctx.stroke(); }
-  ctx.globalAlpha = 1; }
-const DSTEP = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];   // N NE E SE S SW W NW (x, y)
-function drainStart(){ if (dRaf) return; const loop = () => { dRaf = requestAnimationFrame(loop); drainTick(); }; dRaf = requestAnimationFrame(loop); }
-function drainStop(){ cancelAnimationFrame(dRaf); dRaf = 0; DP = null; fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, flowC.width, flowC.height); }
-function drainTick(){ const D = DRAIN; if (!D || state.mode !== 'drain') return;
-  if (flowC.width !== canvas.width || flowC.height !== canvas.height){ flowC.width = canvas.width; flowC.height = canvas.height; }
-  fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.06)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
-  const vb = viewBB(0), cx0 = Math.max(0, Math.floor((vb[0] - D.lon0) / D.ww * D.w)), cx1 = Math.min(D.w - 1, Math.ceil((vb[2] - D.lon0) / D.ww * D.w)),
-        cy0 = Math.max(0, Math.floor((vb[1] - D.y0) / D.hh * D.h)), cy1 = Math.min(D.h - 1, Math.ceil((vb[3] - D.y0) / D.hh * D.h));
-  if (cx1 <= cx0 || cy1 <= cy0) return;
-  const N = 5000, key = [cx0, cx1, cy0, cy1].join(',');
-  const spawn = p => { for (let t = 0; t < 30; t++){ const x = cx0 + Math.random() * (cx1 - cx0), y = cy0 + Math.random() * (cy1 - cy0), i = (y | 0) * D.w + (x | 0); if (D.F[i]){ p.x = x; p.y = y; p.age = 0; p.life = 120 + Math.random() * 200; return p; } } p.x = -1; p.age = 1e9; return p; };
-  if (!DP || DP.key !== key){ const old = DP; DP = Array.from({length: N}, (_, j) => old && old[j] && old[j].x >= cx0 && old[j].x <= cx1 && old[j].y >= cy0 && old[j].y <= cy1 ? old[j] : spawn({})); DP.key = key; }
-  const scr = (x, y) => toScreen(D.lon0 + x / D.w * D.ww, D.y0 + y / D.h * D.hh), cellPx = ps() * D.ww / D.w;
-  if (D10 && mpp() < 12){ drainTick10(vb); return; }
-  const sp0 = Math.min(0.9, Math.max(0.12, 1.4 / cellPx));                     // cells per frame: about 1-2 screen pixels per frame at any zoom
-  const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
-  for (const p of DP){ if (p.x < 0 || ++p.age > p.life){ spawn(p); continue; }
-    const i = (p.y | 0) * D.w + (p.x | 0), v = D.F[i]; if (!v){ spawn(p); continue; }               // reached the sea or left the map
-    const dir = (v - 1) % 9, lvl = ((v - 1) / 9) | 0, [dx, dy] = DSTEP[dir];
-    const tx = (p.x | 0) + 0.5 + dx, ty = (p.y | 0) + 0.5 + dy, ex = tx - p.x, ey = ty - p.y, L = Math.hypot(ex, ey) || 1;
-    const sp = sp0 * (0.6 + lvl / 9);                                            // water moves faster once it is in a stream or river
-    const nx = p.x + ex / L * sp, ny = p.y + ey / L * sp;
-    const [a, b] = scr(p.x, p.y), [c, d] = scr(nx, ny), g = paths[lvl < 8 ? 0 : lvl < 13 ? 1 : lvl < 17 ? 2 : 3]; g.moveTo(a * dpr, b * dpr); g.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; }
-  const cols = ['rgba(120,180,230,0.55)', 'rgba(60,140,225,0.75)', 'rgba(25,100,210,0.9)', 'rgba(10,60,170,1)'];
-  fctx.lineCap = 'round'; paths.forEach((g, j) => { fctx.strokeStyle = cols[j]; fctx.lineWidth = (1 + j * 0.6) * dpr; fctx.stroke(g); }); }
-
-let DP10 = null;
-function drainTick10(vb){ const ix = D10.ix, N = 7000, [lonA, latA] = [vb[0], iY(vb[3])], [lonB, latB] = [vb[2], iY(vb[1])];
-  const spawn = p => { for (let t = 0; t < 40; t++){ const lon = lonA + Math.random() * (lonB - lonA), lat = latA + Math.random() * (latB - latA), [x, y] = ALB.fwd(lon, lat), v = d10cell(x, y); if (v > 0){ p.x = x; p.y = y; p.age = 0; p.life = 150 + Math.random() * 250; return p; } } p.x = NaN; p.age = 1e9; return p; };
-  const key = [vb[0].toFixed(3), vb[1].toFixed(3), vb[2].toFixed(3), vb[3].toFixed(3)].join(',');
-  if (!DP10 || DP10.key !== key){ const old = DP10; DP10 = Array.from({length: N}, (_, j) => { const o = old && old[j]; if (o && !isNaN(o.x)){ const [lo, la] = ALB.inv(o.x, o.y); if (lo >= lonA && lo <= lonB && la >= latA && la <= latB) return o; } return spawn({}); }); DP10.key = key; }
-  const mPerPx = mpp(), sp0 = Math.max(1.2, 1.4 * mPerPx);                          // metres per frame: about 1.4 screen pixels
-  const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()]; let alive = 0;
-  for (const p of DP10){ if (isNaN(p.x) || ++p.age > p.life){ spawn(p); continue; } const v = d10cell(p.x, p.y); if (v <= 0){ if (v === 0) spawn(p); continue; }
-    const dir = (v - 1) % 9, lvl = ((v - 1) / 9) | 0, [dx, dy] = DSTEP[dir], L = Math.hypot(dx, dy), sp = sp0 * (0.5 + lvl / 12);
-    const nx = p.x + dx / L * sp, ny = p.y - dy / L * sp;                                    // DSTEP y points south; Albers y points north
-    const [lo1, la1] = ALB.inv(p.x, p.y), [lo2, la2] = ALB.inv(nx, ny), [a, b] = toScreen(lo1, mY(la1)), [c, d] = toScreen(lo2, mY(la2));
-    const g = paths[lvl < 10 ? 0 : lvl < 15 ? 1 : lvl < 19 ? 2 : 3]; g.moveTo(a * dpr, b * dpr); g.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; alive++; }
-  const cols = ['rgba(90,160,225,0.8)', 'rgba(60,140,225,0.9)', 'rgba(25,100,210,0.95)', 'rgba(10,60,170,1)'];
-  fctx.lineCap = 'round'; paths.forEach((g, j) => { fctx.strokeStyle = cols[j]; fctx.lineWidth = (1.4 + j * 0.6) * dpr; fctx.stroke(g); }); }
-async function mDrain(){
-  setTitle('Where rain goes', 'Water running downhill to the sea', 'Every 50 m of Massachusetts drains to its steepest downhill neighbour; follow the water from the hills into streams, rivers and the ocean.');
-  layer = {}; legend('<b>Loading the drainage network…</b>'); $('#controls').innerHTML = '';
-  let D; try { D = await loadDrain(); } catch(e){ $('#readout').innerHTML = '<h2>Where rain goes</h2><p class="empty">The drainage network is still being computed. Check back in a little while.</p>'; legend(''); return; }
-  if (state.mode !== 'drain') return;
-  layer = {drain: true}; drainStart(); loadDrain10().catch(() => {});
-  legend(`<b>Where rain goes</b><div><span class="sw" style="background:rgba(120,180,230,.9)"></span>water on the hillsides</div><div><span class="sw" style="background:rgba(60,140,225,1)"></span>small streams</div><div><span class="sw" style="background:rgba(25,100,210,1)"></span>brooks and rivers</div><div><span class="sw" style="background:rgba(10,60,170,1)"></span>large rivers</div>`);
-  $('#howto').textContent = 'Each moving streak is a drop of rain following the land downhill until it reaches the sea or leaves the state. Zoomed out, drops follow a 50 m map of the terrain; zoom in past a town and they switch to the USGS 10 m flow grid, which has the real mapped rivers burned in, so water off a single street runs to its actual brook. Drops speed up and turn darker as they join streams and rivers. This is the terrain alone (where water would go), not a particular storm: the Replay tab shows how much water actually arrived in a storm.';
-  engine(`USGS 3DEP lidar elevation · ${D.w.toLocaleString()} × ${D.h.toLocaleString()} cells of ${D.meta.cell_m} m · pits filled, flats resolved, D8 flow directions · ${D.meta.streams.toLocaleString()} stream runs`);
-  $('#readout').innerHTML = `<h2>Where rain goes</h2><p class="note">${D.meta.source}. Zoomed in: USGS NHDPlus HR 10 m flow directions (real rivers burned in), streamed tile by tile.</p><div class="stats"><div class="stat"><b>${fmt(D.meta.g_max_km2, 0)} km²</b><span>largest area draining through one point on the map</span></div><div class="stat"><b>${D.meta.streams.toLocaleString()}</b><span>stream runs drawn (4 km² or more upstream)</span></div></div><p class="note">Zoom in anywhere: the drops keep the same speed on screen, so you can follow water off a single street toward its brook.</p>`;
-  scheduleDraw(true); }
-/* ---------- animated flow streaks (water moving along the simulated currents) ---------- */
-const flowC = document.getElementById('flow'), fctx = flowC.getContext('2d'); let flowRaf = 0, FP = null, FPk = -1;
-function velData(m, k){ m.vd = m.vd || []; if (m.vd[k] !== undefined) return m.vd[k]; m.vd[k] = null; const im = new Image();
-  im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
-    const d = x.getImageData(0, 0, im.width, im.height).data, wet = []; for (let i = 0; i < im.width * im.height; i++) if (d[i * 4 + 2] > 128) wet.push(i); m.vd[k] = {w: im.width, h: im.height, d, wet}; };
-  im.src = `sim/${m.id}/v${String(k).padStart(3, '0')}.png?v=${m.ver}`; return null; }
-function flowStart(){ if (flowRaf) return; const loop = () => { flowRaf = requestAnimationFrame(loop); flowTick(); }; flowRaf = requestAnimationFrame(loop); }
-function flowStop(){ cancelAnimationFrame(flowRaf); flowRaf = 0; FP = null; fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, flowC.width, flowC.height); }
-function flowTick(){
-  if (flowC.width !== canvas.width || flowC.height !== canvas.height){ flowC.width = canvas.width; flowC.height = canvas.height; }
-  fctx.setTransform(1, 0, 0, 1, 0, 0);
-  const st = state.water, m = st && WSIM[st.id];
-  if (state.mode !== 'water' || !m || !m.vel_step || st.showMax || st.flow === false){ fctx.clearRect(0, 0, flowC.width, flowC.height); return; }
-  fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,0.10)'; fctx.fillRect(0, 0, flowC.width, flowC.height); fctx.globalCompositeOperation = 'source-over';
-  const k = Math.round(st.f), vb = viewBB(0);
-  const S = (m.mosaic ? m.tiles : [m]).filter(t => t.vel_step && !(t.bounds[0] > vb[2] || t.bounds[2] < vb[0] || mY(t.bounds[1]) < vb[1] || mY(t.bounds[3]) > vb[3]))
-    .filter((t, _, arr) => arr.length <= (m.kind === 'coastal' ? 12 : 6)).map(t => ({t, V: velData(t, k)})).filter(o => o.V && o.V.wet.length);
-  if (!S.length) return;
-  const Wt = S.reduce((a, o) => a + o.V.wet.length, 0), N = Math.min(3000, Wt * 2), key = m.id + ':' + k + ':' + S.map(o => o.t.id).join(',');
-  const spawn = p => { let r = Math.random() * Wt, j = 0; while (j < S.length - 1 && r >= S[j].V.wet.length){ r -= S[j].V.wet.length; j++; } const V = S[j].V, i = V.wet[(Math.random() * V.wet.length) | 0];
-    p.j = j; p.x = (i % V.w) + Math.random(); p.y = ((i / V.w) | 0) + Math.random(); p.age = (Math.random() * 60) | 0; return p; };
-  if (!FP || FP.length !== N || FPk !== key){ if (!FP || FPk.split(':')[0] !== m.id || FP.length !== N) FP = Array.from({length: N}, () => spawn({})); else FP.forEach(p => { if (p.j >= S.length) spawn(p); }); FPk = key; }
-  const G = S.map(({t, V}) => { const [lon0, lat0, lon1, lat1] = t.bounds, y0w = mY(lat1); return {V, lon0, y0w, hw: mY(lat0) - y0w, ww: lon1 - lon0}; });
-  fctx.strokeStyle = 'rgba(236,248,255,0.85)'; fctx.lineWidth = 1.3 * dpr; fctx.lineCap = 'round'; fctx.beginPath();
-  for (const p of FP){
-    const g = G[p.j]; if (!g){ spawn(p); continue; } const V = g.V, scr = (x, y) => toScreen(g.lon0 + x / V.w * g.ww, g.y0w + y / V.h * g.hw);
-    const ix = p.x | 0, iy = p.y | 0, i = iy * V.w + ix;
-    if (ix < 0 || iy < 0 || ix >= V.w || iy >= V.h || V.d[i * 4 + 2] < 128 || ++p.age > 90){ spawn(p); p.age = 0; continue; }
-    const u = (V.d[i * 4] - 128) / 64, v = (V.d[i * 4 + 1] - 128) / 64, sp = Math.hypot(u, v);
-    if (sp < 0.03){ p.age += 6; continue; }
-    const f = 0.22 / Math.max(0.6, Math.sqrt(sp)), nx = p.x + u * f, ny = p.y + v * f;
-    const [a, b] = scr(p.x, p.y), [c, d] = scr(nx, ny); fctx.moveTo(a * dpr, b * dpr); fctx.lineTo(c * dpr, d * dpr); p.x = nx; p.y = ny; }
-  fctx.stroke(); }
-const MODES = {drain:mDrain, water:mWater, graph:mGraph, check:mCheck, live:mLive, coastal:mCoastal, inland:mInland, traffic:mTraffic, future:mFuture, tsunami:mTsunami};
-function setMode(m){ if (!MODES[m]) m = 'live'; if (m !== 'water' && typeof wStop === 'function'){ wStop(); flowStop(); } if (m !== 'drain') drainStop(); state.mode = m;
-  $('#gmarks').innerHTML=''; tip.hidden = true; MODES[m](); scheduleDraw(true); }
-function goTab(t, v){ if (!TABS[t]) t = 'now'; state.tab = t; if (v) state.view[t] = v; const view = state.view[t];
-  state.lock = t === 'now' ? 'now' : t === 'replay' ? 'replay' : null;              // the road graph and water views show live or past storms depending on the tab
-  try { history.replaceState(null, '', '#' + t + (TABS[t].views.length > 1 ? '/' + view : '')); } catch(e){}
-  try { localStorage.setItem('mfw-tab', JSON.stringify({t, v: state.view})); } catch(e){}
-  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tab === t)));
-  const vs = TABS[t].views; $('#subtabs').innerHTML = vs.length > 1 ? vs.map(([k, nm]) => `<button data-view="${k}" aria-pressed="${k === view}">${nm}</button>`).join('') : '';
-  document.querySelectorAll('#subtabs button').forEach(b => b.onclick = () => goTab(t, b.dataset.view));
-  setMode(VIEW_MODE[t + '/' + view]); }
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
-
-
-/* ---------- work log: what is being built right now (docs/progress.json, written with every update) ---------- */
-let PROG = null;
-async function loadProgress(){ try { PROG = await getJSON('progress.json?v=' + Math.floor(Date.now() / 60000)); } catch(e){ return; }
-  const cur = PROG.stages.find(s => s.status === 'in progress') || PROG.stages[0], u = PROG.updates[0];
-  $('#progtxt').textContent = `Stage ${cur.n}/${PROG.stages.length} · ${u.t.replace(/^\w+ /, '')}`; $('#progchip').title = `${cur.name}\n${u.t}: ${u.text}`; }
-$('#progchip').onclick = () => { if (!PROG) return; const box = $('#readout');
-  box.innerHTML = `<h2>Work log</h2><p class="note">What is being built on this model this week, updated with every change. Times are Eastern.</p>
-    <div class="tblwrap" style="max-height:none"><table><thead><tr><th>Stage</th><th>Status</th></tr></thead><tbody>${PROG.stages.map(s => `<tr${s.status === 'in progress' ? ' class="wnow"' : ''}><td><b>${s.n}. ${s.name}</b>${s.note ? '<br><span class="muted">' + s.note + '</span>' : ''}</td><td>${s.status}</td></tr>`).join('')}</tbody></table></div>
-    <span class="lbl">Latest updates</span><ul>${PROG.updates.slice(0, 15).map(u => `<li><span class="muted">${u.t}</span> · ${u.text}</li>`).join('')}</ul>`; };
-loadProgress(); setInterval(loadProgress, 120000);
-/* ================= live status bar ================= */
-function liveStatus(){ const L = D.live; if (!L){ $('#livetxt').textContent = 'No live data yet'; return; }
-  const m = /(\d{4}-\d\d-\d\d) (\d\d):(\d\d)/.exec(L.asof||''); let ago = '';
-  if (m){ const off = new Date().toLocaleString('en-US',{timeZone:'America/New_York',timeZoneName:'shortOffset'}).match(/GMT([+-]\d+)/); const tz = off? (+off[1]) : -4;
-    const t = Date.parse(`${m[1]}T${m[2]}:${m[3]}:00${tz<0?'-':'+'}${String(Math.abs(tz)).padStart(2,'0')}:00`); const h = (Date.now()-t)/3.6e6;
-    ago = h < 1 ? `${Math.max(1,Math.round(h*60))} min ago` : h < 48 ? `${Math.round(h)} h ago` : `${Math.round(h/24)} days ago`; }
-  const g = Object.values(L.gauges||{}); const minA = Math.min(1, ...g.map(x=>x.aep)); const alerts = (L.alerts||[]).length;
-  const level = minA <= 0.2 || alerts ? (minA <= 0.02 ? 'bad' : 'warn') : 'ok';
-  $('#livedot').className = 'dot ' + level;
-  $('#livetxt').textContent = `${level==='ok'?'Calm':level==='warn'?'Watch':'Flooding likely'} · updated ${ago || L.asof}`;
-  $('#livechip').title = `Data refreshed automatically each morning (${L.asof}). Sources: NOAA tide gauges, NWS forecast grid, NWS alerts, NTWC.`; }
-function tick(){ $('#clock').textContent = new Date().toLocaleTimeString('en-US',{timeZone:'America/New_York', hour:'numeric', minute:'2-digit', second:'2-digit'}) + ' ET'; }
-setInterval(tick, 1000); tick(); setInterval(liveStatus, 60000);
-
-/* ================= presentation view ================= */
-function present(on){ $('#app').classList.toggle('present', on); $('#titlecard').hidden = !on; $('#exitpresent').hidden = !on; setTimeout(()=>{ resize(); }, 30); }
-$('#present').onclick = ()=>present(true); $('#exitpresent').onclick = ()=>present(false);
-document.addEventListener('keydown', e=>{ if (e.key==='Escape' && $('#app').classList.contains('present')) present(false); });
-
-/* ================= start ================= */
-performance.mark('before-start'); readColors(); liveStatus();
-new ResizeObserver(resize).observe(stage);
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ readColors(); goTab(state.tab); });
-new MutationObserver(()=>{ readColors(); goTab(state.tab); }).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
-resize(); goTab(state.tab);
-$('#loading').hidden = true; performance.mark('ready'); setTimeout(()=>{ buildWater(); performance.mark('water'); }, 60);
+(function(){
+  var b=document.getElementById('theme'),root=document.documentElement,order=['','light','dark'],names={'':'Auto',light:'Light',dark:'Dark'};
+  function cur(){return root.dataset.theme||''}
+  b.textContent=names[cur()];
+  b.addEventListener('click',function(){
+    var n=order[(order.indexOf(cur())+1)%3];
+    if(n)root.dataset.theme=n;else delete root.dataset.theme;
+    try{n?localStorage.setItem('mfw-theme',n):localStorage.removeItem('mfw-theme')}catch(e){}
+    b.textContent=names[n];
+    var f=document.getElementById('viewer');
+    if(f&&f.contentWindow)f.contentWindow.postMessage({mfwTheme:n},location.origin);
+  });
 })();
 </script>
+</body>
+</html>
