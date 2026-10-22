@@ -891,8 +891,8 @@ def main():
             j = int(re.search(r'-(\d+)\.Qx$', fq).group(1)); fy = fq[:-3] + '.Qy'
             if not os.path.exists(fy): continue
             try: Qx = np.nan_to_num(read_asc(fq)[0]); Qy = np.nan_to_num(read_asc(fy)[0])
-            if QSCALE != 1.0: Qx = Qx * QSCALE; Qy = Qy * QSCALE
             except Exception as e: log('flux file unreadable', fq, repr(e)[:80]); continue
+            if QSCALE != 1.0: Qx = Qx * QSCALE; Qy = Qy * QSCALE
             if Qx.shape != (ny, nx + 1) or Qy.shape != (ny + 1, nx): log('unexpected flux grid shapes', Qx.shape, Qy.shape); break
             for B in XG + GQ:
                 qi, qo = block_throughflow(Qx, Qy, B['r0'], B['r1'], B['c0'], B['c1']); q = 0.5 * (qi + qo)
