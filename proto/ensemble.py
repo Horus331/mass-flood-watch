@@ -83,6 +83,7 @@ def design(n, seed, center_env):
         for j, (nm, var, kind, s, _) in enumerate(PARAMS):
             c = float(C.get(var, DEFAULTS[var])); m = math.exp(s * Z[i, j]) if kind == 'lognormal_mult' else 1.0 + s * Z[i, j]
             E[var] = f'{c * m:.4g}'; z[nm] = round(float(Z[i, j]), 3); mult[nm] = round(m, 4)
+            if var == 'LF_N_CHAN' and C.get('LF_SGC') == '1': E['LF_SGCN'] = f"{float(C.get('LF_SGCN', '0.035')) * m:.4g}"   # sub-grid channels take their own n
         members.append(dict(name=f'm{i + 1:02d}', env=' '.join(f'{k}={v}' for k, v in E.items()), z=z, mult=mult, center=False))
     return members
 
