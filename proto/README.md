@@ -38,6 +38,40 @@ calibration) are superseded.
 Closure probability in this prototype is a physics prior, `P = Φ((peak depth − 0.30 m) / 0.10 m)`. In the dissertation it is replaced by a
 model learned from observed closures (storm reports, MassDOT records, Vermont 2023).
 
+### Extra closure rules (opt-in, not the default)
+
+Two rules in `proto/prototype.py` target sites the depth rule misses: roads beside or over streams, and washouts. Both use published
+thresholds only (none tuned on the labels). The prototype scores all eight variants every run (`checks.labels_segments.variants` in
+summary.json: depth, +freeboard, +fastwater, +both, each with and without the culvert rule, strict/loose recall, flagged share, lift, odd/even split).
+
+* `--freeboard` (`PROTO_FREEBOARD=1`): f = road crest − highest peak water surface within 30 m. The crest is the lidar DEM *before*
+  channel burn, crossing notches and depression breaching (`z_raw.npz` from w9; the highest 10 m cell in each 20 m cell, since a fill's
+  crest is narrower than the cell). The water surface is model DEM + peak depth in cells ≥ 10 cm deep, leaving out the road's own unedited
+  cells so its water is not counted twice. `P_fb = Φ((0.30 − f)/0.15)`. The 0.30 m margin is the 1 ft design freeboard between design
+  water level and road edge (e.g. Oklahoma DOT Roadway Drainage Manual §9.3.3.3: headwater one foot below the shoulder edge, applied with
+  FHWA HDS-5 culvert design). σ = 0.15 m combines lidar error (3DEP QL2, RMSEz ≤ 0.10 m) and modelled water-level error (0.10 m).
+* `--fastwater` (`PROTO_FASTWATER=1`, needs `LF_VOUT=1`): on unedited road cells `P_dv = Φ(ln(DV/0.3)/0.35)`. DV₀ = 0.3 m²/s is the
+  small-car stability limit (Shand et al. 2011, ARR Project 10 Stage 2; ARR 2019 Book 6 ch. 7). σ_ln = ln(0.6/0.3)/2, the spread across
+  vehicle classes. The washout term applies within 30 m of a mapped crossing with ≥ 10 cm over the road: `Φ(ln(V/1.5)/0.30)`.
+  1.5 m/s is the permissible velocity of grass on easily eroded soil (SCS TP-61 1954; Chow 1959 Table 7-6).
+* `LF_VOUT=1` in w9 adds `hazard` to the LISFLOOD-FP .par. This writes `.maxVc` (peak cell speed every step, m/s) and `.Vx/.Vy` per
+  snapshot, and w9 saves `vel_max.npz` (peak speed, and peak depth × speed in m²/s). It does not change the hydraulics: gauge scores are identical.
+
+The test run was experiment `fb_base` (default env + `LF_VOUT=1`, 22 Oct 2026; the run dir is kept in `docs/proto/exp/fb_base/rundir`).
+Results on the 78 strict-matched sites:
+
+| variant | strict recall | flagged share | lift (chance-corrected) | loose recall |
+| --- | --- | --- | --- | --- |
+| depth (default) | 0.385 | 4.65 % | 5.83 | 0.756 |
+| + freeboard | 0.756 | 14.25 % | 3.89 | 0.944 |
+| + fast water | 0.397 | 4.82 % | 5.81 | 0.767 |
+| + both | 0.756 | 14.27 % | 3.89 | 0.944 |
+
+Freeboard doubles recall but flags 14 % of segments and lift falls from 5.8 to 3.9, so it is not adopted. Fast water adds one site, which
+is within noise. Defaults stay depth-only. A post-hoc sensitivity check with margin 0 (water at the crest, i.e. overtopping) gives recall
+0.744 at 9.8 % flagged and lift 5.45. It was chosen after seeing the labels, so it needs a second storm before any use.
+Peak speeds have numerical spikes (max 96 m/s in a few cells; p95 on wet land 3.2 m/s), so read single-cell speeds with care.
+
 ## Run it
 
 Small case (any laptop or the GitHub workflow `.github/workflows/proto.yml`):
