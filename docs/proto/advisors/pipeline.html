@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Road-Closure Prototype Pipeline</title>
+<meta name="description" content="Mass Flood Watch road-closure prototype: inputs, LISFLOOD-FP flood model, closure rules, network impacts, outputs and the validation loop.">
+<style>
+:root{
+  --bg:#f7f7f5; --card:#ffffff; --ink:#1b1f24; --muted:#5b6470; --line:#d9dce1; --soft:#eef0f3;
+  --c-in:#2563c9; --c-model:#0f8a7e; --c-haz:#b7791f; --c-rule:#c2410c; --c-net:#7c3aed; --c-out:#15803d; --c-val:#64748b;
+  --tint-in:#e8f0fc; --tint-model:#e3f4f2; --tint-haz:#fbf1e1; --tint-rule:#fdeee6; --tint-net:#f1ebfd; --tint-out:#e6f4ea; --tint-val:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121417; --card:#1b1e23; --ink:#e8eaed; --muted:#a3abb6; --line:#2f343c; --soft:#22262c;
+    --c-in:#7aa7f0; --c-model:#4cc2b5; --c-haz:#e2b04f; --c-rule:#f28a5c; --c-net:#ad8cf5; --c-out:#5cc584; --c-val:#9aa6b6;
+    --tint-in:#1c2738; --tint-model:#16302d; --tint-haz:#33291a; --tint-rule:#36231b; --tint-net:#2a2238; --tint-out:#183020; --tint-val:#232a33;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121417; --card:#1b1e23; --ink:#e8eaed; --muted:#a3abb6; --line:#2f343c; --soft:#22262c;
+  --c-in:#7aa7f0; --c-model:#4cc2b5; --c-haz:#e2b04f; --c-rule:#f28a5c; --c-net:#ad8cf5; --c-out:#5cc584; --c-val:#9aa6b6;
+  --tint-in:#1c2738; --tint-model:#16302d; --tint-haz:#33291a; --tint-rule:#36231b; --tint-net:#2a2238; --tint-out:#183020; --tint-val:#232a33;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 24px 32px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}
+h1{font-size:24px;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0;font-size:14px}
+.toggle{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.toggle:focus-visible{outline:2px solid var(--c-in);outline-offset:2px}
+
+/* main flow */
+.flow{display:grid;grid-template-columns:1.15fr auto 1fr auto 1fr auto 1.15fr auto 1fr auto 1fr;align-items:stretch}
+.stage{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:10px;padding:12px 12px 10px;display:flex;flex-direction:column;min-width:0}
+.stage h2{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.stage .lead{font-weight:650;font-size:15px;margin:3px 0 8px}
+.item{background:var(--tint);border-radius:7px;padding:6px 8px;margin-bottom:6px}
+.item:last-child{margin-bottom:0}
+.item b{display:block;font-size:13.5px;font-weight:650}
+.item span{display:block;font-size:12.5px;color:var(--muted)}
+.item.opt{background:transparent;border:1px dashed var(--line)}
+.item .tag,.tag{display:inline-block;font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;border:1px solid currentColor;color:var(--muted);border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink)!important}
+.in{--accent:var(--c-in);--tint:var(--tint-in)}
+.model{--accent:var(--c-model);--tint:var(--tint-model)}
+.haz{--accent:var(--c-haz);--tint:var(--tint-haz)}
+.rule{--accent:var(--c-rule);--tint:var(--tint-rule)}
+.net{--accent:var(--c-net);--tint:var(--tint-net)}
+.out{--accent:var(--c-out);--tint:var(--tint-out)}
+.arrow{display:flex;align-items:center;justify-content:center;width:22px;color:var(--muted)}
+.arrow svg{width:18px;height:18px}
+.engine{margin-top:auto;padding-top:8px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+
+/* validation loop */
+.loop{margin-top:10px;display:grid;grid-template-columns:1fr;gap:0}
+.loopline{height:34px;position:relative}
+.va{position:absolute;top:0;bottom:0;display:flex;align-items:center;gap:6px;color:var(--c-val);font-size:12px;font-weight:600}
+.va svg{width:14px;height:34px;flex:none}
+.va.up{left:calc(18.4% + 4px)}
+.va.down{right:calc(8.6% - 7px);flex-direction:row-reverse}
+.val{--accent:var(--c-val);--tint:var(--tint-val);background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px}
+.val h2{margin:0 0 2px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.val .lead{font-weight:650;margin:0 0 10px;font-size:15px}
+.vgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.vgrid .item{margin:0}
+.result{font-size:12.5px;color:var(--ink);margin-top:3px}
+footer{margin-top:14px;color:var(--muted);font-size:12.5px;display:flex;flex-wrap:wrap;gap:6px 18px}
+footer a{color:var(--c-in)}
+
+@media (max-width:1100px){
+  .flow{grid-template-columns:1fr;gap:0}
+  .arrow{width:auto;height:24px}
+  .arrow svg{transform:rotate(90deg)}
+  .loopline{display:none}
+  .loop{margin-top:16px}
+  .vgrid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  .wrap{padding:18px 16px 24px}
+  h1{font-size:20px}
+  header{flex-direction:column}
+  .vgrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Road-closure prototype: from rain to closed roads</h1>
+    <p class="sub">Mass Flood Watch · tested on the 11 Sept 2023 Leominster flash flood (MassDOT District 3) · state of the code on 22 Oct 2026</p>
+  </div>
+  <button class="toggle" id="tg" type="button" aria-label="Switch light or dark theme">Theme</button>
+</header>
+
+<div class="flow" role="list" aria-label="Pipeline stages, left to right">
+  <section class="stage in" role="listitem">
+    <h2>1 · Inputs</h2>
+    <div class="lead">What the storm falls on</div>
+    <div class="item"><b>Rain</b><span>NOAA MRMS radar + gauge QPE, 1 km, hourly</span></div>
+    <div class="item"><b>Terrain</b><span>USGS 3DEP lidar DEM, 10 m</span></div>
+    <div class="item"><b>Soils</b><span>USDA SSURGO soil group → NRCS curve number</span></div>
+    <div class="item"><b>Land cover</b><span>NLCD 2021 impervious → runoff, roughness</span></div>
+    <div class="item"><b>Channels</b><span>NHDPlus HR streams, bankfull size burnt in</span></div>
+    <div class="item"><b>Crossings</b><span>29k road–stream crossings, NAACC culvert sizes; opened through road fill</span></div>
+  </section>
+  <div class="arrow" aria-hidden="true"><svg viewBox="0 0 18 18"><path d="M2 9h12M9 4l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+  <section class="stage model" role="listitem">
+    <h2>2 · Flood model</h2>
+    <div class="lead">LISFLOOD-FP 8.2</div>
+    <div class="item"><b>2-D shallow water</b><span>Local-inertial solver (Bates et al. 2010), open source, Univ. of Bristol</span></div>
+    <div class="item"><b>Grid</b><span>10–20 m cells, open boundaries, 36–48 h of storm</span></div>
+    <div class="item"><b>Rain losses</b><span>NRCS curve number (TR-55, AMC II), no tuning</span></div>
+    <div class="engine">Runs on GPU (WPI Turing) or CPU (GitHub Actions)</div>
+  </section>
+  <div class="arrow" aria-hidden="true"><svg viewBox="0 0 18 18"><path d="M2 9h12M9 4l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+  <section class="stage haz" role="listitem">
+    <h2>3 · Hazard</h2>
+    <div class="lead">Water on every road</div>
+    <div class="item"><b>Depth</b><span>peak depth, hours above 30 cm, every 30 min</span></div>
+    <div class="item"><b>Timing</b><span>when water arrives and peaks</span></div>
+    <div class="item"><b>Speed <span class="tag">opt-in</span></b><span>peak velocity, depth × velocity</span></div>
+    <div class="item"><b>Flow at crossings</b><span>discharge through each culvert notch</span></div>
+  </section>
+  <div class="arrow" aria-hidden="true"><svg viewBox="0 0 18 18"><path d="M2 9h12M9 4l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+  <section class="stage rule" role="listitem">
+    <h2>4 · Closure rules</h2>
+    <div class="lead">Will this segment close?</div>
+    <div class="item"><b>Depth rule <span class="tag">default</span></b><span class="formula">P = Φ((depth − 0.30 m) / 0.10 m)</span><span>30 cm stops an ordinary car</span></div>
+    <div class="item"><b>Culvert rule <span class="tag">opt-in</span></b><span>FHWA HDS-5 capacity vs modelled flow, with surveyed blockage</span></div>
+    <div class="item opt"><b>Overtop candidate <span class="tag">map layer</span></b><span>stream reaches the road crest: shown as “may close”, not counted in P</span></div>
+  </section>
+  <div class="arrow" aria-hidden="true"><svg viewBox="0 0 18 18"><path d="M2 9h12M9 4l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+  <section class="stage net" role="listitem">
+    <h2>5 · Network impacts</h2>
+    <div class="lead">What closures cost</div>
+    <div class="item"><b>Road graph</b><span>52,698 MassDOT segments with traffic counts (AADT)</span></div>
+    <div class="item"><b>Hospital access</b><span>cut off from every hospital, or added minutes (OSM)</span></div>
+    <div class="item"><b>Detours</b><span>rerouted traffic, vehicle-hours at risk</span></div>
+  </section>
+  <div class="arrow" aria-hidden="true"><svg viewBox="0 0 18 18"><path d="M2 9h12M9 4l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+  <section class="stage out" role="listitem">
+    <h2>6 · Outputs</h2>
+    <div class="lead">For engineers and dispatchers</div>
+    <div class="item"><b>Animated map</b><span>water and closures every 30 min</span></div>
+    <div class="item"><b>Watchlist</b><span>ranked segments, each with a plain-language reason</span></div>
+    <div class="item"><b>Closure probabilities</b><span>P(closed) per segment (GeoJSON, CSV)</span></div>
+  </section>
+</div>
+
+<div class="loop">
+  <div class="loopline" aria-hidden="true">
+    <div class="va up"><svg viewBox="0 0 14 34"><path d="M7 33V3M2 8l5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3" stroke-linecap="round" stroke-linejoin="round"/></svg>diagnose model errors, change physics, rerun</div>
+    <div class="va down"><svg viewBox="0 0 14 34"><path d="M7 1v30M2 26l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3" stroke-linecap="round" stroke-linejoin="round"/></svg>compare with what happened</div>
+  </div>
+  <section class="val" aria-label="Validation loop">
+    <h2>Validation loop · scored every run, never fitted</h2>
+    <div class="lead">Did the model flood the right places at the right time?</div>
+    <div class="vgrid">
+      <div class="item"><b>USGS stream gauges</b><span>10 in the box: stage rise, peak timing, peak flow</span><div class="result">Leominster gauge: 167 vs 157 m³/s observed</div></div>
+      <div class="item"><b>Storm reports</b><span>13 NWS reports + 11 NOAA Storm Events: water there, on time?</span></div>
+      <div class="item"><b>Documented sites</b><span>93 road sites in Leominster (closures, washouts, failed culverts) + 38 MassDOT repeat-flood sites</span><div class="result">Depth rule catches 39 % of 78 located sites while flagging 4.7 % of segments</div></div>
+      <div class="item"><b>Chance baseline</b><span>same tests at 2,000 random road points</span><div class="result">Lift over chance: 5.8×</div></div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <span>Next: Vermont July 2023 closures as an independent test storm, then a closure model learned from observed closures.</span>
+  <span><a href="datasets.md">Datasets table</a> · <a href="https://github.com/Horus331/mass-flood-watch/blob/main/proto/README.md">Prototype README</a></span>
+</footer>
+</div>
+<script>
+(function(){
+  var r=document.documentElement,b=document.getElementById('tg'),k='mfw-theme';
+  function cur(){var t=r.getAttribute('data-theme');if(t)return t;return window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+  function label(){b.textContent=cur()==='dark'?'Light mode':'Dark mode';}
+  try{var s=localStorage.getItem(k);if(s)r.setAttribute('data-theme',s);}catch(e){}
+  label();
+  b.addEventListener('click',function(){var n=cur()==='dark'?'light':'dark';r.setAttribute('data-theme',n);try{localStorage.setItem(k,n);}catch(e){}label();});
+})();
+</script>
+</body>
+</html>
