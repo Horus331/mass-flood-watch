@@ -144,6 +144,30 @@ python proto/risk.py --out docs/proto/leominster_sep2023 --run-dir <run dir>   #
 python proto/resilience.py --selftest; python proto/rating.py --selftest; python proto/risk.py --selftest
 ```
 
+## Second storm: Vermont, July 10-11 2023 (independent test, nothing tuned)
+
+`.github/workflows/proto_vt.yml`, inputs `sim/colab/vt_inputs.py`, table `proto/vt_report.py`, outputs `docs/proto/vermont_jul2023/`
+(map.html, summary.json, watchlist.csv, segments.geojson, RESULTS.md, vt_scores.json). Box EPSG:26986 107000,1096000,127000,1116000
+(Montpelier-Barre-Berlin-Northfield, the densest 20 km box: 11 of the 63 VTrans closed stretches). EPSG:26986 is kept (scale 1.0006,
+0.73 deg rotation at Montpelier). Inputs, all fetched in Actions: 3DEP DEM (ImageServer, 10 m), MRMS QPE 01H Pass2 (July 9 18Z + 60 h),
+NLCD 2021 impervious (MRLC WCS), SSURGO HSG (`sim/soils_sda.py`), NHDPlus HR channels, OSM roads (Overpass; AADT = class defaults), USGS
+road-stream crossings + VTrans Small Culvert Inventory sizes (NAACC has no records here), USGS gauges. w9 reads them through
+`LF_DATA_DIR` / `LF_CROSSINGS` (MA runs unchanged). Closures are scored as lines: a segment matches when >= 50 % of it lies within 30 m of
+the closed stretch or it holds >= 50 % of it. Edge inflows: one-way nesting from a 60 m, 60 x 60 km run of the same model (`LF_INFLOW=file`).
+
+| run (folder) | depth: recall / flagged / lift | overtop | freeboard | culvert | Montpelier peak Q (obs 654) |
+| --- | --- | --- | --- | --- | --- |
+| default, rain on box only (`no_inflow`, re-scored with PROTO_BRIDGES) | 0.27 / 6.8 % / 0.70 | 0.36 / 10.1 % / 0.76 | 0.64 / 14.0 % / 1.15 | 0.55 / 7.5 % / 1.33 | 147 |
+| default + nested inflows (`nested_default`, re-scored) | 0.27 / 6.1 % / 0.75 | 0.36 / 9.5 % / 0.78 | 0.64 / 13.6 % / 1.17 | 0.55 / 6.8 % / 1.41 | 125 |
+| LF_BREACH_D4=1 + nested inflows (root folder) | 0.45 / 8.4 % / 0.97 | 0.45 / 10.7 % / 0.86 | 0.64 / 12.4 % / 1.13 | 0.73 / 9.1 % / 1.49 | 96 |
+
+The overtop candidate does not hold on Vermont: it never beats the depth rule on lift, and with D4 it adds no closure. No rule is far above
+chance here (lift ~1): only 11 closures, several 3-6 km long (VT-62 matches 41 segments), so random flagging already hits many. The flood
+is under-simulated: the big rivers run at 15-20 % of the gauged peaks (Winooski at Montpelier 96 vs 654 m3/s, Dog River 42 vs 312) because
+most of their basins lie outside the box and the 60 m coarse run that feeds the edges routes poorly (Montpelier 13 m3/s); stage rise with
+D4 is 3.5 vs 5.0 m (Montpelier) and 1.8 vs 3.2 m (Dog River). A fair test of the river-driven closures needs gauge-forced inflows or a
+finer coarse run.
+
 ## Run it
 
 Small case (any laptop or the GitHub workflow `.github/workflows/proto.yml`):
