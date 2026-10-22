@@ -881,12 +881,17 @@ def main():
     qfiles = sorted(glob.glob(f'{wd}/results/res-*.Qx'))
     if QOUT and qfiles:
         t_ = time.time()
+        # the CUDA acceleration solver keeps unit-width flux q (m2/s; cuda_acc_solver.cu) and writes it to .Qx/.Qy, the CPU solver writes
+        # face discharge (m3/s): scale by the cell width for GPU runs (LF_QX_SCALE overrides)
+        QSCALE = float(os.environ.get('LF_QX_SCALE') or (RES if is_cuda else 1.0))
+        if QSCALE != 1.0: log(f'flux files scaled by {QSCALE:g} (unit-width q from the CUDA solver -> m3/s)')
         for B in XG: B.update(q_peak_m3s=0.0, q_peak_h=None)
         for B in GQ: B.update(q_peak_m3s=0.0, q_peak_h=None, q_series=[])
         for fq in qfiles:
             j = int(re.search(r'-(\d+)\.Qx$', fq).group(1)); fy = fq[:-3] + '.Qy'
             if not os.path.exists(fy): continue
             try: Qx = np.nan_to_num(read_asc(fq)[0]); Qy = np.nan_to_num(read_asc(fy)[0])
+            if QSCALE != 1.0: Qx = Qx * QSCALE; Qy = Qy * QSCALE
             except Exception as e: log('flux file unreadable', fq, repr(e)[:80]); continue
             if Qx.shape != (ny, nx + 1) or Qy.shape != (ny + 1, nx): log('unexpected flux grid shapes', Qx.shape, Qy.shape); break
             for B in XG + GQ:

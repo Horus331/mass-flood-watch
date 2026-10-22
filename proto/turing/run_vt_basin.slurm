@@ -24,7 +24,8 @@ export LF_DOMAIN=basin LF_DOMAIN_FILE=$DOMAIN LF_DATA_DIR=$STAGE/data LF_MRMS_DI
 export LF_WORK=${LF_WORK:-$STAGE/lf} LF_NO_UPLOAD=1 OMP_NUM_THREADS=$SLURM_NTASKS HF_HUB_OFFLINE=1
 export RES=${RES:-20} HOURS=${HOURS:-60}
 export LF_LOSS=${LF_LOSS:-cn} LF_CN_AMC=${LF_CN_AMC:-II} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}
-export NAME=${NAME:-winooski_jul2023vt_${RES}m} RUN_DIR=runs/${STORM}_proto_${NAME}
+export NAME=${NAME:-winooski_jul2023vt_${RES}m}
+export RUN_DIR=runs/${STORM}_proto_${NAME}
 [ -d "$LF_DATA_DIR/dem10" ] || { echo "no staged inputs in $STAGE: run proto/turing/stage_inputs.sh on a login node first"; exit 1; }
 nvidia-smi || true
 time python sim/colab/w9_lisflood.py
