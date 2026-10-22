@@ -471,8 +471,26 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     import re as _re                                            # Interstates: class 2 named I-nn (MA class 2 is exactly the Interstates)
     interstate = np.array([k_ == 2 and bool(_re.match(r'\s*I[- ]?\d', nm_ or '')) for k_, nm_ in zip(props['cls'], roads_)], bool)
     _orig_rp = getattr(IM, '_road_points_orig', IM.road_points); IM._road_points_orig = _orig_rp; _cache = {}     # never wrap a wrapper (repeated runs)
+    # ROAD-SURFACE SNAP (fine grids): at 10 m the mapped centreline can sit a cell off the pavement, so a road point lands in the roadside
+    # ditch and reads ditch water as water on the road.  The travelled way is the local high of the cross-section (crown / embankment), so
+    # each point moves to the highest unedited lidar cell within one cell (3 x 3).  Default on for res <= 10 m (PROTO_SNAP_CREST=1/0 forces).
+    snap_env = os.environ.get('PROTO_SNAP_CREST')
+    snap_on = (snap_env == '1') or (snap_env is None and res <= 10.0)
+    geo['snap_crest'] = bool(snap_on and ZC_ is not None)
+    def snap_to_crest(P_):
+        if not (snap_on and ZC_ is not None) or not len(P_['x']): return P_
+        ny_, nx_ = shp; r0, c0 = P_['r'].astype(int), P_['c'].astype(int); best = ZC_[r0, c0].copy(); br, bc = r0.copy(), c0.copy()
+        ok_ = None if WM is None or WM.shape != shp else ~WM
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                rr, cc = np.clip(r0 + dr, 0, ny_ - 1), np.clip(c0 + dc, 0, nx_ - 1); z_ = ZC_[rr, cc]
+                better = z_ > best + 0.05
+                if ok_ is not None: better &= ok_[rr, cc]
+                best = np.where(better, z_, best); br = np.where(better, rr, br); bc = np.where(better, cc, bc)
+        geo['snap_moved_points'] = int(((br != r0) | (bc != c0)).sum())
+        P_ = dict(P_); P_['r'], P_['c'] = br.astype(P_['r'].dtype), bc.astype(P_['c'].dtype); return P_
     def road_points_no_bridges(S_, meta_, step=None):
-        P_ = _orig_rp(S_, meta_, step)
+        P_ = snap_to_crest(_orig_rp(S_, meta_, step))
         if not len(P_['x']): return P_
         keep_ = np.ones(len(P_['x']), bool)
         if WM is not None and WM.shape == tuple(meta_['shape']): keep_ &= ~WM[P_['r'], P_['c']]
