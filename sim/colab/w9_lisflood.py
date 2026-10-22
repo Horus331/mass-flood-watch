@@ -793,6 +793,7 @@ def main():
         if D_['weirs']:
             open(f'{wd}/run.weir', 'w').write(lf_dams_weirfile(D_)); extra.append('weirfile run.weir')
             if is_cuda: log('WARNING: LF_DAMS weirs are read by the CPU solver (fp_flow.cpp); the CUDA acceleration solver may ignore them')
+        extra += D_.get('par', [])
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
     log('par:', ' | '.join(par))
