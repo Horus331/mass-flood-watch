@@ -159,7 +159,11 @@ def score(run_dir, obs_path, windows=None):
         if wm is not None and wm.any():          # prefer the river: nearest channel/water cell to the gauge
             rr_, cc_ = np.nonzero(wm); d2 = (rr_ - lr) ** 2 + (cc_ - lc) ** 2; j = int(np.argmin(d2)); i = (rr_[j], cc_[j])
         else: i = np.unravel_index(np.argmax(pk), pk.shape)
-        ms = win[:, i[0], i[1]]; m_rise = float(ms.max() - ms[0]); m_tpk = t0 + dt.timedelta(hours=float(hours[int(np.argmax(ms))]))
+        ms = win[:, i[0], i[1]]; hrs_g = hours
+        # GPU (CUDA) runs write the t = 0 snapshot before the start file (channels a third full) is applied: a dry first frame followed by
+        # a jump would count as the storm rise; use frame 1 as the start state then
+        if len(ms) > 2 and hours[0] == 0 and ms[1] > 0.05 and ms[0] < 0.5 * ms[1]: ms = ms[1:]; hrs_g = hours[1:]
+        m_rise = float(ms.max() - ms[0]); m_tpk = t0 + dt.timedelta(hours=float(hrs_g[int(np.argmax(ms))]))
         st = [(iso(t), v * 0.3048) for t, v in g['stage_ft']]
         pre = [v for t, v in st if t0 - dt.timedelta(hours=12) <= t <= t0] or [st[0][1]]
         win_end = t0 + dt.timedelta(hours=float(hours[-1]))
@@ -174,7 +178,7 @@ def score(run_dir, obs_path, windows=None):
         out.append(dict(site=g['site'], name=g['name'], drain_km2=round((g.get('drain_mi2') or 0) * 2.59, 1), obs_rise_m=round(o_rise, 2), model_rise_m=round(m_rise, 2),
                         rise_error_m=round(m_rise - o_rise, 2), obs_peak_utc=zfmt(o_t), model_peak_utc=zfmt(m_tpk),
                         timing_error_h=round((m_tpk - o_t).total_seconds() / 3600, 1), obs_peak_q_m3s=round(q[1] * 0.0283168, 1) if q else None, **(wse or {}),
-                        **timing(t0, hours, ms, st, pre_level, o_rise, win_end)))
+                        **timing(t0, hrs_g, ms, st, pre_level, o_rise, win_end)))
     if D is not None:
         try:
             np.savez_compressed(os.environ.get('SCORE_WINDOWS', '/tmp/gauge_windows.npz'),
