@@ -4,7 +4,9 @@
     python proto/risk.py --selftest
 
 Post-step after proto/prototype.py and proto/resilience.py (reads segments.geojson and resilience_segments.csv from --out).  Writes
-risk_matrix.csv (top 50, class Low / Medium / High / Extreme), risk.json (all counts, totals, unit costs, sources) and risk_matrix.png.
+risk_matrix.csv (top 50, class Low / Medium / High / Extreme), risk.json (all counts, totals, unit costs, sources), risk_matrix.png and
+risk_segments.json (compact, keyed by segment id, read by the map: residents losing hospital / fire / police access and isolated if that
+segment alone closes, for every segment on the map, plus its risk class and $ ranges; --no-access-all limits access to the risk items).
 ALL COSTS ARE ORDER-OF-MAGNITUDE PLANNING NUMBERS (2023 US$, low-high ranges, the midpoint is the geometric mean), not engineer's estimates.
 
 Items
@@ -131,6 +133,7 @@ def access_importance(S, inbox, segs, facilities, pop=None):
     net = RS.Net(S); geom = RS.seg_geometry(S); fac = json.load(open(facilities))['facilities'] if facilities and os.path.exists(facilities) else {}
     FS = RS.snap_facilities(fac, geom); lw = net.len_m / 1000.0; one = np.ones(net.n); G0 = net.graph(one)
     ok0 = {s: RS.access_minutes(net, G0, FS[s]) <= RS.ACCESS_MIN[s] for s in RS.ACCESS_MIN}
+    allsrc = sorted({int(j) for s in RS.ACCESS_MIN for j in FS[s]}); iso0 = RS.isolated_mask(net, one, allsrc)
     out = {}
     for i in segs:
         m = one.copy(); m[i] = np.inf; G = net.graph(m); lost = np.zeros(net.n, bool); per = {}; pper = {}
@@ -138,9 +141,39 @@ def access_importance(S, inbox, segs, facilities, pop=None):
             src = [j for j in FS[s] if j != i]; ok = RS.access_minutes(net, G, src) <= RS.ACCESS_MIN[s]
             l = inbox & ok0[s] & ~ok; l[i] = False; per[s] = round(float(lw[l].sum()), 2); lost |= l
             if pop is not None: pper[s] = int(round(float(pop[l].sum())))
+        iso = None
+        if pop is not None:              # newly cut off from every hospital / fire / police (as resilience.py isolated), own residents excluded
+            im = RS.isolated_mask(net, m, allsrc) & ~iso0 & inbox; im[i] = False; iso = int(round(float(pop[im].sum())))
         out[int(i)] = dict(km=round(float(lw[lost].sum()), 2), km_per=per, people=None if pop is None else int(round(float(pop[lost].sum()))), people_per=pper,
-                           residents_on_segment=None if pop is None else int(round(float(pop[i]))))
+                           residents_on_segment=None if pop is None else int(round(float(pop[i]))), isolated=iso)
     return out
+
+
+def write_map_json(path, summ, feats, items, acc, pop):
+    """Compact per-segment file for the map (proto/prototype.py map.html fetches it): keyed by segment id.
+    a = residents losing access if this segment alone closes (dry network): h hospital 30 min, f fire 8 min, p police 10 min, any, iso isolated,
+    own = residents on the segment itself; r = risk item (class, score, L, C, likelihood, repair / delay / consequence $ ranges); x = crossings it carries."""
+    R = lambda v: int(round(v, -2)) if v is not None else None
+    seg = {}
+    for i, a in acc.items():
+        if i not in feats: continue
+        pp = a.get('people_per') or {}
+        seg[str(i)] = dict(a=dict(h=pp.get('hospital'), f=pp.get('fire_station'), p=pp.get('police'), any=a.get('people'), iso=a.get('isolated'),
+                                  own=a.get('residents_on_segment'), km=a.get('km')))
+    for it in items:
+        k = it['id'] if it['type'] == 'segment' else (str(it['carried_segment']) if it.get('carried_segment') is not None else None)
+        if k is None: continue
+        e = seg.setdefault(k, {})
+        r = dict(risk=it['risk'], score=it['score'], L=it['L'], C=it['C'], by=it['C_driver'], p=round(it['likelihood'], 3), repair=[R(it['repair_low']), R(it['repair_high'])],
+                 delay=R(it['delay_usd']), cons=[R(it['consequence_low']), R(it['consequence_high'])], mid=R(it['consequence_mid']), exp=R(it['expected_cost']))
+        if it['type'] == 'segment': e['r'] = r
+        else: e.setdefault('x', []).append(dict(r, id=it['id'], stream=it['stream'] if isinstance(it.get('stream'), str) else None))
+    json.dump(dict(run=summ.get('run'), made=time.strftime('%Y-%m-%d %H:%M'), access_used='people (2020 Census blocks)' if pop is not None else 'road-km (no census file)',
+                   standards_min=RS.ACCESS_MIN, classes='L x C: Low 1-4, Medium 5-9, High 10-16, Extreme 20-25', dollar_year=2023,
+                   keys='a: residents losing access if this segment alone closes (dry network; h hospital 30 min, f fire 8 min, p police 10 min, any, iso isolated = no route '
+                        'to any facility, own = residents on the segment, not counted); r: risk (class, score, L, C, by = consequence driver, p likelihood, $ repair / '
+                        'delay / consequence low-high, mid, exp = expected); x: crossings carried by the segment',
+                   segments=seg), open(path, 'w'), separators=(',', ':'), allow_nan=False)
 
 
 def crossings_from_run(run_dir, S, Xrows, meta):
@@ -187,7 +220,7 @@ def crossings_from_run(run_dir, S, Xrows, meta):
     return out
 
 
-def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=50, png=True, blocks=None):
+def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=50, png=True, blocks=None, access_all=True):
     t_start = time.time()
     segments = segments or os.path.join(ROOT, 'docs', 'graph_segments.json'); facilities = facilities or os.path.join(ROOT, 'docs', 'network', 'facilities.json')
     summ = json.load(open(os.path.join(out, 'summary.json'))); GJ = json.load(open(os.path.join(out, 'segments.geojson')))
@@ -215,7 +248,7 @@ def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=5
             d, k = t.query([a, b]); carry[x['id']] = int(P['seg'][k]) if d <= 30 else None
             if x['status'] == 'overtopped' or x['p_overtop'] >= 0.5:
                 for s in np.unique(P['seg'][t.query_ball_point([a, b], 30.0)]): washout.add(int(s))
-    imp_segs = sorted(set(segs) | {s for s in carry.values() if s is not None})
+    imp_segs = sorted(set(segs) | {s for s in carry.values() if s is not None} | ({i for i in feats if inbox[i]} if access_all else set()))
     BA = RS.assign_blocks(blocks or RS.BLOCKS, P, box); pop = None
     if BA is not None: pop = np.bincount(BA[0], BA[2], minlength=S['n']); pop[~inbox] = 0
     else: print('  no census blocks: critical access in road-km')
@@ -291,6 +324,7 @@ def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=5
                         'Likelihood is the physics prior p_close (and P(overtop)), not a calibrated failure probability.'],
                sources=SOURCES, runtime_s=round(time.time() - t_start, 1))
     json.dump(res, open(os.path.join(out, 'risk.json'), 'w'), indent=1)
+    write_map_json(os.path.join(out, 'risk_segments.json'), summ, feats, items, acc, pop)
     if png: plot(os.path.join(out, 'risk_matrix.png'), items, grid, gridx)
     print(json.dumps({k: res[k] for k in ('items', 'segments', 'crossings', 'classes', 'totals_usd')}, indent=1))
     return res
@@ -339,6 +373,7 @@ if __name__ == '__main__':
     ap.add_argument('--facilities', default=os.path.join(ROOT, 'docs', 'network', 'facilities.json'))
     ap.add_argument('--blocks', default=RS.BLOCKS, help='census blocks .npz (proto/census_blocks.py); missing -> road-km access bands')
     ap.add_argument('--top', type=int, default=50); ap.add_argument('--selftest', action='store_true')
+    ap.add_argument('--no-access-all', action='store_true', help='critical access only for risk items, not every segment on the map')
     a = ap.parse_args()
     if a.selftest: sys.exit(0 if selftest() else 1)
-    run(a.out, a.run_dir, a.segments, a.crossings, a.facilities, a.top, blocks=a.blocks)
+    run(a.out, a.run_dir, a.segments, a.crossings, a.facilities, a.top, blocks=a.blocks, access_all=not a.no_access_all)
