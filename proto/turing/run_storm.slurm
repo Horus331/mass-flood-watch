@@ -17,7 +17,7 @@ export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} STORM=${STORM:-sep
 export NAME=${NAME:-leominster_sep2023_gpu} RUN_DIR=runs/${STORM}_proto_${NAME}
 nvidia-smi || true
 echo "== net check"; for u in https://huggingface.co https://noaa-mrms-pds.s3.amazonaws.com; do printf "%s " $u; curl -s -o /dev/null -m 10 -w "%{http_code}\n" $u; done
-/usr/bin/time -v python sim/colab/w9_lisflood.py
+time python sim/colab/w9_lisflood.py
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 python proto/prototype.py --run-dir "$OUT" --out "results/$NAME"
 echo "results in results/$NAME (map.html, watchlist.csv, REPORT.md, summary.json)"

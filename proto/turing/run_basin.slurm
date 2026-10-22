@@ -25,7 +25,7 @@ export LF_LOSS=${LF_LOSS:-cn} LF_CN_AMC=${LF_CN_AMC:-II} LF_CN_SCALE=${LF_CN_SCA
 export NAME=${NAME:-nn_leominster_sep2023_${RES}m} RUN_DIR=runs/${STORM}_proto_${NAME}
 python -c "import json,sys; d=json.load(open('$LF_DOMAIN_FILE')); print('domain', d['name'], 'box', d['box'], 'basins', d['union_km2'], 'km2 of', d['box_km2'], 'km2 box')"
 nvidia-smi || true
-/usr/bin/time -v python sim/colab/w9_lisflood.py
+time python sim/colab/w9_lisflood.py
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 python proto/prototype.py --run-dir "$OUT" --out "results/$NAME"
 python proto/score.py --run-dir "$OUT" --out "results/$NAME/score.json" || true

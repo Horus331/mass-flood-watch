@@ -27,7 +27,7 @@ export LF_LOSS=${LF_LOSS:-cn} LF_CN_AMC=${LF_CN_AMC:-II} LF_CN_SCALE=${LF_CN_SCA
 export NAME=${NAME:-winooski_jul2023vt_${RES}m} RUN_DIR=runs/${STORM}_proto_${NAME}
 [ -d "$LF_DATA_DIR/dem10" ] || { echo "no staged inputs in $STAGE: run proto/turing/stage_inputs.sh on a login node first"; exit 1; }
 nvidia-smi || true
-/usr/bin/time -v python sim/colab/w9_lisflood.py
+time python sim/colab/w9_lisflood.py
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 PROTO_NBI=$STAGE/inputs/bridges_vt.json python proto/prototype.py --run-dir "$OUT" --out "results/$NAME" --segments $STAGE/inputs/segments_vt.json --crossings $STAGE/inputs/crossings_vt.json \
   --facilities $STAGE/inputs/facilities_vt.json --reports none --repeat none --labels proto/data/vt_roadclosures_jul2023.geojson
