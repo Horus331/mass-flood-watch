@@ -26,7 +26,7 @@ hypercube sampling (fixed seed) of these spreads.  Each spread is a 1-sigma in l
            min-max spans x0.5-x1.6 of normal; Arcement & Schneider (1989) floodplain adjustments (vegetation, obstructions) add 0.002-0.10 to a
            0.02-0.03 base.  Wider than the channel because land cover is generalised (two classes).  Dense-urban cells (> 30 % paved, n 0.10)
            are fixed in w9 and not perturbed.
-  drain    LF_INFIL_MMH    lognormal about the center (2 mm/h), sigma_ln 0.40: steady drainage of ponded water.  NRCS NEH 630 ch. 7 minimum
+  drain    (NOT sampled in the current design, per the lead: the center LF_INFIL_MMH is kept.  Spread if re-enabled:) LF_INFIL_MMH lognormal about the center (2 mm/h), sigma_ln 0.40: steady drainage of ponded water.  NRCS NEH 630 ch. 7 minimum
            infiltration rates, HSG C 1.3-3.8 mm/h, D 0-1.3, B 3.8-7.6 (Musgrave 1955); x0.45-x2.2 at 2 sd covers C with part of B and D.
 
 Member 'm00' is the center itself (all multipliers 1): the single-run reference the ensemble is compared with.
@@ -52,10 +52,10 @@ PARAMS = [
     ('cn', 'LF_CN_SCALE', 'normal_mult', 0.10, 'NRCS NEH 630 ch.10 Table 10-1 (AMC I/III); Hjelmfelt 1991'),
     ('n_chan', 'LF_N_CHAN', 'lognormal_mult', 0.25, 'Chow 1959 Table 5-6; Arcement & Schneider 1989 (USGS WSP 2339)'),
     ('n_land', 'LF_N_FP', 'lognormal_mult', 0.35, 'Chow 1959 Table 5-6 (flood plains); Arcement & Schneider 1989'),
-    ('drain', 'LF_INFIL_MMH', 'lognormal_mult', 0.40, 'NRCS NEH 630 ch.7 minimum infiltration rates by HSG (Musgrave 1955)'),
 ]
 DEFAULTS = {'LF_RAIN_SCALE': 1.0, 'LF_CN_SCALE': 1.0, 'LF_N_CHAN': 0.035, 'LF_N_FP': 0.08, 'LF_INFIL_MMH': 4.0}   # w9 defaults when unset
 FAIL_M = 0.30
+EXTRA_LABELS = [os.path.join(HERE, 'data', 'labels_sep2023_leominster_dpw.csv')]
 
 
 def parse_env(s):
@@ -72,7 +72,7 @@ def norm_ppf(u):
 
 def design(n, seed, center_env):
     """Latin hypercube in len(PARAMS) dimensions (one stratum per member per dimension, random position inside it, independent permutations),
-    mapped to truncated normal z, then to each parameter.  Returns [center m00] + n members, each {name, env, mult}."""
+    mapped to truncated normal z (drain kept at the center), then to each parameter.  Returns [center m00] + n members, each {name, env, mult}."""
     rng = np.random.default_rng(seed); d = len(PARAMS)
     U = np.empty((n, d))
     for j in range(d): U[:, j] = (rng.permutation(n) + rng.random(n)) / n
@@ -99,7 +99,8 @@ def member(run_dir, out, mdef, labels=None):
         cap['rows'].append(r); return _reason(r)
     _ls = PR.label_segments
     def ls_cap(labels_, Q, props, meta, strict=True):
-        m = _ls(labels_, Q, props, meta, strict); cap['matches']['strict' if strict else 'loose'] = [(L.get('id'), L.get('type'), [int(s) for s in sg]) for L, sg in m]; return m
+        m = _ls(labels_, Q, props, meta, strict); cap['matches']['strict' if strict else 'loose'] = [(L.get('id'), L.get('type'), [int(s) for s in sg]) for L, sg in m]
+        cap['ctx'] = (Q, props, meta); return m
     PR.reason = reason_cap; PR.label_segments = ls_cap
     PR.write_map = lambda *a, **k: None; PR.write_figure = lambda *a, **k: None; PR.depth_png = lambda *a, **k: None
     tmp = os.path.join(out, '_proto'); t0 = time.time()
@@ -111,6 +112,11 @@ def member(run_dir, out, mdef, labels=None):
                   os.path.join(HERE, 'data', 'massdot_repeat_flood_d3.csv'),
                   labels_csv=labels or os.path.join(HERE, 'data', 'labels_sep2023_leominster.csv'))
     rows = cap['rows']
+    sets = {os.path.basename(labels or os.path.join(HERE, 'data', 'labels_sep2023_leominster.csv')): cap['matches']}
+    if 'ctx' in cap:          # further point-label sets on the same road points (e.g. the Leominster DPW damage list)
+        for lp in EXTRA_LABELS:
+            if os.path.exists(lp) and os.path.basename(lp) not in sets:
+                LB = PR.load_labels(lp); sets[os.path.basename(lp)] = {('strict' if st_ else 'loose'): [(L.get('id'), L.get('type'), [int(s) for s in sg]) for L, sg in _ls(LB, *cap['ctx'], strict=st_)] for st_ in (True, False)}
     seg = dict(id=[r['segment'] for r in rows], depth=[r['peak_depth_m'] for r in rows], p_depth=[r['p_depth'] for r in rows],
                p_ot=[r['p_overtop'] for r in rows], fb=[r['freeboard_m'] for r in rows], arr=[r['arrival_h'] for r in rows],
                h30=[r['hours_over_30cm'] for r in rows])
@@ -136,7 +142,7 @@ def member(run_dir, out, mdef, labels=None):
     M = dict(member=mdef, run=meta.get('run'), t0=t0m, box=meta['box'], res_m=meta['res_m'], hours=len(meta.get('frames', [])) * meta.get('frame_min', 30) / 60,
              env=meta.get('inputs', {}).get('env'), rain_total_mean_mm=meta.get('rain_total_mean_mm'), runtime_s=meta.get('runtime_s'),
              summary={k: summ.get(k) for k in ('segments_in_box', 'segments_p_ge_50', 'segments_may_close', 'closures_expected', 'culverts_overtopped')},
-             segments=seg, matches=cap['matches'], gauges=gauges, made=time.strftime('%Y-%m-%d %H:%M'), prototype_s=round(time.time() - t0, 1))
+             segments=seg, matches=cap['matches'], label_sets=sets, gauges=gauges, made=time.strftime('%Y-%m-%d %H:%M'), prototype_s=round(time.time() - t0, 1))
     import gzip
     with gzip.open(os.path.join(out, 'member.json.gz'), 'wt') as f_: json.dump(M, f_, separators=(',', ':'))
     import shutil; shutil.rmtree(tmp, ignore_errors=True)
@@ -209,26 +215,32 @@ def aggregate(mdir, out, name=None):
                            uncertain_0_to_1=int(((pe > 0) & (pe < 1)).sum()), uncertain_25_75=int(((pe >= 0.25) & (pe <= 0.75)).sum()),
                            closed_in_any_member=int((pe > 0).sum()), closed_in_all_members=int((pe >= 1).sum()))
     # labels: y = 1 for segments strictly matched to a documented site (any type), 0 for segments not matched even loosely
-    ref = C or E[0]; st = ref['matches'].get('strict', []); lo = ref['matches'].get('loose', [])
-    pos = {s for _, _, sg in st for s in sg if s in ix}; loose_any = {s for _, _, sg in lo for s in sg if s in ix}
-    keep = np.array([(s in pos) or (s not in loose_any) for s in ids]); y = np.array([s in pos for s in ids], float)
-    lab = {}
+    ref = C or E[0]; SETS = dict(ref.get('label_sets') or {'labels': ref['matches']})
+    if len(SETS) > 1: SETS['combined'] = {g_: [x for v_ in list(SETS.values()) for x in v_.get(g_, [])] for g_ in ('strict', 'loose')}
     cands = dict(p_ens_depth=p_ens, p_ens_overtop=p_ens_ot, p_mean_depth=p_mean, p_mean_overtop=p_mean_ot)
     if C: cands.update(single_p_depth=cPD, single_p_overtop=c_pot, single_class_depth=c_close.astype(float), single_class_overtop=c_close_o.astype(float))
-    if keep.any() and y.sum() > 0:
-        lab['segments'] = {k: scores(v[keep], y[keep]) for k, v in cands.items()}
-        # site level: each documented site gets the max P over its strict segments (outcome 1 for every site: these are positives only)
-        lab['sites'] = {k: dict(mean_p=round(float(np.mean([max(v[ix[s]] for s in sg if s in ix) for _, _, sg in st if any(s in ix for s in sg)])), 3),
-                                recall_p05=round(float(np.mean([max(v[ix[s]] for s in sg if s in ix) >= 0.5 for _, _, sg in st if any(s in ix for s in sg)])), 3),
-                                brier_positives=round(float(np.mean([(1 - max(v[ix[s]] for s in sg if s in ix)) ** 2 for _, _, sg in st if any(s in ix for s in sg)])), 4))
-                        for k, v in cands.items()}
-        lab['site_table'] = [dict(id=i_, type=t_, n_segments=len(sg), p_ens_depth=round(float(max(p_ens[ix[s]] for s in sg if s in ix)), 3),
-                                  p_ens_overtop=round(float(max(p_ens_ot[ix[s]] for s in sg if s in ix)), 3),
-                                  single_p_depth=round(float(max(cPD[ix[s]] for s in sg if s in ix)), 3) if C else None,
-                                  max_depth_range_m=[round(float(D[:, [ix[s] for s in sg if s in ix]].max(1).min()), 2), round(float(D[:, [ix[s] for s in sg if s in ix]].max(1).max()), 2)])
-                             for i_, t_, sg in st if any(s in ix for s in sg)]
-        lab['note'] = ('y = 1: segments with a road point within 30 m of a documented site (any type); y = 0: in-box segments not within the loose '
-                       'match of any site (100-300 m / same-name) -- unreported is not proof of dry, so y = 0 is noisy and Brier is dominated by negatives')
+    LABS = {}; y_any = np.zeros(ns)
+    for set_name, mm in SETS.items():
+        st = mm.get('strict', []); lo = mm.get('loose', [])
+        pos = {s for _, _, sg in st for s in sg if s in ix}; loose_any = {s for _, _, sg in lo for s in sg if s in ix}
+        keep = np.array([(s in pos) or (s not in loose_any) for s in ids]); y = np.array([s in pos for s in ids], float)
+        lab = {}
+        if keep.any() and y.sum() > 0:
+            lab['segments'] = {k: scores(v[keep], y[keep]) for k, v in cands.items()}
+            # site level: each documented site gets the max P over its strict segments (outcome 1 for every site: these are positives only)
+            lab['sites'] = {k: dict(mean_p=round(float(np.mean([max(v[ix[s]] for s in sg if s in ix) for _, _, sg in st if any(s in ix for s in sg)])), 3),
+                                    recall_p05=round(float(np.mean([max(v[ix[s]] for s in sg if s in ix) >= 0.5 for _, _, sg in st if any(s in ix for s in sg)])), 3),
+                                    brier_positives=round(float(np.mean([(1 - max(v[ix[s]] for s in sg if s in ix)) ** 2 for _, _, sg in st if any(s in ix for s in sg)])), 4))
+                            for k, v in cands.items()}
+            lab['site_table'] = [dict(id=i_, type=t_, n_segments=len(sg), p_ens_depth=round(float(max(p_ens[ix[s]] for s in sg if s in ix)), 3),
+                                      p_ens_overtop=round(float(max(p_ens_ot[ix[s]] for s in sg if s in ix)), 3),
+                                      single_p_depth=round(float(max(cPD[ix[s]] for s in sg if s in ix)), 3) if C else None,
+                                      max_depth_range_m=[round(float(D[:, [ix[s] for s in sg if s in ix]].max(1).min()), 2), round(float(D[:, [ix[s] for s in sg if s in ix]].max(1).max()), 2)])
+                                 for i_, t_, sg in st if any(s in ix for s in sg)]
+            lab['note'] = ('y = 1: segments with a road point within 30 m of a documented site (any type); y = 0: in-box segments not within the loose '
+                           'match of any site (100-300 m / same-name) -- unreported is not proof of dry, so y = 0 is noisy and Brier is dominated by negatives')
+        LABS[set_name] = lab; y_any = np.maximum(y_any, y)
+    lab = LABS; y = y_any
     # gauges
     G = {}
     for m in E:
@@ -273,15 +285,15 @@ def aggregate(mdir, out, name=None):
 
 def write_md(path, R):
     L = [f"# Ensemble {R['name']}: {R['members']} members + center", '',
-         f"Latin hypercube (seed {R['seed']}), truncated at +-{TRUNC:g} sd, around the center env `{R['center_env']}`.", '',
+         f"Latin hypercube (seed {R['seed']}, inputs: {', '.join(p['name'] for p in R['parameters'])}), truncated at +-{TRUNC:g} sd, around the center env `{R['center_env']}`.", '',
          '| input | env | spread | sources |', '|---|---|---|---|']
     for p in R['parameters']:
         sp = f"sigma_ln {p['sigma']}" if p['kind'] == 'lognormal_mult' else f"sd {p['sigma']} (x center)"
         L.append(f"| {p['name']} | {p['env']} | {sp} | {p['sources']} |")
-    L += ['', '## Members', '', '| member | rain | cn | n_chan | n_land | drain | rain mean mm | segments P>=0.5 |', '|---|---|---|---|---|---|---|---|']
+    L += ['', '## Members', '', '| member | rain | cn | n_chan | n_fp | rain mean mm | segments P>=0.5 |', '|---|---|---|---|---|---|---|']
     for m in R['member_summary']:
         mu = m.get('mult') or {}
-        L.append(f"| {m['name']} | " + ' | '.join(str(mu.get(k, 1)) for k in ('rain', 'cn', 'n_chan', 'n_land', 'drain')) + f" | {m.get('rain_mean_mm')} | {m.get('segments_p_ge_50')} |")
+        L.append(f"| {m['name']} | " + ' | '.join(str(mu.get(k, 1)) for k in ('rain', 'cn', 'n_chan', 'n_land')) + f" | {m.get('rain_mean_mm')} | {m.get('segments_p_ge_50')} |")
     L += ['', '## Gauges: ensemble 5-95 % band vs observed', '', '| gauge | quantity | p05 | p50 | p95 | center | observed | inside |', '|---|---|---|---|---|---|---|---|']
     for g in R['gauges']:
         for q in ('rise_m', 'peak_q_m3s', 'peak_h'):
@@ -292,11 +304,11 @@ def write_md(path, R):
         L.append(f"- **{k} rule**: center closes {c['center_closed']}, ensemble majority {c['ens_majority_closed']}; closed->open {c['closed_to_open']}, "
                  f"open->closed {c['open_to_closed']}; closed in some but not all members {c['uncertain_0_to_1']} (P_ens 0.25-0.75: {c['uncertain_25_75']}); "
                  f"closed in every member {c['closed_in_all_members']}, in any {c['closed_in_any_member']}.")
-    lab = R['labels']
-    if lab.get('segments'):
-        L += ['', '## Documented sites (Sept 2023 Leominster labels)', '', lab['note'], '', '| probability | Brier | climatology | BSS | site mean P | site recall P>=0.5 |', '|---|---|---|---|---|---|']
+    for set_name, lab in R['labels'].items():
+        if not lab.get('segments'): continue
+        L += ['', f'## Documented sites: {set_name}', '', lab['note'], '', '| probability | Brier | climatology | BSS | n pos | site mean P | site recall P>=0.5 |', '|---|---|---|---|---|---|---|']
         for k, v in lab['segments'].items():
-            s = lab['sites'][k]; L.append(f"| {k} | {v['brier']} | {v['brier_climatology']} | {v['bss']} | {s['mean_p']} | {s['recall_p05']} |")
+            s = lab['sites'][k]; L.append(f"| {k} | {v['brier']} | {v['brier_climatology']} | {v['bss']} | {v['n_pos']} | {s['mean_p']} | {s['recall_p05']} |")
         L += ['', 'Reliability (segments): bin: n, mean P, observed frequency', '']
         for k in ('p_ens_depth', 'single_p_depth', 'p_ens_overtop', 'single_p_overtop'):
             if k in lab['segments']: L.append(f"- {k}: " + '; '.join(f"{b['bin']}: {b['n']}, {b['mean_p']}, {b['obs_freq']}" for b in lab['segments'][k]['bins'] if b['n']))
@@ -310,12 +322,12 @@ def write_md(path, R):
 def selftest():
     import tempfile
     M = design(12, SEED, 'LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_QOUT=1')
-    assert len(M) == 13 and M[0]['center'] and M[0]['env'].startswith('LF_LOSS=cn')
+    assert len(M) == 13 and len(M[1]['mult']) == 4 and M[0]['center'] and M[0]['env'].startswith('LF_LOSS=cn')
     for j, (nm, var, kind, s, _) in enumerate(PARAMS):      # LHS: one sample per stratum in every dimension
         from scipy.stats import norm
         lo, hi = norm.cdf(-TRUNC), norm.cdf(TRUNC); u = (norm.cdf([m['z'][nm] for m in M[1:]]) - lo) / (hi - lo)
         assert sorted((u * 12).astype(int).tolist()) == list(range(12)), nm
-    e = parse_env(M[1]['env']); assert abs(float(e['LF_N_CHAN']) / 0.035 - M[1]['mult']['n_chan']) < 1e-3; assert abs(float(e['LF_INFIL_MMH']) / 2 - M[1]['mult']['drain']) < 1e-3
+    e = parse_env(M[1]['env']); assert abs(float(e['LF_N_CHAN']) / 0.035 - M[1]['mult']['n_chan']) < 1e-3; assert e['LF_INFIL_MMH'] == '2' and abs(float(e['LF_N_FP']) / 0.08 - M[1]['mult']['n_land']) < 1e-3
     print('ok   design: 12 LHS members + center, one sample per stratum per input, center env kept')
     d = tempfile.mkdtemp(); S = json.load(open(os.path.join(ROOT, 'docs', 'graph_segments.json'))); n = S['n']
     rng = np.random.default_rng(0); segs = list(range(0, 400)); base = rng.gamma(0.6, 0.25, len(segs))
@@ -331,7 +343,7 @@ def selftest():
         os.makedirs(os.path.join(d, m['name'])); json.dump(mj, open(os.path.join(d, m['name'], 'member.json'), 'w'))
     R = aggregate(d, os.path.join(d, 'out'), 'selftest')
     assert R['members'] == 12 and R['gauges'][0]['rise_m']['obs_inside_5_95'] in (True, False)
-    assert 0 <= R['labels']['segments']['p_ens_depth']['brier'] <= 1 and 'single_p_depth' in R['labels']['segments']
+    LS = list(R['labels'].values())[0]; assert 0 <= LS['segments']['p_ens_depth']['brier'] <= 1 and 'single_p_depth' in LS['segments']
     g = json.load(open(os.path.join(d, 'out', 'ens_segments.geojson'))); assert g['features'] and 'p_ens' in g['features'][0]['properties']
     pe = np.array([f_['properties']['p_ens'] for f_ in g['features']]); assert (np.abs(pe * 12 - np.round(pe * 12)) < 0.02).all()
     print('ok   aggregate: P_ens in steps of 1/12, gauge bands, Brier + reliability, geojson')
