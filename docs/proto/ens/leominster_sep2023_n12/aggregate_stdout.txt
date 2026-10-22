@@ -1,0 +1,117 @@
+# Ensemble leominster_sep2023_n12: 12 members + center
+
+Latin hypercube (seed 2023091, inputs: rain, cn, n_chan, n_land), truncated at +-2 sd, around the center env `LF_CN_AMC=II LF_CN_SCALE=0.91 LF_INFIL_MMH=2 LF_LOSS=cn LF_NO_UPLOAD=1 LF_QOUT=1`.
+
+| input | env | spread | sources |
+|---|---|---|---|
+| rain | LF_RAIN_SCALE | sigma_ln 0.2 | Ciach et al. 2007; Villarini & Krajewski 2010; Zhang et al. 2016 (MRMS) |
+| cn | LF_CN_SCALE | sd 0.1 (x center) | NRCS NEH 630 ch.10 Table 10-1 (AMC I/III); Hjelmfelt 1991 |
+| n_chan | LF_N_CHAN | sigma_ln 0.25 | Chow 1959 Table 5-6; Arcement & Schneider 1989 (USGS WSP 2339) |
+| n_land | LF_N_FP | sigma_ln 0.35 | Chow 1959 Table 5-6 (flood plains); Arcement & Schneider 1989 |
+
+## Members
+
+| member | rain | cn | n_chan | n_fp | rain mean mm | segments P>=0.5 |
+|---|---|---|---|---|---|---|
+| m00 | 1 | 1 | 1 | 1 | 107 | 114 |
+| m01 | 0.9731 | 0.8429 | 0.7901 | 1.0064 | 104 | 61 |
+| m02 | 0.9285 | 0.9338 | 0.7145 | 0.753 | 100 | 67 |
+| m03 | 1.235 | 0.9667 | 0.9758 | 1.2967 | 133 | 161 |
+| m04 | 1.0235 | 0.9915 | 1.4353 | 0.9218 | 110 | 125 |
+| m05 | 0.7842 | 1.0236 | 0.9354 | 1.1235 | 84 | 70 |
+| m06 | 1.1286 | 1.0486 | 0.8342 | 1.1825 | 121 | 162 |
+| m07 | 1.3468 | 0.9475 | 1.2106 | 0.6901 | 145 | 167 |
+| m08 | 0.9017 | 1.1763 | 1.2638 | 1.8451 | 97 | 183 |
+| m09 | 1.1368 | 1.0678 | 1.1636 | 1.4454 | 122 | 191 |
+| m10 | 0.7426 | 0.875 | 1.0332 | 0.9349 | 80 | 42 |
+| m11 | 0.8727 | 1.0045 | 0.8765 | 0.8507 | 94 | 79 |
+| m12 | 1.0644 | 1.1115 | 1.097 | 0.5651 | 114 | 165 |
+
+## Gauges: ensemble 5-95 % band vs observed
+
+| gauge | quantity | p05 | p50 | p95 | center | observed | inside |
+|---|---|---|---|---|---|---|---|
+| 01094400 NORTH NASHUA RIVER AT FITCHBURG, MA | rise_m | 0.376 | 1.2 | 1.595 | 0.97 | 1.0 | True |
+| 01094400 NORTH NASHUA RIVER AT FITCHBURG, MA | peak_q_m3s | 12.518 | 40.983 | 73.783 | 37.611 | 43.6 | True |
+| 01094400 NORTH NASHUA RIVER AT FITCHBURG, MA | peak_h | 8.775 | 9.5 | 10.0 | 9.5 | 9.25 | True |
+| 01094500 NORTH NASHUA RIVER NEAR LEOMINSTER, MA | rise_m | 2.246 | 3.53 | 3.867 | 3.24 | 2.92 | True |
+| 01094500 NORTH NASHUA RIVER NEAR LEOMINSTER, MA | peak_q_m3s | 91.83 | 205.213 | 334.407 | 196.592 | 157.4 | True |
+| 01094500 NORTH NASHUA RIVER NEAR LEOMINSTER, MA | peak_h | 8.0 | 8.5 | 9.5 | 8.5 | 12.5 | False |
+
+## Segments
+
+In box: 5096. Expected closures: {'p_ens_depth': 122.8, 'p_ens_overtop': 292.5, 'p_mean_depth': 150.4, 'single_p_depth': 143.4}.
+
+- **depth rule**: center closes 114, ensemble majority 144; closed->open 0, open->closed 30; closed in some but not all members 156 (P_ens 0.25-0.75: 115); closed in every member 42, in any 198.
+- **overtop rule**: center closes 267, ensemble majority 325; closed->open 3, open->closed 61; closed in some but not all members 418 (P_ens 0.25-0.75: 278); closed in every member 82, in any 500.
+
+## Documented sites: labels_sep2023_leominster.csv
+
+y = 1: segments with a road point within 30 m of a documented site (any type); y = 0: in-box segments not within the loose match of any site (100-300 m / same-name) -- unreported is not proof of dry, so y = 0 is noisy and Brier is dominated by negatives
+
+| probability | Brier | climatology | BSS | n pos | site mean P | site recall P>=0.5 |
+|---|---|---|---|---|---|---|
+| p_ens_depth | 0.02618 | 0.01811 | -0.446 | 85 | 0.343 | 0.385 |
+| p_ens_overtop | 0.04029 | 0.01811 | -1.2251 | 85 | 0.503 | 0.551 |
+| p_mean_depth | 0.02538 | 0.01811 | -0.4017 | 85 | 0.357 | 0.359 |
+| p_mean_overtop | 0.03831 | 0.01811 | -1.1159 | 85 | 0.513 | 0.538 |
+| single_p_depth | 0.02591 | 0.01811 | -0.4311 | 85 | 0.367 | 0.359 |
+| single_p_overtop | 0.0438 | 0.01811 | -1.4191 | 85 | 0.537 | 0.513 |
+| single_class_depth | 0.02908 | 0.01811 | -0.6061 | 85 | 0.359 | 0.359 |
+| single_class_overtop | 0.04991 | 0.01811 | -1.7567 | 85 | 0.513 | 0.513 |
+
+Reliability (segments): bin: n, mean P, observed frequency
+
+- p_ens_depth: 0.00-0.05: 4454, 0.0, 0.014; 0.05-0.25: 10, 0.117, 0.1; 0.25-0.50: 29, 0.313, 0.069; 0.50-0.75: 63, 0.567, 0.095; 0.75-0.95: 24, 0.861, 0.125; 0.95-1.00: 28, 1.0, 0.357
+- single_p_depth: 0.00-0.05: 4399, 0.003, 0.013; 0.05-0.25: 85, 0.119, 0.094; 0.25-0.50: 39, 0.372, 0.051; 0.50-0.75: 25, 0.638, 0.12; 0.75-0.95: 18, 0.827, 0.111; 0.95-1.00: 42, 0.996, 0.31
+- p_ens_overtop: 0.00-0.05: 4214, 0.0, 0.01; 0.05-0.25: 55, 0.123, 0.055; 0.25-0.50: 84, 0.34, 0.071; 0.50-0.75: 125, 0.559, 0.064; 0.75-0.95: 76, 0.852, 0.105; 0.95-1.00: 54, 1.0, 0.296
+- single_p_overtop: 0.00-0.05: 4275, 0.003, 0.011; 0.05-0.25: 70, 0.127, 0.071; 0.25-0.50: 58, 0.38, 0.069; 0.50-0.75: 38, 0.633, 0.026; 0.75-0.95: 51, 0.863, 0.059; 0.95-1.00: 116, 0.992, 0.216
+
+## Documented sites: labels_sep2023_leominster_dpw.csv
+
+y = 1: segments with a road point within 30 m of a documented site (any type); y = 0: in-box segments not within the loose match of any site (100-300 m / same-name) -- unreported is not proof of dry, so y = 0 is noisy and Brier is dominated by negatives
+
+| probability | Brier | climatology | BSS | n pos | site mean P | site recall P>=0.5 |
+|---|---|---|---|---|---|---|
+| p_ens_depth | 0.01733 | 0.00434 | -2.9903 | 22 | 0.372 | 0.388 |
+| p_ens_overtop | 0.0405 | 0.00434 | -8.326 | 22 | 0.376 | 0.388 |
+| p_mean_depth | 0.01705 | 0.00434 | -2.9259 | 22 | 0.381 | 0.388 |
+| p_mean_overtop | 0.03826 | 0.00434 | -7.8102 | 22 | 0.398 | 0.388 |
+| single_p_depth | 0.01801 | 0.00434 | -3.1468 | 22 | 0.395 | 0.388 |
+| single_p_overtop | 0.04474 | 0.00434 | -9.3027 | 22 | 0.413 | 0.388 |
+| single_class_depth | 0.02121 | 0.00434 | -3.8849 | 22 | 0.388 | 0.388 |
+| single_class_overtop | 0.05056 | 0.00434 | -10.6417 | 22 | 0.388 | 0.388 |
+
+Reliability (segments): bin: n, mean P, observed frequency
+
+- p_ens_depth: 0.00-0.05: 4854, 0.0, 0.002; 0.05-0.25: 18, 0.12, 0.0; 0.25-0.50: 35, 0.321, 0.0; 0.50-0.75: 70, 0.569, 0.0; 0.75-0.95: 30, 0.864, 0.133; 0.95-1.00: 37, 1.0, 0.189
+- single_p_depth: 0.00-0.05: 4782, 0.003, 0.002; 0.05-0.25: 114, 0.128, 0.026; 0.25-0.50: 41, 0.371, 0.0; 0.50-0.75: 28, 0.627, 0.0; 0.75-0.95: 22, 0.835, 0.0; 0.95-1.00: 57, 0.996, 0.193
+- p_ens_overtop: 0.00-0.05: 4562, 0.0, 0.002; 0.05-0.25: 63, 0.124, 0.016; 0.25-0.50: 107, 0.34, 0.0; 0.50-0.75: 141, 0.56, 0.0; 0.75-0.95: 97, 0.857, 0.041; 0.95-1.00: 74, 1.0, 0.095
+- single_p_overtop: 0.00-0.05: 4634, 0.003, 0.002; 0.05-0.25: 87, 0.136, 0.023; 0.25-0.50: 66, 0.382, 0.015; 0.50-0.75: 43, 0.636, 0.0; 0.75-0.95: 57, 0.861, 0.0; 0.95-1.00: 157, 0.993, 0.07
+
+## Documented sites: combined
+
+y = 1: segments with a road point within 30 m of a documented site (any type); y = 0: in-box segments not within the loose match of any site (100-300 m / same-name) -- unreported is not proof of dry, so y = 0 is noisy and Brier is dominated by negatives
+
+| probability | Brier | climatology | BSS | n pos | site mean P | site recall P>=0.5 |
+|---|---|---|---|---|---|---|
+| p_ens_depth | 0.02751 | 0.02066 | -0.3315 | 97 | 0.354 | 0.386 |
+| p_ens_overtop | 0.04157 | 0.02066 | -1.0123 | 97 | 0.454 | 0.488 |
+| p_mean_depth | 0.02658 | 0.02066 | -0.2867 | 97 | 0.366 | 0.37 |
+| p_mean_overtop | 0.03939 | 0.02066 | -0.9068 | 97 | 0.469 | 0.48 |
+| single_p_depth | 0.02706 | 0.02066 | -0.3098 | 97 | 0.378 | 0.37 |
+| single_p_overtop | 0.04492 | 0.02066 | -1.1741 | 97 | 0.489 | 0.465 |
+| single_class_depth | 0.03024 | 0.02066 | -0.4639 | 97 | 0.37 | 0.37 |
+| single_class_overtop | 0.05113 | 0.02066 | -1.4749 | 97 | 0.465 | 0.465 |
+
+Reliability (segments): bin: n, mean P, observed frequency
+
+- p_ens_depth: 0.00-0.05: 4439, 0.0, 0.016; 0.05-0.25: 10, 0.117, 0.1; 0.25-0.50: 29, 0.313, 0.069; 0.50-0.75: 62, 0.566, 0.097; 0.75-0.95: 26, 0.859, 0.231; 0.95-1.00: 30, 1.0, 0.4
+- single_p_depth: 0.00-0.05: 4382, 0.003, 0.014; 0.05-0.25: 87, 0.119, 0.115; 0.25-0.50: 39, 0.372, 0.051; 0.50-0.75: 25, 0.638, 0.12; 0.75-0.95: 17, 0.83, 0.118; 0.95-1.00: 46, 0.996, 0.391
+- p_ens_overtop: 0.00-0.05: 4198, 0.0, 0.012; 0.05-0.25: 56, 0.124, 0.071; 0.25-0.50: 84, 0.34, 0.071; 0.50-0.75: 124, 0.558, 0.065; 0.75-0.95: 78, 0.854, 0.141; 0.95-1.00: 56, 1.0, 0.321
+- single_p_overtop: 0.00-0.05: 4258, 0.003, 0.012; 0.05-0.25: 71, 0.127, 0.085; 0.25-0.50: 59, 0.378, 0.085; 0.50-0.75: 38, 0.633, 0.026; 0.75-0.95: 50, 0.864, 0.06; 0.95-1.00: 120, 0.992, 0.25
+
+Files: ensemble.json (everything above + site table), ens_segments.geojson (p_ens, p_ens_overtop, p_mean, p_single, depth 5/50/95 %).
+
+Caveats: one storm-wide rain multiplier per member (no spatial rain error); 12 members resolve P_ens in steps of 1/12 and the 5-95 % band is close to the member min-max; parameters sampled independently; model-structure error (DEM, channel burn, 2-D solver) is not sampled.
+
