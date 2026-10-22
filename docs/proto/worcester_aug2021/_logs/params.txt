@@ -1,0 +1,83 @@
+143:"DEMfile" 694:"L" 232:"Qfile" 410:"Roe" 420:"Roe_slow" 793:"SGCA_mode" 805:"SGC_enable" 782:"SGCa" 853:"SGCbank" 823:"SGCbed" 787:"SGCbfh_mode" 835:"SGCcat_area" 762:"SGCchan" 841:"SGCchangroup" 847:"SGCchanprams" 241:"SGCdirnfile" 829:"SGClevee" 757:"SGCm" 236:"SGCmanningfile" 777:"SGCn" 745:"SGCp" 751:"SGCr" 767:"SGCs" 799:"SGCvoutput" 814:"SGCwidth" 600:"acc_nugrid" 307:"acceleration" 300:"adaptoff" 455:"ascheader" 397:"ascii_out" 248:"bcifile" 250:"bdyfile" 390:"binary_out" 151:"binarystartfile" 460:"calcarea" 465:"calcmeandepth" 470:"calcvolume" 642:"cfl" 269:"ch_dynamic" 192:"ch_start_h" 324:"chainageoff" 948:"chanmask" 563:"checkpoint" 374:"comp_out" 965:"cuda" 907:"damfile" 915:"dammask" 369:"debug" 283:"depthoff" 679:"depththresh" 672:"dhlin" 448:"diffusive" 557:"diffusive_froude_thresh" 171:"dir" 170:"dirroot" 880:"dist_routing" 1011:"drain_nodata" 733:"drycheckoff" 995:"dynamicrainfile" 270:"dynsw" 288:"elevoff" 687:"epsilon" 499:"evaporation" 176:"fpfric" 481:"gaugefile" 863:"gravity" 895:"gzip" 355:"hazard" 208:"htol" 487:"inf" 492:"infilfile" 486:"infiltration" 202:"initial_tstep" 886:"kill" 983:"krivodonovathresh" 868:"latlong" 972:"limitslopes" 956:"linklist" 569:"loadcheck" 901:"log" 234:"manningfile" 204:"massint" 923:"max_Froude" 333:"maxdepthonly" 941:"maxint" 404:"mint_hk" 728:"momentumthresh" 739:"multiriverfile" 140:"nch" 384:"netcdf_out" 177:"nfp" 1005:"nodata_elevation" 989:"output_precision" 222:"overpass" 227:"overpassfile" 277:"porfile" 364:"profiles" 210:"qlimfact" 443:"qloutput" 329:"qoutput" 1096:"r" 506:"rainfall" 513:"rainfallmask" 535:"rainfallrouting" 575:"resettimeinit" 164:"resroot" 246:"riverfile" 550:"routesfthresh" 519:"routing" 527:"routing_mass_check" 543:"routingspeed" 206:"saveint" 934:"saveint_max" 198:"sim_time" 199:"simtime" 476:"stagefile" 379:"standard_extensions_out" 158:"startelev" 145:"startfile" 182:"startq" 259:"steady" 264:"steadytol" 651:"theta" 438:"toutput" 216:"ts_multiple" 855:"tstart" 139:"v" 338:"voutput" 344:"voutput_max" 350:"voutput_stage" 294:"vtkoff" 253:"weir" 252:"weirfile" 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/sgc.h:20:void SGC_Evaporation(Pars *, Solver *, Arrays *, SGCprams *);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/sgc.h:22:void SGC_Routing(States *, Pars *, Solver *, Arrays *);// CCS May 2013
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/chkpnt.cpp:174:			fread(&Parptr->InfilTotalLoss,sizeof(NUMERIC_TYPE),1,check_fp);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/chkpnt.cpp:175:			fread(&Parptr->EvapTotalLoss,sizeof(NUMERIC_TYPE),1,check_fp);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/chkpnt.cpp:284:      fwrite(&Parptr->InfilTotalLoss,sizeof(NUMERIC_TYPE),1,check_fp);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/chkpnt.cpp:285:      fwrite(&Parptr->EvapTotalLoss,sizeof(NUMERIC_TYPE),1,check_fp);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:486:	if (read_numeric_param(param_name, line_number, param_value_ptr, "infiltration", &Parptr->InfilRate, verbose, mode) ||
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:487:		read_numeric_param(param_name, line_number, param_value_ptr, "inf", &Parptr->InfilRate, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:489:		Statesptr->calc_infiltration = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:492:	if (read_string_param(param_name, line_number, param_value_ptr, "infilfile", Fnameptr->infilfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:494:		Statesptr->calc_infiltration = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:495:		Statesptr->calc_distributed_infiltration = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:499:	if (read_string_param(param_name, line_number, param_value_ptr, "evaporation", Fnameptr->evapfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:501:		Statesptr->calc_evap = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:506:	if (read_string_param(param_name, line_number, param_value_ptr, "rainfall", Fnameptr->rainfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:519:	if (read_empty_param(param_name, line_number, param_value_ptr, "routing", verbose, mode)) // Enable routing scheme CCS
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:521:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:524:	// Enable routing scheme mass balance check //Toby Dunne
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:525:	// Checks each routing cell, and if total volume out exceeds total volume, reduces the routing Q
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:527:	if (read_empty_param(param_name, line_number, param_value_ptr, "routing_mass_check", verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:529:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:530:		Statesptr->routing_mass_check = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:534:	// Legacy routing keyword CCS
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:535:	if (read_string_param(param_name, line_number, param_value_ptr, "rainfallrouting", Fnameptr->rainfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:538:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:543:	if (read_numeric_param(param_name, line_number, param_value_ptr, "routingspeed", &Parptr->Routing_Speed, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:545:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:549:	// Set slope where routing replaces shallow water eqn  CCS 14/03/2012
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:552:		Statesptr->routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:556:	// Set slope where routing replaces shallow water eqn  CCS 14/03/2012
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:880:	if (read_empty_param(param_name, line_number, param_value_ptr, "dist_routing", verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:882:		Statesptr->dist_routing = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:883:		if (verbose == ON) printf("Using slope dependent routing velocity.\n");
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:995:	if (read_string_param(param_name, line_number, param_value_ptr, "dynamicrainfile", Fnameptr->dynamicrainfilename, verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1011:	if (read_empty_param(param_name, line_number, param_value_ptr, "drain_nodata", verbose, mode))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1013:		Parptr->drain_nodata = ON;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1052:	if (Statesptr->routing == ON && Statesptr->acceleration == OFF && Statesptr->SGC == OFF && verbose == ON) // CCS disable routing if not being used with inertial or SG model:
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1054:		Statesptr->routing = OFF;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/pars.cpp:1055:		printf("\nWARNING: Routing must be used with inertial or subgrid models. Routing disabled.\n\n");
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:881:// LOAD DISTRIBUTED INFILTRATION RATES FROM FILE
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:882:void LoadDistInfil(Fnames *Fnameptr, Pars *Parptr, Arrays *Arrptr, const int verbose)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:884:	if (strlen(Fnameptr->infilfilename) == 0)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:892:	fp = fopen_or_die(Fnameptr->infilfilename, "r", "Loading distributed infiltration data", verbose);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:897:	Arrptr->dist_infiltration = memory_allocate_numeric_legacy(Parptr->xsz*Parptr->ysz);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:900:		fscanf(fp, "%" NUM_FMT"", Arrptr->dist_infiltration + i + j * Parptr->xsz);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:901:		if (AreEqual(Arrptr->dist_infiltration[i + j * Parptr->xsz], no_data_value))
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:902:			Arrptr->dist_infiltration[i + j * Parptr->xsz] = 0.0;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:904:		Arrptr->dist_infiltration[i + j * Parptr->xsz] = Arrptr->dist_infiltration[i + j * Parptr->xsz] / 60 / 60 / 1000;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:1436:	// allocate memory for flow direction array for routing very shallow flows from rainfall component CCS 13/03/2012
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:1437:	if (Statesptr->routing == ON)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2125:// LOAD TIME EVAPORATION FROM .evap FILE
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2126:void LoadEvap(Fnames *Fnameptr, Arrays *Arrptr, const int verbose)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2132:	fp = fopen_or_die(Fnameptr->evapfilename, "r", "Loading time varying evaporation", verbose);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2134:	Arrptr->evap = LoadTimeSeries(Fnameptr->evapfilename, fp, ON);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2137:	// convert evaporation rate from mm/day to m/second
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2138:	for (i = 0; i < Arrptr->evap->count; i++)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2139:		Arrptr->evap->value[i] /= (1000 * 24 * 3600);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2146:void LoadRain(Fnames *Fnameptr, Arrays *Arrptr, const int verbose)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2152:	fp = fopen_or_die(Fnameptr->rainfilename, "r", "Loading time varying rainfall", verbose);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2154:	Arrptr->rain = LoadTimeSeries(Fnameptr->rainfilename, fp, ON);
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/input.cpp:2166:void LoadRainmask(Fnames *Fnameptr, Pars *Parptr, Arrays *Arrptr, States *Statesptr, const int verbose)
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:296:	int *FlowDir; // CCS: added to hold DEM flow direction map for routing shallow rainfall flow 13/03/2012
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:298:	NUMERIC_TYPE *RouteInt; // CCS: added to record routing scheme dH and interval
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:325:	TimeSeries * evap;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:360:	NUMERIC_TYPE *dist_infiltration; // JCN stores distributed infiltration rates
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:402:	char evapfilename[256];
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:403:	char rainfilename[256];
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:419:	char infilfilename[256]; // JCN
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:420:    char dynamicrainfilename[256];
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:587:	int calc_infiltration;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:588:	int calc_distributed_infiltration; // uses a file to use spatially distributed infiltration rates
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:593:	int calc_evap;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:596:	int routing; // CCS: added for routing routine. 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:597:	int routing_mass_check; // CCS: added for routing routine. 
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:598:	int diffusive_switch; //TFD switch for routing
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:640:	int dist_routing; // JCN turnes on spatially distributed routing velocity
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:676:	NUMERIC_TYPE InfilRate;
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:677:	NUMERIC_TYPE InfilLoss, EvapLoss, RainLoss; // previous mass interval loss
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:678:	NUMERIC_TYPE InfilTotalLoss, EvapTotalLoss, RainTotalLoss; // cumulative loss
+/home/runner/work/_temp/lf/src/LISFLOOD-FP/lisflood.h:694:	NUMERIC_TYPE Routing_Speed, RouteInt; // CCS variables controlling routing speed in rainfall routing routine
+grep: write error: Broken pipe
+grep: write error: Broken pipe
