@@ -215,10 +215,77 @@ def fetch_crossings(box, out):
             r['fill_m'] = CA.num(g('fill'), CA.FT); r['naacc_eval'] = g('evaluation'); r['road'] = r['road'] or g('road'); r['stream'] = r['stream'] or g('stream')
         counts.update(naacc=len(N), naacc_matched=hit, naacc_added=new)
     except Exception as e: log('NAACC unavailable:', repr(e)[:200]); counts['naacc_error'] = repr(e)[:200]
+    try: counts.update(attach_vtrans(rows, bb, CA))
+    except Exception as e: log('VTrans small culverts unavailable:', repr(e)[:200]); counts['vtrans_error'] = repr(e)[:200]
     counts['with_culvert_size'] = sum(1 for r in rows if r['rise_m']); counts['bridges'] = sum(1 for r in rows if r['shape'] == 'bridge')
-    J = dict(columns=CA.COLUMNS, rows=[[r[c] for c in CA.COLUMNS] for r in rows], counts=counts, made=time.strftime('%Y-%m-%d'),
-             sources=dict(U=CA.SRC_U, N=CA.SRC_N), note='Vermont test box: USGS national stream crossings + NAACC surveys (no MA-only sources)')
+    cols = CA.COLUMNS + ['length_m']
+    J = dict(columns=cols, rows=[[r.get(c) for c in cols] for r in rows], counts=counts, made=time.strftime('%Y-%m-%d'),
+             sources=dict(U=CA.SRC_U, N=CA.SRC_N, V=VTRANS_SCI), note='Vermont test box: USGS national stream crossings + NAACC surveys + VTrans Small Culvert '
+                                                                     'Inventory sizes attached to them within 50 m (src UV); no MA-only sources')
     json.dump(J, open(f'{out}/crossings_vt.json', 'w'), separators=(',', ':')); log('crossings', counts); return counts, rows
+
+
+VTRANS_SCI = 'https://maps.vtrans.vermont.gov/arcgis/rest/services/HWY/AMP_SmallCulvertInventory/FeatureServer/0'
+
+
+def attach_vtrans(rows, bb, CA, radius=50.0):
+    """VTrans Small Culvert Inventory (state highways; polylines inlet -> outlet): barrel size, shape, material, inlet treatment, fill and length
+    attached to the nearest USGS road-stream crossing within `radius` of the culvert's midpoint, like NAACC surveys in MA.  Unmatched culverts
+    (ditch relief / cross drains off the mapped streams) are not added, so the w9 notches stay the USGS stream crossings.
+    Units: SIZE / HEIGHT / WIDTH in inches and FILL_DEPTH in feet unless the medians say otherwise (logged); the value lists are logged too."""
+    from pyproj import Transformer
+    from scipy.spatial import cKDTree
+    F = CA.query_all(VTRANS_SCI, fields='*', bbox=bb, geometry=True, page=1000)
+    A = [f['attributes'] for f in F]; log('VTrans small culverts in bbox:', len(F))
+    if not F: return dict(vtrans=0)
+    from collections import Counter
+    for k in ('STRUC_TYPE', 'MATERIAL', 'IN_TREATMENT', 'DRAIN_TYPE', 'SYS_TYPE'):
+        log(f'  {k}:', Counter(str(a.get(k)) for a in A).most_common(15))
+    med = lambda k: float(np.nanmedian([float(a[k]) for a in A if a.get(k) not in (None, 0)] or [np.nan]))
+    m_size, m_fill = med('SIZE'), med('FILL_DEPTH'); log(f'  median SIZE {m_size}, HEIGHT {med("HEIGHT")}, WIDTH {med("WIDTH")}, FILL_DEPTH {m_fill}, LENGTH_FT {med("LENGTH_FT")}')
+    k_size = 0.0254 if not (m_size < 10) else CA.FT; k_fill = CA.FT if not (m_fill > 15) else 0.0254
+    def shape_of(s, a):
+        s = (s or '').upper()
+        if 'RND' in s or 'ROUND' in s or 'CIR' in s or s in ('', 'NONE'): return 'circular' if a.get('SIZE') else None
+        if 'BOX' in s: return 'box'
+        if 'ELL' in s or 'ELIP' in s or 'OVAL' in s: return 'elliptical'
+        if 'ARCH' in s or s.startswith('PA'): return 'pipe_arch'
+        return CA.norm_shape(s) if CA.norm_shape(s) not in (None, 'other') else ('box' if a.get('WIDTH') and a.get('HEIGHT') else 'circular')
+    def mat_of(s):
+        s = (s or '').upper()
+        if s.startswith(('CONC', 'RCP', 'RC')): return 'concrete'
+        if s.startswith(('CMP', 'STEEL', 'ALUM', 'CI', 'DI', 'MET', 'GAL', 'CS')): return 'metal'
+        if s.startswith(('PLAS', 'HDPE', 'PVC', 'PE', 'POLY', 'SDR')): return 'plastic'
+        if s.startswith(('STONE', 'ROCK', 'MAS', 'GRAN')): return 'stone'
+        return CA.norm_material(s)
+    def inlet_of(s):
+        s = (s or '').upper()
+        if not s or s in ('NONE', 'NO', 'PROJ'): return 'projecting'
+        if 'MIT' in s or 'FES' in s or 'FLAR' in s or 'END' in s: return 'mitered'
+        if 'WING' in s: return 'headwall_wingwall' if 'HEAD' in s or 'HW' in s else 'wingwall'
+        if 'HEAD' in s or 'HW' in s or 'HDW' in s: return 'headwall'
+        return CA.norm_inlet(s)
+    tr = Transformer.from_crs(4326, 26986, always_xy=True)
+    cand = [i for i, r in enumerate(rows) if r['src'] == 'U' and r['shape'] != 'bridge']
+    if not cand: return dict(vtrans=len(F), vtrans_matched=0)
+    X, Y = tr.transform([rows[i]['lon'] for i in cand], [rows[i]['lat'] for i in cand]); tree = cKDTree(np.column_stack([X, Y])); best = {}
+    for f, a in zip(F, A):
+        if a.get('RETIRE_DATE') or str(a.get('DELETE_RECORD') or '').upper() in ('Y', 'YES', 'TRUE'): continue
+        P = [p for path in (f.get('geometry') or {}).get('paths', []) for p in path]
+        if not P: continue
+        mx, my = tr.transform(*np.mean(np.asarray(P, float)[:, :2], axis=0)); d, j = tree.query([mx, my])
+        if d <= radius and (cand[j] not in best or d < best[cand[j]][0]): best[cand[j]] = (d, a)
+    for i, (d, a) in best.items():
+        r = rows[i]; shp = shape_of(a.get('STRUC_TYPE'), a); sz = a.get('SIZE'); w_, h_ = a.get('WIDTH'), a.get('HEIGHT')
+        if shp == 'circular' and sz: r['span_m'] = r['rise_m'] = round(float(sz) * k_size, 3)
+        elif w_ and h_: r['span_m'], r['rise_m'] = round(float(w_) * k_size, 3), round(float(h_) * k_size, 3)
+        elif sz: r['span_m'] = r['rise_m'] = round(float(sz) * k_size, 3)
+        else: continue
+        r['shape'] = shp or 'circular'; r['material'] = mat_of(a.get('MATERIAL')); r['inlet'] = inlet_of(a.get('IN_TREATMENT')); r['n_barrels'] = 1
+        r['fill_m'] = round(float(a['FILL_DEPTH']) * k_fill, 2) if a.get('FILL_DEPTH') not in (None,) else None
+        if a.get('LENGTH_FT'): r['length_m'] = round(float(a['LENGTH_FT']) * CA.FT, 1)
+        r['src'] = 'UV'; r['naacc_eval'] = a.get('FUNCTIONAL_RATING'); r['road'] = r['road'] or a.get('ROUTE')
+    return dict(vtrans=len(F), vtrans_matched=len(best), vtrans_units=dict(size_m_per_unit=k_size, fill_m_per_unit=k_fill, median_size=m_size, median_fill=m_fill))
 
 
 # ---------------------------------------------------------------- OpenStreetMap roads -> graph_segments layout -------------------------
