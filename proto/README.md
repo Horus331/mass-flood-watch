@@ -48,6 +48,29 @@ reports, 11 NOAA Storm Events records and 93 documented road flood/closure/damag
 row reading past the buffer (spurious inflow of ~3×10⁹ m³). Runs before commit "Fix rain file row mapping" (including the earlier ×0.9
 calibration) are superseded.
 
+*Storm-drain capacity (22 Oct 2026, opt-in `LF_DRAINS=<pipe shapefile .zip/.shp>` or `LF_DRAIN_DESIGN=1`, default off; `sim/colab/lf_drains.py`):*
+LISFLOOD-FP has no pipe network, so the drains are a per-cell maximum sink rate where the pipes run: full-flow Manning capacity per pipe
+Q = (1/n) A R^(2/3) S^(1/2) (FHWA HEC-22, Brown et al. 2013 / Kilgore et al. 2024; ASCE MOP 77; n by material, S from the inverts or the
+ground slope, floor 0.005), spread per length over the cells it runs under, a network (pipes joined at their ends) capped at its largest
+pipe, one cell capped at 0.1 m³/s (about one sag grate inlet, HEC-22 weir equation), conduits of 48 in and larger left out (streams; the
+surface model routes them through the crossing notches). The sink only removes ponded water and never below zero, so a drained street
+still floods once runoff exceeds the pipes. It is written as an `infilfile` raster (mm/h) and needs a small source patch (w9
+`patch_drain_sink`): in 8.2 only the sub-grid solver reads `infilfile`; the CPU acceleration solver's `FPInfiltration` applies the scalar
+rate only and the CUDA acceleration solver has no infiltration at all. The patch adds the per-cell rate to `FPInfiltration` (booked in
+the `.mass` loss column); an opt-in CUDA kernel (`LF_PATCH_CUDA_SINK=1`) is not run-tested, so drain runs use the CPU build (w9 refuses a
+CUDA build unless `LF_DRAIN_ALLOW_CUDA=1`, and checks the build with a tiny sink probe before every drain run). Local tests (patched
+8.2 CPU build): closed flat 8×8 box, 360 mm/h on half the cells for 600 s removes exactly 19,200 m³ (volume ratio 1.000, `.mass`
+Rain−(Inf+Evap) −19,200, Verror 0; unpatched build 0); a 1 % sloped 300 m "street" with 50 mm/h for 1 h and one drained cross-street
+row of 200 mm/h drains 297 m³ of the 400 m³ capacity-time (the row is dry part of the time) and lowers the ponding at the low end 0.49 →
+0.43 m, Verror 0. City of Leominster network (private, research only; aggregate numbers only): 11,914 pipes, 87 conduits ≥ 48 in left
+out, 2,832 sizes missing (default 12 in), slope from inverts for 1,762 pipes, ground for 5,316, floor for 4,746; 1,359 networks;
+sum of full-flow capacities 3,706 m³/s, 1,072 after the network cap, 413 m³/s after the inlet cap on 12,746 of the 1 M cells at 20 m
+(5.1 km², median 151 mm/h). If the drained urban area is ~25 km², that is ~60 mm/h, about 2× what a 10-yr rational-method system carries (43 mm/h × C ≈ 0.6), so the term
+is an upper bound (`LF_DRAIN_PIPE_EFF` scales it). Caveats: drained water leaves the model (it is not re-injected at the outfalls, so
+receiving streams miss it; no surcharge or tailwater); the term can only remove water, so on the short urban storms the model misses it
+does not by itself add street flooding: it lets the other urban losses be re-tuned (a run that fits big storms with a pipe term no longer
+needs losses that also drain short bursts). Turing job: `proto/turing/run_drains.slurm`.
+
 *Watershed-shaped domain (22 Oct 2026, opt-in `LF_DOMAIN=basin`, defaults unchanged; `docs/proto/exp/bd_*`):* the North Nashua basin to
 the Leominster gauge (`docs/network/basins/domain_leominster_nn.json`: NLDI basin, mask = cells that drain to the gauge on the run DEM,
 282 km² vs 285 USGS, Fitchburg nested at 164 vs 166 km², 0.71 M of 1.82 M box cells active, FREE only where a 7.7 km river corridor

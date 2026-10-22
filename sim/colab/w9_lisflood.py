@@ -8,7 +8,9 @@ env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multipl
      LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
      LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s),
      LF_DOMAIN basin + LF_DOMAIN_FILE (watershed-shaped domain, sim/colab/lf_domain.py; default box), LF_EXE / LF_EXE_CUDA (prebuilt LISFLOOD-FP),
-     LF_MRMS_DIR (MRMS file cache: stage on a login node, then run offline)
+     LF_MRMS_DIR (MRMS file cache: stage on a login node, then run offline),
+     LF_DRAINS (path to a storm-drain pipe shapefile .zip/.shp; private data, read only) / LF_DRAIN_DESIGN 1 (generic design-storm drains):
+     storm-drain capacity as a per-cell sink (sim/colab/lf_drains.py; CPU build, LF_FORCE_CPU 1 forces it), off by default
 Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept record 4073010 as fallback) and build it with CMake,
            with CUDA when nvcc and a GPU are present, else the OpenMP CPU build; everything lives under /content/lisflood.
         2. inputs from the same data as w4_flood_gpu.py: 10 m DEM tiles (HF data/dem10) averaged to RES, the channels30 burn
@@ -294,6 +296,94 @@ def patch_source(src):
             t2 = t.replace('lfp_cuda_sync(', 'sync(')
         if t2 != t: open(p, 'w').write(t2); n += 1
     if n: log(f'patched sync() -> lfp_cuda_sync() in {n} CUDA source files')
+    patch_drain_sink(src)
+
+
+# Storm-drain sink (sim/colab/lf_drains.py, LF_DRAINS / LF_DRAIN_DESIGN).  LISFLOOD-FP 8.2 reads 'infilfile' (ESRI ascii, mm/h) into
+# Arrptr->dist_infiltration (input.cpp LoadDistInfil, converted to m/s), but only the sub-grid solver (lisflood2/sgm_fast.cpp) uses it;
+# the CPU acceleration solver (iterateq.cpp -> infevap.cpp FPInfiltration) applies the scalar 'infiltration' rate only, and the CUDA
+# acceleration solver (cuda/acc/cuda_acc_simulate.cu) has no infiltration at all.  Patch 1 (always applied; inert unless the .par
+# names an infilfile): FPInfiltration removes InfilRate + dist_infiltration[cell] per second from wet cells, never below zero, and
+# books it in InfilTotalLoss (so the .mass file balances).  Patch 2 (CUDA, opt-in LF_PATCH_CUDA_SINK=1, compiled but not run-tested
+# here): the same sink as a kernel after the rain update; the GPU mass file does not book it (it shows up as volume error).
+DRAIN_MARK = 'mfw-drains'
+CPU_SINK_OLD = 'cell_inf = Parptr->InfilRate * Solverptr->Tstep; //rate for depth, not area'
+CPU_SINK_NEW = ('cell_inf = (Parptr->InfilRate + (Arrptr->dist_infiltration != NULL ? Arrptr->dist_infiltration[i+j*Parptr->xsz] : C(0.0)))'
+                ' * Solverptr->Tstep; //rate for depth, not area  /* mfw-drains: + per-cell infilfile sink (m/s) */')
+CUDA_KERNEL = '''
+// mfw-drains (mass-flood-watch patch): per-cell sink from 'infilfile' (m/s after conversion), H -= rate*dt on wet cells, never below 0
+__global__ void mfw_drain_sink_ACC(NUMERIC_TYPE* DEM, NUMERIC_TYPE* H, NUMERIC_TYPE* sink)
+{
+	int global_i = blockIdx.x*blockDim.x + threadIdx.x;
+	int global_j = blockIdx.y*blockDim.y + threadIdx.y;
+	for (int j=global_j; j<lis::cuda::geometry.ysz; j+=blockDim.y*gridDim.y)
+	{
+		for (int i=global_i; i<lis::cuda::geometry.xsz; i+=blockDim.x*gridDim.x)
+		{
+			int p = j*lis::cuda::geometry.xsz + i;
+			if (FABS(DEM[p] - lis::cuda::solver_params.nodata_elevation) < C(1e-6)) continue;
+			NUMERIC_TYPE r = sink[p];
+			if (r > C(0.0) && H[p] > C(0.0)) { NUMERIC_TYPE h = H[p] - r * lis::cuda::dt; H[p] = h > C(0.0) ? h : C(0.0); }
+		}
+	}
+}
+
+void lis::cuda::acc::Simulation::run'''
+CUDA_LOAD_ANCHOR = '\tBoundCs boundCs;\n\tload_boundaries(filenames, states, pars, boundCs, verbose);'
+CUDA_LOAD = '''\tNUMERIC_TYPE* d_mfw_sink = nullptr;   // mfw-drains: per-cell sink raster (infilfile, mm/h -> m/s)
+\tif (strlen(filenames.infilfilename) > 0)
+\t{
+\t\tNUMERIC_TYPE* mfw_sink = lis::GhostRaster::allocate_H(geometry);
+\t\tinitialise_manning(mfw_sink, filenames.infilfilename, geometry, pitch, offset, verbose);   // generic ascii grid reader, same grid as the DEM
+\t\tfor (int k = 0; k < lis::GhostRaster::elements_H(geometry); k++) mfw_sink[k] = mfw_sink[k] > C(0.0) ? mfw_sink[k] / C(3600000.0) : C(0.0);
+\t\td_mfw_sink = lis::cuda::GhostRaster::allocate_device_H(geometry);
+\t\tGhostRaster::copy_H(d_mfw_sink, mfw_sink, geometry);
+\t\tif (verbose) printf("mfw-drains: per-cell sink from %s\\n", filenames.infilfilename);
+\t}
+
+'''
+CUDA_STEP_ANCHOR = '\t\tstats_collector.zero_instantaneous_mass(); \n\n\t\tdynamic_dt.update_dt_ACC(); '
+CUDA_STEP = '\t\tif (d_mfw_sink != nullptr) mfw_drain_sink_ACC << <grid_size, CUDA_BLOCK_SIZE >> > (d_DEM, d_U.H, d_mfw_sink);   // mfw-drains\n\n'
+
+
+def patch_drain_sink(src, cuda=None):
+    """Idempotent source patch for the storm-drain sink (see the comment above).  Returns {'cpu': bool, 'cuda': bool} = patch present."""
+    cuda = os.environ.get('LF_PATCH_CUDA_SINK', '0') == '1' if cuda is None else cuda; out = dict(cpu=False, cuda=False)
+    def rd(p):        # keep the file's own line endings (the 8.2 sources are CRLF): patch on '\n' text, write back as found
+        raw = open(p, newline='', errors='replace').read(); return raw.replace('\r\n', '\n'), '\r\n' in raw
+    def wr(p, t, crlf): open(p, 'w', newline='').write(t.replace('\n', '\r\n') if crlf else t)
+    p = f'{src}/infevap.cpp'
+    if os.path.exists(p):
+        t, crlf = rd(p)
+        if DRAIN_MARK not in t and CPU_SINK_OLD in t: t = t.replace(CPU_SINK_OLD, CPU_SINK_NEW, 1); wr(p, t, crlf); log('patched infevap.cpp FPInfiltration: + per-cell infilfile sink (mfw-drains)')
+        out['cpu'] = DRAIN_MARK in t
+    p = f'{src}/cuda/acc/cuda_acc_simulate.cu'
+    if cuda and os.path.exists(p):
+        t, crlf = rd(p)
+        if DRAIN_MARK not in t and all(a in t for a in ('\nvoid lis::cuda::acc::Simulation::run', CUDA_LOAD_ANCHOR, CUDA_STEP_ANCHOR)):
+            t = t.replace('\nvoid lis::cuda::acc::Simulation::run', '\n' + CUDA_KERNEL.lstrip('\n'), 1)
+            t = t.replace(CUDA_LOAD_ANCHOR, CUDA_LOAD + CUDA_LOAD_ANCHOR, 1).replace(CUDA_STEP_ANCHOR, CUDA_STEP + CUDA_STEP_ANCHOR, 1)
+            wr(p, t, crlf); log('patched cuda_acc_simulate.cu: per-cell infilfile sink kernel (mfw-drains, LF_PATCH_CUDA_SINK=1)')
+        out['cuda'] = DRAIN_MARK in t
+    return out
+
+
+def probe_sink(exe, cuda, rate_mmh=360.0, h0=0.1, sim_s=600):
+    """Tiny closed flat box: start depth h0 everywhere, infilfile sink on the west half only.  Water flows west into the drained half,
+    so the check is on volume: removed volume / (rate x west-half area x time) -> 1 when the sink works (unpatched builds ignore
+    the infilfile on the acceleration solver -> 0); west_minus_east > 0 shows the sink is spatial, not a scalar rate."""
+    wd = f'{WORK}/probe_sink'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
+    n = 8; write_asc(f'{wd}/dem.asc', np.full((n, n), 10.0), 0.0, 0.0, 100.0); write_asc(f'{wd}/start.wd', np.full((n, n), h0), 0.0, 0.0, 100.0)
+    s = np.zeros((n, n)); s[:, :n // 2] = rate_mmh; write_asc(f'{wd}/sink.asc', s, 0.0, 0.0, 100.0, fmt='%.3f')
+    write_par(f'{wd}/p.par', 'p', sim_s, saveint=sim_s, massint=60, cuda=cuda, start='start.wd', initial_tstep=5, extra=['infilfile sink.asc'])
+    run_lisflood(exe, wd, 'p.par', timeout=600)
+    snaps = sorted(glob.glob(f'{wd}/results/p-*.wd')); h = np.nan_to_num(read_asc(snaps[-1])[0])
+    expect = rate_mmh / 3.6e6 * sim_s
+    out = dict(volume_ratio=round(float((h0 - h.mean()) / (0.5 * expect)), 3), west_minus_east_m=round(float(h[:, n // 2:].mean() - h[:, :n // 2].mean()), 5),
+               expect_west_m=round(expect, 5))
+    mp = glob.glob(f'{wd}/results/p.mass')
+    if mp: out['mass_last'] = open(mp[0]).read().strip().split('\n')[-1]
+    log('sink probe:', out); return out
 
 
 def build_lisflood(src, want_cuda):
@@ -749,6 +839,9 @@ def main():
     gpu = shutil.which('nvidia-smi') is not None and subprocess.run(['nvidia-smi'], capture_output=True).returncode == 0
     if not shutil.which('nvcc') and os.path.exists('/usr/local/cuda/bin/nvcc'): os.environ['PATH'] += ':/usr/local/cuda/bin'
     want_cuda = gpu and shutil.which('nvcc') is not None
+    DRAINS_ON = bool(os.environ.get('LF_DRAINS')) or os.environ.get('LF_DRAIN_DESIGN', '0') == '1'      # storm-drain sink (sim/colab/lf_drains.py)
+    if os.environ.get('LF_FORCE_CPU') == '1' or (DRAINS_ON and want_cuda and os.environ.get('LF_DRAIN_ALLOW_CUDA', '0') != '1'):
+        want_cuda = False; log('CPU build: ' + ('LF_FORCE_CPU=1' if os.environ.get('LF_FORCE_CPU') == '1' else 'the drain sink is run-tested on the CPU solver only (LF_DRAIN_ALLOW_CUDA=1 with a LF_PATCH_CUDA_SINK=1 build to try the GPU)'))
     log(f'w9 LISFLOOD-FP benchmark: {run_name} box {BOX} res {RES} m, {S["hours"]} h from {S["t0"]}; GPU {gpu}, nvcc {shutil.which("nvcc")}')
     # 1. get + build
     tb = time.time()
@@ -844,11 +937,25 @@ def main():
     for k_ in ('theta', 'cfl'):     # LF_THETA / LF_CFL: solver damping on its own (de Almeida et al. 2012); after LF_DAMS's so an explicit value wins
         if os.environ.get('LF_' + k_.upper()): extra.append(f"{k_} {os.environ['LF_' + k_.upper()]}")
     if DOM and start: write_asc(f'{wd}/start.wd', np.where(MSK, np.nan_to_num(read_asc(f'{wd}/start.wd')[0]), 0.0), x0, y0, RES)   # no water on wall cells
+    DRAINS = None
+    if DRAINS_ON:     # opt-in storm-drain capacity sink (sim/colab/lf_drains.py): 'infilfile' raster in mm/h, read by the patched solver
+        if I['SGC']: raise SystemExit('LF_DRAINS / LF_DRAIN_DESIGN need the acceleration solver without LF_SGC (8.2 sgm_fast.cpp applies an infilfile rate per step, not per second)')
+        if is_cuda and os.environ.get('LF_DRAIN_ALLOW_CUDA', '0') != '1':
+            raise SystemExit('LF_DRAINS / LF_DRAIN_DESIGN: this is a CUDA build; the sink is tested on the CPU solver. Set LF_EXE to a CPU build (LF_EXE_CUDA=0) or LF_FORCE_CPU=1')
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_drains
+        sink_, drep_ = lf_drains.from_env(I['Z_RAW'], I['IMP'], I['water'] | I['chan'], BOX, RES, log=log)
+        if DOM: sink_ = np.where(MSK, sink_, 0.0).astype(np.float32)
+        pr_ = probe_sink(exe, is_cuda)
+        if abs(pr_['volume_ratio'] - 1) > 0.05: raise SystemExit(f'LF_DRAINS: this LISFLOOD-FP build ignores the infilfile sink (probe {pr_}); rebuild it (patch_source applies the mfw-drains patch)')
+        write_asc(f'{wd}/drains.asc', sink_, x0, y0, RES, fmt='%.2f'); extra.append('infilfile drains.asc')
+        DRAINS = dict(drep_, probe=pr_, cells_m2=RES * RES, note='aggregate only; the per-cell raster is deleted after the run (pipe data shared for research only)')
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
     log('par:', ' | '.join(par))
     # 4. run
-    run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
+    try: run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
+    finally:
+        if DRAINS is not None and os.path.exists(f'{wd}/drains.asc'): os.remove(f'{wd}/drains.asc')    # derived from private pipe data: never kept
     hmax, hsrc = max_depth(wd, 'res'); hmax = np.nan_to_num(hmax, nan=0.0)
     if DOM and hmax.shape == MSK.shape: hmax = np.where(MSK, hmax, 0.0)
     if hmax.shape != (ny, nx): raise SystemExit(f'output shape {hmax.shape} != grid {(ny, nx)}')
@@ -946,7 +1053,8 @@ def main():
                 inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning=f"{os.environ.get('LF_N_CHAN', '0.035')} water/channel, 0.10 dense urban, " + ('NLCD table (forest ' + os.environ.get('LF_N_FOREST', '0.12') + ')' if LC is not None else os.environ.get('LF_N_FP', '0.08') + ' other'),
                             rain='MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
-                            env={k: os.environ[k] for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)}),
+                            env={k: ('set (private file; path not recorded)' if k == 'LF_DRAINS' else os.environ[k]) for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)},
+                            drains=DRAINS or 'none'),
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8])
@@ -1086,6 +1194,18 @@ def selftest():
     assert inf_['_vdur']['vdur_count'][:, 0, 0].tolist() == [2, 1] and int(inf_['_vdur']['vdur_snapshots']) == 3
     assert 'hazard' in write_par(f'{d}/v.par', 'r', 60, extra=['hazard'])
     ok.append('velocity output: UpdateV cell speed, peak speed (.maxVc else snapshots), peak depth x speed')
+    # storm-drain sink: source patch on a synthetic tree (CRLF kept, idempotent), lf_drains on synthetic pipes, infilfile in the .par
+    sd = f'{d}/lfsrc'; os.makedirs(f'{sd}/cuda/acc')
+    open(f'{sd}/infevap.cpp', 'w', newline='').write('void FPInfiltration()\r\n{\r\n          ' + CPU_SINK_OLD + '\r\n}\r\n')
+    open(f'{sd}/cuda/acc/cuda_acc_simulate.cu', 'w', newline='').write('#include "x.cuh"\n\nvoid lis::cuda::acc::Simulation::run\n(\n)\n{\n' + CUDA_LOAD_ANCHOR + '\n\twhile (1)\n\t{\n' + CUDA_STEP_ANCHOR + '\n\t}\n}\n')
+    r1 = patch_drain_sink(sd, cuda=True); t1 = open(f'{sd}/infevap.cpp', newline='').read(); c1 = open(f'{sd}/cuda/acc/cuda_acc_simulate.cu').read()
+    r2 = patch_drain_sink(sd, cuda=True); assert r1 == r2 == dict(cpu=True, cuda=True) and open(f'{sd}/infevap.cpp', newline='').read() == t1
+    assert 'dist_infiltration' in t1 and '\r\n' in t1 and '\n' not in t1.replace('\r\n', '') and c1.count('mfw_drain_sink_ACC') == 2 and c1 == open(f'{sd}/cuda/acc/cuda_acc_simulate.cu').read()
+    assert c1.index('d_mfw_sink = nullptr') < c1.index('BoundCs boundCs') and c1.index('mfw_drain_sink_ACC <<') < c1.index('dynamic_dt.update_dt_ACC')
+    assert patch_drain_sink(sd + '_none', cuda=False) == dict(cpu=False, cuda=False)
+    assert 'infilfile drains.asc' in write_par(f'{d}/dr.par', 'r', 60, infiltration=1e-6, extra=['infilfile drains.asc'])
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_drains; lf_drains.selftest()
+    ok.append('storm-drain sink: LISFLOOD-FP source patch (CPU FPInfiltration + opt-in CUDA kernel, idempotent, CRLF kept), lf_drains synthetic pipes')
     shutil.rmtree(d)
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')
