@@ -665,6 +665,8 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         rows.append(r)
     rows.sort(key=lambda r: (-r['p_close'], -r['vehicle_hours_at_risk'], -r['peak_depth_m']))
     for r in rows: r['why'] = reason(r)
+    if os.environ.get('PROTO_ML', '0') == '1':                 # optional learned closure model (proto/closure_ml.py): adds p_close_ml; p_close unchanged
+        import closure_ml as _ML; _ML.on_rows(rows, run_dir, Q, meta, props)
 
     # checks: storm-day reports and MassDOT repeat sites
     checks = dict(reports=imp['summary'].get('reports'))
