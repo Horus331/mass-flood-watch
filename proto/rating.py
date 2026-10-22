@@ -175,11 +175,11 @@ def selftest():
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--out'); ap.add_argument('--gauges', default=None, help='gauges_<storm>.json from proto/obs_fetch.py (default docs/proto/obs/gauges_sep2023.json if present)')
-    ap.add_argument('--selftest', action='store_true')
+    ap.add_argument('--storm', help='storm id for the gauge file (default $STORM)'); ap.add_argument('--selftest', action='store_true')
     a = ap.parse_args()
     if a.selftest: sys.exit(0 if selftest() else 1)
     g = a.gauges
-    if not g:      # the observed-gauge file of the same storm, when there is one (gauges_<storm>.json, storm = sep2023 for 2023-09 runs)
-        st = (json.load(open(os.path.join(a.out, 'summary.json'))).get('storm_start') or '')[:7]
-        g = os.path.join(ROOT, 'docs', 'proto', 'obs', 'gauges_sep2023.json') if st == '2023-09' else None
+    if not g:      # the observed-gauge file of the same storm: docs/proto/obs/gauges_<storm>.json (--storm / $STORM; 2023-09 runs -> sep2023)
+        st = a.storm or os.environ.get('STORM') or ('sep2023' if (json.load(open(os.path.join(a.out, 'summary.json'))).get('storm_start') or '')[:7] == '2023-09' else None)
+        g = os.path.join(ROOT, 'docs', 'proto', 'obs', f'gauges_{st}.json') if st else None
     run(a.out, g)

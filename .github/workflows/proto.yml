@@ -53,7 +53,7 @@ jobs:
         run: |
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
           python proto/resilience.py --out docs/proto/${{ inputs.name }} || true
-          python proto/rating.py --out docs/proto/${{ inputs.name }} || true
+          python proto/rating.py --out docs/proto/${{ inputs.name }} --storm ${{ inputs.storm }} || true
           python proto/risk.py --out docs/proto/${{ inputs.name }} --run-dir $OUTDIR || true
       - uses: actions/upload-artifact@v4
         if: always()
