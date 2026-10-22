@@ -1,0 +1,100 @@
+name: prototype ensemble (input uncertainty -> P_ens(close) per road segment)
+# proto/ensemble.py: Latin-hypercube members around the proto.yml default env (rain x, CN x, Manning n channel / land, drainage), each a full
+# w9 LISFLOOD-FP run + proto/prototype.py; every member commits a small member.json.gz + log tails, then one job aggregates.
+on:
+  workflow_dispatch:
+    inputs:
+      name: {description: 'output folder under docs/proto/ens/', default: 'leominster_sep2023_n12'}
+      n: {description: 'LHS members (plus the center m00)', default: '12'}
+      only: {description: 'comma-separated member names to run (tests, e.g. m00,m01); empty = all', default: ''}
+      center_env: {description: 'center env; empty = the current default env of proto.yml', default: ''}
+      box: {description: 'EPSG:26986 box', default: '168000,908000,188000,928000'}
+      res: {default: '20'}
+      hours: {default: '48'}
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    outputs:
+      members: ${{ steps.d.outputs.members }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pyyaml
+      - id: d
+        run: |
+          CENTER='${{ inputs.center_env }}'
+          if [ -z "$CENTER" ]; then CENTER=$(python -c "import yaml; y=yaml.safe_load(open('.github/workflows/proto.yml')); print((y.get('on') or y.get(True))['workflow_dispatch']['inputs']['env']['default'])"); fi
+          echo "center: $CENTER"
+          python proto/ensemble.py design --n ${{ inputs.n }} --center-env "$CENTER" ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} --out members.json
+          echo "members=$(cat members.json)" >> $GITHUB_OUTPUT
+  member:
+    needs: design
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 13
+      matrix:
+        m: ${{ fromJSON(needs.design.outputs.members) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 tifffile
+      - name: flood depth (member)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ inputs.box }}
+          RES: ${{ inputs.res }}
+          HOURS: ${{ inputs.hours }}
+          STORM: sep2023
+          RUN_DIR: runs/sep2023_ens_${{ inputs.name }}_${{ matrix.m.name }}
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          export ${{ matrix.m.env }}
+          env | grep '^LF_' | sort
+          python sim/colab/w9_lisflood.py 2>&1 | tail -c 300000 > w9_stdout.txt; tail -5 w9_stdout.txt
+      - name: member outputs
+        if: always()
+        run: |
+          OUT=docs/proto/ens/${{ inputs.name }}/members/${{ matrix.m.name }}; mkdir -p $OUT
+          RD=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
+          tail -c 40000 w9_stdout.txt > $OUT/w9_stdout_tail.txt 2>/dev/null; tail -c 40000 ${{ runner.temp }}/lf/w9_log.txt > $OUT/w9_log_tail.txt 2>/dev/null || true
+          echo '${{ toJSON(matrix.m) }}' > $OUT/config.json
+          if [ -n "$RD" ]; then
+            python proto/ensemble.py member --run-dir $RD --out $OUT --member-json '${{ toJSON(matrix.m) }}' 2>&1 | tail -c 20000 > $OUT/member_stdout.txt; tail -3 $OUT/member_stdout.txt
+            cp $RD/meta.json $OUT/flood_meta.json 2>/dev/null || true
+          fi
+          rm -f $OUT/_gw.npz; du -sh $OUT
+      - name: commit member
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/ens/${{ inputs.name }}/members/${{ matrix.m.name }}
+          git commit -qm "ensemble ${{ inputs.name }} member ${{ matrix.m.name }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push && break; sleep $((RANDOM % 30 + 5)); done
+  aggregate:
+    needs: member
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - run: pip install -q numpy scipy pyproj
+      - name: aggregate
+        run: |
+          git pull -q
+          OUT=docs/proto/ens/${{ inputs.name }}
+          python proto/ensemble.py aggregate --members $OUT/members --out $OUT --name ${{ inputs.name }} 2>&1 | tail -c 30000 | tee aggregate_stdout.txt || true
+          cp aggregate_stdout.txt $OUT/aggregate_stdout.txt
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/ens/${{ inputs.name }}
+          git commit -qm "ensemble ${{ inputs.name }}: aggregate" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push && break; sleep $((RANDOM % 20 + 5)); done
