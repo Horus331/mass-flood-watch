@@ -7,3 +7,5 @@ export ROADFLOOD_ENV=${ROADFLOOD_ENV:-$HOME/envs/roadflood}
 [ -d "$ROADFLOOD_ENV" ] && conda activate "$ROADFLOOD_ENV"
 export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-}${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}
 export LF_WORK=${LF_WORK:-$HOME/scratch/lisflood}
+# prebuilt LISFLOOD-FP (proto/turing/build.slurm); compute jobs then skip the Zenodo download and the build
+if [ -z "${LF_EXE:-}" ] && [ -x "$LF_WORK/build_cuda/lisflood" ]; then export LF_EXE=$LF_WORK/build_cuda/lisflood LF_EXE_CUDA=1; fi
