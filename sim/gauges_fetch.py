@@ -49,6 +49,24 @@ def series(feats):
         d['v'][q['time'][:13]] = max(v, d['v'].get(q['time'][:13], -1e9))      # hourly max (UTC hour)
     return {s: dict(lat=d['lat'], lon=d['lon'], values=sorted(d['v'].items())) for s, d in out.items()}
 
+def legacy_series(param, s, e, **where):
+    """Fallback while legacy WaterServices still answers (switched off Nov 2026 - Q1 2027): same {site: {lat, lon, values}} as series()."""
+    import datetime as dt
+    try:
+        r = requests.get('https://waterservices.usgs.gov/nwis/iv/', params=dict(format='json', startDT=f'{s}T00:00Z', endDT=f'{e}T23:59Z', parameterCd=param,
+                         siteStatus='all', **where), headers=H, timeout=300); r.raise_for_status()
+    except Exception as ex: log('  legacy fallback failed', repr(ex)[:100]); return {}
+    out = {}
+    for ts in r.json()['value']['timeSeries']:
+        si = ts['sourceInfo']; sid = si['siteCode'][0]['value']; gl = si['geoLocation']['geogLocation']; hv = {}
+        for v in ts['values'][0]['value']:
+            try: x = float(v['value'])
+            except (TypeError, ValueError): continue
+            if x <= -999: continue
+            hr = dt.datetime.fromisoformat(v['dateTime']).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H'); hv[hr] = max(x, hv.get(hr, -1e9))
+        if hv and sid not in out: out[sid] = dict(lat=gl['latitude'], lon=gl['longitude'], values=sorted(hv.items()))
+    return out
+
 def site_info(ids):
     info = {}
     for i in range(0, len(ids), 40):
@@ -64,11 +82,13 @@ for run, (s, e) in STORMS.items():
     tw = f'{s}T00:00:00Z/{e}T23:59:59Z'
     for param, key in (('00060', 'flow'), ('00065', 'stage')):
         try: res[key].update(series(get_all(f'{API}/continuous/items', dict(state_code='25', parameter_code=param, time=tw))))
-        except SystemExit as ex: log(run, key, 'state query failed', ex)
+        except SystemExit as ex:
+            log(run, key, 'state query failed', ex, '- trying legacy WaterServices'); res[key].update(legacy_series(param, s, e, stateCd='ma'))
+            res['source'] += ' (+ legacy WaterServices fallback)'
         for sid in BOUNDARY:
             if sid in res[key]: continue
             try: res[key].update(series(get_all(f'{API}/continuous/items', dict(monitoring_location_id='USGS-' + sid, parameter_code=param, time=tw))))
-            except SystemExit as ex: log(run, key, sid, 'failed', ex)
+            except SystemExit as ex: log(run, key, sid, 'failed', ex, '- trying legacy'); res[key].update(legacy_series(param, s, e, sites=sid))
     ids = sorted(set(res['flow']) | set(res['stage']))
     try: res['sites'] = site_info(ids)
     except SystemExit as ex: log(run, 'site info failed', ex); res['sites'] = {}

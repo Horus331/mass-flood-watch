@@ -1,0 +1,34 @@
+name: test USGS OGC gauge path vs committed legacy file (run by hand)
+# Fetches gauges for a storm through the new USGS Water Data OGC API (and, while it lives, the legacy WaterServices path),
+# compares each with the committed docs/proto/obs/gauges_<storm>.json and commits the report to docs/proto/obs/_logs/.
+on:
+  workflow_dispatch:
+    inputs:
+      storm: {default: 'sep2023'}
+      bbox: {description: 'lon/lat w,s,e,n', default: '-72.15,42.40,-71.55,42.75'}
+      start: {default: '2023-09-10'}
+      end: {default: '2023-09-14'}
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests
+      - run: |
+          mkdir -p /tmp/ogc /tmp/legacy docs/proto/obs/_logs
+          L=docs/proto/obs/_logs/ogc_test_${{ inputs.storm }}.txt
+          { echo "== OGC path $(date -u)"; python proto/obs_fetch.py --storm ${{ inputs.storm }} --bbox=${{ inputs.bbox }} --start ${{ inputs.start }} --end ${{ inputs.end }} --out /tmp/ogc --gauge-source ogc --gauges-only 2>&1 | tail -30
+            echo "== legacy path"; python proto/obs_fetch.py --storm ${{ inputs.storm }} --bbox=${{ inputs.bbox }} --start ${{ inputs.start }} --end ${{ inputs.end }} --out /tmp/legacy --gauge-source legacy --gauges-only 2>&1 | tail -30; } > $L 2>&1 || true
+          python proto/obs_compare.py docs/proto/obs/gauges_${{ inputs.storm }}.json /tmp/ogc/gauges_${{ inputs.storm }}.json --out docs/proto/obs/_logs/ogc_test_${{ inputs.storm }}.json > /dev/null
+          python proto/obs_compare.py docs/proto/obs/gauges_${{ inputs.storm }}.json /tmp/legacy/gauges_${{ inputs.storm }}.json --out docs/proto/obs/_logs/legacy_test_${{ inputs.storm }}.json > /dev/null
+          gzip -c /tmp/ogc/gauges_${{ inputs.storm }}.json > docs/proto/obs/_logs/gauges_${{ inputs.storm }}_ogc.json.gz || true
+          python -c "import json;[print(p, json.load(open(p)).get('pass')) for p in ['docs/proto/obs/_logs/ogc_test_${{ inputs.storm }}.json','docs/proto/obs/_logs/legacy_test_${{ inputs.storm }}.json']]" | tee -a $L
+      - run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/obs/_logs && git commit -qm "USGS OGC gauge test: ${{ inputs.storm }}" || echo nothing
+          git pull --rebase -q && git push

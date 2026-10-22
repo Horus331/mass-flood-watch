@@ -1,0 +1,23 @@
+name: archive USGS peaks + ratings before legacy NWIS shutdown (run by hand)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests
+      - run: python tools/usgs_legacy_archive.py --out archive/usgs_legacy 2>&1 | tail -60
+      - run: |
+          du -sh archive/usgs_legacy || true
+          MB=$(du -sm archive/usgs_legacy | cut -f1)
+          # keep the repo light: above 90 MB commit peaks + manifest only (ratings would need another home)
+          if [ "$MB" -gt 90 ]; then echo "archive is ${MB} MB: dropping ratings from the commit"; rm -rf archive/usgs_legacy/ratings; fi
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add archive/usgs_legacy && git commit -qm "USGS legacy archive: peaks + ratings ($(date -u +%F))" || echo nothing
+          git pull --rebase -q && git push
