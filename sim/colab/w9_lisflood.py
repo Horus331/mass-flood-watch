@@ -64,14 +64,16 @@ def read_asc(path):
 def write_rain_nc(path, rain_mm, x0, y0, res, times_h, flip_y=False, flip_x=False):
     """Dynamic rain file in the TUFLOW NetCDF rainfall format that LISFLOOD-FP 8 reads with `dynamicrainfile`.
     rain_mm: (nt, ny, nx) mm in each interval (rows north -> south, like our grids).  With 1-hour intervals mm == mm/h, so the
-    depth-vs-rate ambiguity of the format does not matter.  Coordinates are cell centres, x and y ascending (CF), so the file
-    origin equals the DEM's xllcorner/yllcorner.  flip_y/flip_x exist only to undo an orientation the probe run detects."""
+    depth-vs-rate ambiguity of the format does not matter.  Coordinates are cell centres, x ascending and y descending (north row
+    first, as LISFLOOD-FP's DynamicRain indexes it), so the grid's lower-left corner equals the DEM's xllcorner/yllcorner.  flip_y/flip_x exist only to undo an orientation the probe run detects."""
     # LISFLOOD-FP's reader (lisflood2/file_tool.cpp, read_file_netCDF_start) uses the *variable* id of "time" as a dimension id and the
     # *dimension* ids of x/y as variable ids, so variable ids must equal dimension ids: define time, y, x as dims AND as the first three
     # variables in that order.  scipy.io.netcdf_file reorders variables (record variables last), which breaks this; netCDF4 keeps the order.
     import netCDF4
     r = np.asarray(rain_mm, np.float32); nt, ny, nx = r.shape
-    r = r[:, ::-1, :]                                   # north->south rows -> y ascending
+    # y is written DESCENDING (first row = north) with rows north -> south.  LISFLOOD-FP's DynamicRain takes dy = ys[0] - ys[1] and
+    # tly = ys[0] + dy/2; with ascending y, dy < 0, every DEM row j reads file row ny - j (one row off) and the north row reads past the
+    # end of the buffer (garbage rain, the north-edge water source found 21 Oct 2026).  Descending y gives dy > 0, tly = top, row j -> j.
     if flip_y: r = r[:, ::-1, :]
     if flip_x: r = r[:, :, ::-1]
     f = netCDF4.Dataset(path, 'w', format='NETCDF3_64BIT_OFFSET')
@@ -83,7 +85,7 @@ def write_rain_nc(path, rain_mm, x0, y0, res, times_h, flip_y=False, flip_x=Fals
     x = f.createVariable('x', 'f8', ('x',)); x.standard_name = 'projection_x_coordinate'; x.long_name = 'x-coordinate in cartesian system'; x.units = 'm'; x.axis = 'X'
     v = f.createVariable('rainfall_depth', 'f4', ('time', 'y', 'x'), fill_value=np.float32(-999.0)); v.units = 'mm'
     tot = f.createVariable('total_rainfall_depth', 'f4', ('y', 'x'), fill_value=np.float32(-999.0))
-    y[:] = y0 + (np.arange(ny) + 0.5) * res; x[:] = x0 + (np.arange(nx) + 0.5) * res
+    y[:] = y0 + (ny - np.arange(ny) - 0.5) * res; x[:] = x0 + (np.arange(nx) + 0.5) * res
     t[:] = np.asarray(times_h, np.float64); v[:] = r; tot[:] = r.sum(axis=0)
     f.close()
 
@@ -760,13 +762,17 @@ def selftest():
     f = netcdf_file(f'{d}/rain.nc', 'r', mmap=False)
     v = f.variables['rainfall_depth']; y = f.variables['y'][:].copy(); x = f.variables['x'][:].copy(); t = f.variables['time'][:].copy()
     assert v.dimensions == ('time', 'y', 'x') and v.shape == (H + 1, ny, nx)
-    assert f.variables['time'].units in (b'hours', 'hours') and np.all(np.diff(y) > 0) and np.all(np.diff(x) > 0)
-    assert abs(y[0] - (y0 + res / 2)) < 1e-6 and abs(x[0] - (x0 + res / 2)) < 1e-6 and abs(y[-1] - (y0 + (ny - 0.5) * res)) < 1e-6
-    vv = v[:].copy(); assert vv[0, -1, 0] == 10 and vv[0, 0, :].sum() == 0 and vv[2, -1, 3] == 30   # northern row = largest y
-    assert np.allclose(f.variables['total_rainfall_depth'][:][-1, :], 60) and list(t) == [0, 1, 2, 3]
-    f.close(); ok.append('rain NetCDF (TUFLOW layout, y ascending, hourly mm, interval-start stamps)')
+    assert f.variables['time'].units in (b'hours', 'hours') and np.all(np.diff(y) < 0) and np.all(np.diff(x) > 0)
+    assert abs(y[0] - (y0 + (ny - 0.5) * res)) < 1e-6 and abs(x[0] - (x0 + res / 2)) < 1e-6 and abs(y[-1] - (y0 + res / 2)) < 1e-6
+    vv = v[:].copy(); assert vv[0, 0, 0] == 10 and vv[0, -1, :].sum() == 0 and vv[2, 0, 3] == 30   # northern row = first row = largest y
+    assert np.allclose(f.variables['total_rainfall_depth'][:][0, :], 60) and list(t) == [0, 1, 2, 3]
+    # emulate LISFLOOD-FP DynamicRain::rate_at_cell: every DEM row j must map to file row j (in range, same y)
+    gdy = y[0] - y[1]; gtly = y[0] + gdy / 2; ptly = y0 + ny * res
+    tj = [int((j - (ptly - gtly) / res) * res / gdy) for j in range(ny)]
+    assert gdy > 0 and tj == list(range(ny)) and abs((gtly - ny * gdy) - y0) < 1e-6
+    f.close(); ok.append('rain NetCDF (y descending, LISFLOOD row mapping j -> j in range, hourly mm, interval-start stamps)')
     write_rain_nc(f'{d}/rain_f.nc', rec, x0, y0, res, th, flip_y=True)
-    f = netcdf_file(f'{d}/rain_f.nc', 'r', mmap=False); assert f.variables['rainfall_depth'][:][0, 0, 0] == 10; f.close(); ok.append('rain flip_y option')
+    f = netcdf_file(f'{d}/rain_f.nc', 'r', mmap=False); assert f.variables['rainfall_depth'][:][0, -1, 0] == 10; f.close(); ok.append('rain flip_y option')
     write_bci(f'{d}/run.bci', x0, y0, x0 + nx * res, y0 + ny * res)
     bl = open(f'{d}/run.bci').read().split('\n'); assert bl[0] == f'N {x0:.1f} {x0 + nx * res:.1f} FREE' and bl[2].startswith('W 905000.0') and len([l for l in bl if l]) == 4
     ok.append('boundary file (FREE on 4 edges)')
