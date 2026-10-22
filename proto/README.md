@@ -75,6 +75,38 @@ The map shows it as a separate **"may close: stream at road level"** layer (oran
 an independent storm (Vermont July 2023 closures, `proto/data/vt_roadclosures_jul2023.geojson`).
 Peak speeds have numerical spikes (max 96 m/s in a few cells; p95 on wet land 3.2 m/s), so read single-cell speeds with care.
 
+## Resilience, warning priority and risk matrix (post-steps)
+
+Three modules read a finished run folder and never change `p_close`. The proto workflow runs them after `prototype.py`. Definitions,
+sources and the Leominster numbers are in [`docs/proto/advisors/resilience.md`](../docs/proto/advisors/resilience.md).
+
+* `proto/resilience.py` builds functionality curves Q(t) every 30 min, with segments closed at ≥ 30 cm and slowed at 5–30 cm by the
+  Pregnolato curve. It has three variants:
+  * Q_eff: global efficiency (Latora & Marchiori 2001).
+  * Q_access: road-km within 30 min of a hospital, 8 min of a fire station (NFPA 1710) and 10 min of police.
+  * Q_traffic: AADT-weighted serviceable km.
+
+  For each variant it reports the Bruneau et al. (2003) resilience loss ∫(100 − Q)dt, robustness (min Q), rapidity (hours back to
+  90/95 %) and AADT-weighted vehicle-hours of delay. Outputs: `resilience.json`, `resilience.png`, `resilience_segments.csv`.
+  Leominster: min Q is 59 / 68 / 68 % (eff / access / traffic), RL is 1,284 / 937 / 1,061 %·h over 48 h, and delay is about 510,000
+  vehicle-hours. No variant recovers to 90 % within 48 h, because ponded depressions keep about 115 segments closed.
+* `proto/rating.py` computes a flash-flood index from three things: lead time from heavy-rain onset (≥ 7.6 mm/h) to 30 cm, rise time
+  from 5 to 30 cm, and `flashness_pct`. It also writes `warning_priority = p_close × (0.5 + 0.5 FFI)` with warning tiers
+  (`warning_priority.csv`), and the event Richards-Baker flashiness at gauges (`rating.json`). Leominster: the median lead of likely
+  closures is 2.5 h, and 97 % close within 6 h of the onset.
+* `proto/risk.py` builds the risk matrix: likelihood (p_close, or P(overtop) for crossings) × consequence. Consequence is pavement
+  repair plus culvert replacement at Stream-Crossing-Standard size (VTrans 2014 unit costs, CPI to 2023), plus user delay
+  (USDOT 2016 VOT → $18.13 / person-h × 1.67), plus critical access lost. It writes `risk_matrix.csv` (top 50, Low / Medium / High /
+  Extreme), `risk_matrix.png` and `risk.json`. All costs are order-of-magnitude. Leominster: 22 items are Extreme (12 segments,
+  10 crossings), and the expected cost is about $68M.
+
+```
+python proto/resilience.py --out docs/proto/leominster_sep2023          # ~9 min (all-pairs efficiency, 97 frames x 2)
+python proto/rating.py --out docs/proto/leominster_sep2023
+python proto/risk.py --out docs/proto/leominster_sep2023 --run-dir <run dir>   # run dir only for crossing status
+python proto/resilience.py --selftest; python proto/rating.py --selftest; python proto/risk.py --selftest
+```
+
 ## Run it
 
 Small case (any laptop or the GitHub workflow `.github/workflows/proto.yml`):

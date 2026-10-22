@@ -49,6 +49,12 @@ jobs:
           cp $OUTDIR/meta.json docs/proto/${{ inputs.name }}/flood_meta.json
           cp $OUTDIR/w9_log.txt docs/proto/${{ inputs.name }}/flood_log.txt
           mkdir -p proto_run && cp $OUTDIR/* proto_run/ && cp w9_stdout.txt proto_run/
+      - name: network resilience, warning priority, risk matrix (post-step, reads the outputs above)
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
+          python proto/resilience.py --out docs/proto/${{ inputs.name }} || true
+          python proto/rating.py --out docs/proto/${{ inputs.name }} || true
+          python proto/risk.py --out docs/proto/${{ inputs.name }} --run-dir $OUTDIR || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
