@@ -19,11 +19,12 @@ Columns are the same as `labels_sep2023_leominster.csv`: `id,name,road,town,type
 | closed | 2 |
 
 By town: Worcester 11, Auburn 1, Oxford 1, Westborough 1.
-coord_quality: exact 8, approx 5, town 1. time_quality: approx 1, day 13.
+coord_quality: exact 8, approx 5, town 1. time_quality: approx 1, report 8 (LSR time, see below), day 5.
 
 ## How fields were filled
 
 - **time_local** (EDT). Only W001 has a clock time: 11:59, the time of the Turn to 10 report, so it is `approx`. The rain fell between 06:00 and 12:00, and every source places the flooding on Thursday morning. All other rows are `day`. I could not reach the NWS Local Storm Reports for this date (IEM, kamala.cod.edu and wx1box report PDFs were blocked from this sandbox), and they would give exact times.
+- **Update (NWS reports fetched later by `obs.yml`, storm `aug2021`).** The NWS Local Storm Reports (`docs/proto/obs/lsr_aug2021.csv`) list William at Somerset St "FLOODED AND IMPASSABLE" at 15:38 UTC, and the emergency-manager report of the full street list (Southbridge St, McKeon Rd, Quinsigamond at Lamartine, East Central under I-290, Glennie St, Millbrook St under I-190, Enid St at Commonwealth) at 15:42 UTC. NOAA Storm Events (`stormevents_aug2021.csv`, events 977893/977894, the same entry listed twice) gives 10:38 local standard time, which is also 15:38 UTC, and calls all eight sites "flooded and impassable". So W004–W011 now have `time_local` 2021-08-19T11:38 EDT with `time_quality` `report`. That is the time of the report, so the roads were flooded by then, possibly earlier: the city's flash-flood alert went out at about 10:40 EDT. The `type` stays `flooded`. No new sites were added: the two LSRs and the Worcester Storm Events entry cover the same streets, and the other Storm Events rows (Peabody, Somerville) are outside the box. `validate_points.py` scores the LSR and Storm Events points as their own sources.
 - **lon/lat** come from `docs/graph_segments.json`, the same way as for Leominster. No external geocoder could be reached.
   - Intersections and bridges use the closest approach of the two named roads: Route 20 × Route 122 (Grafton St) 17 m, Cambridge × Kansas 24 m, Quinsigamond × Lamartine 41 m, William × Somerset 10 m, East Central × I-290 40 m, Millbrook × I-190 30 m, Route 30 × Route 9 (Westborough) 39 m. Those are `exact`. Enid × Commonwealth is 80 m, so it is `approx`.
   - Southbridge St, McKeon Rd and Glennie St sit at the road vertex nearest the road centroid, so they are `approx`. **Southbridge St (about 1.7 km of segments) and McKeon Rd (about 0.9 km) can be several hundred metres off**, so match those by road name.

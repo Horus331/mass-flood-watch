@@ -58,6 +58,7 @@ def score(run_dir, obs_path):
                 mean_abs_wse_error_m=round(float(np.mean(np.abs(werr))), 2) if werr else None)
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('--run-dir', required=True); ap.add_argument('--obs', default='docs/proto/obs/gauges_sep2023.json'); ap.add_argument('--out')
-    a = ap.parse_args(); s = score(a.run_dir, a.obs); print(json.dumps(s, indent=1))
+    ap = argparse.ArgumentParser(); ap.add_argument('--run-dir', required=True); ap.add_argument('--obs', help='default docs/proto/obs/gauges_<storm>.json'); ap.add_argument('--out')
+    ap.add_argument('--storm', default=os.environ.get('STORM') or 'sep2023', help='storm id (env STORM; default sep2023) -> default obs file')
+    a = ap.parse_args(); s = score(a.run_dir, a.obs or f'docs/proto/obs/gauges_{a.storm}.json'); print(json.dumps(s, indent=1))
     if a.out: json.dump(s, open(a.out, 'w'), indent=1)

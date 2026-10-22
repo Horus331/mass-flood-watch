@@ -7,6 +7,7 @@ on:
       hours: {description: 'storm hours from t0', default: '48'}
       loss: {description: 'none or fc (soil + drain losses)', default: 'fc'}
       name: {description: 'output folder under docs/proto/', default: 'leominster_sep2023'}
+      storm: {description: 'storm id (w9 STORMS: sep2023, aug2021, ...); picks obs + labels files', default: 'sep2023'}
       env: {description: 'extra env, space separated', default: 'LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_QOUT=1'}
 permissions:
   contents: write
@@ -28,8 +29,8 @@ jobs:
           BOX: ${{ inputs.box }}
           RES: ${{ inputs.res }}
           HOURS: ${{ inputs.hours }}
-          STORM: sep2023
-          RUN_DIR: runs/sep2023_proto_${{ inputs.name }}
+          STORM: ${{ inputs.storm }}
+          RUN_DIR: runs/${{ inputs.storm }}_proto_${{ inputs.name }}
           GIT_SHA: ${{ github.sha }}
           OMP_NUM_THREADS: '4'
         run: |
@@ -37,6 +38,8 @@ jobs:
           export ${{ inputs.env }}
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: road closures
+        env:
+          STORM: ${{ inputs.storm }}
         run: |
           set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); echo "run dir $OUTDIR"; ls -la $OUTDIR
@@ -65,4 +68,4 @@ jobs:
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add docs/proto/${{ inputs.name }}
           git commit -m "prototype outputs: ${{ inputs.name }}" || echo nothing
-          git pull --rebase -q && git push
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push && break; sleep $((RANDOM % 20 + 5)); done

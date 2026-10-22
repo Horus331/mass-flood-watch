@@ -25,7 +25,8 @@ WORK = os.environ.get('LF_WORK', '/content/lisflood')
 REPO = 'mohabeldokla/mass-flood-watch-tiles'
 STORMS = {'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, title='Sept 11, 2023 flash floods'),
           'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, title='Leominster test'),
-          'jul2023vt': dict(t0='2023-07-09T18:00Z', hours=60, frame_min=30, title='July 10-11, 2023 Vermont flood')}   # inputs: LF_DATA_DIR (sim/colab/vt_inputs.py)
+          'jul2023vt': dict(t0='2023-07-09T18:00Z', hours=60, frame_min=30, title='July 10-11, 2023 Vermont flood'),
+          'aug2021': dict(t0='2021-08-19T09:00Z', hours=18, frame_min=30, title='Aug 19, 2021 flash floods (Fred)')}   # inputs: LF_DATA_DIR (sim/colab/vt_inputs.py)
 ZENODO_RECORDS = ['13121102', '4073010']        # LISFLOOD-FP v8.2 (DOI 10.5281/zenodo.13121102); 4073010 = concept record (latest)
 NODATA = -9999.0
 LOGP = None

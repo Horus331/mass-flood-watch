@@ -762,7 +762,8 @@ if __name__ == '__main__':
     ap.add_argument('--reports', default=os.path.join(ROOT, 'docs', 'prone', 'flood_reports.json'))
     ap.add_argument('--facilities', default=os.path.join(ROOT, 'docs', 'network', 'facilities.json'))
     ap.add_argument('--repeat', default=os.path.join(HERE, 'data', 'massdot_repeat_flood_d3.csv'))
-    ap.add_argument('--labels', default=os.path.join(HERE, 'data', 'labels_sep2023_leominster.csv'))
+    ap.add_argument('--storm', default=os.environ.get('STORM') or 'sep2023', help='storm id (env STORM; default sep2023) -> default labels file')
+    ap.add_argument('--labels', help='default proto/data/labels_<storm>_*.csv (else .geojson)')
     ap.add_argument('--culvert-rule', action='store_true', default=os.environ.get('PROTO_CULVERT_RULE', '0') == '1',
                     help='P(close) = 1 - (1 - P_depth)(1 - P_culvert) (HDS-5 overtopping of surveyed culverts); both versions are scored either way')
     ap.add_argument('--freeboard', action='store_true', default=os.environ.get('PROTO_FREEBOARD', '0') == '1',
@@ -772,5 +773,7 @@ if __name__ == '__main__':
     ap.add_argument('--no-blockage', action='store_true', help='ignore NAACC inlet blockage in the culvert rule')
     ap.add_argument('--selftest', action='store_true')
     a = ap.parse_args()
+    if not a.labels:
+        import glob; a.labels = (sorted(glob.glob(os.path.join(HERE, 'data', f'labels_{a.storm}_*.csv'))) + sorted(glob.glob(os.path.join(HERE, 'data', f'labels_{a.storm}_*.geojson'))) or [None])[0]
     if a.selftest: selftest()
     else: run(a.run_dir, a.out, a.segments, a.crossings, a.reports, a.facilities, a.repeat, a.top, a.culvert_rule, a.labels, not a.no_blockage, a.freeboard, a.fastwater)
