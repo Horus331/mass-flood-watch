@@ -1,0 +1,28 @@
+name: basins (NLDI gauge basins + WBD hydrologic units for watershed-shaped model domains; run by hand)
+on:
+  workflow_dispatch:
+    inputs:
+      sites:
+        description: 'USGS sites (comma list)'
+        default: '01094400,01094500,01095220,01095503,01096000,01096500,01162000,01162500,01163200,01172500,01109730,01110000,01110500'
+      wbd_box:
+        description: 'EPSG:26986 box for WBD units (MassDOT District 3 + 40 km)'
+        default: '88000,816000,246000,986000'
+      levels: {default: '8,10,12'}
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy requests pyproj pillow
+      - run: python sim/colab/lf_domain.py fetch --sites "${{ inputs.sites }}" --wbd-box "${{ inputs.wbd_box }}" --levels "${{ inputs.levels }}" --tag d3
+      - name: commit
+        run: |
+          du -sh docs/network/basins; ls -la docs/network/basins
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/network/basins
+          git commit -qm "basins: NLDI gauge basins + WBD HU ${{ inputs.levels }} for domain building" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push && break; sleep $((RANDOM % 20 + 5)); done

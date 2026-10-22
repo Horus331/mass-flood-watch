@@ -609,6 +609,11 @@ def build_inputs(BOX, RES, S, TOK):
                 Z, water, DAMS = lf_dams.apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=log)
             except Exception as e:
                 log('LF_DAMS failed, running without dams:', repr(e)[:300]); DAMS = None
+    DOM = None
+    if os.environ.get('LF_DOMAIN', 'box') == 'basin':  # opt-in watershed-shaped domain (sim/colab/lf_domain.py): cells outside the basin mask become walls before breaching
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_domain
+        DOM = lf_domain.prepare(lf_domain.load(os.environ['LF_DOMAIN_FILE']), Z, BOX, RES, d4=os.environ.get('LF_BREACH_D4', '1') == '1', log=log)
+        Z = np.where(DOM['mask'], Z, lf_domain.WALL).astype(np.float32)
     carved = np.zeros((ny, nx), bool)
     if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
         t_ = time.time(); mcc = os.environ.get('LF_BREACH_CHAN_MAX')
@@ -679,7 +684,7 @@ def build_inputs(BOX, RES, S, TOK):
         RAIN = np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32)
         log(f'effective rain (CN) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%)')
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
-                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS)
+                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM)
 
 
 # ======================================================================================================================
@@ -696,6 +701,7 @@ def main():
     import pandas as pd
     t_all = time.time(); os.makedirs(WORK, exist_ok=True); LOGP = f'{WORK}/w9_log.txt'
     BOX = tuple(float(v) for v in os.environ.get('BOX', '150000,905000,170000,925000').split(',')); RES = float(os.environ.get('RES', '20'))
+    if os.environ.get('LF_DOMAIN', 'box') == 'basin': BOX = tuple(float(v) for v in json.load(open(os.environ['LF_DOMAIN_FILE']))['box'])   # the domain file sets the box
     STORM = os.environ.get('STORM', 'sep2023'); S = dict(STORMS[STORM])
     if os.environ.get('T0'): S['t0'] = os.environ['T0']
     if os.environ.get('HOURS'): S['hours'] = int(os.environ['HOURS'])
@@ -735,7 +741,8 @@ def main():
         f"rain total row 0 mean {float(I['RAIN'][:, 0].sum(0).mean()):.0f} mm vs box {float(I['RAIN'].sum(0).mean()):.0f} mm")
     if os.environ.get('LF_INPUTS_ONLY') == '1': log('LF_INPUTS_ONLY: stopping after the inputs'); return
     wd = f'{WORK}/run_{run_name}'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
-    write_asc(f'{wd}/dem.asc', I['Z'], x0, y0, RES)
+    DOM = I.get('DOM'); MSK = DOM['mask'] if DOM else None
+    write_asc(f'{wd}/dem.asc', I['Z'] if DOM is None else np.where(MSK, I['Z'], np.nan), x0, y0, RES)     # LF_DOMAIN=basin: NODATA outside the mask (LISFLOOD-FP walls)
     LC = None
     if os.environ.get('LF_N_LANDCOVER', '0') == '1':
         LC, cov = nlcd_landcover(BOX, RES, ny, nx)
@@ -749,6 +756,7 @@ def main():
     rec, th = rain_records(I['RAIN'] / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
     write_rain_nc(f'{wd}/rain.nc', rec, x0, y0, RES, th, flip_y=P['flip_y'], flip_x=P['flip_x'])
     write_bci(f'{wd}/run.bci', x0, y0, x1, y1)
+    if DOM: open(f'{wd}/run.bci', 'w').write('\n'.join(DOM['bci']) + '\n')     # FREE only where the outlet corridors reach the box edge; other edges closed
     start = None
     extra = []; infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4'))
     INFLOW = None
@@ -794,12 +802,14 @@ def main():
             open(f'{wd}/run.weir', 'w').write(lf_dams_weirfile(D_)); extra.append('weirfile run.weir')
             if is_cuda: log('WARNING: LF_DAMS weirs are read by the CPU solver (fp_flow.cpp); the CUDA acceleration solver may ignore them')
         extra += D_.get('par', [])
+    if DOM and start: write_asc(f'{wd}/start.wd', np.where(MSK, np.nan_to_num(read_asc(f'{wd}/start.wd')[0]), 0.0), x0, y0, RES)   # no water on wall cells
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
     log('par:', ' | '.join(par))
     # 4. run
     run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
     hmax, hsrc = max_depth(wd, 'res'); hmax = np.nan_to_num(hmax, nan=0.0)
+    if DOM and hmax.shape == MSK.shape: hmax = np.where(MSK, hmax, 0.0)
     if hmax.shape != (ny, nx): raise SystemExit(f'output shape {hmax.shape} != grid {(ny, nx)}')
     land = ~I['chan']; t0 = pd.Timestamp(S['t0']); nfr = int(S['hours'] * 60 / S['frame_min']) + 1
     snaps = {int(re.search(r'-(\d+)\.wd$', p).group(1)): p for p in glob.glob(f'{wd}/results/res-*.wd')}
@@ -867,7 +877,7 @@ def main():
     mass_tail = open(mass[0]).read().strip().split('\n')[-2:] if mass else []
     # 5. run layout + one commit
     OUT = f'{wd}/out'; os.makedirs(OUT, exist_ok=True)
-    np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', I['Z'].astype(np.float32))
+    np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', (I['Z'] if DOM is None else np.where(MSK, I['Z'], I['Z_RAW'])).astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
     if FR: np.savez_compressed(f'{OUT}/frames_cm.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32))
     np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan'] | I['carved']).astype(np.uint8))
@@ -897,6 +907,9 @@ def main():
     if I.get('DAMS'):
         try: meta['dams'] = lf_dams_report(I['DAMS'], I['Z'], FR, FT)
         except Exception as e: log('dam report failed:', repr(e)[:200])
+    if DOM:
+        meta['domain'] = DOM['report']; meta['inputs']['boundary'] = 'LF_DOMAIN=basin: NODATA walls outside the mask, FREE on the outlet corridor edge cells, other edges closed'
+        np.save(f'{OUT}/domain_mask.npy', MSK.astype(np.uint8))
     json.dump(meta, open(f'{OUT}/meta.json', 'w'))
     shutil.copy(LOGP, f'{OUT}/w9_log.txt')
     if not TOK or os.environ.get('LF_NO_UPLOAD') == '1': log('no upload: outputs left in', OUT); return
