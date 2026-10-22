@@ -33,6 +33,11 @@ def main(d, run_dir=None):
         gauges.append(dict(g, model_peak_q_m3s=q.get('q_peak_m3s'), model_peak_q_h=q.get('q_peak_h')))
     for sid, q in gq.items():
         if sid not in {g['site'] for g in gauges}: gauges.append(dict(site=sid, name=q.get('name'), obs_peak_q_m3s=q.get('obs_peak_q_m3s'), model_peak_q_m3s=q.get('q_peak_m3s')))
+    C = json.load(open(os.path.join(d, 'coarse', 'xings.json'))) if os.path.exists(os.path.join(d, 'coarse', 'xings.json')) else {}
+    coarse = [dict(site=g['site'], name=g.get('name'), obs_peak_q_m3s=g.get('obs_peak_q_m3s'), model_peak_q_m3s=g.get('q_peak_m3s'), model_peak_h=g.get('q_peak_h'))
+              for g in C.get('gauges', []) if not str(g['site']).startswith('IN')]
+    IF = json.load(open(os.path.join(d, 'inputs', 'inflows.json'))) if os.path.exists(os.path.join(d, 'inputs', 'inflows.json')) else {}
+    inflows = [dict(name=p['name'], area_km2=p.get('area_km2'), edge=p.get('edge'), peak_m3s=p.get('peak_m3s')) for p in IF.get('points', [])]
     M = json.load(open(os.path.join(d, 'inputs', 'manifest.json'))) if os.path.exists(os.path.join(d, 'inputs', 'manifest.json')) else {}
     dep = next((r for r in rows if r['rule'] == 'depth'), None); ot = next((r for r in rows if r['rule'] == 'overtop'), None)
     verdict = None
@@ -42,7 +47,7 @@ def main(d, run_dir=None):
                        holds=bool(better and ok_share and (ot['lift'] or 0) >= (dep['lift'] or 0) * 0.8))
     out = dict(storm='July 10-11, 2023 Vermont flood', box_epsg26986=S.get('box_epsg26986'), segments_in_box=S.get('segments_in_box'),
                closures_in_file=L.get('labels_in_file'), closures_matched_strict=L.get('sites_matched'), closures_matched_loose=(L.get('loose') or {}).get('sites_matched'),
-               rules=rows, overtop_verdict=verdict, gauges=gauges, rain_max_total_mm=S.get('rain_max_total_mm'), rain_peak1h_max_mm=S.get('rain_peak1h_max_mm'),
+               rules=rows, overtop_verdict=verdict, gauges=gauges, coarse_run_gauges=coarse, inflows=inflows, inflow_source=IF.get('source'), rain_max_total_mm=S.get('rain_max_total_mm'), rain_peak1h_max_mm=S.get('rain_peak1h_max_mm'),
                flood_model_runtime_s=S.get('flood_model_runtime_s'), sites=L.get('sites'), inputs=M.get('steps'))
     json.dump(out, open(os.path.join(d, 'vt_scores.json'), 'w'), indent=1)
     T = [f"# Vermont, July 10-11 2023: closure rules vs VTrans closures", '',
@@ -57,6 +62,11 @@ def main(d, run_dir=None):
         T += ['', '| gauge | obs rise m | model rise m | obs peak (UTC) | model peak | obs peak Q m3/s | model peak Q m3/s |', '| --- | --- | --- | --- | --- | --- | --- |']
         for g in gauges:
             T.append(f"| {g['site']} {g.get('name') or ''} | {g.get('obs_rise_m')} | {g.get('model_rise_m')} | {g.get('obs_peak_utc')} | {g.get('model_peak_utc')} | {g.get('obs_peak_q_m3s')} | {g.get('model_peak_q_m3s')} |")
+    if coarse:
+        T += ['', 'Coarse (60 m, 60 x 60 km) run that feeds the edge inflows, at the same gauges:', '', '| gauge | obs peak Q m3/s | model peak Q m3/s | model peak (h from t0) |', '| --- | --- | --- | --- |']
+        T += [f"| {g['site']} {g['name'] or ''} | {g['obs_peak_q_m3s']} | {g['model_peak_q_m3s']} | {g['model_peak_h']} |" for g in coarse]
+    if inflows:
+        T += ['', f"Edge inflows ({len(inflows)}): " + ', '.join(f"{p['name']} {p['area_km2']:.0f} km2 peak {p['peak_m3s']} m3/s" for p in sorted(inflows, key=lambda p: -(p['peak_m3s'] or 0))[:8])]
     open(os.path.join(d, 'RESULTS.md'), 'w').write('\n'.join(T) + '\n'); print('\n'.join(T))
 
 
