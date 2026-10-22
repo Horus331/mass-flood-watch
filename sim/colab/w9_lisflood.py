@@ -742,6 +742,13 @@ def main():
             log(f"LF_INFLOW=usgs: {INFLOW['n']} inflow point sources")
         except Exception as e:
             log('LF_INFLOW failed, running without inflows:', repr(e)[:300])
+    elif os.environ.get('LF_INFLOW') == 'file':    # opt-in: edge inflows from a coarse run of this model (one-way nesting, sim/colab/vt_inputs.py)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import vt_inputs
+        bl_, bdy_, cells_ = vt_inputs.point_sources(json.load(open(os.environ['LF_INFLOW_FILE'])), I['Z'], I['chan'], BOX, RES)
+        if bl_:
+            with open(f'{wd}/run.bci', 'a') as f_: f_.write('\n'.join(bl_) + '\n')
+            open(f'{wd}/run.bdy', 'w').write(bdy_); extra.append('bdyfile run.bdy')
+        INFLOW = dict(n=len(bl_), report=dict(source='file', file=os.environ['LF_INFLOW_FILE'], cells=cells_)); log(f'LF_INFLOW=file: {len(bl_)} inflow point sources at {cells_[:8]}')
     QOUT = os.environ.get('LF_QOUT', '0') == '1'
     if QOUT: extra.append('qoutput')          # .Qx/.Qy face fluxes (m3/s) at every saveint: flow through each crossing notch, river flow at gauges
     VOUT = os.environ.get('LF_VOUT', '0') == '1'
@@ -788,7 +795,7 @@ def main():
     log(f'peak wet (hmax >= 10 cm, land) {peak_wet} km2; largest snapshot wet area {peak_frame_wet} km2; {len(snaps)} snapshots')
     # flow through every crossing notch and past every gauge from the face fluxes (LF_QOUT=1): peak over the snapshots
     XG = I['XG']; GQ = []
-    gp_ = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'proto', 'obs', f'gauges_{STORM}.json')
+    gp_ = os.environ.get('LF_GAUGES') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'proto', 'obs', f'gauges_{STORM}.json')
     if os.path.exists(gp_):
         from pyproj import Transformer
         tg = Transformer.from_crs(4326, 26986, always_xy=True)

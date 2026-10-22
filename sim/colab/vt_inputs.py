@@ -148,11 +148,12 @@ def fetch_channels(box, data):
     if not feats: raise SystemExit('no NHDPlus HR flowlines in the box')
     keys = {k.lower(): k for k in feats[0]['properties']}; ka = keys.get('totdasqkm'); kf = keys.get('ftype'); log('flowlines', len(feats), 'area field', ka, 'ftype', kf)
     to_m = Transformer.from_crs(4326, 26986, always_xy=True).transform
-    chan_s, water_s, area_s = [], [], []; nlake = 0
+    chan_s, water_s, area_s = [], [], []; nlake = 0; LX = []
     for f in feats:
         try: g = shp_transform(to_m, shape(f['geometry']))
         except Exception: continue
         pr = f['properties']; A = float(pr.get(ka) or 0) if ka else 0.0; ft = int(pr.get(kf) or 0) if kf else 0
+        for part in (getattr(g, 'geoms', None) or [g]): LX.append(dict(a=round(A, 2), n=pr.get('GNIS_Name') or pr.get('gnis_name') or '', xy=[[round(x, 1), round(y, 1)] for x, y in part.coords]))
         chan_s.append((g, 1)); area_s.append((g, A)); W = bankfull_w(A); nlake += ft == 558
         if W > RES or ft == 558: water_s.append((g.buffer(max(W, RES) / 2 if ft != 558 else 60.0), 1))
     chan = features.rasterize(chan_s, out_shape=(ny, nx), transform=tr, default_value=1, all_touched=True, dtype='uint8').astype(bool)
@@ -161,13 +162,87 @@ def fetch_channels(box, data):
              else np.zeros((ny, nx), bool)) | chan & (area > 50)
     A_ = np.maximum(area, 0.01); width = np.where(chan, 2.70 * A_ ** 0.352 * np.where(A_ > 500, (A_ / 500.0) ** 0.15, 1.0), 0).astype(np.float16)
     depth = np.where(chan, 0.30 * A_ ** 0.213, 0).astype(np.float16)
-    os.makedirs(f'{data}/channels30', exist_ok=True)
+    os.makedirs(f'{data}/channels30', exist_ok=True); json.dump(LX, open(f'{data}/_flowlines_xy.json', 'w'))
     np.savez_compressed(f'{data}/channels30/channels30.npz', chan=chan, water=water, area=area, width=width, depth=depth)
     json.dump(dict(box=list(wb), res_m=RES, crs='EPSG:26986', shape=[int(ny), int(nx)], flowlines=len(feats), lake_paths=int(nlake), chan_cells=int(chan.sum()),
                    water_cells=int(water.sum()), source='NHDPlus HR flowlines via hydro.nationalmap.gov; bankfull geometry Bieger et al. 2015', made=time.strftime('%Y-%m-%d')),
               open(f'{data}/channels30/channels30_meta.json', 'w'))
     log(f'channels: {chan.sum():,} cells, water {water.sum():,}, max area {area.max():.0f} km2')
     return dict(flowlines=len(feats), chan_cells=int(chan.sum()), max_area_km2=round(float(area.max()), 1))
+
+
+# ---------------------------------------------------------------- one-way nesting: river inflow at the box edge -------------------------
+# A 20 km box cuts the big rivers (Winooski at Montpelier drains 1028 km2, Dog River at Northfield Falls 197 km2, mostly outside the box), so
+# with rain on the box only they carry a fraction of their flow.  The flow entering the box comes from a coarse run of the SAME model and
+# settings over a 60 x 60 km box holding those basins (rain on grid, MRMS + CN), read at every place a mapped stream enters the fine box.
+# No gauge observation enters the fine run, so the gauges stay an independent check.
+def entry_points(box, data, path, min_km2=2.0, dedupe_m=150.0):
+    """Where NHDPlus HR flowlines (digitised downstream) cross the box edge from outside to inside, with upstream area >= min_km2.
+    Writes [{site 'INnn', name, x, y, lon, lat, edge, area_km2}] (obs-gauge layout, so w9's gauge flux machinery samples them)."""
+    from pyproj import Transformer
+    inv = Transformer.from_crs(26986, 4326, always_xy=True); x0, y0, x1, y1 = box
+    LX = json.load(open(f'{data}/_flowlines_xy.json')); E = []
+    ins = lambda p: x0 < p[0] < x1 and y0 < p[1] < y1
+    for L in LX:
+        if L['a'] < min_km2: continue
+        P = L['xy']
+        for a, b in zip(P[:-1], P[1:]):
+            if ins(a) or not ins(b): continue                     # outside -> inside only (downstream digitising)
+            best = None
+            for edge, v, ax in (('W', x0, 0), ('E', x1, 0), ('S', y0, 1), ('N', y1, 1)):
+                if (a[ax] - v) * (b[ax] - v) > 0 or a[ax] == b[ax]: continue
+                t = (v - a[ax]) / (b[ax] - a[ax]); q = (a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]))
+                if x0 - 1 <= q[0] <= x1 + 1 and y0 - 1 <= q[1] <= y1 + 1 and (best is None or t > best[0]): best = (t, q, edge)
+            if best: E.append(dict(x=best[1][0], y=best[1][1], edge=best[2], area_km2=L['a'], name=L['n']))
+    E.sort(key=lambda e: -e['area_km2']); keep = []
+    for e in E:
+        if all(math.hypot(e['x'] - k['x'], e['y'] - k['y']) > dedupe_m for k in keep): keep.append(e)
+    for i, e in enumerate(keep):
+        e['site'] = f'IN{i + 1:02d}'; lo, la = inv.transform(e['x'], e['y']); e.update(lon=round(lo, 6), lat=round(la, 6), x=round(e['x'], 1), y=round(e['y'], 1))
+        e['name'] = f"inflow {e['site']}: {e['name'] or 'stream'} ({e['area_km2']:.0f} km2, {e['edge']} edge)"
+    json.dump(keep, open(path, 'w'), indent=0); log(f'{len(keep)} stream entries >= {min_km2} km2:', [(e['site'], e['name']) for e in keep[:12]])
+    return dict(entries=len(keep), area_km2=[e['area_km2'] for e in keep[:10]])
+
+
+def add_points(gauges_path, points_path):
+    """Append the entry points to an obs gauges file (as gauges without observations) so the coarse w9 run reports flow through them."""
+    G = json.load(open(gauges_path)) if os.path.exists(gauges_path) else dict(gauges=[])
+    P = json.load(open(points_path)); G['gauges'] = [g for g in G['gauges'] if not str(g['site']).startswith('IN')] + [dict(site=p['site'], name=p['name'], lon=p['lon'], lat=p['lat']) for p in P]
+    json.dump(G, open(gauges_path, 'w'), separators=(',', ':')); return len(P)
+
+
+def make_inflows(xings_path, meta_path, points_path, out_path):
+    """Coarse-run flow out of the 5 x 5-cell block at each entry (w9 LF_QOUT, every saveint) -> {points: [{name, x, y, edge, t_s, q_m3s}]}."""
+    X = json.load(open(xings_path)); M = json.load(open(meta_path)); P = {p['site']: p for p in json.load(open(points_path))}
+    si = float(((M.get('inputs') or {}).get('env') or {}).get('LF_SAVEINT', 1800)); out = []
+    for g in X.get('gauges', []):
+        p = P.get(g['site'])
+        if p is None or not g.get('q_series'): continue
+        q = [max(0.0, float(v)) for v in g['q_series']]
+        out.append(dict(name=p['site'], x=p['x'], y=p['y'], edge=p['edge'], area_km2=p['area_km2'], peak_m3s=round(max(q), 2), t_s=[k * si for k in range(len(q))], q_m3s=q))
+    json.dump(dict(points=out, source=f'coarse run {M.get("run")} box {M.get("box")} res {M.get("res_m")} m (same settings as the fine run)'), open(out_path, 'w'))
+    log('inflows:', [(o['name'], o['area_km2'], o['peak_m3s']) for o in out]); return len(out)
+
+
+def point_sources(J, Z, chan, box, res, inset=3, search=4):
+    """LISFLOOD-FP point sources for w9 (LF_INFLOW=file): each entry goes `inset` cells inside its edge, on the lowest cell (channel first)
+    within `search` cells along the edge.  Point-source QVAR values are flow per unit width (UpdateH adds value * dx * dt / dA), so the
+    .bdy holds Q / res.  Returns (bci lines, bdy text, [(name, row, col)])."""
+    x0, y0, x1, y1 = box; ny, nx = Z.shape; bl, cells = [], []; T = ['# w9 LF_INFLOW=file: river inflows from a coarse run (m2/s = Q / RES)']
+    for p in J['points']:
+        r = int((y1 - p['y']) // res); c = int((p['x'] - x0) // res); e = p['edge']
+        if e == 'W': c = inset
+        elif e == 'E': c = nx - 1 - inset
+        elif e == 'N': r = inset
+        else: r = ny - 1 - inset
+        r = min(max(r, 1), ny - 2); c = min(max(c, 1), nx - 2)
+        if e in 'WE': ra, rb, ca, cb = max(1, r - search), min(ny - 1, r + search + 1), c, c + 1
+        else: ra, rb, ca, cb = r, r + 1, max(1, c - search), min(nx - 1, c + search + 1)
+        w = Z[ra:rb, ca:cb].astype(float) - 100.0 * (chan[ra:rb, ca:cb] if chan is not None else 0); i = np.unravel_index(int(np.argmin(w)), w.shape)
+        rr, cc = ra + i[0], ca + i[1]; cells.append((p['name'], int(rr), int(cc)))
+        bl.append(f"P {x0 + (cc + 0.5) * res:.1f} {y1 - (rr + 0.5) * res:.1f} QVAR {p['name']}")
+        T += [p['name'], f"{len(p['t_s'])} seconds"] + [f'{q / res:.5f} {t:.0f}' for q, t in zip(p['q_m3s'], p['t_s'])]
+    return bl, '\n'.join(T) + '\n', cells
 
 
 # ---------------------------------------------------------------- road-stream crossings (USGS + NAACC, crossings_all.py helpers) -------
@@ -440,7 +515,9 @@ def main(a):
     step('nlcd_impervious', fetch_nlcd, box, data, required=False)
     step('channels_nhdplushr', fetch_channels, box, data, required=False)
     step('soils_ssurgo', fetch_soils, box, data, required=False)
+    if a.entry_points: step('entry_points', entry_points, box, data, a.entry_points, required=False)
     def roads():
+        if a.skip_roads: man['_bridges'] = []; return 'skipped'
         S, bridges, info = fetch_roads(box, a.out); man['bridges_osm'] = len(bridges); man['_bridges'] = bridges; return info
     step('roads_osm', roads)
     bridges = man.pop('_bridges', [])
@@ -451,6 +528,7 @@ def main(a):
     json.dump(dict(columns=['lon', 'lat', 'culvert'], rows=[[round(x, 6), round(y, 6), 0] for x, y in bridges], source='OSM bridge=* road ways every 20 m + USGS crossings typed bridge'),
               open(f'{a.out}/bridges_vt.json', 'w'), separators=(',', ':'))
     step('gauges_usgs', fetch_gauges, box, a.start, a.end, a.gauges, required=False)
+    if a.add_points: step('add_entry_points', add_points, a.gauges, a.add_points, required=False)
     man['defaults'] = dict(aadt_by_class=AADT_DEFAULT, nlcd='if a tile fails, impervious = 0 (w9 default: no NLCD)', soils='if SDA fails, w9 LF_LOSS=cn has no soils30 and stops',
                            channels='if NHDPlus HR fails, rivers are not burnt (LF_CHAN runs without a grid)')
     json.dump(man, open(f'{a.out}/manifest.json', 'w'), indent=1); log('inputs done:', {k: v['ok'] for k, v in man['steps'].items()})
@@ -490,6 +568,11 @@ def selftest():
 if __name__ == '__main__':
     if '--selftest' in sys.argv: selftest(); sys.exit()
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--box', default='107000,1096000,127000,1116000'); ap.add_argument('--data', required=True); ap.add_argument('--out', default='docs/proto/vermont_jul2023/inputs')
+    ap.add_argument('--box', default='107000,1096000,127000,1116000'); ap.add_argument('--data'); ap.add_argument('--out', default='docs/proto/vermont_jul2023/inputs')
     ap.add_argument('--start', default='2023-07-09'); ap.add_argument('--end', default='2023-07-13'); ap.add_argument('--gauges', default='docs/proto/obs/gauges_jul2023vt.json')
-    main(ap.parse_args())
+    ap.add_argument('--entry-points', help='write the stream entries of this box here (nesting)'); ap.add_argument('--skip-roads', action='store_true')
+    ap.add_argument('--add-points', help='entry points to append to --gauges (coarse run)')
+    ap.add_argument('--make-inflows', nargs=4, metavar=('XINGS', 'META', 'POINTS', 'OUT'), help='coarse run xings.json + meta.json + entry points -> inflows json')
+    a = ap.parse_args()
+    if a.make_inflows: make_inflows(*a.make_inflows); sys.exit()
+    main(a)

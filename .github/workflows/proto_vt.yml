@@ -7,6 +7,9 @@ on:
       hours: {description: 'storm hours from 2023-07-09 18Z', default: '60'}
       env: {description: 'w9 env (current defaults, not tuned on Vermont)', default: 'LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_QOUT=1'}
       stage: {description: 'inputs (fetch + w9 inputs only) or all', default: 'all'}
+      nest: {description: '1 = edge inflows from a coarse run of the same model (one-way nesting), 0 = rain on the box only', default: '1'}
+      coarse_box: {description: 'EPSG:26986 coarse box holding the upstream basins', default: '90000,1082000,150000,1142000'}
+      coarse_res: {description: 'coarse grid metres', default: '60'}
 permissions:
   contents: write
 jobs:
@@ -24,8 +27,31 @@ jobs:
       - name: Vermont inputs (3DEP, NLCD, SSURGO, NHDPlus HR, OSM, USGS crossings + NAACC, USGS gauges)
         run: |
           set -o pipefail; mkdir -p $OUT/_logs
-          python sim/colab/vt_inputs.py --box ${{ inputs.box }} --data ${{ runner.temp }}/vtdata --out $OUT/inputs 2>&1 | tee $OUT/_logs/vt_inputs.txt
+          python sim/colab/vt_inputs.py --box ${{ inputs.box }} --data ${{ runner.temp }}/vtdata --out $OUT/inputs --entry-points $OUT/inputs/inflow_points.json 2>&1 | tee $OUT/_logs/vt_inputs.txt
           ls -laR ${{ runner.temp }}/vtdata | head -40
+      - name: coarse run for the edge inflows (same model and settings, 60 x 60 km)
+        if: inputs.nest == '1'
+        env:
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          LF_DATA_DIR: ${{ runner.temp }}/vtdata_c
+          BOX: ${{ inputs.coarse_box }}
+          RES: ${{ inputs.coarse_res }}
+          HOURS: ${{ inputs.hours }}
+          STORM: jul2023vt
+          RUN_DIR: runs/jul2023vt_coarse
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail; mkdir -p $OUT/coarse
+          python sim/colab/vt_inputs.py --box ${{ inputs.coarse_box }} --data ${{ runner.temp }}/vtdata_c --out $OUT/coarse --skip-roads \
+            --gauges $OUT/coarse/gauges_coarse.json --add-points $OUT/inputs/inflow_points.json 2>&1 | tee $OUT/_logs/vt_inputs_coarse.txt
+          export LF_CROSSINGS=$PWD/$OUT/coarse/crossings_vt.json LF_GAUGES=$PWD/$OUT/coarse/gauges_coarse.json
+          export ${{ inputs.env }}
+          python sim/colab/w9_lisflood.py 2>&1 | tail -c 300000 > $OUT/_logs/w9_coarse_stdout.txt; tail -5 $OUT/_logs/w9_coarse_stdout.txt
+          CD=${{ runner.temp }}/lf/run_jul2023vt_coarse/out
+          cp $CD/xings.json $CD/meta.json $OUT/coarse/; cp $CD/w9_log.txt $OUT/_logs/w9_coarse_log.txt
+          rm -f $OUT/coarse/bridges_vt.json $OUT/coarse/segments_vt.json $OUT/coarse/facilities_vt.json
+          python sim/colab/vt_inputs.py --make-inflows $OUT/coarse/xings.json $OUT/coarse/meta.json $OUT/inputs/inflow_points.json $OUT/inputs/inflows.json
       - name: flood depth (LISFLOOD-FP 8.2, CPU)
         env:
           LF_WORK: ${{ runner.temp }}/lf
@@ -41,6 +67,7 @@ jobs:
         run: |
           set -o pipefail; nproc; free -g
           export LF_CROSSINGS=$PWD/$OUT/inputs/crossings_vt.json
+          if [ "${{ inputs.nest }}" = "1" ]; then export LF_INFLOW=file LF_INFLOW_FILE=$PWD/$OUT/inputs/inflows.json; fi
           export ${{ inputs.env }}
           if [ "${{ inputs.stage }}" = "inputs" ]; then export LF_INPUTS_ONLY=1; fi
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
@@ -50,7 +77,7 @@ jobs:
           PROTO_NBI: docs/proto/vermont_jul2023/inputs/bridges_vt.json
         run: |
           set -o pipefail
-          RD=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); echo "run dir $RD"; ls -la $RD
+          RD=${{ runner.temp }}/lf/run_jul2023vt_proto/out; echo "run dir $RD"; ls -la $RD
           python proto/prototype.py --run-dir $RD --out $OUT --segments $OUT/inputs/segments_vt.json --crossings $OUT/inputs/crossings_vt.json \
             --facilities $OUT/inputs/facilities_vt.json --reports none --repeat none --labels proto/data/vt_roadclosures_jul2023.geojson | tail -40
           python proto/score.py --run-dir $RD --obs docs/proto/obs/gauges_jul2023vt.json --out $OUT/score.json | tail -40 || true
@@ -65,7 +92,8 @@ jobs:
           mkdir -p $OUT/_logs
           tail -c 200000 w9_stdout.txt > $OUT/_logs/w9_stdout.txt 2>/dev/null || true
           cp ${{ runner.temp }}/lf/w9_log.txt $OUT/_logs/ 2>/dev/null || true
-          for f in ${{ runner.temp }}/lf/run_*/lisflood_stdout.txt; do tail -c 100000 $f > $OUT/_logs/lisflood_stdout.txt; done 2>/dev/null || true
+          tail -c 100000 ${{ runner.temp }}/lf/run_jul2023vt_proto/lisflood_stdout.txt > $OUT/_logs/lisflood_stdout.txt 2>/dev/null || true
+          tail -c 50000 ${{ runner.temp }}/lf/run_jul2023vt_coarse/lisflood_stdout.txt > $OUT/_logs/lisflood_coarse_stdout.txt 2>/dev/null || true
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add $OUT docs/proto/obs/gauges_jul2023vt.json 2>/dev/null || git add $OUT
           git commit -qm "Vermont July 2023 prototype: ${{ inputs.stage }}" || exit 0
