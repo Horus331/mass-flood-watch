@@ -9,8 +9,8 @@
 # (bash proto/turing/setup_lisflood.sh) and its path in LF_EXE.
 #   DOMAIN=docs/network/basins/domain_leominster_nn.json STORM=sep2023 bash proto/turing/stage_inputs.sh
 #   DOMAIN=docs/network/basins/domain_winooski_montpelier.json STORM=jul2023vt VT=1 bash proto/turing/stage_inputs.sh
-set -euo pipefail
-source activate roadflood 2>/dev/null || conda activate roadflood
+set -eo pipefail
+source proto/turing/env.sh
 : "${DOMAIN:?set DOMAIN=<domain json>}"; : "${STORM:?set STORM}"; : "${LF_EXE:?set LF_EXE to the lisflood built by setup_lisflood.sh}"
 NAME=$(basename "$DOMAIN" .json | sed 's/^domain_//')
 export STAGE=${STAGE:-$HOME/stage/${NAME}_${STORM}}; mkdir -p "$STAGE"
