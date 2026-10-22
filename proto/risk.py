@@ -37,13 +37,19 @@ Consequence ($) per crossing = replacement at the size the Massachusetts River a
      > 7 m (bridge)                         $1.29M - $2.6M   (upper = 2 x; assumption; replacement is an upper bound for a bridge)
      size unknown                           $19k - $521k
   The crossing's own repair is not added to the segment's (no double count); delay sits on the segment.
-Critical access (not in $): road-km in the box that lose access within the response-time standard (hospital 30 min, fire 8 min, police 10 min,
-  as proto/resilience.py) when this segment alone is closed on the dry network: link importance in the sense of Jenelius, Petersen & Mattsson 2006.
-  A crossing takes the value of the segment it carries.
+Critical access (not in $): residents of the box (2020 Census blocks, each on its nearest in-box road segment as proto/resilience.py) who lose
+  access within the response-time standard (hospital 30 min, fire 8 min, police 10 min) to at least one service when this segment alone is closed
+  on the dry network: link importance in the sense of Jenelius, Petersen & Mattsson 2006.  The segment's own residents are not counted (as for
+  road-km; they are reported separately as residents_on_segment).  A crossing takes the value of the segment it carries.  The earlier road-km
+  measure is kept in the outputs (access_km_lost) and used when the census file is missing.
 Classes (5 x 5 matrix, AS/NZS ISO 31000-style qualitative bands)
   likelihood L1 p < 0.1, L2 0.1-0.3, L3 0.3-0.5, L4 0.5-0.9, L5 >= 0.9
   consequence = max of the $ class (C1 < $50k, C2 < $250k, C3 < $1M, C4 < $5M, C5 >= $5M) and the access class
-                (C1 0 km, C2 <= 2 km, C3 <= 10 km, C4 <= 40 km, C5 > 40 km of the box's road-km)
+                people losing access: C1 0, C2 1-50, C3 51-500, C4 501-5,000, C5 > 5,000.  Scale steps of the census geography
+                (US Census Bureau 2020 Geographic Areas Reference Manual / Residential Population and Housing criteria): 50 ~ one or two
+                blocks (MA mean 80 residents per populated block), 500 ~ a block group's worth (block groups hold 600-3,000), 5,000 ~ a census
+                tract (1,200-8,000, optimum 4,000); one decade per class, like the $ classes.
+                (road-km bands, the earlier proxy and the fallback: C1 0 km, C2 <= 2 km, C3 <= 10 km, C4 <= 40 km, C5 > 40 km)
   risk = L x C: Low 1-4, Medium 5-9, High 10-16, Extreme 20-25.   expected cost = likelihood x consequence $ (mid).
 """
 import os, sys, json, csv, math, argparse, time
@@ -68,6 +74,7 @@ CULVERT_UNKNOWN = ('size unknown', (15e3 * _k, 405e3 * _k))
 L_BANDS = [0.1, 0.3, 0.5, 0.9]
 C_USD = [50e3, 250e3, 1e6, 5e6]
 C_KM = [0.0, 2.0, 10.0, 40.0]
+C_PEOPLE = [0.0, 50.0, 500.0, 5000.0]
 SIGMA_M = 0.10
 SOURCES = dict(
     vot='USDOT (2016) Revised Departmental Guidance on Valuation of Travel Time in Economic Analysis, Table 4: local travel, all purposes $14.10 / person-hour (2015 $)',
@@ -79,6 +86,7 @@ SOURCES = dict(
     neefc='New England Environmental Finance Center (2010) Culvert Material Cost Comparison, Univ. of Southern Maine (pipe material is a small part of a replacement; not applied)',
     massdot='MassDOT (2023) Price adjustment period prices: liquid asphalt $625-$665 per ton (Jan-Dec 2023)',
     gaspard='Gaspard K., Martinez M., Zhang Z., Wu Z. (2007) Impact of Hurricane Katrina on roadways in the New Orleans area. Louisiana Transportation Research Center, Technical Assistance Report 07-2TA',
+    census='US Census Bureau (2021) 2020 TIGER/Line TABBLOCK20 (POP20, internal points); Census Bureau (2020) block group 600-3,000 and tract 1,200-8,000 (optimum 4,000) population criteria',
     jenelius='Jenelius E., Petersen T., Mattsson L.-G. (2006) Importance and exposure in road network vulnerability analysis. Transportation Research Part A 40(7), 537-560',
     iso31000='AS/NZS ISO 31000:2009 Risk management (5 x 5 likelihood-consequence matrix as commonly applied; bands Low / Medium / High / Extreme)')
 
@@ -93,7 +101,7 @@ def gmean(lo, hi):
 
 def band(v, edges):
     for k, e in enumerate(edges):
-        if v < e or (edges is C_KM and v <= e): return k + 1
+        if v < e or ((edges is C_KM or edges is C_PEOPLE) and v <= e): return k + 1
     return len(edges) + 1
 
 
@@ -117,18 +125,21 @@ def pavement_cost(p, washout):
     return key, lo, hi
 
 
-def access_importance(S, inbox, segs, facilities):
-    """Road-km in the box losing access within the standard (any of hospital / fire / police) when segment i alone is closed (dry network)."""
+def access_importance(S, inbox, segs, facilities, pop=None):
+    """Per segment i closed alone (dry network): road-km and residents (pop per segment, or None) in the box losing access within the standard
+    (any of hospital / fire / police).  -> {i: dict(km, km_per, people, people_per, residents_on_segment)}"""
     net = RS.Net(S); geom = RS.seg_geometry(S); fac = json.load(open(facilities))['facilities'] if facilities and os.path.exists(facilities) else {}
     FS = RS.snap_facilities(fac, geom); lw = net.len_m / 1000.0; one = np.ones(net.n); G0 = net.graph(one)
     ok0 = {s: RS.access_minutes(net, G0, FS[s]) <= RS.ACCESS_MIN[s] for s in RS.ACCESS_MIN}
     out = {}
     for i in segs:
-        m = one.copy(); m[i] = np.inf; G = net.graph(m); lost = np.zeros(net.n, bool); per = {}
+        m = one.copy(); m[i] = np.inf; G = net.graph(m); lost = np.zeros(net.n, bool); per = {}; pper = {}
         for s in RS.ACCESS_MIN:
             src = [j for j in FS[s] if j != i]; ok = RS.access_minutes(net, G, src) <= RS.ACCESS_MIN[s]
             l = inbox & ok0[s] & ~ok; l[i] = False; per[s] = round(float(lw[l].sum()), 2); lost |= l
-        out[int(i)] = (round(float(lw[lost].sum()), 2), per)
+            if pop is not None: pper[s] = int(round(float(pop[l].sum())))
+        out[int(i)] = dict(km=round(float(lw[lost].sum()), 2), km_per=per, people=None if pop is None else int(round(float(pop[lost].sum()))), people_per=pper,
+                           residents_on_segment=None if pop is None else int(round(float(pop[i]))))
     return out
 
 
@@ -176,7 +187,7 @@ def crossings_from_run(run_dir, S, Xrows, meta):
     return out
 
 
-def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=50, png=True):
+def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=50, png=True, blocks=None):
     t_start = time.time()
     segments = segments or os.path.join(ROOT, 'docs', 'graph_segments.json'); facilities = facilities or os.path.join(ROOT, 'docs', 'network', 'facilities.json')
     summ = json.load(open(os.path.join(out, 'summary.json'))); GJ = json.load(open(os.path.join(out, 'segments.geojson')))
@@ -205,37 +216,47 @@ def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=5
             if x['status'] == 'overtopped' or x['p_overtop'] >= 0.5:
                 for s in np.unique(P['seg'][t.query_ball_point([a, b], 30.0)]): washout.add(int(s))
     imp_segs = sorted(set(segs) | {s for s in carry.values() if s is not None})
-    acc = access_importance(S, inbox, imp_segs, facilities)
+    BA = RS.assign_blocks(blocks or RS.BLOCKS, P, box); pop = None
+    if BA is not None: pop = np.bincount(BA[0], BA[2], minlength=S['n']); pop[~inbox] = 0
+    else: print('  no census blocks: critical access in road-km')
+    acc = access_importance(S, inbox, imp_segs, facilities, pop)
+    A0 = dict(km=0.0, km_per={}, people=None if pop is None else 0, people_per={}, residents_on_segment=None)
     items = []
     for i in segs:
         p = feats[i]; pc = float(p['p_close']); wo = (i in washout and pc >= 0.5) or float(p.get('p_washout') or 0) >= 0.5
         kind, lo, hi = pavement_cost(p, wo); vh = vhd.get(i, 0.0); dc = vh * OCC * VOT
-        km, per = acc.get(i, (0.0, {}))
+        a = acc.get(i, A0)
         items.append(dict(type='segment', id=str(i), road=p.get('road') or '', town=p.get('town') or '', detail=f"{p.get('road_class')}, AADT {p.get('aadt')}, {p.get('length_m')} m, {kind}",
-                          likelihood=pc, repair_low=lo, repair_high=hi, delay_vehicle_hours=vh, delay_usd=dc, access_km_lost=km, access_detail=per))
+                          likelihood=pc, repair_low=lo, repair_high=hi, delay_vehicle_hours=vh, delay_usd=dc, access_km_lost=a['km'], access_detail=a['km_per'],
+                          access_people_lost=a['people'], access_people_detail=a['people_per'], residents_on_segment=a['residents_on_segment']))
     for x in X:
         lab, (lo, hi), need = culvert_cost(x.get('span_m'), x.get('bf_w'))
-        s = carry.get(x['id']); km, per = acc.get(s, (0.0, {})) if s is not None else (0.0, {})
+        s = carry.get(x['id']); a = acc.get(s, A0) if s is not None else A0
         size = f"span {x['span_m']} m" if x.get('span_m') else 'span unknown'
         items.append(dict(type='crossing', id=str(x['id']), road=x.get('road') or '', town='', detail=f"{x['status']} ({x.get('basis') or x['p_basis']}), {size}, bankfull {x.get('bf_w')} m, "
                           f"replace as {lab}" + (f" (required span {need} m)" if need else '') + (f", NAACC condition {x['condition']}" if x.get('condition') else ''),
-                          likelihood=float(x['p_overtop']), repair_low=lo, repair_high=hi, delay_vehicle_hours=0.0, delay_usd=0.0, access_km_lost=km, access_detail=per,
+                          likelihood=float(x['p_overtop']), repair_low=lo, repair_high=hi, delay_vehicle_hours=0.0, delay_usd=0.0, access_km_lost=a['km'], access_detail=a['km_per'],
+                          access_people_lost=a['people'], access_people_detail=a['people_per'], residents_on_segment=a['residents_on_segment'],
                           carried_segment=s, stream=x.get('stream')))
     for it in items:
         it['consequence_low'] = it['repair_low'] + it['delay_usd']; it['consequence_high'] = it['repair_high'] + it['delay_usd']
         it['consequence_mid'] = gmean(it['repair_low'], it['repair_high']) + it['delay_usd'] if it['repair_low'] > 0 else it['delay_usd']
-        it['L'] = band(it['likelihood'], L_BANDS); cu = band(it['consequence_mid'], C_USD); ca = band(it['access_km_lost'], C_KM)
+        it['L'] = band(it['likelihood'], L_BANDS); cu = band(it['consequence_mid'], C_USD); ck = band(it['access_km_lost'], C_KM)
+        ca = ck if pop is None else band(it['access_people_lost'], C_PEOPLE)
         it['C'] = max(cu, ca); it['C_driver'] = 'cost' if cu >= ca else 'critical access'
         it['score'] = it['L'] * it['C']; it['risk'] = risk_class(it['score']); it['expected_cost'] = it['likelihood'] * it['consequence_mid']
+        it['risk_km_bands'] = risk_class(it['L'] * max(cu, ck))
     items.sort(key=lambda r: (-r['score'], -r['expected_cost']))
     cols = ['rank', 'risk', 'score', 'L', 'C', 'C_driver', 'type', 'id', 'road', 'town', 'likelihood', 'expected_cost_usd', 'consequence_mid_usd', 'consequence_low_usd',
-            'consequence_high_usd', 'repair_low_usd', 'repair_high_usd', 'delay_vehicle_hours', 'delay_usd', 'access_km_lost', 'detail']
+            'consequence_high_usd', 'repair_low_usd', 'repair_high_usd', 'delay_vehicle_hours', 'delay_usd', 'access_people_lost', 'access_km_lost', 'residents_on_segment',
+            'risk_with_km_bands', 'detail']
     with open(os.path.join(out, 'risk_matrix.csv'), 'w', newline='') as fh:
         w = csv.writer(fh); w.writerow(cols)
         for k, it in enumerate(items[:top]):
             w.writerow([k + 1, it['risk'], it['score'], it['L'], it['C'], it['C_driver'], it['type'], it['id'], it['road'], it['town'], round(it['likelihood'], 3),
                         round(it['expected_cost'], -2), round(it['consequence_mid'], -2), round(it['consequence_low'], -2), round(it['consequence_high'], -2),
-                        round(it['repair_low'], -2), round(it['repair_high'], -2), round(it['delay_vehicle_hours'], 1), round(it['delay_usd'], -2), it['access_km_lost'], it['detail']])
+                        round(it['repair_low'], -2), round(it['repair_high'], -2), round(it['delay_vehicle_hours'], 1), round(it['delay_usd'], -2), it['access_people_lost'], it['access_km_lost'],
+                        it['residents_on_segment'], it['risk_km_bands'], it['detail']])
     grid = [[0] * 5 for _ in range(5)]; gridx = [[0] * 5 for _ in range(5)]
     for it in items: (grid if it['type'] == 'segment' else gridx)[it['L'] - 1][it['C'] - 1] += 1
     cnt = {c: dict(segments=sum(1 for it in items if it['risk'] == c and it['type'] == 'segment'), crossings=sum(1 for it in items if it['risk'] == c and it['type'] == 'crossing'))
@@ -250,10 +271,20 @@ def run(out, run_dir=None, segments=None, crossings=None, facilities=None, top=5
                                repair_low_crossings=round(sum(it['repair_low'] for it in items if it['type'] == 'crossing'), -3),
                                repair_high_crossings=round(sum(it['repair_high'] for it in items if it['type'] == 'crossing'), -3),
                                delay=round(sum(it['delay_usd'] for it in items), -3), delay_vehicle_hours=round(sum(it['delay_vehicle_hours'] for it in items))),
-               top10=[{k: (round(v, 3) if isinstance(v, float) else v) for k, v in it.items() if k not in ('access_detail',)} for it in items[:10]],
+               top10=[{k: (round(v, 3) if isinstance(v, float) else v) for k, v in it.items() if k not in ('access_detail', 'access_people_detail')} for it in items[:10]],
                unit_costs=dict(dollar_year=2023, vot_usd_per_person_h=VOT, occupancy=OCC, lanes=LANES, washout_length_m=WASHOUT_LEN_M,
                                pavement_usd_per_lane_km=PAVE, culvert_usd={lab: [round(a, -3), round(b, -3)] for _, lab, (a, b) in CULVERT} | {CULVERT_UNKNOWN[0]: [round(CULVERT_UNKNOWN[1][0], -3), round(CULVERT_UNKNOWN[1][1], -3)]}),
-               classes_def=dict(likelihood=L_BANDS, consequence_usd=C_USD, consequence_access_km=C_KM, risk='L x C: Low 1-4, Medium 5-9, High 10-16, Extreme 20-25'),
+               classes_def=dict(likelihood=L_BANDS, consequence_usd=C_USD, consequence_access_people=C_PEOPLE, consequence_access_km=C_KM,
+                                access_used='people (2020 Census blocks)' if pop is not None else 'road-km (no census file)',
+                                people_bands_basis='C1 0, C2 1-50 (one or two blocks; MA mean 80 residents per populated block), C3 51-500 (below a block group, 600-3,000), '
+                                                   'C4 501-5,000 (a census tract, 1,200-8,000, optimum 4,000), C5 > 5,000',
+                                risk='L x C: Low 1-4, Medium 5-9, High 10-16, Extreme 20-25'),
+               classes_with_km_bands={c: dict(segments=sum(1 for it in items if it['risk_km_bands'] == c and it['type'] == 'segment'),
+                                              crossings=sum(1 for it in items if it['risk_km_bands'] == c and it['type'] == 'crossing')) for c in ('Extreme', 'High', 'Medium', 'Low')},
+               class_changes_vs_km_bands={f'{a} -> {b}': n_ for (a, b), n_ in sorted(__import__('collections').Counter((it['risk_km_bands'], it['risk']) for it in items if it['risk_km_bands'] != it['risk']).items())},
+               access_people=None if pop is None else dict(items_with_people_losing=sum(1 for it in items if (it['access_people_lost'] or 0) > 0),
+                                                           max_people=max([it['access_people_lost'] or 0 for it in items] or [0]),
+                                                           population_in_box=int(round(float(pop.sum())))),
                caveats=['Order-of-magnitude costs from public unit-cost tables (2014 Vermont, CPI-adjusted); not engineer\'s estimates.',
                         'Crossing replacement is the consequence if the crossing fails; overtopping does not mean failure.',
                         'Delay uses AADT/24 with no traffic assignment; 75 % of local AADT are 1,000 vpd defaults.',
@@ -277,7 +308,7 @@ def plot(path, items, grid, gridx):
     ax.set_xlim(0.5, 5.5); ax.set_ylim(0.5, 5.5); ax.set_xticks(range(1, 6)); ax.set_yticks(range(1, 6))
     ax.set_xticklabels(['C1\n<\\$50k', 'C2\n<\\$250k', 'C3\n<\\$1M', 'C4\n<\\$5M', 'C5\n≥\\$5M'], fontsize=8)
     ax.set_yticklabels(['L1 p<0.1', 'L2 0.1-0.3', 'L3 0.3-0.5', 'L4 0.5-0.9', 'L5 ≥0.9'], fontsize=8)
-    ax.set_xlabel('consequence: repair + user delay (2023 \\$), or critical access lost (km)', fontsize=9); ax.set_ylabel('likelihood: p_close / P(overtop)', fontsize=9)
+    ax.set_xlabel('consequence: repair + user delay (2023 \\$), or residents losing critical access', fontsize=9); ax.set_ylabel('likelihood: p_close / P(overtop)', fontsize=9)
     top = [it for it in items if it['risk'] == 'Extreme'][:5] or items[:5]
     txt = '\n'.join(f"{k + 1}. {it['road'] or it['type']} {('(' + it['town'] + ')') if it['town'] else ''}: \\${it['consequence_mid'] / 1e6:.1f}M, p {it['likelihood']:.2f}" for k, it in enumerate(top))
     ax.set_title('Risk matrix, flagged road segments and stream crossings (order of magnitude)', fontsize=10)
@@ -295,6 +326,7 @@ def selftest():
     k, lo, hi = pavement_cost(dict(length_m=1000, hours_over_30cm=30), False); check('long inundation 1 km x 2 lanes', k == 'inundated_long' and lo == 120e3 and hi == 300e3, (k, lo, hi))
     k, lo, hi = pavement_cost(dict(length_m=200, hours_over_30cm=2), True); check('washout over 50 m', k.startswith('washout') and abs(lo - (3e3 * 2 * 0.2 + 0.5e6 * 2 * 0.05)) < 1, (k, lo))
     check('bands', band(0.95, L_BANDS) == 5 and band(0.05, L_BANDS) == 1 and band(0.0, C_KM) == 1 and band(1.5, C_KM) == 2 and band(6e6, C_USD) == 5)
+    check('people bands', band(0, C_PEOPLE) == 1 and band(50, C_PEOPLE) == 2 and band(51, C_PEOPLE) == 3 and band(5000, C_PEOPLE) == 4 and band(5001, C_PEOPLE) == 5)
     check('classes', risk_class(25) == 'Extreme' and risk_class(16) == 'High' and risk_class(9) == 'Medium' and risk_class(4) == 'Low')
     print('risk selftest', 'OK' if ok else 'FAILED'); return ok
 
@@ -305,7 +337,8 @@ if __name__ == '__main__':
     ap.add_argument('--segments', default=os.path.join(ROOT, 'docs', 'graph_segments.json'))
     ap.add_argument('--crossings', default=os.path.join(ROOT, 'docs', 'network', 'crossings_all.json'))
     ap.add_argument('--facilities', default=os.path.join(ROOT, 'docs', 'network', 'facilities.json'))
+    ap.add_argument('--blocks', default=RS.BLOCKS, help='census blocks .npz (proto/census_blocks.py); missing -> road-km access bands')
     ap.add_argument('--top', type=int, default=50); ap.add_argument('--selftest', action='store_true')
     a = ap.parse_args()
     if a.selftest: sys.exit(0 if selftest() else 1)
-    run(a.out, a.run_dir, a.segments, a.crossings, a.facilities, a.top)
+    run(a.out, a.run_dir, a.segments, a.crossings, a.facilities, a.top, blocks=a.blocks)
