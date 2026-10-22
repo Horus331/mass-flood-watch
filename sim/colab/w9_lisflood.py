@@ -464,17 +464,21 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
     vmax  : <resroot>.maxVc, the cell speed maximised every time step (UpdateV), m/s; else the max over the .Vx/.Vy snapshots
     dvmax : max over the saveint snapshots of h x speed (both from the same snapshot), and at least maxVc x maxVcd (depth at the time of peak
             speed), m2/s.  Snapshots are 30 min apart, so dvmax can miss a short spike between them; maxVc x maxVcd is a lower bound at every step.
-    Snapshot .Vx/.Vy files are deleted after reading unless keep (each is ~1M cells of ascii)."""
+    Snapshot .Vx/.Vy files are deleted after reading unless keep (each is ~1M cells of ascii).
+    LF_VDUR='0.6,1.0,1.5,1.8' (opt-in, m/s): also keep the snapshot-only peaks (vsnap_max, dvsnap_max) and count, per cell, the snapshots whose speed is at or above each listed speed with depth
+    >= 0.02 m (time above an erosion threshold; x saveint = hours).  Returned as info['_vdur'] = dict(vdur_thr, vdur_count, vdur_snapshots)."""
     d = f'{wd}/{dirroot}'; ny, nx = shape; info = {}
     vmax = np.zeros(shape, np.float32); dv = np.zeros(shape, np.float32); vsnap = np.zeros(shape, np.float32); n = 0
+    vthr = [float(t) for t in os.environ.get('LF_VDUR', '').split(',') if t.strip()]; vcnt = np.zeros((len(vthr), ny, nx), np.uint16); dvs = np.zeros(shape, np.float32)
     for fx in sorted(glob.glob(f'{d}/{resroot}-*.Vx')):
         fy = fx[:-3] + '.Vy'; fh = fx[:-3] + '.wd'
         if not os.path.exists(fy): continue
         try: Vx = read_asc(fx)[0]; Vy = read_asc(fy)[0]
         except Exception as e: log('velocity file unreadable', fx, repr(e)[:80]); continue
         if Vx.shape != (ny, nx + 1) or Vy.shape != (ny + 1, nx): log('unexpected velocity grid shapes', Vx.shape, Vy.shape); break
-        v = cell_speed(Vx, Vy); vsnap = np.maximum(vsnap, v)
-        if os.path.exists(fh): dv = np.maximum(dv, np.nan_to_num(read_asc(fh)[0]) * v)
+        v = cell_speed(Vx, Vy); vsnap = np.maximum(vsnap, v); hs = None
+        if os.path.exists(fh): hs = np.nan_to_num(read_asc(fh)[0]); dv = np.maximum(dv, hs * v); dvs = np.maximum(dvs, hs * v)
+        for k_, t_ in enumerate(vthr): vcnt[k_] += (v >= t_) & ((hs >= 0.02) if hs is not None else True)
         n += 1
         if not keep: os.remove(fx); os.remove(fy)
     info['snapshots'] = n
@@ -485,6 +489,8 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
     else:
         vmax = vsnap; info['vmax_source'] = 'max of snapshots'
     info.setdefault('dv_source', 'snapshot h x speed')
+    if vthr: info['_vdur'] = dict(vdur_thr=np.array(vthr, np.float32), vdur_count=vcnt, vdur_snapshots=np.array(n), vsnap_max=vsnap.astype(np.float32),
+                                  dvsnap_max=dvs.astype(np.float32))   # snapshot-only peaks: free of the single-time-step spikes in .maxVc
     return vmax.astype(np.float32), dv.astype(np.float32), info
 
 
@@ -848,7 +854,9 @@ def main():
     VEL = None
     if VOUT:
         try:
-            t_ = time.time(); vmx, dvmx, vinfo = velocity_peaks(wd, 'res', (ny, nx)); VEL = dict(vmax=vmx, dvmax=dvmx, **{k: str(v) for k, v in vinfo.items()})
+            t_ = time.time(); vmx, dvmx, vinfo = velocity_peaks(wd, 'res', (ny, nx)); vdur = vinfo.pop('_vdur', {})
+            VEL = dict(vmax=vmx, dvmax=dvmx, **{k: str(v) for k, v in vinfo.items()}, **vdur)
+            if vdur: VEL['vdur_saveint_s'] = np.array(SAVEINT)
             wetv = hmax >= 0.1
             log(f"velocity ({vinfo}): peak speed on wet land p50/p95/max {np.percentile(vmx[wetv & land], 50) if (wetv & land).any() else 0:.2f}/"
                 f"{np.percentile(vmx[wetv & land], 95) if (wetv & land).any() else 0:.2f}/{vmx.max():.2f} m/s, peak dv max {dvmx.max():.2f} m2/s, {time.time() - t_:.0f}s")
@@ -1012,6 +1020,10 @@ def selftest():
     assert np.allclose(vm, 2.0) and np.allclose(dvm, 1.0) and inf_['snapshots'] == 3 and inf_['vmax_source'] == 'max of snapshots' and not glob.glob(f'{vd}/results/*.Vx')
     write_asc(f'{vd}/results/res.maxVc', np.full(g, 2.5), x0, y0, res); write_asc(f'{vd}/results/res.maxVcd', np.full(g, 0.6), x0, y0, res)
     vm, dvm, inf_ = velocity_peaks(vd, 'res', g); assert np.allclose(vm, 2.5) and np.allclose(dvm, 1.5) and inf_['vmax_source'].startswith('maxVc')
+    for j, (u, hh) in enumerate(((1.0, 0.2), (2.0, 0.5), (0.5, 1.0))):     # LF_VDUR: snapshots at or above each speed (with depth >= 0.02 m)
+        write_asc(f'{vd}/results/res-{j:04d}.Vx', np.full((2, 4), u), x0, y0, res); write_asc(f'{vd}/results/res-{j:04d}.Vy', np.zeros((3, 3)), x0, y0, res)
+    os.environ['LF_VDUR'] = '1.0,1.5'; _, _, inf_ = velocity_peaks(vd, 'res', g); del os.environ['LF_VDUR']
+    assert inf_['_vdur']['vdur_count'][:, 0, 0].tolist() == [2, 1] and int(inf_['_vdur']['vdur_snapshots']) == 3
     assert 'hazard' in write_par(f'{d}/v.par', 'r', 60, extra=['hazard'])
     ok.append('velocity output: UpdateV cell speed, peak speed (.maxVc else snapshots), peak depth x speed')
     shutil.rmtree(d)
