@@ -358,7 +358,7 @@ def probe(exe, cuda):
 # ======================================================================================================================
 # inputs from Hugging Face / MRMS (copied from w4_flood_gpu.py, which cannot be imported: it runs at top level)
 # ======================================================================================================================
-def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None, d4=False):
+def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None, d4=False, protect=None):
     """Least-cost breaching of every closed depression to the box edge (Barnes et al. 2014 priority-flood with carving), applied to all
     cells.  Lidar keeps road, rail and runway fill but not the pipes and culverts under them, so water ponds behind every embankment
     with no surface outlet.  A carved one-cell path stands in for those pipes.  No cell is lowered more than max_cut m (deeper basins
@@ -368,13 +368,14 @@ def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None, d4=False):
     than max_cut as dead storage that never drains.  d4 (LF_BREACH_D4=1): search and carve over the 4 face neighbours only.  LISFLOOD-FP
     exchanges water across cell faces (x and y fluxes, Bates et al. 2010), never corner to corner, so an 8-connected one-cell path that
     steps diagonally is no outlet at all: the pit behind it stays closed and its water can only leave by infiltration.
+    protect (LF_DAMS, sim/colab/lf_dams.py): cells never lowered -- a carve whose path crosses one is abandoned (the basin is kept).
     Returns (carved Z, mask of lowered cells, stats)."""
     import heapq
     ny_, nx_ = Z.shape; Zc = Z.astype(np.float64).copy(); seen = np.zeros(Z.size, bool); par = np.full(Z.size, -1, np.int64)
     edge = np.zeros(Z.shape, bool); edge[[0, -1], :] = True; edge[:, [0, -1]] = True
     hq = [(float(Zc.flat[k]), int(k)) for k in np.flatnonzero(edge)]; heapq.heapify(hq); seen[np.flatnonzero(edge)] = True
     nb8 = ((-1, 0), (0, -1), (0, 1), (1, 0)) if d4 else ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-    Zf = Zc.ravel(); Zo = Z.ravel(); skipped = 0
+    Zf = Zc.ravel(); Zo = Z.ravel(); skipped = 0; prf = protect.ravel() if protect is not None else None
     chf = chan.ravel() if (chan is not None and max_cut_chan is not None) else None; chan_deep = 0
     while hq:
         zc, k = heapq.heappop(hq); r, c = divmod(k, nx_)
@@ -387,7 +388,7 @@ def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None, d4=False):
             if zn < zc:
                 path = []; p_ = k; ok = True; cap = max_cut if chf is None or not chf[kk] else max(max_cut, max_cut_chan)
                 while p_ >= 0 and Zf[p_] > zn:
-                    if Zo[p_] - zn > cap: ok = False; break
+                    if Zo[p_] - zn > cap or (prf is not None and prf[p_]): ok = False; break
                     path.append(p_); p_ = int(par[p_])
                 if ok:
                     for p_ in path: Zf[p_] = zn
@@ -593,11 +594,20 @@ def build_inputs(BOX, RES, S, TOK):
             log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m' + (f'; {nsized} sized to the NAACC culvert (LF_BREACH_SIZED)' if SIZED else ''))
         except Exception as e:
             log('crossing breach skipped:', repr(e)[:150])
+    DAMS = None
+    if os.environ.get('LF_DAMS', '0') == '1':      # opt-in: dams / mill ponds / lake outlets hold their pool (sim/colab/lf_dams.py)
+        if SGC: log('LF_DAMS skipped: not set up for the sub-grid channel model (LF_SGC=1)')
+        else:
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_dams
+                Z, water, DAMS = lf_dams.apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=log)
+            except Exception as e:
+                log('LF_DAMS failed, running without dams:', repr(e)[:300]); DAMS = None
     carved = np.zeros((ny, nx), bool)
     if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
         t_ = time.time(); mcc = os.environ.get('LF_BREACH_CHAN_MAX')
         D4 = os.environ.get('LF_BREACH_D4', '0') == '1'     # carve 4-connected outlets (the solver's face fluxes); default 8-connected as before
-        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None, d4=D4)
+        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None, d4=D4, protect=DAMS['protect'] if DAMS else None)
         log(f'depressions ({"4" if D4 else "8"}-connected): {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept'
             + (f', {st_["chan_deep_cut"]} channel pits cut deeper than the cap (LF_BREACH_CHAN_MAX={mcc})' if mcc else '') + f', {time.time() - t_:.0f}s')
     loss = None
@@ -663,10 +673,18 @@ def build_inputs(BOX, RES, S, TOK):
         RAIN = np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32)
         log(f'effective rain (CN) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%)')
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
-                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10)
+                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS)
 
 
 # ======================================================================================================================
+def lf_dams_weirfile(D):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_dams; return lf_dams.weirfile(D)
+
+
+def lf_dams_report(D, Zm, FR, FT):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_dams; return lf_dams.report(D, Zm, FR, FT)
+
+
 def main():
     global LOGP
     import pandas as pd
@@ -763,6 +781,12 @@ def main():
         log(f'sub-grid channels: {int(I["chan"].sum()):,} cells, width mean {float(W_[I["chan"]].mean()):.1f} m, bankfull depth mean {float((I["Z"] - bed)[I["chan"]].mean()):.2f} m')
     elif os.environ.get('LF_BASEFLOW', '1') == '1' and I['chan'].any():
         write_asc(f'{wd}/start.wd', np.where(I['chan'], 0.3 * I['burn'], 0.0), x0, y0, RES); start = 'start.wd'     # w4: channels start a third full
+    if I.get('DAMS'):        # LF_DAMS: lakes start full at their pool level (overrides the channel start depth there); native weirs at the outlets
+        D_ = I['DAMS']; st0 = read_asc(f'{wd}/start.wd')[0] if start else np.zeros((ny, nx), np.float32)
+        write_asc(f'{wd}/start.wd', np.where(D_['start'] > 0, D_['start'], np.nan_to_num(st0)), x0, y0, RES); start = 'start.wd'
+        if D_['weirs']:
+            open(f'{wd}/run.weir', 'w').write(lf_dams_weirfile(D_)); extra.append('weirfile run.weir')
+            if is_cuda: log('WARNING: LF_DAMS weirs are read by the CPU solver (fp_flow.cpp); the CUDA acceleration solver may ignore them')
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
     log('par:', ' | '.join(par))
@@ -861,6 +885,9 @@ def main():
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8])
+    if I.get('DAMS'):
+        try: meta['dams'] = lf_dams_report(I['DAMS'], I['Z'], FR, FT)
+        except Exception as e: log('dam report failed:', repr(e)[:200])
     json.dump(meta, open(f'{OUT}/meta.json', 'w'))
     shutil.copy(LOGP, f'{OUT}/w9_log.txt')
     if not TOK or os.environ.get('LF_NO_UPLOAD') == '1': log('no upload: outputs left in', OUT); return
