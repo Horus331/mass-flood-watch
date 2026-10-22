@@ -130,9 +130,47 @@ def write_par(path, resroot, sim_time, saveint=1800, massint=300, cuda=False, de
     return L
 
 
-def manning_map(water, chan, imp):
-    """Same rule as w4 (PHYS 2): channels and open water 0.035, dense urban (>30 % paved) 0.10, everything else 0.08."""
-    return np.where(water | chan, 0.035, np.where(imp > 0.3, 0.10, 0.08)).astype(np.float32)
+# Floodplain Manning n by NLCD class for the undeveloped classes (Chow 1959 table 5-6 flood plains; Arcement & Schneider 1989 USGS WSP 2339):
+# pasture / short grass 0.035, cultivated 0.04, scattered brush 0.05-0.07, heavy stand of timber 0.10-0.12 (0.12-0.16 with flow into the
+# branches), wooded swamp ~0.12, emergent marsh 0.07-0.10.  Forest and woody wetland take LF_N_FOREST.  Developed classes keep the paved rule.
+NLCD_N = {31: 0.03, 52: 0.07, 71: 0.035, 81: 0.035, 82: 0.04, 95: 0.08}
+NLCD_FOREST = (41, 42, 43, 90)
+
+
+def manning_map(water, chan, imp, lc=None):
+    """w4 rule (PHYS 2): channels and open water LF_N_CHAN (0.035), dense urban (>30 % paved) 0.10, everything else LF_N_FP (0.08).
+    lc (NLCD class grid, LF_N_LANDCOVER=1): undeveloped land takes the NLCD_N table / LF_N_FOREST (0.12) instead of LF_N_FP."""
+    nch = float(os.environ.get('LF_N_CHAN', '0.035')); nfp = float(os.environ.get('LF_N_FP', '0.08'))
+    other = np.full(water.shape, nfp, np.float32)
+    if lc is not None:
+        for cls, v in NLCD_N.items(): other[lc == cls] = v
+        other[np.isin(lc, NLCD_FOREST)] = float(os.environ.get('LF_N_FOREST', '0.12'))
+    return np.where(water | chan, nch, np.where(imp > 0.3, 0.10, other)).astype(np.float32)
+
+
+def nlcd_landcover(BOX, RES, ny, nx):
+    """NLCD 2021 land cover classes on the run grid from the MRLC WCS (nearest-neighbour resample to RES); None if unavailable."""
+    import io, requests
+    x0, y0, x1, y1 = BOX
+    for cov in ('mrlc_download:NLCD_2021_Land_Cover_L48', 'NLCD_2021_Land_Cover_L48', 'mrlc_download:NLCD_2019_Land_Cover_L48'):
+        u = ('https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=' + cov +
+             f'&CRS=EPSG:26986&BBOX={x0},{y0},{x1},{y1}&WIDTH={nx}&HEIGHT={ny}&FORMAT=GeoTIFF')
+        for k in range(3):
+            try:
+                r = requests.get(u, timeout=240)
+                if r.status_code == 200 and r.content[:2] in (b'II', b'MM'):
+                    try:
+                        import tifffile; a = tifffile.imread(io.BytesIO(r.content))
+                    except ImportError:
+                        from PIL import Image; a = np.asarray(Image.open(io.BytesIO(r.content)))
+                    a = a[..., 0] if a.ndim == 3 else a
+                    if a.shape == (ny, nx): return a.astype(np.uint8), cov
+                    log('land cover: unexpected shape', a.shape, cov); break
+                log('land cover: bad response', cov, r.status_code, r.content[:120])
+                break
+            except Exception as e:
+                log('land cover retry', k, cov, repr(e)[:100]); time.sleep(5 + 10 * k)
+    return None, None
 
 
 def analyse_probe(hA, hB, expect_A=0.072, expect_B_forward=0.036):
@@ -663,7 +701,14 @@ def main():
     if os.environ.get('LF_INPUTS_ONLY') == '1': log('LF_INPUTS_ONLY: stopping after the inputs'); return
     wd = f'{WORK}/run_{run_name}'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
     write_asc(f'{wd}/dem.asc', I['Z'], x0, y0, RES)
-    NM = manning_map(I['water'], I['chan'], I['IMP'])
+    LC = None
+    if os.environ.get('LF_N_LANDCOVER', '0') == '1':
+        LC, cov = nlcd_landcover(BOX, RES, ny, nx)
+        if LC is None: log('LF_N_LANDCOVER=1 but NLCD land cover unavailable: floodplain n stays LF_N_FP')
+        else: log(f'land cover {cov}: forest/woody wetland {np.isin(LC, NLCD_FOREST).mean() * 100:.0f}%, '
+                  + ', '.join(f'{c} {(LC == c).mean() * 100:.0f}%' for c in (11, 21, 22, 23, 24, 52, 71, 81, 82, 95)))
+    NM = manning_map(I['water'], I['chan'], I['IMP'], LC)
+    log(f"Manning n: channel/water {os.environ.get('LF_N_CHAN', '0.035')}, land mean {float(NM[~(I['water'] | I['chan'])].mean()):.3f}")
     if np.isfinite(I['NOV']).any(): NM = np.where(np.isfinite(I['NOV']), np.maximum(NM, np.nan_to_num(I['NOV'])), NM).astype(np.float32)   # sized culvert notches
     write_asc(f'{wd}/n.asc', NM, x0, y0, RES, fmt='%.3f')
     rec, th = rain_records(I['RAIN'] / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
@@ -776,7 +821,7 @@ def main():
     meta = dict(run=run_name, title=S['title'] + ' · LISFLOOD-FP benchmark', box=list(BOX), res_m=RES, shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=frames,
                 crs='EPSG:26986', model=model, model_source=src_url, model_build=dict(cuda=bool(is_cuda), exe=os.path.basename(exe), build_s=round(build_s)),
                 solver='acceleration (local inertial, Bates et al. 2010)' + (' on GPU (cuda)' if is_cuda else ' on CPU (OpenMP)'),
-                inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning='0.035 water/channel, 0.10 dense urban, 0.08 other',
+                inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning=f"{os.environ.get('LF_N_CHAN', '0.035')} water/channel, 0.10 dense urban, " + ('NLCD table (forest ' + os.environ.get('LF_N_FOREST', '0.12') + ')' if LC is not None else os.environ.get('LF_N_FP', '0.08') + ' other'),
                             rain='MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows='none',
                             env={k: os.environ[k] for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)}),
@@ -813,6 +858,9 @@ def selftest():
     n = manning_map(water, chan, imp)
     assert n[2, 0] == np.float32(0.035) and n[4, 3] == np.float32(0.035) and n[0, 0] == np.float32(0.10) and n[4, 0] == np.float32(0.08)
     write_asc(f'{d}/n.asc', n, x0, y0, res); assert np.allclose(read_asc(f'{d}/n.asc')[0], n); ok.append('Manning map (w4 rule) + ascii')
+    lc = np.full((ny, nx), 43, np.uint8); lc[:, 0] = 81; nl = manning_map(water, chan, imp, lc)
+    assert nl[4, 1] == np.float32(0.12) and nl[4, 0] == np.float32(0.035) and nl[0, 1] == np.float32(0.10) and nl[2, 1] == np.float32(0.035)
+    ok.append('Manning map with NLCD land cover (forest 0.12, pasture 0.035, paved and water unchanged)')
     H = 3; rain = np.zeros((H, ny, nx), np.float32)
     for k in range(H): rain[k, 0, :] = 10.0 * (k + 1)                  # rain only on the northern row, rising each hour
     rec, th = rain_records(rain, 'forward')
