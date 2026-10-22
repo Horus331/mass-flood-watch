@@ -25,5 +25,7 @@ python proto/score.py --run-dir "$OUT" --storm $STORM --out results/$NAME/score.
 python proto/validate_points.py --run-dir "$OUT" --storm $STORM --out results/$NAME/points.json | tail -12 || true
 python proto/prototype.py --run-dir "$OUT" --storm $STORM --out "results/$NAME" | tail -5
 cp $OUT/meta.json results/$NAME/flood_meta.json 2>/dev/null || true
+LBL=$(ls proto/data/labels_${STORM}_*.csv proto/data/labels_${STORM}_*.geojson 2>/dev/null | paste -sd, -)
+if [ -n "$LBL" ]; then python proto/closure_ml.py extract --run-dir "$OUT" --storm $STORM --labels "$LBL" | tail -2 && cp docs/proto/ml/features_${STORM}.csv docs/proto/ml/matches_${STORM}.json results/$NAME/ 2>/dev/null; git checkout -q -- docs/proto/ml 2>/dev/null || true; fi   # per-segment ML features for the learned closure model
 echo "results in results/$NAME (map.html, watchlist.csv, REPORT.md, summary.json, score.json)"
 [ "${PUBLISH:-1}" = "1" ] && bash proto/turing/publish.sh "$NAME" || true
