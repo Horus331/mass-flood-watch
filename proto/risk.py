@@ -17,8 +17,9 @@ Items
 Consequence ($) per segment = pavement repair + user delay
   pavement repair, per lane-km, 2 lanes (the graph has no lane count; divided roads are one segment per direction):
      inundated < 24 h over 30 cm     $3k - $15k     clean-up, debris, shoulder / ditch repair, inspection (assumption)
-     inundated >= 24 h               $60k - $150k   mill + 50 mm HMA overlay: prolonged submergence weakens base and subgrade (Gaspard et al. 2007,
-                                                    New Orleans after Katrina: flooded asphalt roads lost structural strength); HMA $110-160 / t in place
+     inundated >= 24 h               $60k - $150k   mill + 50 mm HMA overlay: submerged asphalt roads lost strength ~ 2 in of new AC and were costed at $250k / mile
+                                                    for a 4 in mill + overlay (Gaspard et al. 2007, New Orleans after Katrina; no significant duration effect there,
+                                                    so the 24 h split is our assumption); HMA $110-160 / t in place
                                                     (MassDOT 2023 liquid-asphalt price index $625-665 / t, ~5.5 % binder), milling $3-6 / m2
      washout (within 30 m of an overtopped crossing with p_close >= 0.5, or p_washout >= 0.5)
                                      $0.5M - $1.4M over min(length, 50 m): embankment, base and pavement rebuilt; upper end = VTrans 2014
