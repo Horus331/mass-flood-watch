@@ -606,7 +606,7 @@ def build_inputs(BOX, RES, S, TOK):
     carved = np.zeros((ny, nx), bool)
     if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
         t_ = time.time(); mcc = os.environ.get('LF_BREACH_CHAN_MAX')
-        D4 = os.environ.get('LF_BREACH_D4', '0') == '1'     # carve 4-connected outlets (the solver's face fluxes); default 8-connected as before
+        D4 = os.environ.get('LF_BREACH_D4', '1') == '1'     # carve 4-connected outlets (the solver's face fluxes; default since 22 Oct 2026); LF_BREACH_D4=0 restores the old 8-connected carving
         Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None, d4=D4, protect=DAMS['protect'] if DAMS else None)
         log(f'depressions ({"4" if D4 else "8"}-connected): {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept'
             + (f', {st_["chan_deep_cut"]} channel pits cut deeper than the cap (LF_BREACH_CHAN_MAX={mcc})' if mcc else '') + f', {time.time() - t_:.0f}s')
