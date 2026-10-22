@@ -14,8 +14,8 @@ What (per NID dam in the box, docs/network/dams_ma.json from the USACE National 
      D = NID normal storage / surface area (mean depth) clipped to LF_DAMS_DEPTH (1..3 m; 1.5 m when NID has neither), and starts full
      (startfile depth D, water surface at P): lakes at normal pool, storage only above the crest, as at the start of a summer storm.  A real
      depth also lets the level rise evenly (wave speed sqrt(g D)) instead of rain crawling across a zero-depth sheet.
-  3. the rim: every cell face-adjacent to the footprint.  Rim cells whose lidar height is >= P get that height back (undoing burn / notch /
-     breach); rim cells lower than P are where water would leave the lake, i.e. the dam line, and are raised to the dam crest (highest 10 m
+  3. the rim: every cell face-adjacent to the footprint.  Rim cells whose lidar height is >= P are kept at >= P (burn / notches stay, so
+     inflowing streams and road notches still feed the lake, but nothing drains it below its pool); rim cells lower than P are where water would leave the lake, i.e. the dam line, and are raised to the dam crest (highest 10 m
      lidar cell around them, at least P + 0.5 m) -- except one outlet cell, the lowest rim cell near the NID point.  Footprint and rim are
      protected from depression breaching (breach_depressions(protect=...)), so no carved path ever cuts through the dam.
   4. the outlet: LISFLOOD-FP's native weir (weirfile; input.cpp LoadWeir, weir_flow.cpp CalcWeirQx/Qy, called by FloodplainQ in fp_flow.cpp
@@ -24,6 +24,7 @@ What (per NID dam in the box, docs/network/dams_ma.json from the USACE National 
      weir, Q = 1.705 b H^1.5, Chow 1959 sec. 14-6; Bos 1989), modular limit 0.67 (Bos 1989).  The outlet cell is cut to <= P - 0.2 m so the
      weir discharges freely and the breach carves its path on downstream as for any other cell.
      LF_DAMS_WEIR=0: no weir file; the outlet cell is set to the crest P instead (a DEM weir one cell wide: Manning flow over a 20 m sill).
+  5. solver damping in LF_DAMS runs: theta 0.7, cfl 0.5 in the .par (LF_DAMS_THETA / LF_DAMS_CFL; '' leaves the LISFLOOD-FP default).
 Not modelled: gate operations, drawn-down water-supply reservoirs (they start full here), lake bathymetry, dam failure.
 """
 import os, json, math
@@ -58,15 +59,20 @@ def find_pool(Z_RAW, ZMAX10, wet, r, c, res, adj_m=120.0, win_m=400.0, min_cells
     if n == 0: return None, 'no flat water surface near the dam'
     rr, cc = np.mgrid[r0:r1, c0:c1]; dist = np.hypot(rr - r, cc - c) * res
     ka = int(math.ceil(60.0 / res)); crest = float(np.nanmax(ZMAX10[max(0, r - ka):r + ka + 1, max(0, c - ka):c + ka + 1]))
-    best = None
+    comps = []
     for i in range(1, n + 1):
         m = lab == i
-        if m.sum() < min_cells or dist[m].min() > adj_m or not wet[r0:r1, c0:c1][m].any(): continue
+        if m.sum() < min_cells or dist[m].min() > adj_m: continue
         P = float(np.median(zr[m]))
         if P > crest - 0.3: continue
-        if best is None or P > best[0]: best = (P, m)
-    if best is None: return None, 'no hydro-flattened pool (>= %d flat cells on an NHD water cell within %.0f m, below the crest)' % (min_cells, adj_m)
-    P, m = best; sr, sc = np.nonzero(m)
+        comps.append((P, m, bool(wet[r0:r1, c0:c1][m].any())))
+    # an NHD water / flowline cell on the surface, or (no flowline mapped through it) a flat surface of >= 25 cells (1 ha at 20 m)
+    ok = [t for t in comps if t[2] or t[1].sum() >= 25]
+    if not ok: return None, 'no hydro-flattened pool (>= %d flat cells on an NHD water cell, or >= 25 flat cells, within %.0f m, below the crest)' % (min_cells, adj_m)
+    P = max(t[0] for t in ok); m = np.zeros(zr.shape, bool)
+    for t in ok:
+        if abs(t[0] - P) <= 0.05: m |= t[1]                 # every piece of the same water surface seeds the footprint
+    sr, sc = np.nonzero(m)
     return (P, (sr + r0, sc + c0), crest), None
 
 
@@ -131,13 +137,14 @@ def apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=print, dams=None):
         rr, cc = np.nonzero(rg); dd = np.hypot(rr - r, cc - c) * RES; near = dd <= max(adj_m, 2 * RES)
         pick = np.flatnonzero(near) if near.any() else np.arange(len(rr))
         io = pick[np.argmin(Z_RAW[rr[pick], cc[pick]])]; ro, co = int(rr[io]), int(cc[io])
-        # rim: lidar >= P -> lidar height back; lidar < P (water would leave) -> raised to the dam crest; never below what the model has
+        # rim: lidar >= P -> at least P (burn / notch / breach may stay down to the pool level, so inflowing streams and road notches still
+        # pass water into the lake); lidar < P (water would leave) -> raised to the dam crest
         zr_rim = Z_RAW[rg]; low = zr_rim < P
         hi10 = np.maximum(ZMAX10, Z_RAW)
         from scipy import ndimage
         crest_loc = ndimage.maximum_filter(np.where(np.isfinite(hi10), hi10, -1e9), size=5)
         crest_rim = np.maximum(crest_loc[rg], P + 0.5)
-        newz = np.where(low, crest_rim, np.maximum(Z[rg], zr_rim))
+        newz = np.where(low, crest_rim, np.maximum(Z[rg], P))
         Z[rg] = newz.astype(np.float32)
         nraised = int(low.sum()) - (1 if Z_RAW[ro, co] < P else 0)
         # lake bed and start depth
@@ -175,8 +182,12 @@ def apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=print, dams=None):
     for L in sorted(lakes, key=lambda L: -L['area_km2'])[:12]:
         log(f"  {L['name']} ({L['nid']}): pool {L['pool_m']} m, {L['area_km2']} km2 (NID {L['nid_area_km2']}), depth {L['bed_depth_m']} m, weir {L['weir_w_m']} m, "
             f"rim raised {L['rim_raised_cells']} cells")
+    # solver damping: with theta = 1 and cfl 0.7 the local-inertial scheme grows a checkerboard oscillation in deep, flat, low-friction water
+    # (Bates et al. 2010; de Almeida et al. 2012, WRR 48 W05528, who add theta < 1 for exactly this); found on a synthetic full lake with the
+    # LISFLOOD-FP 8.2 CPU build (mass error, stage spread of metres) and in the Leominster run.  theta 0.7 + cfl 0.5 removed it in every test.
+    par = [f'{k} {v}' for k, v in (('theta', os.environ.get('LF_DAMS_THETA', '0.7')), ('cfl', os.environ.get('LF_DAMS_CFL', '0.5'))) if v]
     return Z, water, dict(protect=protect, start=start, weirs=weirs, lakes=lakes, skipped=skipped, dams_in_box=inbox, source=src, owner=owner,
-                          weir=use_weir, cd=cd, m=mlim)
+                          weir=use_weir, cd=cd, m=mlim, par=par)
 
 
 def weirfile(D):
@@ -196,7 +207,7 @@ def report(D, Zm, FR, FT):
         out.append(dict(L, peak_rise_m=round(float(rise[j]), 3), peak_h=round(float(FT[j]), 2), weir_q_peak_m3s=q(rise[j]),
                         rise_12h_after_m=round(float(rise[j12]), 3) if FT[j12] > FT[j] else None, weir_q_12h_after_m3s=q(rise[j12]) if FT[j12] > FT[j] else None,
                         rise_series_m=[round(float(v), 3) for v in rise[::2]]))
-    return dict(source=D['source'], dams_in_box=D['dams_in_box'], weir=D['weir'], cd=D['cd'], modular_limit=D['m'], lakes=out, skipped=D['skipped'])
+    return dict(source=D['source'], dams_in_box=D['dams_in_box'], weir=D['weir'], par=D.get('par'), cd=D['cd'], modular_limit=D['m'], lakes=out, skipped=D['skipped'])
 
 
 def selftest():
