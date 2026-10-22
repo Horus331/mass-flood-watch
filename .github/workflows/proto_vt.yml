@@ -1,0 +1,72 @@
+name: prototype Vermont July 2023 (independent test storm vs VTrans closures)
+on:
+  workflow_dispatch:
+    inputs:
+      box: {description: 'EPSG:26986 box x0,y0,x1,y1 (default Montpelier-Barre-Berlin-Northfield, 20 x 20 km)', default: '107000,1096000,127000,1116000'}
+      res: {description: 'grid metres', default: '20'}
+      hours: {description: 'storm hours from 2023-07-09 18Z', default: '60'}
+      env: {description: 'w9 env (current defaults, not tuned on Vermont)', default: 'LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=1.0 LF_INFIL_MMH=2 LF_QOUT=1'}
+      stage: {description: 'inputs (fetch + w9 inputs only) or all', default: 'all'}
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      OUT: docs/proto/vermont_jul2023
+    steps:
+      - uses: actions/checkout@v4
+      - name: system packages
+        run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - name: python packages
+        run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 tifffile imagecodecs shapely rasterio
+      - name: Vermont inputs (3DEP, NLCD, SSURGO, NHDPlus HR, OSM, USGS crossings + NAACC, USGS gauges)
+        run: |
+          set -o pipefail; mkdir -p $OUT/_logs
+          python sim/colab/vt_inputs.py --box ${{ inputs.box }} --data ${{ runner.temp }}/vtdata --out $OUT/inputs 2>&1 | tee $OUT/_logs/vt_inputs.txt
+          ls -laR ${{ runner.temp }}/vtdata | head -40
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          LF_DATA_DIR: ${{ runner.temp }}/vtdata
+          BOX: ${{ inputs.box }}
+          RES: ${{ inputs.res }}
+          HOURS: ${{ inputs.hours }}
+          STORM: jul2023vt
+          RUN_DIR: runs/jul2023vt_proto
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail; nproc; free -g
+          export LF_CROSSINGS=$PWD/$OUT/inputs/crossings_vt.json
+          export ${{ inputs.env }}
+          if [ "${{ inputs.stage }}" = "inputs" ]; then export LF_INPUTS_ONLY=1; fi
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: road closures + scores
+        if: inputs.stage == 'all'
+        env:
+          PROTO_NBI: docs/proto/vermont_jul2023/inputs/bridges_vt.json
+        run: |
+          set -o pipefail
+          RD=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); echo "run dir $RD"; ls -la $RD
+          python proto/prototype.py --run-dir $RD --out $OUT --segments $OUT/inputs/segments_vt.json --crossings $OUT/inputs/crossings_vt.json \
+            --facilities $OUT/inputs/facilities_vt.json --reports none --repeat none --labels proto/data/vt_roadclosures_jul2023.geojson | tail -40
+          python proto/score.py --run-dir $RD --obs docs/proto/obs/gauges_jul2023vt.json --out $OUT/score.json | tail -40 || true
+          cp $RD/meta.json $OUT/flood_meta.json; cp $RD/xings.json $OUT/ 2>/dev/null || true
+          mkdir -p $OUT/rundir
+          for f in meta.json hmax.npy z.npy z_raw.npz watermask.npy timing.npz rainstats.npz xings.json; do cp $RD/$f $OUT/rundir/ 2>/dev/null || true; done
+          du -sh $OUT/rundir $OUT
+          python proto/vt_report.py --dir $OUT
+      - name: commit outputs and logs
+        if: always()
+        run: |
+          mkdir -p $OUT/_logs
+          tail -c 200000 w9_stdout.txt > $OUT/_logs/w9_stdout.txt 2>/dev/null || true
+          cp ${{ runner.temp }}/lf/w9_log.txt $OUT/_logs/ 2>/dev/null || true
+          for f in ${{ runner.temp }}/lf/run_*/lisflood_stdout.txt; do tail -c 100000 $f > $OUT/_logs/lisflood_stdout.txt; done 2>/dev/null || true
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add $OUT docs/proto/obs/gauges_jul2023vt.json 2>/dev/null || git add $OUT
+          git commit -qm "Vermont July 2023 prototype: ${{ inputs.stage }}" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push && break; sleep $((RANDOM % 20 + 5)); done

@@ -24,7 +24,8 @@ import numpy as np
 WORK = os.environ.get('LF_WORK', '/content/lisflood')
 REPO = 'mohabeldokla/mass-flood-watch-tiles'
 STORMS = {'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, title='Sept 11, 2023 flash floods'),
-          'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, title='Leominster test')}
+          'test_leominster': dict(t0='2023-09-11T17:00Z', hours=12, frame_min=30, title='Leominster test'),
+          'jul2023vt': dict(t0='2023-07-09T18:00Z', hours=60, frame_min=30, title='July 10-11, 2023 Vermont flood')}   # inputs: LF_DATA_DIR (sim/colab/vt_inputs.py)
 ZENODO_RECORDS = ['13121102', '4073010']        # LISFLOOD-FP v8.2 (DOI 10.5281/zenodo.13121102); 4073010 = concept record (latest)
 NODATA = -9999.0
 LOGP = None
@@ -494,6 +495,8 @@ def edge_report(Z, label):
 
 def build_inputs(BOX, RES, S, TOK):
     from huggingface_hub import hf_hub_download
+    if os.environ.get('LF_DATA_DIR'):    # local mirror of the HF data/ layout (Vermont: sim/colab/vt_inputs.py); nothing else changes
+        hf_hub_download = lambda repo, f, **kw: os.path.join(os.environ['LF_DATA_DIR'], f)
     from scipy import ndimage
     import pandas as pd
     x0, y0, x1, y1 = BOX; T = 20000; k = int(round(RES / 10)); assert abs(k * 10 - RES) < 1e-6, 'RES must be a multiple of 10 m'
@@ -574,7 +577,7 @@ def build_inputs(BOX, RES, S, TOK):
     if os.environ.get('LF_BREACH_XINGS', '1') == '1':
         try:
             SIZED = os.environ.get('LF_BREACH_SIZED', '0') == '1'
-            xp = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
+            xp = os.environ.get('LF_CROSSINGS') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
             XJ = json.load(open(xp)); C = XJ['columns']; il, ia = C.index('lon'), C.index('lat')
             from pyproj import Transformer
             tf = Transformer.from_crs(4326, 26986, always_xy=True)
