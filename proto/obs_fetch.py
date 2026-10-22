@@ -76,7 +76,8 @@ def gauges_ogc(bbox, start, end, states=('25',)):
         F = ogc_items('monitoring-locations', dict(id=','.join('USGS-' + x for x in ids[i:i + 40])))
         for f in F or []:
             q = f['properties']; sid = f['id'].split('-', 1)[-1]; g = f.get('geometry') or {}
-            info[sid] = dict(name=q.get('monitoring_location_name'), lon=(g.get('coordinates') or [None, None])[0], lat=(g.get('coordinates') or [None, None])[1],
+            c_ = g.get('coordinates') or [None, None]; r8 = lambda v: round(float(v), 8) if v is not None else None     # legacy precision (~1 mm)
+            info[sid] = dict(name=q.get('monitoring_location_name'), lon=r8(c_[0]), lat=r8(c_[1]),
                              datum_ft=q.get('altitude'), vdatum=q.get('vertical_datum'), drain_mi2=q.get('drainage_area'))
     out = {}
     for (sid, pc), by_ts in sorted(ser.items()):
