@@ -818,7 +818,7 @@ def main():
             for B in XG + GQ:
                 qi, qo = block_throughflow(Qx, Qy, B['r0'], B['r1'], B['c0'], B['c1']); q = 0.5 * (qi + qo)
                 if 'q_series' in B: B['q_series'].append(round(qo, 2))
-                if q > B['q_peak_m3s']: B['q_peak_m3s'] = round(q, 3); B['q_peak_h'] = round(j * SAVEINT / 3600.0, 2)
+                if j > 0 and q > B['q_peak_m3s']: B['q_peak_m3s'] = round(q, 3); B['q_peak_h'] = round(j * SAVEINT / 3600.0, 2)   # j = 0: start-file transient (channels start a third full), not flow
             os.remove(fq); os.remove(fy)
         log(f'fluxes: {len(qfiles)} snapshots read in {time.time() - t_:.0f}s; gauge peak flow ' + ', '.join(f"{g['site']} {g['q_peak_m3s']:.1f} m3/s (obs {g['obs_peak_q_m3s']})" for g in GQ))
     VEL = None
