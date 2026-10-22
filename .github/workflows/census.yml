@@ -1,0 +1,25 @@
+name: 2020 Census block population (TIGER/Line TABBLOCK20, run by hand)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q numpy
+      - name: Massachusetts (25) and Vermont (50) populated blocks
+        run: |
+          python proto/census_blocks.py --selftest
+          python proto/census_blocks.py --state 25 --out docs/network/census_blocks_ma.npz
+          python proto/census_blocks.py --state 50 --out docs/network/census_blocks_vt.npz || echo "Vermont failed"
+          ls -la docs/network/census_blocks_*.npz
+      - name: commit
+        run: |
+          git config user.name "flood-bot"; git config user.email "bot@users.noreply.github.com"
+          git add docs/network/census_blocks_*.npz && git commit -qm "data: 2020 Census populated blocks (TIGER/Line TABBLOCK20 POP20, HOUSING20, internal points), MA + VT" || exit 0
+          for i in $(seq 1 10); do git pull -q --rebase && git push -q && break; sleep 10; done
