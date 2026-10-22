@@ -6,6 +6,7 @@ documented closure / damage sites, and scores it honestly (spatial block CV on t
     python proto/closure_ml.py extract --run-dir docs/proto/exp/wo_rundir/rundir --storm aug2021 --labels proto/data/labels_aug2021_worcester.csv
     python proto/closure_ml.py train  --train sep2023 --towns Leominster  # final fit -> proto/ml/closure_lr.json, closure_gbm.txt, prior_platt.json
     python proto/closure_ml.py evaluate --train sep2023 --test aug2021    # -> docs/proto/ml/RESULTS.md + PNGs
+    python proto/closure_ml.py map --run-dir RUN_DIR --out docs/proto/<run>  # -> <run>/ml_segments.json for the map (re-runs the prototype, ~1 min)
     python proto/closure_ml.py selftest                                   # offline, synthetic
 
 Target.  A road segment is positive for a storm when a documented site (proto/data/labels_*) matches it with the prototype's strict rule
@@ -174,6 +175,36 @@ def extract(run_dir, storm, labels, out_dir=OUT_DIR, tmp=None):
                    segments=len(rows), positives=int(sum(y.values())), sites_matched=len(matches), matches=matches),
               open(os.path.join(out_dir, f'matches_{storm}.json'), 'w'), indent=0)
     print(f'{fn}: {len(rows)} segments, {sum(y.values())} positive, {len(matches)} sites matched')
+    return fn
+
+
+def map_segments(run_dir, out, tmp=None):
+    """p_close_ml for every in-box segment of a run -> <out>/ml_segments.json (map layer 'Learned closure chance'; the map works without it).
+    Re-runs the prototype on run_dir (PROTO_ML=1) into a temp dir; nothing else in <out> changes.  The model uses peak flow speed (log_speed):
+    without vel_max.npz (w9 LF_VOUT=1) the speed feature is 0 and the file says velocity=false."""
+    global CAPTURE
+    import tempfile
+    sys.path.insert(0, HERE); sys.modules.setdefault('closure_ml', sys.modules[__name__]); import prototype as PT
+    CAPTURE = {}; os.environ['PROTO_ML'] = '1'; td = tempfile.TemporaryDirectory(prefix='mlmap_')
+    try:
+        PT.run(run_dir, tmp or td.name, os.path.join(ROOT, 'docs', 'graph_segments.json'),
+               os.path.join(ROOT, 'docs', 'network', 'crossings_all.json'), os.path.join(ROOT, 'docs', 'prone', 'flood_reports.json'),
+               os.path.join(ROOT, 'docs', 'network', 'facilities.json'), None, 30, False, None)
+    finally:
+        os.environ.pop('PROTO_ML', None); td.cleanup()
+    rows = CAPTURE['rows']; CAPTURE = None
+    gj = os.path.join(out, 'segments.geojson')                  # compact: only the segments drawn on the map, when the map exists
+    if os.path.exists(gj):
+        on_map = {int(f['properties']['segment']) for f in json.load(open(gj))['features']}; rows = [r for r in rows if r['segment'] in on_map]
+    vel = os.path.exists(os.path.join(run_dir, 'vel_max.npz')); M = json.load(open(os.path.join(ML_DIR, 'closure_lr.json')))
+    doc = dict(model='closure_lr (proto/ml/closure_lr.json), candidate', trained_on=M.get('trained_on'), domain_towns=M.get('domain_towns'),
+               run_dir=os.path.relpath(os.path.abspath(run_dir), ROOT), velocity=vel, pu_c_e1=round(float(M.get('pu_c_e1') or 0), 3),
+               note='P(documented closure / damage) at Leominster-city reporting completeness; see docs/proto/ml/RESULTS.md'
+                    + ('' if vel else '; NO velocity in this run: speed feature set to 0 (rankings biased low where water is fast)'),
+               segments={str(r['segment']): round(float(r['p_close_ml']), 3) for r in rows if 'p_close_ml' in r})
+    os.makedirs(out, exist_ok=True); fn = os.path.join(out, 'ml_segments.json')
+    json.dump(doc, open(fn, 'w'), separators=(',', ':'))
+    print(f"{fn}: {len(doc['segments'])} segments, velocity={vel}")
     return fn
 
 
@@ -460,12 +491,14 @@ def selftest():
 
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0]); ap.add_argument('cmd', choices=['extract', 'train', 'evaluate', 'selftest'])
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0]); ap.add_argument('cmd', choices=['extract', 'train', 'evaluate', 'map', 'selftest'])
+    ap.add_argument('--out', help='map: run output folder (docs/proto/<run>)')
     ap.add_argument('--run-dir'); ap.add_argument('--storm'); ap.add_argument('--labels', default='')
     ap.add_argument('--train', default='sep2023'); ap.add_argument('--test', default='aug2021')
     ap.add_argument('--towns', default=','.join(TRAIN_TOWNS), help='training domain: towns whose reporting is near-complete ("" = whole box)')
     a = ap.parse_args(); towns = tuple(t for t in a.towns.split(',') if t)
     if a.cmd == 'selftest': selftest()
     elif a.cmd == 'extract': extract(a.run_dir, a.storm, [p for p in a.labels.split(',') if p])
+    elif a.cmd == 'map': map_segments(a.run_dir, a.out)
     elif a.cmd == 'train': print('pu_c', train(a.train, towns)[3])
     else: evaluate(a.train, [t for t in a.test.split(',') if t], towns)
