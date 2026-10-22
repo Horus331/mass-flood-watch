@@ -22,9 +22,10 @@ hypercube sampling (fixed seed) of these spreads.  Each spread is a 1-sigma in l
   n chan   LF_N_CHAN       lognormal about the center (0.035), sigma_ln 0.25.  Chow (1959) Open-Channel Hydraulics Table 5-6 min / normal / max for
            natural main channels (clean, winding with pools and stones: 0.033 / 0.040 / 0.045; sluggish weedy reaches up to 0.08), and the
            base-plus-adjustments method of Arcement & Schneider (1989, USGS Water-Supply Paper 2339) give -20 % / +30-60 % around a normal value.
-  n land   LF_N_LAND_SCALE lognormal multiplier of every land Manning n (floodplain 0.08, dense urban 0.10), sigma_ln 0.35.  Chow Table 5-6
-           flood plains: brush / trees min-max spans x0.5-x1.6 of normal; Arcement & Schneider (1989) floodplain adjustments (vegetation, obstructions)
-           add 0.002-0.10 to a 0.02-0.03 base.  Wider than the channel because land cover is generalised (two classes).
+  n land   LF_N_FP         lognormal about the center floodplain n (0.08), sigma_ln 0.35.  Chow Table 5-6 flood plains: brush / trees
+           min-max spans x0.5-x1.6 of normal; Arcement & Schneider (1989) floodplain adjustments (vegetation, obstructions) add 0.002-0.10 to a
+           0.02-0.03 base.  Wider than the channel because land cover is generalised (two classes).  Dense-urban cells (> 30 % paved, n 0.10)
+           are fixed in w9 and not perturbed.
   drain    LF_INFIL_MMH    lognormal about the center (2 mm/h), sigma_ln 0.40: steady drainage of ponded water.  NRCS NEH 630 ch. 7 minimum
            infiltration rates, HSG C 1.3-3.8 mm/h, D 0-1.3, B 3.8-7.6 (Musgrave 1955); x0.45-x2.2 at 2 sd covers C with part of B and D.
 
@@ -50,10 +51,10 @@ PARAMS = [
     ('rain', 'LF_RAIN_SCALE', 'lognormal_mult', 0.20, 'Ciach et al. 2007; Villarini & Krajewski 2010; Zhang et al. 2016 (MRMS)'),
     ('cn', 'LF_CN_SCALE', 'normal_mult', 0.10, 'NRCS NEH 630 ch.10 Table 10-1 (AMC I/III); Hjelmfelt 1991'),
     ('n_chan', 'LF_N_CHAN', 'lognormal_mult', 0.25, 'Chow 1959 Table 5-6; Arcement & Schneider 1989 (USGS WSP 2339)'),
-    ('n_land', 'LF_N_LAND_SCALE', 'lognormal_mult', 0.35, 'Chow 1959 Table 5-6 (flood plains); Arcement & Schneider 1989'),
+    ('n_land', 'LF_N_FP', 'lognormal_mult', 0.35, 'Chow 1959 Table 5-6 (flood plains); Arcement & Schneider 1989'),
     ('drain', 'LF_INFIL_MMH', 'lognormal_mult', 0.40, 'NRCS NEH 630 ch.7 minimum infiltration rates by HSG (Musgrave 1955)'),
 ]
-DEFAULTS = {'LF_RAIN_SCALE': 1.0, 'LF_CN_SCALE': 1.0, 'LF_N_CHAN': 0.035, 'LF_N_LAND_SCALE': 1.0, 'LF_INFIL_MMH': 4.0}   # w9 defaults when unset
+DEFAULTS = {'LF_RAIN_SCALE': 1.0, 'LF_CN_SCALE': 1.0, 'LF_N_CHAN': 0.035, 'LF_N_FP': 0.08, 'LF_INFIL_MMH': 4.0}   # w9 defaults when unset
 FAIL_M = 0.30
 
 
