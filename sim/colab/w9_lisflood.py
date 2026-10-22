@@ -5,7 +5,8 @@
 
 env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multiple of 10), STORM (default sep2023), T0, HOURS,
      LF_LOSS none|fc (default none), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
-     LF_SAVEINT (s, default 1800)
+     LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
+     LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s)
 Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept record 4073010 as fallback) and build it with CMake,
            with CUDA when nvcc and a GPU are present, else the OpenMP CPU build; everything lives under /content/lisflood.
         2. inputs from the same data as w4_flood_gpu.py: 10 m DEM tiles (HF data/dem10) averaged to RES, the channels30 burn
@@ -13,7 +14,8 @@ Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept reco
            0.08 other), MRMS hourly QPE (same mrms_hour) -> TUFLOW-format NetCDF dynamic rain, FREE boundaries on all edges.
         3. two tiny probe runs fix the rain-file conventions empirically (y orientation, units, which interval a time stamp
            covers), then the real run with the acceleration (local-inertial) solver, GPU if built.
-        4. hmax.npy (float32 m), hsnap.npy (peak of the 30-min snapshots), z.npy, meta.json -> HF RUN_DIR in ONE commit,
+        4. hmax.npy (float32 m), hsnap.npy (peak of the 30-min snapshots), z.npy (model DEM: burnt, notched, breached),
+           z_raw.npz (lidar DEM before those edits, and the highest 10 m cell per cell: road crests), vel_max.npz (LF_VOUT=1), meta.json -> HF RUN_DIR in ONE commit,
            so w6_validate.py scores it unchanged.
 """
 import math, os, sys, re, json, time, gzip, glob, shutil, zipfile, subprocess
@@ -404,6 +406,43 @@ def block_throughflow(Qx, Qy, r0, r1, c0, c1):
     return float(inw[inw > 0].sum()), float(-inw[inw < 0].sum())
 
 
+def cell_speed(Vx, Vy):
+    """Cell-centre speed (m/s) from LISFLOOD-FP face velocities, the way its own UpdateV does it (util.cpp): the larger |V| of the two x faces
+    and of the two y faces, combined as a vector.  Vx (ny, nx+1), Vy (ny+1, nx), as the .Vx / .Vy snapshot grids (voutput)."""
+    Vx = np.abs(np.nan_to_num(Vx)); Vy = np.abs(np.nan_to_num(Vy))
+    xv = np.maximum(Vx[:, :-1], Vx[:, 1:]); yv = np.maximum(Vy[:-1, :], Vy[1:, :])
+    return np.sqrt(xv * xv + yv * yv).astype(np.float32)
+
+
+def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
+    """LF_VOUT=1 ('hazard' in the .par: voutput + voutput_max + hazard, pars.cpp): peak speed and peak depth x speed per cell.
+    vmax  : <resroot>.maxVc, the cell speed maximised every time step (UpdateV), m/s; else the max over the .Vx/.Vy snapshots
+    dvmax : max over the saveint snapshots of h x speed (both from the same snapshot), and at least maxVc x maxVcd (depth at the time of peak
+            speed), m2/s.  Snapshots are 30 min apart, so dvmax can miss a short spike between them; maxVc x maxVcd is a lower bound at every step.
+    Snapshot .Vx/.Vy files are deleted after reading unless keep (each is ~1M cells of ascii)."""
+    d = f'{wd}/{dirroot}'; ny, nx = shape; info = {}
+    vmax = np.zeros(shape, np.float32); dv = np.zeros(shape, np.float32); vsnap = np.zeros(shape, np.float32); n = 0
+    for fx in sorted(glob.glob(f'{d}/{resroot}-*.Vx')):
+        fy = fx[:-3] + '.Vy'; fh = fx[:-3] + '.wd'
+        if not os.path.exists(fy): continue
+        try: Vx = read_asc(fx)[0]; Vy = read_asc(fy)[0]
+        except Exception as e: log('velocity file unreadable', fx, repr(e)[:80]); continue
+        if Vx.shape != (ny, nx + 1) or Vy.shape != (ny + 1, nx): log('unexpected velocity grid shapes', Vx.shape, Vy.shape); break
+        v = cell_speed(Vx, Vy); vsnap = np.maximum(vsnap, v)
+        if os.path.exists(fh): dv = np.maximum(dv, np.nan_to_num(read_asc(fh)[0]) * v)
+        n += 1
+        if not keep: os.remove(fx); os.remove(fy)
+    info['snapshots'] = n
+    if os.path.exists(f'{d}/{resroot}.maxVc'):
+        vmax = np.nan_to_num(read_asc(f'{d}/{resroot}.maxVc')[0]).astype(np.float32); info['vmax_source'] = 'maxVc (every time step)'
+        if os.path.exists(f'{d}/{resroot}.maxVcd'):
+            dv = np.maximum(dv, vmax * np.nan_to_num(read_asc(f'{d}/{resroot}.maxVcd')[0])); info['dv_source'] = 'max(snapshot h x speed, maxVc x maxVcd)'
+    else:
+        vmax = vsnap; info['vmax_source'] = 'max of snapshots'
+    info.setdefault('dv_source', 'snapshot h x speed')
+    return vmax.astype(np.float32), dv.astype(np.float32), info
+
+
 def edge_report(Z, label):
     """One log line per box edge: NaN cells, elevation range, and cells more than 1 m below their inward neighbour (a FREE boundary on such a
     cliff misbehaves)."""
@@ -431,7 +470,12 @@ def build_inputs(BOX, RES, S, TOK):
         dst[rs:re_, cs:ce] = a[rs - r0:re_ - r0, cs - c0:ce - c0]
     for key, v in need: paste(Z10, np.load(hf_hub_download(REPO, f'data/dem10/{key}.npy', repo_type='dataset', token=TOK)), v)
     ny, nx = ny10 // k, nx10 // k
-    Z = np.nanmean(Z10[:ny * k, :nx * k].reshape(ny, k, nx, k), axis=(1, 3)).astype(np.float32); del Z10
+    Z = np.nanmean(Z10[:ny * k, :nx * k].reshape(ny, k, nx, k), axis=(1, 3)).astype(np.float32)
+    # highest 10 m cell in each RES cell: a road crest on fill is narrower than the cell and the mean smears it with the ditches beside it
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', RuntimeWarning); ZMAX10 = np.nanmax(Z10[:ny * k, :nx * k].reshape(ny, k, nx, k), axis=(1, 3)).astype(np.float32)
+    del Z10
     edge_report(Z, 'raw DEM at RES'); log('row 0 (north edge) every 20th cell: ' + ' '.join(f'{v:.1f}' for v in Z[0, ::20]))
     log('row 1 every 20th cell: ' + ' '.join(f'{v:.1f}' for v in Z[1, ::20]))
     nod = np.isnan(Z); low = nod | (Z <= 0.3)
@@ -441,6 +485,9 @@ def build_inputs(BOX, RES, S, TOK):
     if inland_void.any():
         fill = ndimage.grey_erosion(np.where(nod, 1e4, Z), size=7); Z = np.where(inland_void, fill, Z)
     Z = np.where(np.isnan(Z), -2.0, Z).astype(np.float32)
+    # the lidar surface before any hydraulic edit (channel burn, crossing notches, depression breaching): the road crest for the freeboard rule
+    # (proto/prototype.py).  Notches lower the road cells at crossings, so the model DEM must never be used for road height.
+    Z_RAW = Z.copy(); ZMAX10 = np.where(np.isfinite(ZMAX10), np.maximum(ZMAX10, Z_RAW), Z_RAW).astype(np.float32)
     log(f'grid {ny} x {nx} = {ny * nx / 1e6:.2f} M cells at {RES:.0f} m; sea {sea.mean() * 100:.1f}%')
     from pyproj import Transformer
     tr = Transformer.from_crs(26986, 4326, always_xy=True)
@@ -567,7 +614,7 @@ def build_inputs(BOX, RES, S, TOK):
         RAIN = np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32)
         log(f'effective rain (CN) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%)')
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
-                NOV=NOV, XG=XG)
+                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10)
 
 
 # ======================================================================================================================
@@ -626,6 +673,8 @@ def main():
     extra = []; infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4'))
     QOUT = os.environ.get('LF_QOUT', '0') == '1'
     if QOUT: extra.append('qoutput')          # .Qx/.Qy face fluxes (m3/s) at every saveint: flow through each crossing notch, river flow at gauges
+    VOUT = os.environ.get('LF_VOUT', '0') == '1'
+    if VOUT: extra.append('hazard')           # voutput + voutput_max + hazard (pars.cpp): .Vx/.Vy (m/s) per saveint, .maxVc/.maxVcd/.maxHaz at the end
     if I['SGC'] and I['chan'].any():
         # LISFLOOD-FP sub-grid channels (Neal et al. 2012): width raster, bank = DEM, bed = bank - bankfull depth (channels30, Bieger 2015)
         W_ = np.where(I['chan'], np.maximum(I['CW'], 1.0), 0.0); bed = np.where(I['chan'], I['Z'] - np.maximum(I['CD'], 0.3), I['Z'])
@@ -695,6 +744,15 @@ def main():
                 if q > B['q_peak_m3s']: B['q_peak_m3s'] = round(q, 3); B['q_peak_h'] = round(j * SAVEINT / 3600.0, 2)
             os.remove(fq); os.remove(fy)
         log(f'fluxes: {len(qfiles)} snapshots read in {time.time() - t_:.0f}s; gauge peak flow ' + ', '.join(f"{g['site']} {g['q_peak_m3s']:.1f} m3/s (obs {g['obs_peak_q_m3s']})" for g in GQ))
+    VEL = None
+    if VOUT:
+        try:
+            t_ = time.time(); vmx, dvmx, vinfo = velocity_peaks(wd, 'res', (ny, nx)); VEL = dict(vmax=vmx, dvmax=dvmx, **{k: str(v) for k, v in vinfo.items()})
+            wetv = hmax >= 0.1
+            log(f"velocity ({vinfo}): peak speed on wet land p50/p95/max {np.percentile(vmx[wetv & land], 50) if (wetv & land).any() else 0:.2f}/"
+                f"{np.percentile(vmx[wetv & land], 95) if (wetv & land).any() else 0:.2f}/{vmx.max():.2f} m/s, peak dv max {dvmx.max():.2f} m2/s, {time.time() - t_:.0f}s")
+        except Exception as e:
+            log('velocity output unreadable:', repr(e)[:200])
     mass = sorted(glob.glob(f'{wd}/results/res.mass'))
     mass_tail = open(mass[0]).read().strip().split('\n')[-2:] if mass else []
     # 5. run layout + one commit
@@ -703,6 +761,9 @@ def main():
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
     if FR: np.savez_compressed(f'{OUT}/frames_cm.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32))
     np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan'] | I['carved']).astype(np.uint8))
+    np.savez_compressed(f'{OUT}/z_raw.npz', z_raw=I['Z_RAW'], z_raw_max10=I['ZMAX10'],
+                        note='lidar DEM at RES before channel burn / crossing notches / depression breaching (m); z_raw_max10 = highest 10 m cell in each cell')
+    if VEL is not None: np.savez_compressed(f'{OUT}/vel_max.npz', **VEL)
     np.savez_compressed(f'{OUT}/timing.npz', tover15=tover15, tover30=tover30, tarr30=tarr30, saveint_s=SAVEINT)
     R = I['RAIN_OBS']; r3 = np.stack([R[i:i + 3].sum(0) for i in range(max(1, len(R) - 2))])
     np.savez_compressed(f'{OUT}/rainstats.npz', total=R.sum(0), peak1h=R.max(0), peak3h=r3.max(0), hour_of_peak=R.argmax(0).astype(np.int16),
@@ -826,6 +887,19 @@ def selftest():
     Zk, low_k, st_k = breach_depressions(Zp, 4.0); assert Zk[3, 4] == 16 and st_k['kept_deep'] >= 1
     Zc_, low_c, st_c = breach_depressions(Zp, 4.0, ch, 12.0); assert Zc_[3, 4] <= 10 and st_c['chan_deep_cut'] >= 1
     ok.append('channel pits behind a fill deeper than the cap are carved with LF_BREACH_CHAN_MAX, kept without it')
+    # velocity output (LF_VOUT): cell speed as LISFLOOD-FP's UpdateV, peaks from snapshots and from .maxVc / .maxVcd
+    Vx = np.zeros((2, 4)); Vy = np.zeros((3, 3)); Vx[0, 1] = -3.0; Vx[0, 2] = 1.0; Vy[1, 0] = 4.0
+    sp = cell_speed(Vx, Vy); assert abs(sp[0, 0] - 5.0) < 1e-6 and abs(sp[0, 1] - 3.0) < 1e-6 and abs(sp[1, 0] - 4.0) < 1e-6 and sp[1, 2] == 0
+    vd = f'{d}/vel'; os.makedirs(f'{vd}/results'); g = (2, 3)
+    for j, (u, hh) in enumerate(((1.0, 0.2), (2.0, 0.5), (0.5, 1.0))):
+        write_asc(f'{vd}/results/res-{j:04d}.Vx', np.full((2, 4), u), x0, y0, res); write_asc(f'{vd}/results/res-{j:04d}.Vy', np.zeros((3, 3)), x0, y0, res)
+        write_asc(f'{vd}/results/res-{j:04d}.wd', np.full(g, hh), x0, y0, res)
+    vm, dvm, inf_ = velocity_peaks(vd, 'res', g)
+    assert np.allclose(vm, 2.0) and np.allclose(dvm, 1.0) and inf_['snapshots'] == 3 and inf_['vmax_source'] == 'max of snapshots' and not glob.glob(f'{vd}/results/*.Vx')
+    write_asc(f'{vd}/results/res.maxVc', np.full(g, 2.5), x0, y0, res); write_asc(f'{vd}/results/res.maxVcd', np.full(g, 0.6), x0, y0, res)
+    vm, dvm, inf_ = velocity_peaks(vd, 'res', g); assert np.allclose(vm, 2.5) and np.allclose(dvm, 1.5) and inf_['vmax_source'].startswith('maxVc')
+    assert 'hazard' in write_par(f'{d}/v.par', 'r', 60, extra=['hazard'])
+    ok.append('velocity output: UpdateV cell speed, peak speed (.maxVc else snapshots), peak depth x speed')
     shutil.rmtree(d)
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')
