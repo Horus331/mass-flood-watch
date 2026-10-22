@@ -26,3 +26,4 @@ python proto/validate_points.py --run-dir "$OUT" --storm $STORM --out results/$N
 python proto/prototype.py --run-dir "$OUT" --storm $STORM --out "results/$NAME" | tail -5
 cp $OUT/meta.json results/$NAME/flood_meta.json 2>/dev/null || true
 echo "results in results/$NAME (map.html, watchlist.csv, REPORT.md, summary.json, score.json)"
+[ "${PUBLISH:-1}" = "1" ] && bash proto/turing/publish.sh "$NAME" || true
