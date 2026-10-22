@@ -14,10 +14,15 @@ set -eo pipefail
 source proto/turing/env.sh
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=$SLURM_NTASKS
 export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} STORM=${STORM:-sep2023} HOURS=${HOURS:-48} LF_LOSS=${LF_LOSS:-cn} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}
-export NAME=${NAME:-leominster_sep2023_gpu} RUN_DIR=runs/${STORM}_proto_${NAME}
+export NAME=${NAME:-leominster_sep2023_gpu}
+export RUN_DIR=runs/${STORM}_proto_${NAME}
 nvidia-smi || true
 echo "== net check"; for u in https://huggingface.co https://noaa-mrms-pds.s3.amazonaws.com; do printf "%s " $u; curl -s -o /dev/null -m 10 -w "%{http_code}\n" $u; done
 time python sim/colab/w9_lisflood.py
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
-python proto/prototype.py --run-dir "$OUT" --out "results/$NAME"
-echo "results in results/$NAME (map.html, watchlist.csv, REPORT.md, summary.json)"
+mkdir -p results/$NAME
+python proto/score.py --run-dir "$OUT" --storm $STORM --out results/$NAME/score.json | tail -30 || true
+python proto/validate_points.py --run-dir "$OUT" --storm $STORM --out results/$NAME/points.json | tail -12 || true
+python proto/prototype.py --run-dir "$OUT" --storm $STORM --out "results/$NAME" | tail -5
+cp $OUT/meta.json results/$NAME/flood_meta.json 2>/dev/null || true
+echo "results in results/$NAME (map.html, watchlist.csv, REPORT.md, summary.json, score.json)"
