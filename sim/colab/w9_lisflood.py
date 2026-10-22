@@ -6,7 +6,9 @@
 env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multiple of 10), STORM (default sep2023), T0, HOURS,
      LF_LOSS none|fc (default none), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
      LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
-     LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s)
+     LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s),
+     LF_DOMAIN basin + LF_DOMAIN_FILE (watershed-shaped domain, sim/colab/lf_domain.py; default box), LF_EXE / LF_EXE_CUDA (prebuilt LISFLOOD-FP),
+     LF_MRMS_DIR (MRMS file cache: stage on a login node, then run offline)
 Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept record 4073010 as fallback) and build it with CMake,
            with CUDA when nvcc and a GPU are present, else the OpenMP CPU build; everything lives under /content/lisflood.
         2. inputs from the same data as w4_flood_gpu.py: 10 m DEM tiles (HF data/dem10) averaged to RES, the channels30 burn
@@ -656,7 +658,12 @@ def build_inputs(BOX, RES, S, TOK):
     def mrms_hour(ts):
         d = ts.strftime('%Y%m%d'); f = ts.strftime('%Y%m%d-%H%M%S')
         url = f'https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MultiSensor_QPE_01H_Pass2_00.00/{d}/MRMS_MultiSensor_QPE_01H_Pass2_00.00_{f}.grib2.gz'
-        open(gp, 'wb').write(gzip.decompress(get(url).content))
+        cp_ = os.path.join(os.environ['LF_MRMS_DIR'], os.path.basename(url)) if os.environ.get('LF_MRMS_DIR') else None   # optional cache (offline compute nodes)
+        if cp_ and os.path.exists(cp_): raw_ = open(cp_, 'rb').read()
+        else:
+            raw_ = get(url).content
+            if cp_: os.makedirs(os.environ['LF_MRMS_DIR'], exist_ok=True); open(cp_, 'wb').write(raw_)
+        open(gp, 'wb').write(gzip.decompress(raw_))
         g = pygrib.open(gp); m = g[1]; la, lo = m.latlons(); v = np.ma.filled(m.values, 0).astype(np.float32); g.close(); v[v < 0] = 0
         lat1d = la[:, 0]; lon1d = lo[0, :]; lon1d = np.where(lon1d > 180, lon1d - 360, lon1d)
         i0 = np.searchsorted(-lat1d, -lat_c.max() - 0.05); i1 = np.searchsorted(-lat1d, -lat_c.min() + 0.05) + 1
@@ -718,11 +725,14 @@ def main():
     log(f'w9 LISFLOOD-FP benchmark: {run_name} box {BOX} res {RES} m, {S["hours"]} h from {S["t0"]}; GPU {gpu}, nvcc {shutil.which("nvcc")}')
     # 1. get + build
     tb = time.time()
-    zp, ver, src_url = get_lisflood()
-    srcroot = f'{WORK}/src'
-    if not os.path.isdir(srcroot): extract_all(zp, srcroot)
-    src = find_source(srcroot); log('source tree:', src)
-    exe, is_cuda = build_lisflood(src, want_cuda)
+    if os.environ.get('LF_EXE'):      # offline compute nodes (proto/turing): a LISFLOOD-FP 8.2 built beforehand by setup_lisflood.sh; LF_EXE_CUDA=1 if it is the CUDA build
+        exe, is_cuda, zp, ver, src_url = os.environ['LF_EXE'], os.environ.get('LF_EXE_CUDA', '0') == '1', os.environ['LF_EXE'], '8.2', 'https://doi.org/10.5281/zenodo.13121102'
+    else:
+        zp, ver, src_url = get_lisflood()
+        srcroot = f'{WORK}/src'
+        if not os.path.isdir(srcroot): extract_all(zp, srcroot)
+        src = find_source(srcroot); log('source tree:', src)
+        exe, is_cuda = build_lisflood(src, want_cuda)
     build_s = time.time() - tb; log(f'built {exe} (CUDA {is_cuda}) in {build_s:.0f}s')
     m = re.search(r'(\d+\.\d+(?:\.\d+)?)', ver or '') or re.search(r'v?(\d+\.\d+(?:\.\d+)?)', os.path.basename(zp))
     model = f'LISFLOOD-FP {m.group(1) if m else ver}'
