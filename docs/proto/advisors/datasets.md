@@ -41,7 +41,7 @@ This file lists every dataset the Mass Flood Watch code uses. Each entry was che
 | D22 | Historical road-flood reports (docs/prone/flood_reports.json) | compiled: NWS storm reports, crash records, MassDOT District 3 reports | validation; label | used: prototype (check). Build script not in repo |
 | D23 | Documented labels, Sep 2023 Leominster (labels_sep2023_leominster.csv) | compiled here from WX1BOX SKYWARN log, MA CDBG-DR plan, MassDOT reports, news | label; validation | used: prototype |
 | D24 | MassDOT roadway events feed (logger) | MassDOT (events.massdot.evbg.net) | label (future) | not used yet (logging only) |
-| D25 | Vermont July 2023 road closures (VTrans TMC, digitized) | S. Grant 2025, FEMC / UVM ("RoadClosures2023") | validation (independent storm) | not used yet (file in repo; no code reads it) |
+| D25 | Vermont July 2023 road closures (VTrans TMC, digitized) | S. Grant 2025, FEMC / UVM ("RoadClosures2023") | validation (independent storm) | being wired in (proto_vt.yml added 22 Oct 2026; no results yet) |
 | D26 | PRISM daily rain via ACIS | PRISM Climate Group / NOAA RCC ACIS GridData | input (forecast mode) | used: live graph model; not in prototype |
 | D27 | USGS annual peaks + ratings (legacy NWIS archive) | USGS NWIS (legacy /peak, get_ratings) | validation (planned) | not used yet (archived) |
 
@@ -162,7 +162,7 @@ This file lists every dataset the Mass Flood Watch code uses. Each entry was che
 - **Period used:** storm windows (Sep 2023: 2023-09-10 to 09-14)
 - **Role:** validation; input (boundary inflow, statewide)
 - **How it is used:** Prototype: scored on stage rise, peak timing, peak WSE (NAVD88 datum) and peak flow vs LISFLOOD-FP face fluxes. Statewide engine: discharge injected where rivers enter MA
-- **Where in the code:** `proto/obs_fetch.py -> docs/proto/obs/gauges_sep2023.json`; `proto/score.py`; `proto/diag_gauge.py`; `sim/colab/w9_lisflood.py (LF_QOUT)`; `sim/gauges_fetch.py (gauges.yml) -> HF data/gauges_v2`
+- **Where in the code:** `proto/obs_fetch.py -> docs/proto/obs/gauges_sep2023.json`; `proto/score.py`; `proto/diag_gauge.py`; `sim/colab/w9_lisflood.py (LF_QOUT)`; `sim/gauges_fetch.py (gauges.yml) -> HF data/gauges_v2`; `sim/colab/vt_inputs.py (Vermont run)`
 - **Licence:** Public domain (USGS)
 - **Access:** public
 - **Status:** used: prototype (validation)
@@ -341,11 +341,11 @@ This file lists every dataset the Mass Flood Watch code uses. Each entry was che
 - **Resolution / coverage:** 63 closed state-highway segments
 - **Period used:** 2023-07-11/12 snapshots
 - **Role:** validation (independent storm)
-- **How it is used:** Planned second, independent test of the closure rules (validation only, not training)
-- **Where in the code:** `proto/data/vt_roadclosures_jul2023.geojson (+ README)`
+- **How it is used:** Independent second test storm for the closure rules: closed stretches matched to road lines (validation only, not training). Wired up 22 Oct 2026, results pending
+- **Where in the code:** `proto/data/vt_roadclosures_jul2023.geojson`; `proto/prototype.py (--labels, line labels)`; `proto/vt_report.py`; proto_vt.yml
 - **Licence:** CC0
 - **Access:** public
-- **Status:** not used yet (file in repo; no code reads it)
+- **Status:** being wired in (proto_vt.yml added 22 Oct 2026; no results yet)
 
 ### D26. PRISM daily rain via ACIS
 
@@ -376,5 +376,5 @@ This file lists every dataset the Mass Flood Watch code uses. Each entry was che
 - **Road graph (D14) and historical road-flood reports (D22).** Both files are in the repo, but the scripts that built them are not. Their provenance comes from `docs/methods.html` and from the file contents.
 - **NAACC culvert surveys (D17).** The NAACC ArcGIS service refused our query, so the surveys came from naacc.org Data Center exports instead. I have not verified the licence terms or whether a download needs a login.
 - **MRMS 24 h rain (D03).** Only the statewide GPU engine uses it. The LISFLOOD-FP prototype runs with a fixed NRCS AMC II and no antecedent rain.
-- **Not used yet.** This covers three datasets: the MassDOT events logger (D24), which has been logging since 21 Oct 2026; the Vermont July 2023 closures (D25), which are the planned independent test storm; and the USGS peaks and ratings archive (D27).
+- **Not used yet.** The MassDOT events logger (D24) has been logging since 21 Oct 2026, and the USGS peaks and ratings archive (D27) was made on 22 Oct 2026 with 235 peak files and 120 ratings. The Vermont July 2023 closures (D25) are being wired in as the independent test storm (proto_vt.yml), and there are no results yet.
 - **USGS endpoints.** USGS will retire the legacy WaterServices service between Nov 2026 and Q1 2027. The gauge fetchers now use the OGC Water Data API and fall back to the legacy service while it still answers. A Sept 2023 fetch through the OGC API reproduced the committed `docs/proto/obs/gauges_sep2023.json` exactly. The comparison is in `docs/proto/obs/_logs/ogc_test_sep2023.json`.
