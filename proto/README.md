@@ -48,6 +48,19 @@ reports, 11 NOAA Storm Events records and 93 documented road flood/closure/damag
 row reading past the buffer (spurious inflow of ~3×10⁹ m³). Runs before commit "Fix rain file row mapping" (including the earlier ×0.9
 calibration) are superseded.
 
+*Watershed-shaped domain (22 Oct 2026, opt-in `LF_DOMAIN=basin`, defaults unchanged; `docs/proto/exp/bd_*`):* the North Nashua basin to
+the Leominster gauge (`docs/network/basins/domain_leominster_nn.json`: NLDI basin, mask = cells that drain to the gauge on the run DEM,
+282 km² vs 285 USGS, Fitchburg nested at 164 vs 166 km², 0.71 M of 1.82 M box cells active, FREE only where a 7.7 km river corridor
+below the gauge meets the box edge). With the default solver it went unstable at a reservoir west of Fitchburg (peak water 11 m above
+its spill level, mass-conserving oscillation that kept 60–90 m³/s "flowing" past both gauges for 30 h after the rain), which the square
+box never fed with enough water to trigger; the 20 km square run of the same code was clean (38 / 197 m³/s). With `LF_THETA=0.7
+LF_CFL=0.5` (de Almeida et al. 2012 q-centred diffusion) both domains are stable but peak flow drops to about half (square 17 / 82,
+basin 19 / 85 m³/s; observed 44 / 157), so that setting is not adopted. Same numerics, basin vs square: event volume past Fitchburg
+1.67 vs 0.97 Mm³ and flow 30 h after the start 11.3 vs 2.7 m³/s (the recession the box lacked); Leominster 4.31 vs 3.81 Mm³, 22 vs
+19 m³/s; Fitchburg hydrograph-centroid error +0.9 h vs −5.2 h; peak time and rise50 unchanged; stage rise 1.26 / 3.35 vs 1.20 / 3.35 m.
+Road labels inside the basin: identical hits (76 sites, hit at 30 cm 0.908 both; 6 NWS reports and 10 Storm Events also identical);
+8 of the box's labelled sites drain to other rivers (Stillwater, Wachusett) and need their own basin.
+
 *Peak timing at Leominster (22 Oct 2026, not adopted; defaults unchanged):* the −4 h is a gauge artefact. USGS 01094500 has no 15-min
 stage from 00:30Z to 04:30Z and from 04:30Z to 15:00Z on 12 Sept 2023; the one value between the two gaps, 12.54 ft at 04:30Z, is the
 highest recorded, and the −4 h was measured against it. At 00:30Z the river was still rising (3.59 m, 132 m³/s) and at 15:00Z it was
