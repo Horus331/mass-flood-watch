@@ -1,7 +1,7 @@
 #!/bin/bash
 # One storm over one area: rain (MRMS) -> LISFLOOD-FP 8.2 flood depth on GPU -> road-closure probability, network cost, watchlist, map.
 #   sbatch proto/turing/run_storm.slurm                                   # Leominster 20 x 20 km, 20 m (the GitHub-tested case)
-#   sbatch --export=ALL,BOX=128000,856000,206000,946000,RES=10,NAME=d3_sep2023_10m proto/turing/run_storm.slurm   # all of MassDOT District 3
+#   BOX=128000,856000,206000,946000 RES=20 NAME=d3_sep2023_20m sbatch --export=ALL proto/turing/run_storm.slurm   # all of District 3 (set BOX in the shell: --export splits on commas)
 #SBATCH -J roadflood
 #SBATCH -p quick
 #SBATCH -N 1
