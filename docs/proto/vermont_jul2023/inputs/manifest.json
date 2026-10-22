@@ -1,0 +1,127 @@
+{
+ "box_epsg26986": [
+  107000.0,
+  1096000.0,
+  127000.0,
+  1116000.0
+ ],
+ "bbox_lonlat": [
+  -72.66447,
+  44.10873,
+  -72.41139,
+  44.29079
+ ],
+ "made": "2026-10-22 10:36",
+ "crs_note": "EPSG:26986 (MA State Plane LCC) kept for Vermont: scale factor 1.0006, convergence 0.73 deg at Montpelier",
+ "steps": {
+  "dem_3dep": {
+   "ok": true,
+   "s": 5,
+   "result": {
+    "107000_1096000": {
+     "x": 107000,
+     "y": 1096000,
+     "valid": 1.0,
+     "zmin": 148.9732666015625,
+     "zmax": 732.9094848632812
+    }
+   }
+  },
+  "nlcd_impervious": {
+   "ok": true,
+   "s": 3,
+   "result": 1
+  },
+  "channels_nhdplushr": {
+   "ok": true,
+   "s": 11,
+   "result": {
+    "flowlines": 1778,
+    "chan_cells": 31850,
+    "max_area_km2": 1342.1
+   }
+  },
+  "soils_ssurgo": {
+   "ok": true,
+   "s": 18,
+   "result": {
+    "box": [
+     106010,
+     1095010,
+     128000,
+     1117000
+    ],
+    "coverage": 0.974,
+    "polygons": 19174
+   }
+  },
+  "roads_osm": {
+   "ok": true,
+   "s": 113,
+   "result": {
+    "segments": 4505,
+    "by_class": {
+     "0": 3579,
+     "1": 685,
+     "2": 241
+    },
+    "links": 7331,
+    "bridge_points": 532,
+    "hospitals": 5
+   }
+  },
+  "crossings_usgs_naacc": {
+   "ok": true,
+   "s": 1,
+   "result": {
+    "U": 1494,
+    "naacc": 0,
+    "naacc_matched": 0,
+    "naacc_added": 0,
+    "with_culvert_size": 0,
+    "bridges": 0
+   }
+  },
+  "gauges_usgs": {
+   "ok": true,
+   "s": 17,
+   "result": [
+    {
+     "site": "04286000",
+     "name": "WINOOSKI RIVER AT MONTPELIER, VT",
+     "peak_q_cfs": [
+      "2023-07-11T12:30:00+00:00",
+      23100.0
+     ],
+     "peak_stage_ft": [
+      "2023-07-11T12:30:00+00:00",
+      21.29
+     ]
+    },
+    {
+     "site": "04287000",
+     "name": "DOG RIVER AT NORTHFIELD FALLS, VT",
+     "peak_q_cfs": [
+      "2023-07-10T23:45:00+00:00",
+      11000.0
+     ],
+     "peak_stage_ft": [
+      "2023-07-10T23:45:00+00:00",
+      11.63
+     ]
+    }
+   ]
+  }
+ },
+ "bridges_osm": 532,
+ "defaults": {
+  "aadt_by_class": {
+   "2": 20000,
+   "1": 5000,
+   "0": 500
+  },
+  "nlcd": "if a tile fails, impervious = 0 (w9 default: no NLCD)",
+  "soils": "if SDA fails, w9 LF_LOSS=cn has no soils30 and stops",
+  "channels": "if NHDPlus HR fails, rivers are not burnt (LF_CHAN runs without a grid)"
+ }
+}

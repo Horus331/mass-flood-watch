@@ -1,0 +1,43 @@
+10:38:53 w9 LISFLOOD-FP benchmark: jul2023vt_proto box (107000.0, 1096000.0, 127000.0, 1116000.0) res 20.0 m, 60 h from 2023-07-09T18:00Z; GPU False, nvcc None
+10:38:54 downloading LISFLOOD-FP 8.2 from zenodo 13121102: LISFLOOD-FP-v8.2.zip (348 MB)
+10:40:59 source tree: /home/runner/work/_temp/lf/src/LISFLOOD-FP
+10:40:59 $ apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null
+10:40:59 E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+
+10:40:59 cmake files: ['config.default.cmake', 'CMakeLists.txt']
+10:40:59 build switches found: ['CMAKE_CUDA_ARCHITECTURES', 'CMAKE_CUDA_COMPILER', '_NETCDF']
+10:40:59 config.cmake from config.default.cmake
+10:40:59 config.cmake used:
+set(_NETCDF ON)
+add_compile_definitions(_NUMERIC_MODE=1)
+add_compile_definitions(_ONLY_RECT=1)
+add_compile_definitions(_PROFILE_MODE=0)
+add_compile_definitions(_DISABLE_WET_DRY=0)
+add_compile_definitions(_CALCULATE_Q_MODE=1)
+add_compile_definitions(_SGM_BY_BLOCKS=0)
+add_compile_definitions(_BALANCE_TYPE=0)
+
+10:40:59 $ cmake -S /home/runner/work/_temp/lf/src/LISFLOOD-FP -B /home/runner/work/_temp/lf/build_cpu -DCMAKE_BUILD_TYPE=Release -D_NETCDF=ON
+10:41:01 $ cmake --build /home/runner/work/_temp/lf/build_cpu -j 4
+10:41:30 $ ldd /home/runner/work/_temp/lf/build_cpu/lisflood
+10:41:30 built /home/runner/work/_temp/lf/build_cpu/lisflood (CUDA False) in 157s
+10:41:30 probe: {'quadrants': {'NW': 0.05369, 'NE': 0.00894, 'SW': 0.00894, 'SE': 0.00031}, 'flip_y': False, 'flip_x': False, 'scale': 1.0, 'probe_B_ratio': 1.0, 'convention': 'forward'}
+10:41:30 elevation: 1 tiles of 10 m
+10:41:30 edges (raw DEM at RES): N: nan 0, z 154.8..448.5, median 293.1, >1 m below inner 142 | S: nan 0, z 262.2..579.9, median 452.1, >1 m below inner 192 | W: nan 0, z 149.0..486.2, median 302.1, >1 m below inner 203 | E: nan 0, z 226.0..513.1, median 421.8, >1 m below inner 332
+10:41:30 row 0 (north edge) every 20th cell: 159.5 213.4 217.7 317.1 312.5 316.8 377.7 444.4 332.6 268.9 325.9 354.0 336.8 324.0 285.4 297.8 258.2 169.5 172.8 200.4 265.4 331.9 373.5 385.3 378.7 367.4 347.7 331.7 354.5 334.5 311.6 336.1 330.0 329.7 308.2 275.2 250.1 252.9 259.2 279.6 290.4 250.8 233.0 203.6 241.6 288.1 282.4 278.3 270.6 258.5
+10:41:30 row 1 every 20th cell: 160.6 207.0 216.8 315.1 308.0 314.8 375.1 445.6 329.5 265.9 323.7 350.9 330.9 319.0 282.4 299.9 255.8 169.5 175.3 198.4 266.7 333.4 374.1 385.3 379.6 367.3 350.6 331.4 353.5 334.8 311.5 334.4 328.7 326.2 307.2 277.8 250.8 251.1 259.3 278.5 290.8 249.2 229.8 204.8 242.9 287.5 280.7 282.1 270.2 257.0
+10:41:30 grid 1000 x 1000 = 1.00 M cells at 20 m; sea 0.0%
+10:41:30 NLCD impervious: 1/1 tiles, mean 2.9% paved
+10:41:30 channels: 59,129 cells burnt, mean 0.18 m (volume-equivalent)
+10:41:31 crossings: 1329 road fills opened to the lowest ground within 40 m
+10:41:33 depressions: 6,662 cells carved (mean 0.35 m, max 3.97 m), 139 basins deeper than the cap kept, 3s
+10:41:33 LF_LOSS=cn: AMC II, mean CN 74.4 (HSG A-D + NLCD impervious)
+10:46:01 rain: max 202 mm, mean 129 mm over 60 h; missing []
+10:46:02 effective rain (CN) mean 69 mm of 129 mm (53%)
+10:46:02 edges (model DEM): N: nan 0, z 154.8..448.5, median 293.1, >1 m below inner 142 | S: nan 0, z 262.2..579.9, median 452.1, >1 m below inner 191 | W: nan 0, z 147.6..486.2, median 302.1, >1 m below inner 204 | E: nan 0, z 224.7..513.1, median 421.8, >1 m below inner 332
+10:46:02 model row 0 every 20th cell: 159.5 213.4 217.7 317.1 312.5 316.8 377.7 444.4 332.6 268.8 325.9 354.0 336.8 324.0 285.4 297.8 258.2 169.5 172.8 200.3 265.4 331.9 373.5 385.3 378.7 367.4 347.7 331.6 354.5 334.5 311.6 336.1 330.0 329.7 308.2 275.2 250.0 252.9 259.2 279.6 290.4 250.8 233.0 202.9 241.6 288.1 282.4 278.3 270.6 258.5
+10:46:02 edge flags: sea N/S/W/E 0/0/0/0, chan 69/55/40/48, water 67/18/20/30, rain total row 0 mean 47 mm vs box 69 mm
+10:46:02 LF_INPUTS_ONLY: stopping after the inputs
