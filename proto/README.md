@@ -108,6 +108,25 @@ The map shows it as a separate **"may close: stream at road level"** layer (oran
 an independent storm (Vermont July 2023 closures, `proto/data/vt_roadclosures_jul2023.geojson`).
 Peak speeds have numerical spikes (max 96 m/s in a few cells; p95 on wet land 3.2 m/s), so read single-cell speeds with care.
 
+**Edge washout (`--edge` / `PROTO_EDGE=1`) blind test, Worcester Aug 2021.** The peak-only variant (`PROTO_EDGE_DURATION=0`) was picked
+on Leominster after seeing the labels (strict recall 0.359 → 0.462 public, 0.388 → 0.449 DPW, 4.2 % flagged). Pre-declared pass rule: on
+Worcester, peak-only depth+edge must raise strict recall vs depth, with lift ≥ 5 and flagged ≤ 8 %. Run `wo_edge` (22 Oct 2026; current
+defaults + `LF_VOUT=1 LF_VDUR=0.6,1.0,1.5,1.8`, 18 h, box 168000,875000,188000,895000; run dir kept in `docs/proto/exp/wo_edge/rundir`),
+labels `proto/data/labels_aug2021_worcester.csv` (12 of 14 strict-matched; without W001/W002, the Route 20 underpass rows: 10):
+
+| variant | strict recall (12) | flagged | lift | without W001/W002 (10): recall / lift |
+| --- | --- | --- | --- | --- |
+| depth | 0.333 | 1.45 % | 19.8 | 0.200 / 11.5 |
+| depth+edge, peak only | 0.333 | 1.98 % | 14.5 | 0.200 / 8.5 |
+| depth+edge, 1 h weight | 0.333 | 1.53 % | 18.7 | 0.200 / 10.9 |
+| overtop | 0.583 | 3.79 % | 13.3 | 0.500 / 11.1 |
+| overtop+edge, peak only | 0.583 | 4.23 % | 11.9 | 0.500 / 9.9 |
+| overtop+edge, 1 h weight | 0.583 | 3.84 % | 13.1 | 0.500 / 10.9 |
+
+**Fails**: the edge layer adds no Worcester site in either mode (it only adds flagged segments, so lift falls). The Worcester labels are
+flooded / closed streets (no shoulder-washout reports), so this is a test of generality, not of washouts as such. Edge stays a candidate
+outside `p_close`; defaults unchanged.
+
 ## Resilience, warning priority and risk matrix (post-steps)
 
 Three modules read a finished run folder and never change `p_close`. The proto workflow runs them after `prototype.py`. Definitions,
