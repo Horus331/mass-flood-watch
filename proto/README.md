@@ -35,6 +35,19 @@ reports, 11 NOAA Storm Events records and 93 documented road flood/closure/damag
 row reading past the buffer (spurious inflow of ~3×10⁹ m³). Runs before commit "Fix rain file row mapping" (including the earlier ×0.9
 calibration) are superseded.
 
+*Peak timing at Leominster (22 Oct 2026, not adopted; defaults unchanged):* the −4 h is mostly a gauge artefact. 01094500 has no 15-min
+data from 00:30Z to 04:30Z and 04:30Z to 15:00Z on 12 Sept; the only point in the gap is the USGS peak (12.54 ft, 157 m³/s at 04:30Z).
+At 00:30Z the river was still rising (3.59 m, 132 m³/s), so the true peak is somewhere in 00:30–04:30Z. What is real is the shape: the
+model rises 1–1.5 h *late* (CN initial abstraction) and recedes far too fast (12:00Z: 13 vs 93 m³/s at Leominster, 4 vs 33 at Fitchburg;
+24-h event volume 3.3 vs 7.0 and 0.8 vs 2.2 Mm³). Half of each gauge's drainage area is outside the 20 km box (in-box 146 of 285 km² and
+68 of 166 km²) and the CN event loss has no delayed (interflow/baseflow) or reservoir component. Experiments (`docs/proto/exp/mn_*`):
+channel n 0.05 (`LF_N_CHAN`, Chow 1959 natural channels with pools/stones) moves the peaks 0.5–1 h later (Leominster −3.0 h) and lifts
+label recall 0.385→0.423 (lift 5.8→6.1), but cuts peak Q to 134 / 37 m³/s and raises the Fitchburg rise to 1.42 m (+42 %); NLCD
+floodplain n (`LF_N_LANDCOVER=1`, forest/woody wetland 0.12) changes nothing at the gauges; the full North Nashua basin
+(box 160000,906000,190000,942000) fixes Fitchburg (45 m³/s, +0.2 h, volume 1.4 Mm³) but leaves Leominster peaking at 00:30Z. The early
+Leominster peak is driven by the local cloudburst over the city; the missing slow component needs reservoir/pond storage or a subsurface
+term, not a rougher surface.
+
 Closure probability in this prototype is a physics prior, `P = Φ((peak depth − 0.30 m) / 0.10 m)`. In the dissertation it is replaced by a
 model learned from observed closures (storm reports, MassDOT records, Vermont 2023).
 
