@@ -2,6 +2,7 @@
 # Turing modules are Spack builds with hashed names (e.g. cuda/12.6.3/5fe76nu); pick by version prefix.
 _mod() { module -t avail 2>&1 | grep -m1 "^$1" ; }
 module load "$(_mod miniconda3/25.1)" "$(_mod cuda/12.9)" 2>/dev/null || module load "$(_mod miniconda3/)" "$(_mod cuda/12)" 2>/dev/null || true
+command -v git >/dev/null || module load "$(_mod git/2)" 2>/dev/null || true   # some compute nodes have no system git (publish.sh needs it)
 source "$(conda info --base)/etc/profile.d/conda.sh"
 export ROADFLOOD_ENV=${ROADFLOOD_ENV:-$HOME/envs/roadflood}
 [ -d "$ROADFLOOD_ENV" ] && conda activate "$ROADFLOOD_ENV"
