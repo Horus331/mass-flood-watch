@@ -1,0 +1,43 @@
+# Road-closure prototype: aug2021_fc_aug2021_hrrr06z
+
+Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)), 20 m grid, storm from 2021-08-19T06:00Z.
+
+| Result | Value |
+| --- | --- |
+| Road segments in the area | 8,354 |
+| Expected closures (sum of probabilities) | 19.2 |
+| Segments with closure probability >= 50% | 5 (3.3 km) |
+| Further segments that may close (stream reaches the road crest) | 4 (2.8 km) |
+| Culverts overtopped / surcharged | 17 / 0 of 1347 |
+| Road segments cut off from hospitals | 49 |
+| Worst added trip time to a hospital | 11.7 min |
+| Heaviest hour of rain | 6.1 mm |
+| Flood model run time | 522 s |
+
+## Checks against what happened
+
+- Storm-day flood reports in the area: 5; water >= 10 cm within 100 m of 0% of them, vs 13% of random points (any day).
+- Segments flagged impassable are 0.0x as likely as an average segment to have a report within 200 m.
+- MassDOT repeating flood sites in the area: 10; 1 have a segment within 150 m at P >= 0.5 (share of all segments at P >= 0.5: 0.1%).
+
+## Top segments
+
+| # | P(close) | Road | Town | Why |
+| --- | --- | --- | --- | --- |
+| 1 | 1.00 | Martin Luther King Jr Boulevard | Worcester | 0.64 m of water at peak; over 30 cm for 20.5 h; 30 cm reached 1.0 h into the storm; worst hour 4 mm (76% of the storm); water beside the road 0.40 m below its crest (design freeboard 0.30 m; P 0.25); road sag 3.2 m deep (drains sized for the 10-yr hour, 43 mm; peak hour here 4 mm; catchment 60.2 ha) (P 1.00) |
+| 2 | 1.00 | Route 122 | Northbridge | 0.82 m of water at peak; over 30 cm for 21.0 h; 30 cm reached 0.5 h into the storm; worst hour 1 mm (58% of the storm); a culvert within 100 m is overtopped |
+| 3 | 0.68 | Foster Street | Worcester | 0.35 m of water at peak; over 30 cm for 9.5 h; 30 cm reached 12.0 h into the storm; worst hour 4 mm (76% of the storm); water beside the road 0.37 m below its crest (design freeboard 0.30 m; P 0.31); a culvert within 100 m is overtopped |
+| 4 | 0.68 | Foster Street | Worcester | 0.35 m of water at peak; over 30 cm for 9.5 h; 30 cm reached 12.0 h into the storm; worst hour 4 mm (76% of the storm); water beside the road 0.21 m below its crest (design freeboard 0.30 m; P 0.73); a culvert within 100 m is overtopped |
+| 5 | 0.50 | Ludlow Street | Worcester | 0.30 m of water at peak; worst hour 3 mm (73% of the storm); a culvert within 100 m is overtopped |
+| 6 | 0.50 | Stafford Street | Worcester | 0.30 m of water at peak; worst hour 4 mm (74% of the storm); a culvert within 100 m is overtopped |
+| 7 | 0.37 | Providence Street | Millbury | 0.27 m of water at peak; worst hour 2 mm (60% of the storm); a culvert within 100 m is overtopped |
+| 8 | 0.36 | Millbury Street | Grafton | 0.26 m of water at peak; worst hour 1 mm (75% of the storm) |
+| 9 | 0.32 | Route 12 | Auburn | 0.25 m of water at peak; worst hour 5 mm (74% of the storm); water beside the road 3.09 m above its crest (design freeboard 0.30 m; P 1.00); a culvert within 100 m is overtopped |
+| 10 | 0.24 | James Street | Worcester | 0.23 m of water at peak; worst hour 4 mm (74% of the storm); a culvert within 100 m is overtopped |
+| 11 | 0.13 | Hampton Street | Auburn | 0.19 m of water at peak; worst hour 4 mm (73% of the storm); a culvert within 100 m is overtopped |
+| 12 | 0.12 | Washington Street | Worcester | 0.18 m of water at peak; worst hour 4 mm (76% of the storm); water beside the road 0.09 m below its crest (design freeboard 0.30 m; P 0.92); a culvert within 100 m is overtopped |
+| 13 | 0.11 | Providence Road | Sutton | 0.18 m of water at peak; worst hour 1 mm (65% of the storm); a culvert within 100 m is overtopped |
+| 14 | 0.10 | Eaton Avenue | Auburn | 0.17 m of water at peak; worst hour 5 mm (75% of the storm); water beside the road 2.92 m above its crest (design freeboard 0.30 m; P 1.00); a culvert within 100 m is overtopped |
+| 15 | 0.09 | (unnamed) | Westborough | 0.16 m of water at peak; worst hour 0 mm (67% of the storm); a culvert within 100 m is overtopped |
+
+Closure probability (depth): Phi((peak depth - 0.30) / 0.10), physics prior v0. A physics prior from published thresholds, not calibrated on observed closures.
