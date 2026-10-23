@@ -200,6 +200,25 @@ def main():
         r = storm(sid)
         if r is None: print(sid, 'no data'); continue
         r['kind'] = kind; res[sid] = r
+    # gauge factors for LF_RAIN_GAUGE (sim/colab/lf_raingauge.py): daily gauges within the box + 0.1 deg, pairs >= 10 mm
+    FAC = dict(_about='per storm: daily gauges (ACIS: CoCoRaHS / COOP) within the box + 0.1 deg, gauge-days overlapping the run by >= 6 h with gauge or '
+                      'Pass2 >= 10 mm; ratio = sum(gauge) / sum(Pass2) per gauge, gauges with a ratio outside 1/3-3 dropped (QC); mfb over all of them; min_gauges 5 for a factor (else mfb null)')
+    for sid, r in res.items():
+        G = json.load(open(f'{DATA}/{sid}/gauges.json')); bb = G['box_lonlat']; acc = {}
+        for x in r.get('daily', {}).get('pairs', []):
+            g = next(a for a in G['acis'] if a['id'] == x['id'])
+            if not (bb[0] - 0.1 <= g['lon'] <= bb[2] + 0.1 and bb[1] - 0.1 <= g['lat'] <= bb[3] + 0.1): continue
+            if max(x['gauge_mm'], x['mrms_mm']) < 10: continue
+            a = acc.setdefault(x['id'], dict(id=x['id'], name=x['name'], lat=g['lat'], lon=g['lon'], g=0.0, r=0.0)); a['g'] += x['gauge_mm']; a['r'] += x['mrms_mm']
+        gs = [dict(a, ratio=round(a['g'] / a['r'], 3)) for a in acc.values() if a['r'] >= 10]
+        qc = [a['id'] for a in gs if not (1 / 3 <= a['ratio'] <= 3)]          # QC: a zero / multi-day report, not a rain measurement
+        gs = [a for a in gs if a['id'] not in qc]
+        sg, sr = sum(a['g'] for a in gs), sum(a['r'] for a in gs)
+        FAC[sid] = dict(mfb=round(sg / sr, 3) if len(gs) >= 5 and sr > 0 else None, n=len(gs), qc_dropped=qc, gauge_sum_mm=round(sg, 1), pass2_sum_mm=round(sr, 1),
+                        gauges=[dict(id=a['id'], name=a['name'], lat=a['lat'], lon=a['lon'], ratio=a['ratio'], gauge_mm=round(a['g'], 1), pass2_mm=round(a['r'], 1)) for a in gs])
+        print(f"gauge factors {sid}: {len(gs)} gauges, mfb {FAC[sid]['mfb']}, per-gauge ratio range "
+              f"{min((a['ratio'] for a in gs), default=None)}-{max((a['ratio'] for a in gs), default=None)}")
+    json.dump(FAC, open(f'{ROOT}/docs/proto/rain/gauge_factors.json', 'w'), indent=1)
     allp = [p for r in res.values() for p in r.pop('_hourly_pairs', [])]
     res['_pooled'] = dict(hourly_all=ratio(allp, 0.25), hourly_by_class=classes(allp))
     json.dump(res, open(f'{ROOT}/docs/proto/rain/gauges.json', 'w'), indent=1)
