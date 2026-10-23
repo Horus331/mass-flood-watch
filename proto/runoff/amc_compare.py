@@ -61,7 +61,7 @@ def main():
         rb['primary'] = rc['primary'] = prim; row['closure_base'] = closure(rb); row['closure_auto'] = closure(rc)
         if prim: base_runs.append(rb); cand_runs.append(rc)
         rows.append(row); print(n, row['amc'], row['closure_base']['hits3'], '->', row['closure_auto']['hits3'], flush=True)
-    cmp_ = V.compare(dict(runs=base_runs), dict(runs=cand_runs))
+    cmp_ = V.compare(dict(runs=base_runs), dict(runs=cand_runs), rule=dict(V.ADOPT, alpha=0.05 / 4))     # k = 4 T4 variants on OOS-7 (AMC.md §0)
     pools = {}
     for arm, R in (('base', base_runs), ('auto', cand_runs)):
         for nm, st in (('heldout7', V.HELDOUT), ('dev2', V.DEV), ('all9', V.LOSO9)):
