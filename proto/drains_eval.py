@@ -109,6 +109,40 @@ def g(d, *ks):
     return d
 
 
+def equal_budget(storm, cases):
+    """Ranking test at equal flag budgets inside the city: rank city segments by peak depth on the road (segments.geojson; rows not kept
+    = 0) and flag the top k, for k = each case's own p_close >= 0.5 count.  If drains only acted like a higher threshold, base at the
+    drains budget would catch as many documented sites as the drains run; if they reorder the city (pipes drain the streets that do not
+    flood), the drains run catches more at the same k."""
+    import gzip
+    import impacts as IM
+    import prototype as PR
+    d0 = os.path.join(DEST, f'{storm}_{cases[0]}'); meta = json.load(open(f'{d0}/flood_meta.json'))
+    S = json.load(open(os.path.join(ROOT, 'docs', 'graph_segments.json'))); town = np.array(S['props']['town'])
+    Q = IM.road_points(S, meta, 10.0); segs = np.unique(Q['seg'][town[Q['seg']] == CITY]); pos = {int(s): i for i, s in enumerate(segs)}
+    files = [f for f in sorted(glob.glob(os.path.join(HERE, 'data', f'labels_{storm}_*.csv')))]
+    sites = {}
+    for f in files:
+        tw = labels_town(f)
+        sites[os.path.basename(f)] = [[pos[int(x)] for x in sg if int(x) in pos] for lab, sg in PR.label_segments(PR.load_labels(f), Q, S['props'], meta, strict=True) if tw.get(lab['id']) == CITY]
+        sites[os.path.basename(f)] = [v for v in sites[os.path.basename(f)] if v]
+    depth, k = {}, {}
+    for c in cases:
+        d = os.path.join(DEST, f'{storm}_{c}'); fn = f'{d}/segments.geojson.gz'
+        if not os.path.exists(fn): continue
+        a = np.zeros(len(segs)); pc = np.zeros(len(segs))
+        for ft in json.load(gzip.open(fn))['features']:
+            p = ft['properties']; i = pos.get(int(p['segment']))
+            if i is not None: a[i] = p.get('peak_depth_m') or 0.0; pc[i] = p.get('p_close') or 0.0
+        depth[c] = a + 1e-3 * pc; k[c] = int((pc >= 0.5).sum())
+    R = dict(note=equal_budget.__doc__.split('.')[0], k=k, caught={})
+    for kc, kv in k.items():
+        for c, a in depth.items():
+            fl = np.zeros(len(segs), bool); fl[np.argsort(-a, kind='stable')[:kv]] = True
+            R['caught'].setdefault(f'top{kv}_({kc} budget)', {})[c] = {f: f'{sum(bool(fl[v].any()) for v in V)}/{len(V)}' for f, V in sites.items()}
+    return R
+
+
 def compare():
     out = {}
     for s in ('sep2023', 'aug2026'):
@@ -138,11 +172,13 @@ def compare():
                 rem = b - ns; V['removed_vs_base_m3'] = round(rem)
                 if rx: V['removed_share_of_rain_excess'] = round(rem / rx, 4)
                 V['removed_mm_over_city_77km2'] = round(rem / 76.6e6 * 1000, 1)
+        if s in out: out[s]['equal_budget_city'] = equal_budget(s, [c for c in ('base', 'drains', 'design') if c in out[s]])
     json.dump(out, open(os.path.join(DEST, 'drains.json'), 'w'), indent=1)
     for s, D in out.items():
         print(f'== {s}')
         print('case    | box: flag% labels rec lift | city: segs flag% labels caught/n lift | dpw caught/n | wet road 10/30cm | pts hit30 | gauge bias | removed m3 (share)')
         for c, v in D.items():
+            if c == 'equal_budget_city': print('equal budget (city, top-k by road depth):', json.dumps(v['caught'])); continue
             B, C = v['box'], v['city']; l = C.get('labels_strict') or {}; dp = C.get('dpw_strict') or {}; V = C['volumes']
             print(f"{c:7s} | {B['flagged_share']} {B['labels']['recall']} {B['labels']['lift']} | {C['segments']} {C['flagged_share']} {l.get('caught')}/{l.get('n')} {l.get('lift')} | "
                   f"{dp.get('caught')}/{dp.get('n')} | {C.get('wet_road_share_10cm')}/{C.get('wet_road_share_30cm')} | {g(C, 'points', 'hit_30')} | {B['gauge_mean_rise_bias_m']} | "
