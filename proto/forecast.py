@@ -330,6 +330,44 @@ def cmd_background(a):
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True); json.dump(out, open(a.out, 'w'), indent=1)
 
 
+# ------------------------------------------------------------------ hindcast report
+def metrics(d):
+    """Rain, closures and skill of one run folder (summary.json + points.json + score.json, as written by the hindcast workflow / Turing)."""
+    S = json.load(open(os.path.join(d, 'summary.json'))); ck = S.get('checks', {}); L = ck.get('labels_segments', {})
+    st = L.get('depth_rule', {}).get('all', {}); lo = L.get('loose', {}).get('depth_rule', {}).get('all', {})
+    pts = json.load(open(os.path.join(d, 'points.json')))['summary'] if os.path.exists(os.path.join(d, 'points.json')) else {}
+    sc = json.load(open(os.path.join(d, 'score.json'))) if os.path.exists(os.path.join(d, 'score.json')) else {}
+    fm = os.path.join(d, 'flood_meta.json'); M = json.load(open(fm)) if os.path.exists(fm) else {}
+    return dict(t0=S.get('storm_start'), rain_max_mm=S.get('rain_max_total_mm'), rain_peak1h_mm=S.get('rain_peak1h_max_mm'), segments=S.get('segments_in_box'),
+                flagged=S.get('segments_p_ge_50'), flagged_share=L.get('depth_rule', {}).get('flagged_share'), sites=st.get('n'), recall=st.get('recall'),
+                random_recall=st.get('random_recall'), lift=st.get('lift'), lift_naive=st.get('lift_naive'), loose_recall=lo.get('recall'), loose_lift=lo.get('lift'),
+                report_lift=ck.get('reports', {}).get('lift'), pts_hit30={k: (v.get('hit_30'), v.get('n')) for k, v in pts.items()},
+                gauge_rise_err_m=sc.get('mean_abs_rise_error_m'), gauge_rise_bias_m=sc.get('mean_rise_bias_m'), gauge_timing_err_h=sc.get('mean_abs_timing_error_h'),
+                runtime_s=S.get('flood_model_runtime_s'), solver=(S.get('solver') or '')[-12:], rain_src=(M.get('inputs', {}).get('rain') or '')[:60])
+
+
+def cmd_report(a):
+    H = os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast'); rows = []
+    for name, ref, cases in (('Sept 11, 2023, Leominster-Fitchburg (20 x 20 km, 20 m)', 'turing/leominster_sep2023_gpu',
+                              [('MRMS radar, GPU (reference)', 'docs/proto/turing/leominster_sep2023_gpu'), ('MRMS radar, CPU (control, same code)', H + '/sep2023_mrms'),
+                               ('HRRR 12z (08:00 EDT, ~9 h before first report)', H + '/sep2023_hrrr12z'), ('HRRR 18z (14:00 EDT, ~3 h before)', H + '/sep2023_hrrr18z')]),
+                             ('Aug 19, 2021, Worcester (Fred; 20 x 20 km, 20 m)', 'turing/worcester_aug2021_gpu',
+                              [('MRMS radar, GPU (reference)', 'docs/proto/turing/worcester_aug2021_gpu'), ('MRMS radar, CPU (control, same code)', H + '/aug2021_mrms'),
+                               ('HRRR 06z (02:00 EDT, ~10 h before)', H + '/aug2021_hrrr06z'), ('HRRR 12z (08:00 EDT, ~4 h before)', H + '/aug2021_hrrr12z')])):
+        T = [f'## {name}', '', '| rain | box max rain (mm) | peak hour (mm) | segments P >= 0.5 | flagged share | label recall (strict) | random recall | lift | loose recall | '
+             'reports hit 30 cm (LSR / StormEvents / labels) | random road points | gauge rise error (m) |', '|' + ' --- |' * 12]
+        for lab, d in cases:
+            d = d if os.path.isabs(d) else os.path.join(ROOT, d)
+            if not os.path.exists(os.path.join(d, 'summary.json')): T.append(f'| {lab} | not run |' + ' |' * 10); continue
+            m = metrics(d); rows.append(dict(storm=name, case=lab, dir=os.path.relpath(d, ROOT), **m)); p = m['pts_hit30']
+            f = lambda k: f"{p[k][0]:.2f}" if k in p and p[k][0] is not None else '-'
+            T.append(f"| {lab} | {m['rain_max_mm']} | {m['rain_peak1h_mm']} | {m['flagged']} | {100 * (m['flagged_share'] or 0):.1f} % | {m['recall']} ({m['sites']} sites) | "
+                     f"{m['random_recall']} | {m['lift']} | {m['loose_recall']} | {f('LSR')} / {f('StormEvents')} / {f('labels')} | {f('random_road_points')} | {m['gauge_rise_err_m']} |")
+        rows and None; print('\n'.join(T)); print()
+        a.tables.append('\n'.join(T))
+    json.dump(rows, open(os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast.json'), 'w'), indent=1)
+
+
 def selftest():
     """Synthetic HRRR-like grid: town masks, running maxima, gate decision and boxes."""
     class FakeG:
@@ -367,6 +405,6 @@ if __name__ == '__main__':
     p = sp.add_parser('status'); p.add_argument('--gate', required=True); p.add_argument('--run', action='append'); p.add_argument('--extra'); p.add_argument('--out', required=True)
     p = sp.add_parser('calib'); p.add_argument('--out', required=True); p.add_argument('--only'); p.add_argument('--cycles', type=int, default=3); p.add_argument('--no-mrms', action='store_true')
     p = sp.add_parser('background'); p.add_argument('--start', required=True); p.add_argument('--end', required=True); p.add_argument('--hour', type=int, default=12); p.add_argument('--out', required=True)
-    sp.add_parser('selftest')
+    sp.add_parser('selftest'); sp.add_parser('report')
     a = ap.parse_args()
-    {'gate': cmd_gate, 'status': cmd_status, 'calib': cmd_calib, 'background': cmd_background, 'selftest': lambda a: selftest()}.get(a.cmd, lambda a: ap.print_help())(a)
+    {'gate': cmd_gate, 'status': cmd_status, 'calib': cmd_calib, 'background': cmd_background, 'report': lambda a: (setattr(a, 'tables', []), cmd_report(a)), 'selftest': lambda a: selftest()}.get(a.cmd, lambda a: ap.print_help())(a)
