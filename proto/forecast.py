@@ -102,9 +102,10 @@ def evaluate(init, H, R, gate, force=False):
     score = np.where(ins, np.maximum(S['max6h'] / GATE_6H_MM, S['max24h'] / GATE_24H_MM), 0.0)
     boxes, left = [], score >= (1.0 if hit else 0.0)
     if trig:
-        if not hit: left = ins.copy()      # forced with no exceedance: one box on the wettest point
+        if not hit:      # forced with no exceedance: one box on the wettest point (forecast total)
+            score = np.where(ins, S['total'] + 1e-3 * S['max6h'], -1.0); left = ins.copy()
         x0d, y0d, x1d, y1d = D3_BOX; half = BOX_KM * 500.0
-        while left.any() and len(boxes) < MAX_BOXES:
+        while left.any() and len(boxes) < (MAX_BOXES if hit else 1):
             k = int(np.argmax(np.where(left, score, -1)))
             cx = min(max(round(gate.X[k] / 1000) * 1000, x0d + half), x1d - half); cy = min(max(round(gate.Y[k] / 1000) * 1000, y0d + half), y1d - half)
             b = [cx - half, cy - half, cx + half, cy + half]

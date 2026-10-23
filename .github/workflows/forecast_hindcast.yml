@@ -24,16 +24,19 @@ jobs:
       - run: pip install -q numpy scipy pandas requests pygrib pyproj matplotlib
       - name: run
         run: |
-          mkdir -p docs/proto/forecast
+          set -o pipefail; mkdir -p docs/proto/forecast
           if [ "${{ inputs.what }}" = "calib" ]; then
-            python proto/forecast.py calib --out docs/proto/forecast/gate_calibration.json ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
+            python proto/forecast.py calib --out docs/proto/forecast/gate_calibration.json ${{ inputs.only && format('--only {0}', inputs.only) || '' }} 2>&1 | tee docs/proto/forecast/calib.log
           else
-            python proto/forecast.py background --start ${{ inputs.start }} --end ${{ inputs.end }} --out docs/proto/forecast/gate_background_${{ inputs.start }}.json
+            python proto/forecast.py background --start ${{ inputs.start }} --end ${{ inputs.end }} --out docs/proto/forecast/gate_background_${{ inputs.start }}.json 2>&1 | tee docs/proto/forecast/background.log
           fi
+      - name: diagnostics (annotation)
+        if: always()
+        run: for f in docs/proto/forecast/*.log; do echo "::notice title=$f::$(tail -n 40 $f | cut -c1-250 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"; done
       - name: commit
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add docs/proto/forecast; git commit -qm "forecast gate ${{ inputs.what }}" || exit 0
+          git add docs/proto/forecast/*.json; git commit -qm "forecast gate ${{ inputs.what }}" || exit 0
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
   hindcast:
     if: inputs.what == 'hindcast'
@@ -73,13 +76,18 @@ jobs:
           set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
           P=${{ runner.temp }}/proto; D=docs/proto/forecast/hindcast/${{ matrix.c.name }}; mkdir -p $D
-          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S | tail -5
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S 2>&1 | tee -a w9_stdout.txt | tail -5
           python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
           python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
           cp $P/summary.json $P/REPORT.md $P/watchlist.csv $D/; cp $OUTDIR/meta.json $D/flood_meta.json
           python -c "import json,sys; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
           tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt
           mkdir -p art && cp -r $P art/ && cp -r $D art/
+      - name: diagnostics (annotation)
+        if: always()
+        run: |
+          f() { [ -f "$1" ] && { grep -E "$2" "$1" | tail -n ${3:-12}; echo ...; tail -n 15 "$1"; } | cut -c1-300 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
+          echo "::notice title=w9::$(f w9_stdout.txt 'rain:|HRRR|grid |LISFLOOD-FP run|peak wet|effective|Error|error|Traceback|Elapsed|Maximum resident')"
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: 'hindcast_${{ matrix.c.name }}', path: art, if-no-files-found: ignore}
