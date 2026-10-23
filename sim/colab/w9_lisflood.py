@@ -49,6 +49,79 @@ ZENODO_RECORDS = ['13121102', '4073010']        # LISFLOOD-FP v8.2 (DOI 10.5281/
 NODATA = -9999.0
 LOGP = None
 
+# ------------------------------------------------------------------------------------------------ MRMS hourly QPE sources
+# Default: AWS noaa-mrms-pds MultiSensor_QPE_01H_Pass2 (MRMS v12, first day 2020-10-14: docs/proto/obs/catalog/mrms_check.json).
+# Before that day (and when an AWS hour is missing) the hourly gauge-corrected QPE comes from the Iowa State (IEM) mtarchive mirror of the
+# NCEP MRMS feed: MultiSensor_QPE_01H_Pass2 where IEM has it (v12, >= Oct 2020), else the v11 GaugeCorr_QPE_01H (gauge-corrected hourly,
+# the predecessor of Pass2). RadarOnly_QPE_01H is the last resort (not gauge-corrected); every hour's product is recorded in meta.json.
+# Same CONUS 0.01 deg grid (lon 0..360, -3 = missing) for all three, so the grid handling (mrms_sample) is shared.
+MRMS_AWS_FIRST = '2020-10-14'
+MRMS_AWS_URL = 'https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MultiSensor_QPE_01H_Pass2_00.00/{d}/MRMS_MultiSensor_QPE_01H_Pass2_00.00_{f}.grib2.gz'
+MRMS_IEM_URL = 'https://mtarchive.geol.iastate.edu/{y}/{m}/{dd}/mrms/ncep/{p}/{p}_00.00_{f}.grib2.gz'
+
+
+def mrms_sources(ts):
+    """Ordered (label, url) candidates for the hourly QPE ending at ts (UTC pandas Timestamp / datetime). AWS Pass2 first when it exists."""
+    d, f = ts.strftime('%Y%m%d'), ts.strftime('%Y%m%d-%H%M%S')
+    iem = lambda p: (f'IEM {p}', MRMS_IEM_URL.format(y=ts.strftime('%Y'), m=ts.strftime('%m'), dd=ts.strftime('%d'), p=p, f=f))
+    if os.environ.get('LF_MRMS_SRC') == 'iem': aws = []          # testing: skip AWS
+    else: aws = [('AWS MultiSensor_QPE_01H_Pass2', MRMS_AWS_URL.format(d=d, f=f))] if d >= MRMS_AWS_FIRST.replace('-', '') else []
+    v12 = [iem('MultiSensor_QPE_01H_Pass2'), iem('GaugeCorr_QPE_01H')] if d >= MRMS_AWS_FIRST.replace('-', '') else [iem('GaugeCorr_QPE_01H'), iem('MultiSensor_QPE_01H_Pass2')]
+    return aws + v12 + [iem('RadarOnly_QPE_01H')]
+
+
+def mrms_fetch_raw(ts, fetch, cache=None):
+    """-> (gzipped grib2 bytes, product label, url) from the first source that has the hour; fetch(url) -> bytes or None (missing).
+    cache: optional folder (LF_MRMS_DIR); files keyed by their own basename (AWS and IEM names differ)."""
+    tried = []
+    for lab, url in mrms_sources(ts):
+        cp_ = os.path.join(cache, os.path.basename(url)) if cache else None
+        if cp_ and os.path.exists(cp_): return open(cp_, 'rb').read(), lab, url
+        raw_ = fetch(url)
+        if raw_:
+            if cp_: os.makedirs(cache, exist_ok=True); open(cp_, 'wb').write(raw_)
+            return raw_, lab, url
+        tried.append(lab)
+    raise RuntimeError(f'no MRMS hourly QPE for {ts}: tried {tried}')
+
+
+def mrms_http_fetch(url, tries=4):
+    """requests GET -> bytes; None at once on 404/403 (the hour or product is not in that archive), retries on other failures."""
+    import requests
+    for kk in range(tries):
+        try:
+            r = requests.get(url, timeout=120)
+            if r.status_code == 200 and r.content: return r.content
+            if r.status_code in (403, 404): return None
+        except Exception: pass
+        time.sleep(3 * (kk + 1))
+    return None
+
+
+def mrms_sample(raw_gz, lat_c, lon_c, gp):
+    """gzipped MRMS grib2 -> float32 mm on the model's (lat_c, lon_c) cell centres (bilinear on the 0.01 deg grid; missing/negative -> 0)."""
+    import pygrib
+    from scipy.interpolate import RegularGridInterpolator
+    open(gp, 'wb').write(gzip.decompress(raw_gz))
+    g = pygrib.open(gp); m = g[1]; la, lo = m.latlons(); v = np.ma.filled(m.values, 0).astype(np.float32); g.close(); v[v < 0] = 0
+    lat1d = la[:, 0]; lon1d = lo[0, :]; lon1d = np.where(lon1d > 180, lon1d - 360, lon1d)
+    if lat1d[0] < lat1d[-1]: lat1d = lat1d[::-1]; v = v[::-1]          # north-up, as the NCEP grids are (scanning mode guard)
+    i0 = np.searchsorted(-lat1d, -lat_c.max() - 0.05); i1 = np.searchsorted(-lat1d, -lat_c.min() + 0.05) + 1
+    j0 = np.searchsorted(lon1d, lon_c.min() - 0.05); j1 = np.searchsorted(lon1d, lon_c.max() + 0.05) + 1
+    fi = RegularGridInterpolator((lat1d[i0:i1][::-1], lon1d[j0:j1]), v[i0:i1, j0:j1][::-1], bounds_error=False, fill_value=0)
+    LA, LO = np.meshgrid(lat_c, lon_c, indexing='ij'); return fi((LA, LO)).astype(np.float32)
+
+
+def storm_cfg(sid):
+    """STORMS entry, else the storm catalogue (docs/proto/obs/catalog.json: t0, hours) for the storms added there."""
+    if sid in STORMS: return dict(STORMS[sid])
+    cat = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'proto', 'obs', 'catalog.json')
+    for e in json.load(open(cat))['events']:
+        if e['id'] == sid:
+            return dict(t0=e['t0'], hours=int(e['hours']), frame_min=30,
+                        title=f"{e.get('date_local', sid)} flash floods, {', '.join((e.get('towns') or [e.get('area', '')])[:3])} (catalogue {sid})")
+    raise SystemExit(f'unknown STORM {sid}: not in STORMS nor docs/proto/obs/catalog.json')
+
 
 def log(*a):
     s = time.strftime('%H:%M:%S ') + ' '.join(str(x) for x in a); print(s, flush=True)
@@ -828,33 +901,12 @@ def build_inputs(BOX, RES, S, TOK):
         CNP_D = np.array([77.0, 36.0, 60.0, 73.0, 79.0], np.float32)[grp]      # same pervious CN table as LF_LOSS=cn
         log(f"LF_LOSS=cn_dcia: DCIA {os.environ.get('LF_DCIA', 'sutherland')}, impervious depression storage {os.environ.get('LF_DCIA_IA', '2')} mm, "
             f"AMC {os.environ.get('LF_CN_AMC', 'II')}, pervious CN x {os.environ.get('LF_CN_SCALE', '1')}")
-    # MRMS hourly (w4 mrms_hour)
-    import requests, pygrib
-    from scipy.interpolate import RegularGridInterpolator
-    def get(url, tries=4):
-        for kk in range(tries):
-            try:
-                r = requests.get(url, timeout=120)
-                if r.status_code == 200: return r
-            except Exception: pass
-            time.sleep(3 * (kk + 1))
-        raise RuntimeError(f'download failed: {url[-60:]}')
-    gp = f'{WORK}/q.grib2'
+    # MRMS hourly (w4 mrms_hour): AWS Pass2 by default, IEM mtarchive (Pass2 / GaugeCorr_QPE_01H) before Oct 2020 or when AWS lacks the hour
+    gp = f'{WORK}/q.grib2'; PRODUCTS = {}
     def mrms_hour(ts):
-        d = ts.strftime('%Y%m%d'); f = ts.strftime('%Y%m%d-%H%M%S')
-        url = f'https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MultiSensor_QPE_01H_Pass2_00.00/{d}/MRMS_MultiSensor_QPE_01H_Pass2_00.00_{f}.grib2.gz'
-        cp_ = os.path.join(os.environ['LF_MRMS_DIR'], os.path.basename(url)) if os.environ.get('LF_MRMS_DIR') else None   # optional cache (offline compute nodes)
-        if cp_ and os.path.exists(cp_): raw_ = open(cp_, 'rb').read()
-        else:
-            raw_ = get(url).content
-            if cp_: os.makedirs(os.environ['LF_MRMS_DIR'], exist_ok=True); open(cp_, 'wb').write(raw_)
-        open(gp, 'wb').write(gzip.decompress(raw_))
-        g = pygrib.open(gp); m = g[1]; la, lo = m.latlons(); v = np.ma.filled(m.values, 0).astype(np.float32); g.close(); v[v < 0] = 0
-        lat1d = la[:, 0]; lon1d = lo[0, :]; lon1d = np.where(lon1d > 180, lon1d - 360, lon1d)
-        i0 = np.searchsorted(-lat1d, -lat_c.max() - 0.05); i1 = np.searchsorted(-lat1d, -lat_c.min() + 0.05) + 1
-        j0 = np.searchsorted(lon1d, lon_c.min() - 0.05); j1 = np.searchsorted(lon1d, lon_c.max() + 0.05) + 1
-        fi = RegularGridInterpolator((lat1d[i0:i1][::-1], lon1d[j0:j1]), v[i0:i1, j0:j1][::-1], bounds_error=False, fill_value=0)
-        LA, LO = np.meshgrid(lat_c, lon_c, indexing='ij'); return fi((LA, LO)).astype(np.float32)
+        raw_, lab, url = mrms_fetch_raw(ts, mrms_http_fetch, os.environ.get('LF_MRMS_DIR'))
+        PRODUCTS[ts.strftime('%Y-%m-%dT%H:%MZ')] = lab
+        return mrms_sample(raw_, lat_c, lon_c, gp)
     t0 = pd.Timestamp(S['t0']); hours = [t0 + pd.Timedelta(hours=h + 1) for h in range(S['hours'])]
     RAIN, MISSING = [], []
     if S.get('rain_src') == 'hrrr':      # LF_RAIN=hrrr: NOAA HRRR forecast buckets; forecast hour fh = model hour fh - 1 (hrrr_rain.py), zero rain after the horizon (drain-down)
@@ -904,7 +956,11 @@ def build_inputs(BOX, RES, S, TOK):
                                     float(os.environ.get('LF_DCIA_IA', '2')), os.environ.get('LF_DCIA', 'sutherland'))
         log(f"effective rain (CN+DCIA) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%); "
             f"mean impervious {100 * dst_['tia_mean']:.1f}%, connected {100 * dst_['dcia_mean']:.1f}%, mean pervious CN {dst_['cnp_mean']:.1f}")
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
+    if PRODUCTS:
+        cnt_ = {}
+        for v_ in PRODUCTS.values(): cnt_[v_] = cnt_.get(v_, 0) + 1
+        log(f'MRMS products (hours): {cnt_}')
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, rain_products=PRODUCTS, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
                 NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM, SUB=SUB, GAUGE=GAUGE)
 
 
@@ -925,7 +981,7 @@ def main():
         os.environ.setdefault('LF_INFIL_MODE', 'rain'); os.environ.setdefault('LF_INIT_TSTEP', '1')
     BOX = tuple(float(v) for v in os.environ.get('BOX', '150000,905000,170000,925000').split(',')); RES = float(os.environ.get('RES', '20'))
     if os.environ.get('LF_DOMAIN', 'box') == 'basin': BOX = tuple(float(v) for v in json.load(open(os.environ['LF_DOMAIN_FILE']))['box'])   # the domain file sets the box
-    STORM = os.environ.get('STORM', 'sep2023'); S = dict(STORMS[STORM])
+    STORM = os.environ.get('STORM', 'sep2023'); S = storm_cfg(STORM)
     if os.environ.get('T0'): S['t0'] = os.environ['T0']
     if os.environ.get('HOURS'): S['hours'] = int(os.environ['HOURS'])
     if os.environ.get('LF_RAIN', 'mrms') == 'hrrr':     # forecast rain: T0 = HRRR issue time, HOURS = horizon (or HOURS - drain-down) + LF_DRAIN_H dry hours
@@ -1196,7 +1252,7 @@ def main():
                 crs='EPSG:26986', model=model, model_source=src_url, model_build=dict(cuda=bool(is_cuda), exe=os.path.basename(exe), build_s=round(build_s)),
                 solver='acceleration (local inertial, Bates et al. 2010)' + (' on GPU (cuda)' if is_cuda else ' on CPU (OpenMP)'),
                 inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning=f"{os.environ.get('LF_N_CHAN', '0.035')} water/channel, 0.10 dense urban, " + ('NLCD table (forest ' + os.environ.get('LF_N_FOREST', '0.12') + ')' if LC is not None else os.environ.get('LF_N_FP', '0.08') + ' other'),
-                            rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS MultiSensor QPE 01H Pass2') + ' -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
+                            rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS ' + ' + '.join(sorted(set(I.get('rain_products', {}).values())) or ['AWS MultiSensor_QPE_01H_Pass2'])) + ' -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
                             env={k: ('set (private file; path not recorded)' if k == 'LF_DRAINS' else os.environ[k]) for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)},
                             drains=DRAINS or 'none', infiltration=INFIL, initial_tstep_s=INIT_TSTEP, t0_snapshot=T0_SNAP),
@@ -1205,6 +1261,10 @@ def main():
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
                 forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours']) if S.get('rain_src') == 'hrrr' else None)
     if SUBR: meta['inputs']['rain_subhourly'] = SUBR
+    if I.get('rain_products'):     # MRMS product per hour (AWS Pass2, or the IEM mtarchive fallback before Oct 2020)
+        cnt_ = {}
+        for v_ in I['rain_products'].values(): cnt_[v_] = cnt_.get(v_, 0) + 1
+        meta['inputs']['rain_products'] = dict(hours=cnt_, by_hour=I['rain_products'])
     if I.get('GAUGE'): meta['inputs']['rain_gauge_adjust'] = I['GAUGE']
     if I.get('DAMS'):
         try: meta['dams'] = lf_dams_report(I['DAMS'], I['Z'], FR, FT)
@@ -1379,6 +1439,27 @@ def selftest():
     assert rain_minus_infil(np.ones((2, 1, 1), np.float32), 0.0)[0].sum() == 2.0
     ok.append('LF_INFIL_MODE=rain: max(R - mmh, 0) per cell and hour, kept share')
     ok.append('LF_LOSS=cn reproduces FINDINGS table; cn_dcia: connected pavement = IMP (P - 2 mm), CN on pervious only, event-cumulative, water = rain')
+    import pandas as pd_
+    t19 = pd_.Timestamp('2019-07-06T18:00Z'); t21 = pd_.Timestamp('2021-07-09T12:00Z')
+    s19 = [l for l, _ in mrms_sources(t19)]; s21 = [l for l, _ in mrms_sources(t21)]
+    assert s19[0] == 'IEM GaugeCorr_QPE_01H' and not any(l.startswith('AWS') for l in s19) and s19[-1] == 'IEM RadarOnly_QPE_01H', s19
+    assert s21[0] == 'AWS MultiSensor_QPE_01H_Pass2' and s21[1] == 'IEM MultiSensor_QPE_01H_Pass2', s21
+    assert dict(mrms_sources(t19))['IEM GaugeCorr_QPE_01H'] == ('https://mtarchive.geol.iastate.edu/2019/07/06/mrms/ncep/GaugeCorr_QPE_01H/'
+                                                                'GaugeCorr_QPE_01H_00.00_20190706-180000.grib2.gz')
+    assert dict(mrms_sources(t21))['AWS MultiSensor_QPE_01H_Pass2'].endswith('/20210709/MRMS_MultiSensor_QPE_01H_Pass2_00.00_20210709-120000.grib2.gz')
+    seen = []
+    fake = lambda have: (lambda url: (seen.append(url), b'x' if any(h in url for h in have) else None)[1])
+    assert mrms_fetch_raw(t21, fake(['noaa-mrms-pds']))[1] == 'AWS MultiSensor_QPE_01H_Pass2' and len(seen) == 1
+    assert mrms_fetch_raw(t21, fake(['mtarchive']))[1] == 'IEM MultiSensor_QPE_01H_Pass2'           # AWS hour missing -> IEM Pass2
+    assert mrms_fetch_raw(t19, fake(['GaugeCorr']))[1] == 'IEM GaugeCorr_QPE_01H'
+    assert mrms_fetch_raw(t19, fake(['RadarOnly']))[1] == 'IEM RadarOnly_QPE_01H'
+    try: mrms_fetch_raw(t19, fake([])); raise AssertionError('no source should raise')
+    except RuntimeError: pass
+    cd_ = tempfile.mkdtemp(prefix='w9mr_'); mrms_fetch_raw(t19, fake(['GaugeCorr']), cd_); seen.clear()
+    assert mrms_fetch_raw(t19, fake([]), cd_)[1] == 'IEM GaugeCorr_QPE_01H' and not seen; shutil.rmtree(cd_)   # cache hit, no download
+    c_ = storm_cfg('jul2019'); assert c_['t0'] == '2019-07-06T14:00Z' and c_['hours'] == 18 and c_['frame_min'] == 30
+    assert storm_cfg('sep2023')['hours'] == 36 and storm_cfg('aug2018b')['hours'] == 22
+    ok.append('MRMS sources: AWS Pass2 first from 2020-10-14, IEM Pass2 when AWS lacks the hour, IEM GaugeCorr before; cache; catalogue storm config')
     shutil.rmtree(d)
     import lf_subhourly; ok += ['lf_subhourly: ' + o for o in lf_subhourly.selftest(sys.modules[__name__])]
     import lf_raingauge; ok += lf_raingauge.selftest()
