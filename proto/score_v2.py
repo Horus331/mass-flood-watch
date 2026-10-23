@@ -278,13 +278,16 @@ def score_domain(R, dm, towns):
         return out
 
     msz = np.array([len(s['segs']) for s in sites], int)
+    lsegs = {k_: [int(remap[x]) for x in R['matches'][k_] if remap[x] >= 0] for k_ in mk}   # unclustered labels (the RECALL.md / LOSO unit)
 
     def block(masks, k):
         fl = masks[0]; hits = np.mean([[bool(m[s['segs']].any()) for s in sites] for m in masks], axis=0) if sites else np.zeros(0)
         ch = chance_hit(n, k, msz) if sites else np.zeros(0)
         rec = float(hits.mean()) if sites else None; chr_ = float(ch.mean()) if sites else None
         segrec = float(np.mean([(m & yseg).sum() / max(1, yseg.sum()) for m in masks])) if yseg.any() else None
+        lh = float(np.mean([sum(bool(m[lsegs[k_]].any()) for k_ in mk) for m in masks])) if mk else 0.0
         return dict(k=int(k), share=k / max(1, n), site_recall=rec, site_hits=float(hits.sum()), chance_recall=chr_,
+                    label_hits=lh, label_recall=lh / len(mk) if mk else None,
                     lift=(rec / chr_ if rec is not None and chr_ else None), seg_recall=segrec, csi=csi(fl), fss=fss_block(fl),
                     _hits=hits.round(3).tolist(), _chance=ch.round(5).tolist())
 
@@ -330,13 +333,14 @@ def pooled(runs, dom='box', boot=NBOOT, seed=0):
         o = {}
         for b in blocks:
             path = (b,) if isinstance(b, str) else b; name = b if isinstance(b, str) else 'share_' + b[1]
-            H = N = C = 0.0; num = {str(r): 0.0 for r in RADII}; den = {str(r): 0.0 for r in RADII}; cs = np.zeros(3)
+            LH = LN = 0.0; H = N = C = 0.0; num = {str(r): 0.0 for r in RADII}; den = {str(r): 0.0 for r in RADII}; cs = np.zeros(3)
             for i, j in zip(sel, site_idx):
                 B = _get(runs[i]['domains'][dom], path); h = np.asarray(B['_hits']); c = np.asarray(B['_chance'])
                 H += h[j].sum(); C += c[j].sum(); N += len(j); cs += np.asarray(B['csi']['site'])
+                LH += B['label_hits']; LN += runs[i]['domains'][dom]['n_labels_matched']
                 for r in num:
                     if r in B['fss']: num[r] += B['fss'][r]['num']; den[r] += B['fss'][r]['den']
-            o[name] = dict(site_recall=H / N if N else None, chance=C / N if N else None, lift=(H / C if C else None),
+            o[name] = dict(label_recall=LH / LN if LN else None, site_recall=H / N if N else None, chance=C / N if N else None, lift=(H / C if C else None),
                            csi_site=cs[0] / cs.sum() if cs.sum() else None, **{f'fss{r}': (1 - num[r] / den[r]) if den[r] else None for r in num})
         for lv in ('seg', 'site'):
             v = [runs[i]['domains'][dom]['pr_auc'][lv] for i in sel]; v = [x for x in v if x is not None]; o[f'pr_auc_{lv}'] = float(np.mean(v)) if v else None
@@ -430,12 +434,13 @@ def table_md(runs, pools):
     for name, byd in pools.items():
         for dom, pl in byd.items():
             if not pl: continue
-            for met in ('site_recall', 'chance', 'lift', 'csi_site', 'fss100', 'fss300', 'fss1000'):
+            for met in ('label_recall', 'site_recall', 'chance', 'lift', 'csi_site', 'fss100', 'fss300', 'fss1000'):
                 cells = []
                 for b in ['rule'] + [f'share_{s:g}' for s in SHARES]:
                     v = pl['point'][b][met]; ci = pl['ci90'][b][met]
                     cells.append(fmt(v) + (f' [{fmt(ci[0])}, {fmt(ci[1])}]' if ci and met in ('site_recall', 'fss300') else ''))
                 P.append(f"| {name} | {dom} | {len(pl['storms'])} | {pl['n_sites']} | {met} | " + ' | '.join(cells) + ' |')
+            P.append(f"| {name} | {dom} | | | matched labels (unclustered) | {int(sum(r['domains'][dom]['n_labels_matched'] for r in runs if r['primary'] and r['group'] == name.split(':')[0] and r['storm'] in pl['storms'] and dom in r['domains']))} | | | | | |")
             P.append(f"| {name} | {dom} | | | PR-AUC seg / site (storm mean) | {fmt(pl['point']['pr_auc_seg'])} {pl['ci90']['pr_auc_seg'] and [round(x, 3) for x in pl['ci90']['pr_auc_seg']]} / "
                      f"{fmt(pl['point']['pr_auc_site'])} {pl['ci90']['pr_auc_site'] and [round(x, 3) for x in pl['ci90']['pr_auc_site']]} | | | | | |")
     return '\n'.join(L + P) + '\n'
