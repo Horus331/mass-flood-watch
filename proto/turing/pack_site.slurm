@@ -9,6 +9,7 @@
 #SBATCH -o pack_site_%j.out
 set -eo pipefail
 source proto/turing/env.sh
+python -c "import shapely" 2>/dev/null || pip install -q shapely
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 R=results/$NAME; mkdir -p $R
 python proto/score.py --run-dir $OUT --storm $STORM --out $R/score.json | tail -3 || true
