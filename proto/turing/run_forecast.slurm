@@ -18,7 +18,7 @@
 set -eo pipefail
 source proto/turing/env.sh
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-8}
-export BOX=${BOX:-128000,856000,206000,946000} RES=${RES:-20} STORM=forecast LF_RAIN=hrrr LF_ALLOW_DRY=1
+export BOX=${BOX:-128000,856000,206000,946000} RES=${RES:-20} STORM=forecast LF_RAIN=hrrr LF_ALLOW_DRY=1 LF_HRRR_NBHD=${LF_HRRR_NBHD:-20,90}
 export LF_LOSS=${LF_LOSS:-cn} LF_CN_AMC=${LF_CN_AMC:-II} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}
 NAME=${NAME:-forecast_d3_20m}; KEY=${KEY:-forecast_d3}
 export RUN_DIR=runs/forecast_${NAME}

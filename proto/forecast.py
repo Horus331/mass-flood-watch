@@ -218,7 +218,8 @@ def cmd_status(a):
                rain=dict(district=d, towns=[{k: t[k] for k in ('town', 'max1h_mm', 'max6h_mm', 'max24h_mm', 'total_mm', 'max6h_window')} for t in G['towns']], hourly=G['hourly']),
                boxes=G['boxes'], runs=runs, likely_closed=n,
                method=('Rain: NOAA HRRR forecast (latest 00/06/12/18z cycle, 48 h). Gate: flood model only when a town forecast 6 h / 24 h maximum reaches the '
-                       'thresholds. Flood: LISFLOOD-FP 8.2, 20 m, 20 x 20 km boxes on the heaviest rain, NRCS curve-number losses (calibrated on the Sept 2023 '
+                       'thresholds. Flood rain: each hour of HRRR rain replaced by the 90th percentile within 20 km (allows for displaced storm cores). '
+                       'Flood: LISFLOOD-FP 8.2, 20 m, 20 x 20 km boxes on the heaviest rain, NRCS curve-number losses (calibrated on the Sept 2023 '
                        'Leominster storm). Closure: P = Phi((peak depth - 0.30 m) / 0.10 m) along the segment (proto/prototype.py). Hindcast skill: '
                        'docs/proto/forecast/HINDCAST.md.'))
     if a.extra: out.update(json.load(open(a.extra)))
@@ -350,26 +351,33 @@ def metrics(d):
 
 
 def cmd_report(a):
+    import glob
     H = os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast'); rows = []
-    for name, ref, cases in (('Sept 11, 2023, Leominster-Fitchburg (20 x 20 km, 20 m)', 'turing/leominster_sep2023_gpu',
-                              [('MRMS radar, GPU (reference)', 'docs/proto/turing/leominster_sep2023_gpu'), ('MRMS radar, CPU (control, same code)', H + '/sep2023_mrms'),
-                               ('HRRR 12z (08:00 EDT, ~9 h before first report)', H + '/sep2023_hrrr12z'), ('HRRR 18z (14:00 EDT, ~3 h before)', H + '/sep2023_hrrr18z')]),
-                             ('Aug 19, 2021, Worcester (Fred; 20 x 20 km, 20 m)', 'turing/worcester_aug2021_gpu',
-                              [('MRMS radar, GPU (reference)', 'docs/proto/turing/worcester_aug2021_gpu'), ('MRMS radar, CPU (control, same code)', H + '/aug2021_mrms'),
-                               ('HRRR 06z (02:00 EDT, ~10 h before)', H + '/aug2021_hrrr06z'), ('HRRR 12z (08:00 EDT, ~4 h before)', H + '/aug2021_hrrr12z')])):
-        T = [f'## {name}', '', '| rain | box max rain (mm) | peak hour (mm) | segments P >= 0.5 | flagged share | label recall (strict) | random recall | lift | loose recall | '
-             'reports hit 30 cm (LSR / StormEvents / labels) | random road points | gauge rise error (m) |', '|' + ' --- |' * 12]
+    LEAD = {'sep2023': '2023-09-11T21:10Z', 'aug2021': '2021-08-19T15:38Z'}       # first flood report (catalog.json)
+    for st, name, ref in (('sep2023', 'Sept 11, 2023, Leominster-Fitchburg (20 x 20 km box, 20 m)', 'docs/proto/turing/leominster_sep2023_gpu'),
+                          ('aug2021', 'Aug 19, 2021, Worcester (Fred; 20 x 20 km box, 20 m)', 'docs/proto/turing/worcester_aug2021_gpu')):
+        cases = [('MRMS radar, GPU (published reference)', os.path.join(ROOT, ref))]
+        for d in sorted(glob.glob(os.path.join(H, st + '_*')), key=lambda d: (('mrms' not in d), d)):
+            n = os.path.basename(d)[len(st) + 1:]
+            if n == 'mrms': lab = 'MRMS radar, CPU (control: same code and solver as the HRRR runs)'
+            else:
+                cyc = n.split('_')[0].replace('hrrr', ''); import pandas as pd
+                init = pd.Timestamp(f"{LEAD[st][:10]}T{cyc[:2]}:00"); lead = (pd.Timestamp(LEAD[st].replace('Z', '')) - init).total_seconds() / 3600
+                nb = n.split('_')[1] if '_' in n else ''
+                nbl = {'nb20p90': ', neighbourhood 20 km / 90th pct', 'nb30max': ', neighbourhood 30 km / max'}.get(nb, (', ' + nb) if nb else '')
+                lab = f"HRRR {cyc} ({(init - pd.Timedelta(hours=4)):%H:%M} EDT, {lead:.1f} h before the first report){nbl}"
+            cases.append((lab, d))
+        T = [f'### {name}', '', '| rain | box max / mean rain (mm) | peak hour (mm) | segments P >= 0.5 | flagged share | label recall (strict) | random recall | lift | loose recall | '
+             'reports with >= 30 cm (LSR / StormEvents / labels) | random road points | gauge rise error (m) |', '|' + ' --- |' * 12]
         for lab, d in cases:
-            d = d if os.path.isabs(d) else os.path.join(ROOT, d)
-            if not os.path.exists(os.path.join(d, 'summary.json')): T.append(f'| {lab} | not run |' + ' |' * 10); continue
-            m = metrics(d); rows.append(dict(storm=name, case=lab, dir=os.path.relpath(d, ROOT), **m)); p = m['pts_hit30']
+            if not os.path.exists(os.path.join(d, 'summary.json')): continue
+            m = metrics(d); fm = os.path.join(d, 'flood_meta.json'); mean = json.load(open(fm)).get('rain_total_mean_mm') if os.path.exists(fm) else None
+            rows.append(dict(storm=st, case=lab, dir=os.path.relpath(d, ROOT), rain_mean_mm=mean, **m)); p = m['pts_hit30']
             f = lambda k: f"{p[k][0]:.2f}" if k in p and p[k][0] is not None else '-'
-            T.append(f"| {lab} | {m['rain_max_mm']} | {m['rain_peak1h_mm']} | {m['flagged']} | {100 * (m['flagged_share'] or 0):.1f} % | {m['recall']} ({m['sites']} sites) | "
+            T.append(f"| {lab} | {m['rain_max_mm']} / {mean} | {m['rain_peak1h_mm']} | {m['flagged']} | {100 * (m['flagged_share'] or 0):.1f} % | {m['recall']} ({m['sites']} sites) | "
                      f"{m['random_recall']} | {m['lift']} | {m['loose_recall']} | {f('LSR')} / {f('StormEvents')} / {f('labels')} | {f('random_road_points')} | {m['gauge_rise_err_m']} |")
-        rows and None; print('\n'.join(T)); print()
-        a.tables.append('\n'.join(T))
+        print('\n'.join(T)); print()
     json.dump(rows, open(os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast.json'), 'w'), indent=1)
-
 
 def selftest():
     """Synthetic HRRR-like grid: town masks, running maxima, gate decision and boxes."""
@@ -410,4 +418,4 @@ if __name__ == '__main__':
     p = sp.add_parser('background'); p.add_argument('--start', required=True); p.add_argument('--end', required=True); p.add_argument('--hour', type=int, default=12); p.add_argument('--out', required=True)
     sp.add_parser('selftest'); sp.add_parser('report')
     a = ap.parse_args()
-    {'gate': cmd_gate, 'status': cmd_status, 'calib': cmd_calib, 'background': cmd_background, 'report': lambda a: (setattr(a, 'tables', []), cmd_report(a)), 'selftest': lambda a: selftest()}.get(a.cmd, lambda a: ap.print_help())(a)
+    {'gate': cmd_gate, 'status': cmd_status, 'calib': cmd_calib, 'background': cmd_background, 'report': cmd_report, 'selftest': lambda a: selftest()}.get(a.cmd, lambda a: ap.print_help())(a)
