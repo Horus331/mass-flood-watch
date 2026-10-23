@@ -150,7 +150,9 @@ def cmd_gate(a):
     out = evaluate(init, H, R, g, a.force); out['missing_hours'] = miss; out['fetch_s'] = round(time.time() - t_)
     d = out['district']
     log(f"District 3: max 1 h {d['max1h_mm']} mm, 6 h {d['max6h_mm']} mm ({d['max6h_window'][0]}), 24 h {d['max24h_mm']} mm, total {d['max_total_mm']} mm; "
-        f"trigger {out['trigger']} ({', '.join(out['towns_over'][:8]) or 'no town over'}); boxes {[b['box'] for b in out['boxes']]}")
+        f"trigger {out['trigger']} ({', '.join(out['towns_over'][:8]) or 'no town over'}); boxes {[b['box'] for b in out['boxes']]}; "
+        f"missing forecast hours {miss or 'none'}; fetch {out['fetch_s']} s")
+    if len(miss) > H // 4: raise SystemExit(f'{len(miss)} of {H} HRRR forecast hours missing: not publishing a forecast from them')
     for t in out['towns'][:8]: log(f"  {t['town']:<18} 6 h {t['max6h_mm']:5.1f}  24 h {t['max24h_mm']:5.1f}  total {t['total_mm']:5.1f}")
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True); json.dump(out, open(a.out, 'w'), indent=1)
     if a.github_output:
@@ -211,7 +213,8 @@ def cmd_status(a):
     else: state, head = 'run', f"{n} road segment{'s' if n != 1 else ''} likely closed (P >= {CLOSE_P:.1f}) in the next {G['horizon_h']} h"
     d = G['district']
     out = dict(state=state, headline=head, issued=G['issued'], valid=G['valid'], horizon_h=G['horizon_h'], source=G['source'],
-               built=pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%dT%H:%MZ'), gate=dict(thresholds=G['thresholds'], trigger=G['trigger'], forced=G.get('forced', False), towns_over=G['towns_over']),
+               built=pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%dT%H:%MZ'), gate=dict(thresholds=G['thresholds'], trigger=G['trigger'], forced=G.get('forced', False), towns_over=G['towns_over'],
+                                                                                   missing_hours=G.get('missing_hours', [])),
                rain=dict(district=d, towns=[{k: t[k] for k in ('town', 'max1h_mm', 'max6h_mm', 'max24h_mm', 'total_mm', 'max6h_window')} for t in G['towns']], hourly=G['hourly']),
                boxes=G['boxes'], runs=runs, likely_closed=n,
                method=('Rain: NOAA HRRR forecast (latest 00/06/12/18z cycle, 48 h). Gate: flood model only when a town forecast 6 h / 24 h maximum reaches the '
