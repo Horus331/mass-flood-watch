@@ -64,8 +64,8 @@
     return { type: 'raster', tileSize: 256, maxzoom: mz, attribution: attr, tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/' + path + '/MapServer/tile/{z}/{y}/{x}'] };
   };
   var BASEMAPS = {
-    streets: { layers: { 'b-voy': 1, 'l-voy': 1 } },
-    terrain: { layers: { 'b-hill': 1, 'b-voy': 0.62, 'l-voy': 1 } },
+    streets: { layers: { 'b-voy': 1 } },
+    terrain: { layers: { 'b-hill': 1, 'b-voy': 0.62 } },
     satellite: { layers: { 'b-sat': 1, 'l-dark': 1 } },
     dark: { layers: { 'b-dark': 1, 'l-dark': 1 } }
   };
@@ -418,8 +418,11 @@
     return {
       version: 8,
       sources: {
-        voy: CARTO('voyager_nolabels'), voyl: CARTO('voyager_only_labels'),
-        drk: CARTO('dark_nolabels'), drkl: CARTO('dark_only_labels'),
+        // CARTO raster tiles now ask for an API key on this domain: Esri basemaps (no key)
+        voy: ESRI('World_Street_Map', 19, 'Esri, HERE, Garmin, © OpenStreetMap contributors, and the GIS User Community'),
+        voyl: ESRI('Canvas/World_Light_Gray_Reference', 16, 'Esri'),
+        drk: ESRI('Canvas/World_Dark_Gray_Base', 16, 'Esri, HERE, Garmin, © OpenStreetMap contributors'),
+        drkl: ESRI('Canvas/World_Dark_Gray_Reference', 16, 'Esri'),
         sat: ESRI('World_Imagery', 18, 'Imagery © Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community'),
         hill: ESRI('Elevation/World_Hillshade', 16, 'Hillshade © Esri, USGS, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap')
       },
