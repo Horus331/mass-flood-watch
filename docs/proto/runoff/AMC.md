@@ -77,7 +77,7 @@ on the 9 primary runs. "storm-mean" is the §0 objective, the mean over storms o
 | C0 (b = 0, LOSO global scale; gauges only, interpolated) | – | – | 0.453 (interp.; base 0.465, C 0.455) | – | – | not run (§0) | | | | | – |
 
 No storm loses a site under any variant (worst per-storm change 0), and the rule lift stays at ≥ 0.8 × baseline under all four. The dev storms are
-in-sample and never pooled into the decision: sep2023 stays at 30/79 under every variant, and aug2021 goes 3 → 4 (B0) and 3 → 6 (C).
+in-sample and never pooled into the decision: sep2023 is 30/79 at baseline and stays there under B0, B1 and C, but drops to 29 under A. aug2021 goes from 3 to 2 (A), 4 (B1), 4 (B0) and 6 (C).
 
 **A: auto-AMC. Do not adopt.** Elsa has P5 = 29.7 mm and Ida 8.6 mm. Both fall in AMC I, so the standard NEH-4 rule makes them drier. Elsa's
 Millbury gauge goes from −1.32 to −1.36 m, and Ida's goes from −1.24 to −1.58 m. sep2023 (P5 32.8 mm, AMC I) breaks its calibration: gauge MAE
