@@ -28,6 +28,13 @@ ENSEMBLES = {
     'aug2021_06z': dict(storm='aug2021', issue='2021-08-19T06Z', first_report='2021-08-19T15:38Z', end='2021-08-20T03:00Z',
                         members=['2021-08-19T06Z', '2021-08-19T05Z', '2021-08-19T04Z', '2021-08-19T03Z', '2021-08-19T02Z',
                                  '2021-08-19T00Z', '2021-08-18T18Z', '2021-08-18T12Z']),
+    # the same at the short lead (the cycles the deterministic hindcast already handles well), to check the ensemble does not lose skill there
+    'sep2023_18z': dict(storm='sep2023', issue='2023-09-11T18Z', first_report='2023-09-11T21:10Z', end='2023-09-13T04:00Z',
+                        members=['2023-09-11T18Z', '2023-09-11T17Z', '2023-09-11T16Z', '2023-09-11T15Z', '2023-09-11T14Z',
+                                 '2023-09-11T12Z', '2023-09-11T06Z', '2023-09-11T00Z']),
+    'aug2021_12z': dict(storm='aug2021', issue='2021-08-19T12Z', first_report='2021-08-19T15:38Z', end='2021-08-20T03:00Z',
+                        members=['2021-08-19T12Z', '2021-08-19T11Z', '2021-08-19T10Z', '2021-08-19T09Z', '2021-08-19T08Z',
+                                 '2021-08-19T06Z', '2021-08-19T00Z', '2021-08-18T18Z']),
 }
 
 
@@ -51,6 +58,7 @@ def matrix(which='members', ens=None):
         if ens and k not in ens.split(','): continue
         end = ts(E['end'])
         for m in E['members']:
+            if any(o['name'] == member_name(k, m) for o in out): continue
             hrs = int((end - ts(m)).total_seconds() // 3600)
             out.append(dict(name=member_name(k, m), storm=E['storm'], box=BOX[E['storm']], init=m, hours=str(hrs), env='LF_HRRR_NBHD=20,90'))
     return out
