@@ -13,7 +13,9 @@
 set -eo pipefail
 source proto/turing/env.sh
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=$SLURM_NTASKS
-export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} STORM=${STORM:-sep2023} HOURS=${HOURS:-48} LF_LOSS=${LF_LOSS:-cn} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}
+export BOX=${BOX:-168000,908000,188000,928000} RES=${RES:-20} STORM=${STORM:-sep2023} HOURS=${HOURS:-48} LF_LOSS=${LF_LOSS:-cn} LF_CN_SCALE=${LF_CN_SCALE:-0.91} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1} LF_VOUT=${LF_VOUT:-1}
+# CPU/GPU parity (docs/proto/parity/PARITY.md): the CUDA solver ignores the infiltration keyword; LF_INFIL_MODE=rain takes LF_INFIL_MMH out of the rain instead
+export LF_INFIL_MODE=${LF_INFIL_MODE:-solver} GIT_SHA=${GIT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || true)}
 export NAME=${NAME:-leominster_sep2023_gpu}
 export RUN_DIR=runs/${STORM}_proto_${NAME}
 nvidia-smi || true
