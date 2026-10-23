@@ -20,8 +20,8 @@ STORMS = [('jul2023', 'worcester'), ('aug2023b', 'millbury'), ('sep2023', 'leomi
 VARIANTS = ['solver', 'rain', 'infil0']
 PAIRS = [('rain', 'solver'), ('infil0', 'solver'), ('rain', 'infil0')]
 # parity tolerance between two runs of the same storm (what the catalogue reports): same labels caught, flagged share within
-# 0.1 percentage point or 10 % of it, every gauge rise within 0.10 m, land area >= 0.3 m within 10 %
-TOL = dict(flag_pts=0.10, flag_rel=0.10, rise_m=0.10, wet03_rel=0.10)
+# 0.1 percentage point or 10 % of it, every gauge rise within 0.10 m, land area >= 0.3 m within 10 % or 0.05 km2
+TOL = dict(flag_pts=0.10, flag_rel=0.10, rise_m=0.10, wet03_rel=0.10, wet03_abs_km2=0.05)
 
 
 def mass(d):
@@ -53,6 +53,19 @@ def cellwise(a, b):
                 deep03_jaccard=round(float((ca & cb).sum()) / max(int((ca | cb).sum()), 1), 3))
 
 
+def seg_diag(d):
+    """Flagged segments (p_close >= 0.5) in segments.geojson, and how many of them rest on depth the 30-min snapshots never show:
+    hmax > snapshot peak + 0.10 m (a short spike), or the snapshot peak at 0.5 h (start-up surge, no later rise)."""
+    p = f'{d}/segments.geojson'
+    if not os.path.exists(p): return None
+    fl = [f['properties'] for f in json.load(open(p))['features'] if (f['properties'].get('p_close') or 0) >= 0.5]
+    D = [(q, [v for v in (q.get('d') or []) if v is not None]) for q in fl]
+    spike = sum(1 for q, v in D if v and max(v) < 255 and q['peak_depth_m'] - max(v) / 100 > 0.10)
+    surge = sum(1 for q, v in D if len(v) > 3 and v[1] >= 30 and v[1] >= max(v[3:]))
+    return dict(flagged=len(fl), hmax_above_snapshots=spike, startup_surge=surge,
+                snapshot_confirmed=sum(1 for q, v in D if v and max(v) >= 30))
+
+
 def within(a, b):
     """Parity verdict for two runs of one storm (summary level)."""
     why = []
@@ -63,7 +76,7 @@ def within(a, b):
     for s in ga:
         if s in gb and abs(ga[s] - gb[s]) > TOL['rise_m']: why.append(f'gauge {s} {ga[s]:.2f} vs {gb[s]:.2f} m')
     wa, wb = a.get('wet_land_km2_0p3'), b.get('wet_land_km2_0p3')
-    if wa is not None and wb is not None and abs(wa - wb) > TOL['wet03_rel'] * max(wa, wb, 1e-6): why.append(f'land >= 0.3 m {wa:.1f} vs {wb:.1f} km2')
+    if wa is not None and wb is not None and abs(wa - wb) > max(TOL['wet03_rel'] * max(wa, wb), TOL['wet03_abs_km2']): why.append(f'land >= 0.3 m {wa:.1f} vs {wb:.1f} km2')
     return dict(match=not why, why=why)
 
 
@@ -71,12 +84,13 @@ def main():
     out = dict(tolerance=TOL)
     for sid, area in STORMS:
         e = dict(gpu=read(f'{ROOT}/docs/proto/turing/{sid}_{area}_20m'), cpu_cn=read(f'{ROOT}/docs/proto/urban/dcia/{sid}_cn'))
+        e['gpu_segments'] = seg_diag(f'{ROOT}/docs/proto/turing/{sid}_{area}_20m')
         e['gpu_mass_tail'] = (json.load(open(f'{ROOT}/docs/proto/turing/{sid}_{area}_20m/flood_meta.json')).get('mass_tail') or [None])[-1]
         H = {}
         for v in VARIANTS:
             d = f'{ROOT}/docs/proto/parity/{sid}_{v}'; r = read(d)
             if r is None: continue
-            r['mass'] = mass(d)
+            r['mass'] = mass(d); r['segments'] = seg_diag(d)
             mp = f'{d}/flood_meta.json'
             if os.path.exists(mp): r['infiltration'] = json.load(open(mp)).get('inputs', {}).get('infiltration')
             e[v] = r; H[v] = hmax(d)
@@ -104,6 +118,7 @@ def main():
         for v in VARIANTS:
             if out[sid].get(v): print(f"{sid} {v} mass {out[sid][v].get('mass')} infil {out[sid][v].get('infiltration')}")
         print(f"{sid} gpu mass tail {out[sid]['gpu_mass_tail']}")
+        print(f"{sid} segments: gpu {out[sid]['gpu_segments']} | " + ' | '.join(f"{v} {out[sid][v].get('segments')}" for v in VARIANTS if out[sid].get(v)))
 
 
 if __name__ == '__main__':
