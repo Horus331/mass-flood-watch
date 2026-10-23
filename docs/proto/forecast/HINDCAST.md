@@ -28,6 +28,7 @@ Workflow: `.github/workflows/forecast_hindcast.yml` (`what=hindcast`). Per-run f
 | MRMS radar, CPU (control: same code and solver as the HRRR runs) | 198 / 99 | 89.3 | 114 | 2.2 % | 0.359 (78 sites) | 0.032 | 11.09 | 0.667 | 0.85 / 0.64 / 0.79 | 0.33 | 0.17 |
 | HRRR 12z (08:00 EDT, 9.2 h before the first report) | 97 / 22 | 56.0 | 4 | 0.1 % | 0.0 (78 sites) | 0.001 | 0.0 | 0.0 | 0.00 / 0.00 / 0.00 | 0.01 | 1.77 |
 | HRRR 12z (08:00 EDT, 9.2 h before the first report), neighbourhood 20 km / 90th pct | 121 / 79 | 15.7 | 17 | 0.3 % | 0.077 (78 sites) | 0.005 | 15.8 | 0.2 | 0.00 / 0.36 / 0.23 | 0.08 | 0.94 |
+| HRRR 12z (08:00 EDT, 9.2 h before the first report), neighbourhood 30 km / max | 637 / 575 | 62.3 | 478 | 9.4 % | 0.487 (78 sites) | 0.132 | 3.7 | 0.856 | 1.00 / 0.91 / 0.96 | 0.76 | 7.21 |
 | HRRR 18z (14:00 EDT, 3.2 h before the first report) | 105 / 50 | 32.0 | 13 | 0.3 % | 0.051 (78 sites) | 0.004 | 13.77 | 0.178 | 0.00 / 0.36 / 0.17 | 0.05 | 1.51 |
 | HRRR 18z (14:00 EDT, 3.2 h before the first report), neighbourhood 20 km / 90th pct | 141 / 120 | 35.1 | 103 | 2.0 % | 0.269 (78 sites) | 0.029 | 9.19 | 0.533 | 0.85 / 0.46 / 0.65 | 0.33 | 0.21 |
 
@@ -59,7 +60,7 @@ Workflow: `.github/workflows/forecast_hindcast.yml` (`what=hindcast`). Per-run f
    - Sept 2023, 18z (14:00 EDT, about 3 h before the first report): recall 0.27 at 2.0 % flagged, lift 9.2. The MRMS control gets 0.36 at
      2.2 %, lift 11.1. Gauge rise error is 0.21 m (MRMS 0.17 m).
    - Aug 2021, 12z (08:00 EDT, about 4 h before): recall 0.58 at 2.4 % flagged, lift 21. The MRMS control gets 0.33 at 1.5 %, lift 20, so it
-     is as good as the radar run here. A 30 km maximum spreads too much: 9 % of segments flagged, lift 6.4.
+     is as good as the radar run here. A 30 km maximum spreads too much. Aug 2021 12z: 9 % of segments flagged, lift 6.4. Sept 2023 12z: a 575 mm box mean, 9.4 % flagged, lift 3.7.
    - The neighbourhood does not fix forecasts that are wrong 9 to 10 h ahead: Sept 2023 12z gets 0.08, and Aug 2021 06z puts the rain
      somewhere else.
 3. **What is live:** the forecast runs the flood model on `LF_HRRR_NBHD=20,90` rain. That is a reasonable-worst-case rain field for the
