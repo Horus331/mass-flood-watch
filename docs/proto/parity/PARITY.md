@@ -32,7 +32,7 @@ The pairs are the CPU control `docs/proto/urban/dcia/<id>_cn` (and the re-runs h
 | `LF_INFIL_MMH=2` | applied by the solver (`infiltration 5.556e-07` m/s in the .par) | in the .par but **ignored by the CUDA solver**: the mass file's Rain−(Inf+Evap) column is 0 | ignored | **yes** (2.1) |
 | `LF_QOUT` / `LF_VOUT` | 1 / 1 | 1 / 1 | 1 / **not set** (outputs only) | no |
 | cfl / theta / dams | defaults (0.7 / 1), no dams | same | same | no |
-| time step | reset to `initial_tstep` 10 s each step, then CFL; actual 1.2–1.9 s | per-cell dt that **never increases** (`cuda_acc_solver.cu update_dt_per_element`: min of the CFL dt and the cell's previous dt), capped at `initial_tstep`; the first step for every wet cell is `max_dt` = 10 s without CFL; actual 1.25–1.34 s fixed | same | yes (2.5) |
+| time step | reset to `initial_tstep` 10 s each step, then CFL; actual 1.2–1.9 s | per-cell dt that **never increases** (`cuda_acc_solver.cu update_dt_per_element`: min of the CFL dt and the cell's previous dt), capped at `initial_tstep`; the first step for every wet cell is `max_dt` = 10 s without CFL (the dt buffer is not initialised: `cudaMalloc`, read as 0); actual 1.25–1.34 s fixed | same | yes (2.5) |
 | t = 0 snapshot | the start file (channels a third full) | not the initial state (in jul2023, 14 segments already ≥ 10 cm at t = 0, against 0 on the CPU) | same | **yes, for the gauge rise** (2.3) |
 | git sha | `d4cc3d37` | not recorded (now recorded: `GIT_SHA` in `run_storm.slurm`) | not recorded | see below |
 | scoring code (`prototype.py`) | current (bridge-deck matching `dbc2d293`: sep2023 has 89 labels) | 22 Oct evening (sep2023: 78 labels) | same | for label counts only |
