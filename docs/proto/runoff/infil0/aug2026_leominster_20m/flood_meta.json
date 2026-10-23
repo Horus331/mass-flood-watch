@@ -1,0 +1,82 @@
+{
+ "run": "aug2026_loss_aug2026_leominster_20m",
+ "title": "Aug 3, 2026 flash floods, Leominster-Fitchburg \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  162000.0,
+  908000.0,
+  182000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2026-08-03T04:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 362
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.88",
+   "LF_INFIL_MMH": "0",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 0.0,
+   "applied_by": "none (LF_INFIL_MMH=0)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 118,
+ "rain_total_mean_mm": 81,
+ "rain_missing_hours": [],
+ "runtime_s": 1241,
+ "total_s": 1726,
+ "peak_wet_km2": 17.1,
+ "peak_snapshot_wet_km2": 12.4,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      34758400.0000 4556660.6116  0.000       0.000      80.402           -0.0000      -0.0000 8301936.2178",
+  "64800.000    1.0000     1.0000     64800      34701200.0000 4541796.8031  0.000       0.000      79.835           -0.0000      -0.0000 8311116.9387"
+ ],
+ "git_sha": "9a89d6ca",
+ "forecast": null
+}
