@@ -352,7 +352,7 @@ def metrics(d):
 
 def cmd_report(a):
     import glob
-    H = os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast'); rows = []
+    H = os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast'); rows = []; tables = []
     LEAD = {'sep2023': '2023-09-11T21:10Z', 'aug2021': '2021-08-19T15:38Z'}       # first flood report (catalog.json)
     for st, name, ref in (('sep2023', 'Sept 11, 2023, Leominster-Fitchburg (20 x 20 km box, 20 m)', 'docs/proto/turing/leominster_sep2023_gpu'),
                           ('aug2021', 'Aug 19, 2021, Worcester (Fred; 20 x 20 km box, 20 m)', 'docs/proto/turing/worcester_aug2021_gpu')):
@@ -376,7 +376,10 @@ def cmd_report(a):
             f = lambda k: f"{p[k][0]:.2f}" if k in p and p[k][0] is not None else '-'
             T.append(f"| {lab} | {m['rain_max_mm']} / {mean} | {m['rain_peak1h_mm']} | {m['flagged']} | {100 * (m['flagged_share'] or 0):.1f} % | {m['recall']} ({m['sites']} sites) | "
                      f"{m['random_recall']} | {m['lift']} | {m['loose_recall']} | {f('LSR')} / {f('StormEvents')} / {f('labels')} | {f('random_road_points')} | {m['gauge_rise_err_m']} |")
-        print('\n'.join(T)); print()
+        print('\n'.join(T)); print(); tables.append('\n'.join(T))
+    if a.md:
+        txt = open(a.md).read(); b0, b1 = '<!-- tables -->', '<!-- /tables -->'
+        txt = txt[:txt.index(b0) + len(b0)] + '\n' + '\n\n'.join(tables) + '\n' + txt[txt.index(b1):]; open(a.md, 'w').write(txt)
     json.dump(rows, open(os.path.join(ROOT, 'docs', 'proto', 'forecast', 'hindcast.json'), 'w'), indent=1)
 
 def selftest():
@@ -416,6 +419,6 @@ if __name__ == '__main__':
     p = sp.add_parser('status'); p.add_argument('--gate', required=True); p.add_argument('--run', action='append'); p.add_argument('--extra'); p.add_argument('--out', required=True)
     p = sp.add_parser('calib'); p.add_argument('--out', required=True); p.add_argument('--only'); p.add_argument('--cycles', type=int, default=3); p.add_argument('--no-mrms', action='store_true')
     p = sp.add_parser('background'); p.add_argument('--start', required=True); p.add_argument('--end', required=True); p.add_argument('--hour', type=int, default=12); p.add_argument('--out', required=True)
-    sp.add_parser('selftest'); sp.add_parser('report')
+    sp.add_parser('selftest'); p = sp.add_parser('report'); p.add_argument('--md', help='rewrite the tables between <!-- tables --> markers')
     a = ap.parse_args()
     {'gate': cmd_gate, 'status': cmd_status, 'calib': cmd_calib, 'background': cmd_background, 'report': cmd_report, 'selftest': lambda a: selftest()}.get(a.cmd, lambda a: ap.print_help())(a)
