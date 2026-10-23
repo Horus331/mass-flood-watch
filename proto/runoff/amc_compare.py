@@ -2,13 +2,16 @@
 
     python proto/runoff/amc_compare.py [CAND_DIR OUT_JSON]   -> docs/proto/runoff/amc.json (default: the auto-AMC runs) + markdown tables on stdout
     e.g. python proto/runoff/amc_compare.py docs/proto/runoff/infil0 docs/proto/runoff/infil0.json
+    python proto/runoff/amc_compare.py --new16 docs/proto/runoff/new16_infil0 docs/proto/runoff/new16_infil0.json   (secondary OOS check)
 
 Default arm = the T0 parity catalogue as published (docs/proto/parity/catalog/<name>, LF_PARITY=1 LF_CN_SCALE=0.88, CPU, git 37177775),
-reused, not rerun.  Auto arm = the same cases with LF_CN_AMC=auto added (parity_test.yml dest=docs/proto/runoff/runs/<name>), CPU.
+reused, not rerun (aug2021 / aug2026 were rerun with identical settings and hydraulics to rebuild matches against the current labels,
+BASELINE_v2_expanded.md).  Only the explicit pre-registered T4_RUNS are used.  Every candidate run is scored against the CURRENT labels by
+taking the label->segment matches from its catalogue counterpart (load_current), so both arms have identical site lists.  Auto arm = the same cases with LF_CN_AMC=auto added (parity_test.yml dest=docs/proto/runoff/runs/<name>), CPU.
 Gauges: proto/score.py (score.json of each run).  Closures: proto/score_v2.py score_run on each run and --compare logic (PROTOCOL.md §5,
 OOS-7 held-out storms, primary run per storm = <storm>_<area>_20m; worcester_aug2021_48h is reported but is not part of any pool).
 """
-import os, sys, json
+import os, sys, json, glob
 import numpy as np
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -62,14 +65,17 @@ def closure(r):
 
 def main():
     global CAND, OUT
-    if len(sys.argv) == 3: CAND, OUT = os.path.join(ROOT, sys.argv[1]), os.path.join(ROOT, sys.argv[2])
-    names = list(T4_RUNS)
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]; new16 = '--new16' in sys.argv
+    if len(args) == 2: CAND, OUT = os.path.join(ROOT, args[0]), os.path.join(ROOT, args[1])
+    # --new16: SECONDARY out-of-sample check only (AMC.md §1), never the T4 decision: the 16 label-expansion storms' primary catalogue runs
+    names = [f"{c['name']}" for c in (json.load(open(p)) for p in sorted(glob.glob(os.path.join(BASE, '*_20m', 'config.json')))) if c['storm'] in V.NEW16] \
+        if new16 else list(T4_RUNS)
     rows, base_runs, cand_runs = [], [], []
     for n in names:
         db, dc = os.path.join(BASE, n), os.path.join(CAND, n)
         if not os.path.exists(os.path.join(dc, 'flood_meta.json')): raise SystemExit(f'missing candidate run {dc}')
         s = json.load(open(os.path.join(db, 'config.json')))['storm']; prim = n == f'{s}_' + n.split('_')[1] + '_20m'
-        row = dict(name=n, storm=s, primary=prim, role=('dev' if s in V.DEV else 'heldout'), amc=amc_of(dc), gauges_base=gauges(db), gauges_auto=gauges(dc))
+        row = dict(name=n, storm=s, primary=prim, role=('dev' if s in V.DEV else 'heldout-new' if s in V.NEW16 else 'heldout'), amc=amc_of(dc), gauges_base=gauges(db), gauges_auto=gauges(dc))
         try:
             mb = json.load(open(os.path.join(db, 'flood_meta.json'))); mc = json.load(open(os.path.join(dc, 'flood_meta.json')))
             row['git'] = dict(base=mb.get('git_sha'), auto=mc.get('git_sha'))
@@ -78,10 +84,13 @@ def main():
         rb['primary'] = rc['primary'] = prim; row['closure_base'] = closure(rb); row['closure_auto'] = closure(rc)
         if prim: base_runs.append(rb); cand_runs.append(rc)
         rows.append(row); print(n, row['amc'], row['closure_base']['hits3'], '->', row['closure_auto']['hits3'], flush=True)
-    cmp_ = V.compare(dict(runs=base_runs), dict(runs=cand_runs), rule=dict(V.ADOPT, alpha=0.05 / 4))     # k = 4 T4 variants on OOS-7 (AMC.md §0)
+    if new16:   # descriptive paired bootstrap on the 16 new storms (pool 'heldout23' restricted to the runs given = NEW16), alpha 0.05, no verdict
+        cmp_ = V.compare(dict(runs=base_runs), dict(runs=cand_runs), rule=dict(V.ADOPT, storms='heldout23', alpha=0.05)); cmp_['note'] = 'secondary, not a decision'
+    else:
+        cmp_ = V.compare(dict(runs=base_runs), dict(runs=cand_runs), rule=dict(V.ADOPT, alpha=0.05 / 4))     # k = 4 T4 variants on OOS-7 (AMC.md §0)
     pools = {}
     for arm, R in (('base', base_runs), ('auto', cand_runs)):
-        for nm, st in (('heldout7', V.HELDOUT), ('dev2', V.DEV), ('all9', V.LOSO9)):
+        for nm, st in ((('new16', V.NEW16),) if new16 else (('heldout7', V.HELDOUT), ('dev2', V.DEV), ('all9', V.LOSO9))):
             pl = V.pooled([r for r in R if r['storm'] in st], 'box', boot=500)
             pools[f'{arm}:{nm}'] = dict(recall3=pl['point']['share_0.03']['site_recall'], fss300_3=pl['point']['share_0.03']['fss300'],
                                         rule_recall=pl['point']['rule']['site_recall'], rule_lift=pl['point']['rule']['lift'], n_sites=pl['n_sites'])
@@ -90,7 +99,8 @@ def main():
         e = [g['err'] for r in rows if r['primary'] and r['storm'] in sel and r[f'gauges_{arm}'] for g in r[f'gauges_{arm}']['g'] if g['err'] is not None]
         return dict(n=len(e), mae=round(float(np.mean(np.abs(e))), 3) if e else None, bias=round(float(np.mean(e)), 3) if e else None)
     others = tuple(s for s in V.LOSO9 if s not in FOCUS)
-    gsum = {k: dict(base=gstat(st, 'base'), auto=gstat(st, 'auto')) for k, st in (('all9', V.LOSO9), ('elsa_ida', FOCUS), ('other7', others))}
+    gsets = (('new16', V.NEW16),) if new16 else (('all9', V.LOSO9), ('elsa_ida', FOCUS), ('other7', others))
+    gsum = {k: dict(base=gstat(st, 'base'), auto=gstat(st, 'auto')) for k, st in gsets}
     res = dict(made_by='proto/runoff/amc_compare.py', base=BASE.replace(ROOT + '/', ''), cand=CAND.replace(ROOT + '/', ''), rows=rows, gauge_summary=gsum,
                pools=pools, compare=cmp_)
     json.dump(res, open(OUT, 'w'), indent=1)
