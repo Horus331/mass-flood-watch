@@ -307,7 +307,7 @@ FIX = [
   dict(name='Southwest Cutoff (Route 20) at Grafton Street (Route 122): impassable')),
  ('labels_sep2021_worcester.csv', 'SEP2021-07', 'West Boylston', None, dict(name='Unknown road: washout (exact street unknown)', road='')),
  ('labels_sep2022_webster.csv', 'SEP2022-03', 'Webster', dict(g='pair', a='West Main Street|ref:MA 197', b='Mason Lane', near=(-71.8688, 42.0746)),
-  dict(name='West Main Street (Route 197) at Mason Lane: closed', road='West Main Street')),
+  dict(name='West Main Street (Route 197) at Mason Lane; Worcester Road (Route 12): closed', road='Worcester Road')),   # point stays on Worcester Rd unless OSM places W Main x Mason
 ]
 
 PREFIX = {'may2018': 'MAY2018', 'aug2018b': 'AUG2018b', 'sep2018': 'SEP2018', 'sep2018w': 'SEP2018w', 'sep2018b': 'SEP2018b', 'jul2019': 'JUL2019',
@@ -481,6 +481,7 @@ def fix(R, NET):
                         or (g['g'] == 'pair' and r['coord_quality'] == 'town'):
                     r['lon'], r['lat'] = f'{n[0]:.5f}', f'{n[1]:.5f}'; r['coord_quality'] = n[2]; how = n[3]
         for k, v in over.items(): r[k] = v
+        if rid == 'SEP2022-03' and r['coord_quality'] == 'exact': r['road'] = 'West Main Street'
         if g is None: how = 'name/road corrected only'
         after = dict(lon=r['lon'], lat=r['lat'], coord_quality=r['coord_quality'], name=r['name'], road=r['road'])
         if rid in prev:

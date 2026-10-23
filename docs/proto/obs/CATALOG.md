@@ -36,7 +36,40 @@ How storms were picked: I projected the flood reports to EPSG:26986 and kept tho
 | aug2018 | 2018-08-08 | Natick, Hudson, Maynard, Stow, Minute Man Arpt | 194000,892000,214000,912000 | 2018-08-08T16:00Z / 18 h | 21 / 3 | 22 / 26 | 01097000 Assabet River At Maynard 321 cfs; 01098500 Cochituate Bk Bl Lake Cochitua 55.2 cfs; 01098530 Sudbury River At Saxonville 436 cfs | 3.58 in (Maynard) | `labels_aug2018_natick.csv` |
 | aug2020 | 2020-08-23 | Worcester | 157000,872000,177000,892000 | 2020-08-23T14:00Z / 18 h | 9 / 5 | 6 / 10 | 01175670 Sevenmile River Near Spencer 21.1 cfs | — | `labels_aug2020_worcester.csv` |
 
+
+## C. Storms added by the label expansion (2026-10-23)
+
+These were added from the same NWS LSR and Storm Events pull plus news reports, with a lower bar: at least 2 road-level sites in the box.
+The method, sources, per-storm counts, geocoding and caveats are in [`LABELS_EXPANSION.md`](LABELS_EXPANSION.md). Storms with 2–3 sites are marked "Small" in `catalog.json` `note`.
+`era: aws` storms run as is through `proto/turing/submit_catalog.sh`. `era: iem` storms need the IEM GaugeCorr reader, like group B.
+Their `counts` hold `road_sites_named`, which counts in-box sites that are not town-level, and the raw in-box LSR and Storm Events flood rows. They have no `reports_dedup`.
+Gauges appear once `obs_catalog.yml` with `mode=fetch` and `only=<ids>` has run.
+
+| id | date (local) | era | towns with road sites in box | box EPSG:26986 | t0 UTC / hours | road sites in box / label rows | labels |
+|---|---|---|---|---|---|---|---|
+| may2018 | 2018-05-15 | iem | Shrewsbury, Worcester | 169000,881000,189000,901000 | 2018-05-15T14:00Z / 18 h | 3 / 5 | `labels_may2018_shrewsbury.csv` |
+| aug2018b | 2018-08-11 | iem | Holden, Lancaster, West Boylston | 167000,894000,187000,914000 | 2018-08-11T08:00Z / 22 h | 3 / 4 | `labels_aug2018b_holden.csv` |
+| sep2018 | 2018-09-18 | iem | Ashburnham, Fitchburg, Gardner, Hubbardston | 156000,913000,176000,933000 | 2018-09-18T06:00Z / 18 h | 5 / 5 | `labels_sep2018_fitchburg.csv` |
+| sep2018w | 2018-09-18 | iem | Marlborough, Shrewsbury, Worcester | 179000,883000,199000,903000 | 2018-09-18T07:00Z / 18 h | 4 / 4 | `labels_sep2018w_shrewsbury.csv` |
+| sep2018m | 2018-09-18 | iem | Bellingham, Milford, Uxbridge | 188000,863000,208000,883000 | 2018-09-18T08:00Z / 18 h | 4 / 4 | `labels_sep2018m_milford.csv` |
+| sep2018b | 2018-09-26 | iem | Gardner, Templeton, Westminster | 149000,914000,169000,934000 | 2018-09-26T18:00Z / 18 h | 6 / 7 | `labels_sep2018b_gardner.csv` |
+| jul2019 | 2019-07-06 | iem | Oxford, Spencer, Worcester | 157000,874000,177000,894000 | 2019-07-06T14:00Z / 18 h | 5 / 5 | `labels_jul2019_spencer.csv` |
+| aug2019 | 2019-08-07 | iem | Oxford, Worcester | 162000,871000,182000,891000 | 2019-08-07T19:00Z / 18 h | 2 / 2 | `labels_aug2019_oxford.csv` |
+| sep2019 | 2019-09-02 | iem | Milford, Northbridge | 183000,865000,203000,885000 | 2019-09-02T14:00Z / 18 h | 2 / 4 | `labels_sep2019_northbridge.csv` |
+| jun2020 | 2020-06-28 | iem | Blackstone, Franklin, Hopedale, Uxbridge | 190000,859000,210000,879000 | 2020-06-28T14:00Z / 18 h | 6 / 8 | `labels_jun2020_northbridge.csv` |
+| jun2020b | 2020-06-28 | iem | Fitchburg, Gardner | 154000,914000,174000,934000 | 2020-06-28T16:00Z / 18 h | 3 / 6 | `labels_jun2020b_gardner.csv` |
+| aug2020b | 2020-08-27 | iem | Worcester | 166000,877000,186000,897000 | 2020-08-27T11:00Z / 18 h | 3 / 3 | `labels_aug2020b_worcester.csv` |
+| jul2021b | 2021-07-17 | aws | Leicester, Worcester | 163000,880000,183000,900000 | 2021-07-17T14:00Z / 24 h | 4 / 4 | `labels_jul2021b_worcester.csv` |
+| jul2023b | 2023-07-10 | aws | Rutland, Worcester | 161000,886000,181000,906000 | 2023-07-10T08:00Z / 18 h | 2 / 4 | `labels_jul2023b_worcester.csv` |
+| jul2023c | 2023-07-16 | aws | Fitchburg | 166000,915000,186000,935000 | 2023-07-16T07:00Z / 18 h | 4 / 5 | `labels_jul2023c_fitchburg.csv` |
+| jul2023d | 2023-07-21 | aws | Hubbardston | 148000,904000,168000,924000 | 2023-07-21T15:00Z / 18 h | 2 / 3 | `labels_jul2023d_hubbardston.csv` |
+
+The expansion also appended news-sourced rows to `jul2018`, `aug2021` and `aug2026`, plus a missed Storm Events row to `aug2020`. Their ids have the prefixes `JUL2018-N`, `W1`, `AUG2026-N` and `AUG2020-N`.
+It also fixed coordinates and names in several earlier label files. The changelog is in `LABELS_EXPANSION.md` and `labels_fix_changelog.json`.
+
 ## Excluded candidates
+
+This list predates section C. With the lower bar, some of these storms were added later: 2023-07-16 Fitchburg (`jul2023c`), 2023-07-10 Worcester/Rutland (`jul2023b`), 2018-09-27 Gardner/Templeton (`sep2018b`) and 2019-07-06 Spencer/Worcester (`jul2019`). The 2018-04-16 and 2017 events and the 2020-12-25 Oxford/Sutton rain-on-snow event stay excluded.
 
 | candidate | reason |
 |---|---|
