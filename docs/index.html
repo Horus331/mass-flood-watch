@@ -367,10 +367,10 @@ html{scroll-behavior:smooth}
 })();
 (function(){ // the live forecast card turns live once a forecast is published (site/data/forecast_status.json)
   fetch('site/data/forecast_status.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).then(function(s){
-    if(!s||!(s.ready===true||s.status==='ok'))return;
+    if(!s||!(s.ready===true||s.status==='ok'||s.state==='quiet'||s.state==='run'))return;
     var li=document.getElementById('nextForecast');
     li.querySelector('.tag-dev').outerHTML='<span class="tag-live">Live</span>';
-    var a=document.createElement('a');a.href='viewer.html?run=forecast';a.textContent='Open the live forecast';
+    var a=document.createElement('a');a.href='viewer.html?run=forecast';a.textContent=(s.headline?s.headline+' · ':'')+'Open the live forecast';
     var p=document.createElement('p');p.style.marginTop='10px';p.appendChild(a);li.appendChild(p);
   }).catch(function(){});
 })();
