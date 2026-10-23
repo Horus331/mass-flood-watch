@@ -1,0 +1,198 @@
+{
+ "run": "aug2023_rain_aug2023_gauge_dt5",
+ "title": "Aug 8, 2023 flash floods, MetroWest \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  193000.0,
+  879000.0,
+  213000.0,
+  899000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-08-08T07:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 120
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN_DT": "5",
+   "LF_RAIN_GAUGE": "idw",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 18.53,
+   "excess_out_mean_mm": 14.12,
+   "kept_share": 0.762,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_subhourly": {
+   "dt_min": 5,
+   "source": "MRMS PrecipRate_00.00 (AWS noaa-mrms-pds), radar timing inside each hour; hourly totals = MRMS MultiSensor QPE 01H Pass2",
+   "files": 543,
+   "hours": 18,
+   "hours_uniform": 0,
+   "hour_cover": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "uniform_pixel_share_per_hour": [
+    0.002,
+    0.162,
+    0.0,
+    0.016,
+    0.003,
+    0.037,
+    0.0,
+    0.031,
+    0.687,
+    0.806,
+    0.883,
+    0.915,
+    1.0,
+    1.0,
+    0.799,
+    0.764,
+    0.731,
+    0.988
+   ],
+   "mean_max_weight": 0.25,
+   "note": "weights = radar sub-interval accumulation / radar hour accumulation per 0.01 deg pixel (uniform where the radar hour < 0.1 mm or less than half the hour is covered by files), bilinear to the model grid, applied to the hourly rain excess",
+   "radar_vs_pass2": [
+    {
+     "hour_end": "2023-08-08T10:00Z",
+     "pass2_box_mm": 3.2,
+     "radar_box_mm": 3.5
+    },
+    {
+     "hour_end": "2023-08-08T11:00Z",
+     "pass2_box_mm": 8.1,
+     "radar_box_mm": 9.9
+    },
+    {
+     "hour_end": "2023-08-08T12:00Z",
+     "pass2_box_mm": 7.3,
+     "radar_box_mm": 6.7
+    },
+    {
+     "hour_end": "2023-08-08T13:00Z",
+     "pass2_box_mm": 5.8,
+     "radar_box_mm": 4.8
+    },
+    {
+     "hour_end": "2023-08-08T14:00Z",
+     "pass2_box_mm": 22.8,
+     "radar_box_mm": 21.7
+    },
+    {
+     "hour_end": "2023-08-08T15:00Z",
+     "pass2_box_mm": 22.4,
+     "radar_box_mm": 22.7
+    }
+   ],
+   "probe": {
+    "dt_min": 5,
+    "value": 360.0,
+    "depth_m": 0.36,
+    "ratio_to_rate": 12.0,
+    "ratio_to_depth": 1.0,
+    "units": "depth"
+   },
+   "file": {
+    "records": 217,
+    "unit": "depth",
+    "total_excess_mean_mm": 14.118,
+    "hourly_excess_mean_mm": 14.118,
+    "peak_excess_rate_box_max_mmh": 193.8,
+    "peak_excess_hourly_box_max_mmh": 68.7,
+    "peak_rate_over_hourly_mean_where_wet": 3.13
+   }
+  },
+  "rain_gauge_adjust": {
+   "mode": "idw",
+   "mfb": 1.157,
+   "gauges": 33,
+   "cap": [
+    0.67,
+    1.5
+   ],
+   "factor_min": 0.934,
+   "factor_mean": 1.14,
+   "factor_max": 1.384,
+   "source": "docs/proto/rain/gauge_factors.json"
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 109,
+ "rain_total_mean_mm": 72,
+ "rain_missing_hours": [],
+ "runtime_s": 1127,
+ "total_s": 1472,
+ "peak_wet_km2": 14.9,
+ "peak_snapshot_wet_km2": 7.4,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      36143600.0000 4898638.8764  0.000       0.000      44.147            0.0000       0.0000 5647136.2846",
+  "64800.000    1.0000     1.0000     64800      36049600.0000 4885418.7344  0.000       0.000      44.012           -0.0000      -0.0000 5647136.2846"
+ ],
+ "git_sha": "5b4d8405",
+ "forecast": null
+}
