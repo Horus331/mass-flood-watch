@@ -1,0 +1,7822 @@
+{
+ "settings": {
+  "omega50_wm2": 300.0,
+  "prior_b1": 1.5,
+  "match_m": 50.0,
+  "site_m": 150.0,
+  "damage_types": [
+   "culvert_failure",
+   "washout",
+   "sinkhole",
+   "bridge_damage",
+   "other_damage"
+  ],
+  "shares": [
+   0.02,
+   0.05,
+   0.1
+  ],
+  "features": "ln(omega / 300), clip(over_m, -1, 1)",
+  "fit": "sklearn LogisticRegression C=1 (L2), leave-one-storm-out; prior when < 5 positive crossings in training"
+ },
+ "runs": {
+  "aug2021_worcester_20m": {
+   "storm": "aug2021",
+   "crossings": 1347,
+   "with_q": 1338,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 191,
+   "damage_p_ge_50_prior": 191,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    38.8,
+    428.7,
+    1868.9
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 27,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 68,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 135,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "aug2023_metrowest_20m": {
+   "storm": "aug2023",
+   "crossings": 998,
+   "with_q": 990,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 29,
+   "damage_p_ge_50_prior": 29,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    12.6,
+    133.1,
+    479.4
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 20,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 50,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 100,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "aug2023b_millbury_20m": {
+   "storm": "aug2023b",
+   "crossings": 1291,
+   "with_q": 1250,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 11,
+   "damage_p_ge_50_prior": 11,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    6.1,
+    66.5,
+    251.9
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 26,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 130,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "aug2026_leominster_20m": {
+   "storm": "aug2026",
+   "crossings": 616,
+   "with_q": 615,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 141,
+   "damage_p_ge_50_prior": 141,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    60.5,
+    908.1,
+    3524.4
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "jul2021_worcester_20m": {
+   "storm": "jul2021",
+   "crossings": 1161,
+   "with_q": 1146,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 9,
+   "damage_p_ge_50_prior": 9,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    9.8,
+    82.1,
+    285.2
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 24,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 59,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 117,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "jul2023_worcester_20m": {
+   "storm": "jul2023",
+   "crossings": 1023,
+   "with_q": 990,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 3,
+   "damage_p_ge_50_prior": 3,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    3.6,
+    40.2,
+    158.1
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 21,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 52,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 103,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "leo48_cn088": {
+   "storm": "sep2023",
+   "crossings": 713,
+   "with_q": 709,
+   "damage_labels": 114,
+   "damage_labels_exact": 69,
+   "strict_sites": 35,
+   "strict_sites_reachable": 23,
+   "positive_crossings": 27,
+   "tolerant_sites": 37,
+   "omega_ge_300": 213,
+   "damage_p_ge_50_prior": 213,
+   "damage_p_ge_50_loso": 213,
+   "omega_pctl": [
+    89.3,
+    1769.6,
+    6167.0
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": 0.8,
+     "pr_auc": 0.14,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.016,
+       "lift": 1.77
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 4.0,
+       "recall": 0.114,
+       "recall_reachable": 0.174,
+       "chance": 0.039,
+       "lift": 2.96
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 11.0,
+       "recall": 0.314,
+       "recall_reachable": 0.478,
+       "chance": 0.076,
+       "lift": 4.11
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 4.0,
+       "recall": 0.108,
+       "recall_reachable": 0.211,
+       "chance": 0.024,
+       "lift": 4.51
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 8.0,
+       "recall": 0.216,
+       "recall_reachable": 0.421,
+       "chance": 0.056,
+       "lift": 3.86
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 9.0,
+       "recall": 0.243,
+       "recall_reachable": 0.474,
+       "chance": 0.107,
+       "lift": 2.28
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": 0.8,
+     "pr_auc": 0.14,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.016,
+       "lift": 1.77
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 4.0,
+       "recall": 0.114,
+       "recall_reachable": 0.174,
+       "chance": 0.039,
+       "lift": 2.96
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 11.0,
+       "recall": 0.314,
+       "recall_reachable": 0.478,
+       "chance": 0.076,
+       "lift": 4.11
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 4.0,
+       "recall": 0.108,
+       "recall_reachable": 0.211,
+       "chance": 0.024,
+       "lift": 4.51
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 8.0,
+       "recall": 0.216,
+       "recall_reachable": 0.421,
+       "chance": 0.056,
+       "lift": 3.86
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 9.0,
+       "recall": 0.243,
+       "recall_reachable": 0.474,
+       "chance": 0.107,
+       "lift": 2.28
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": 0.583,
+     "pr_auc": 0.051,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.65,
+       "recall": 0.047,
+       "recall_reachable": 0.072,
+       "chance": 0.016,
+       "lift": 2.92
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 3.05,
+       "recall": 0.087,
+       "recall_reachable": 0.133,
+       "chance": 0.039,
+       "lift": 2.26
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 6.1,
+       "recall": 0.174,
+       "recall_reachable": 0.265,
+       "chance": 0.076,
+       "lift": 2.28
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.95,
+       "recall": 0.053,
+       "recall_reachable": 0.103,
+       "chance": 0.024,
+       "lift": 2.2
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 4.05,
+       "recall": 0.109,
+       "recall_reachable": 0.213,
+       "chance": 0.056,
+       "lift": 1.95
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 6.85,
+       "recall": 0.185,
+       "recall_reachable": 0.361,
+       "chance": 0.107,
+       "lift": 1.73
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": 0.691,
+     "pr_auc": 0.084,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.6,
+       "recall": 0.046,
+       "recall_reachable": 0.07,
+       "chance": 0.016,
+       "lift": 2.83
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 4.1,
+       "recall": 0.117,
+       "recall_reachable": 0.178,
+       "chance": 0.039,
+       "lift": 3.03
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 8.0,
+       "recall": 0.229,
+       "recall_reachable": 0.348,
+       "chance": 0.076,
+       "lift": 2.99
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 2.6,
+       "recall": 0.07,
+       "recall_reachable": 0.137,
+       "chance": 0.024,
+       "lift": 2.93
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 5.8,
+       "recall": 0.157,
+       "recall_reachable": 0.305,
+       "chance": 0.056,
+       "lift": 2.8
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 9.0,
+       "recall": 0.243,
+       "recall_reachable": 0.474,
+       "chance": 0.107,
+       "lift": 2.28
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": 0.593,
+     "pr_auc": 0.046,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.016,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.039,
+       "lift": 0.74
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.076,
+       "lift": 0.37
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.024,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.0,
+       "recall": 0.027,
+       "recall_reachable": 0.053,
+       "chance": 0.056,
+       "lift": 0.48
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.0,
+       "recall": 0.027,
+       "recall_reachable": 0.053,
+       "chance": 0.107,
+       "lift": 0.25
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": 0.813,
+     "pr_auc": 0.107,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.016,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 3.0,
+       "recall": 0.086,
+       "recall_reachable": 0.13,
+       "chance": 0.039,
+       "lift": 2.22
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 8.0,
+       "recall": 0.229,
+       "recall_reachable": 0.348,
+       "chance": 0.076,
+       "lift": 2.99
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.024,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 5.0,
+       "recall": 0.135,
+       "recall_reachable": 0.263,
+       "chance": 0.056,
+       "lift": 2.41
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 7.0,
+       "recall": 0.189,
+       "recall_reachable": 0.368,
+       "chance": 0.107,
+       "lift": 1.77
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": 0.653,
+     "pr_auc": 0.055,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.016,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.039,
+       "lift": 0.0
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 3.0,
+       "recall": 0.086,
+       "recall_reachable": 0.13,
+       "chance": 0.076,
+       "lift": 1.12
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 15,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.024,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 36,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.0,
+       "recall": 0.027,
+       "recall_reachable": 0.053,
+       "chance": 0.056,
+       "lift": 0.48
+      },
+      {
+       "share": 0.1,
+       "flagged": 72,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 3.0,
+       "recall": 0.081,
+       "recall_reachable": 0.158,
+       "chance": 0.107,
+       "lift": 0.76
+      }
+     ]
+    }
+   },
+   "bootstrap_2km_blocks": {
+    "ref": "HDS-5 / overtopping layer",
+    "B": 2000,
+    "scores": {
+     "fragility LOSO": {
+      "roc_auc_ci": [
+       0.678,
+       0.862
+      ],
+      "pr_auc_ci": [
+       0.063,
+       0.256
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.051,
+       0.198
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       0.003,
+       0.149
+      ],
+      "replicates": 2000
+     },
+     "omega (prior fragility)": {
+      "roc_auc_ci": [
+       0.678,
+       0.862
+      ],
+      "pr_auc_ci": [
+       0.063,
+       0.256
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.051,
+       0.198
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       0.003,
+       0.149
+      ],
+      "replicates": 2000
+     },
+     "overtopped yes/no": {
+      "roc_auc_ci": [
+       0.539,
+       0.646
+      ],
+      "pr_auc_ci": [
+       0.023,
+       0.086
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.195,
+       -0.033
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.069,
+       -0.011
+      ],
+      "replicates": 2000
+     },
+     "HDS-5 / overtopping layer": {
+      "roc_auc_ci": [
+       0.606,
+       0.803
+      ],
+      "pr_auc_ci": [
+       0.04,
+       0.143
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       0.0,
+       0.0
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       0.0,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "upstream area": {
+      "roc_auc_ci": [
+       0.535,
+       0.67
+      ],
+      "pr_auc_ci": [
+       0.024,
+       0.08
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.223,
+       0.014
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.079,
+       -0.007
+      ],
+      "replicates": 2000
+     },
+     "peak Q": {
+      "roc_auc_ci": [
+       0.745,
+       0.86
+      ],
+      "pr_auc_ci": [
+       0.052,
+       0.181
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.01,
+       0.214
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.019,
+       0.072
+      ],
+      "replicates": 2000
+     },
+     "peak speed": {
+      "roc_auc_ci": [
+       0.573,
+       0.736
+      ],
+      "pr_auc_ci": [
+       0.025,
+       0.099
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.156,
+       0.056
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.062,
+       -0.004
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "sites": [
+    {
+     "labels": [
+      "L015",
+      "L019",
+      "D007"
+     ],
+     "types": [
+      "culvert_failure",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u67941",
+      "naacc:xy4252059071767466"
+     ],
+     "omega": [
+      2716.5,
+      1568.5
+     ],
+     "over_m": [
+      -0.528,
+      -2.136
+     ],
+     "p_loso": [
+      0.965,
+      0.923
+     ],
+     "rank_pct_omega": [
+      6.5,
+      11.4
+     ]
+    },
+    {
+     "labels": [
+      "L034",
+      "D048"
+     ],
+     "types": [
+      "sinkhole",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "L035"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "L043",
+      "D038"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "L044",
+      "D072"
+     ],
+     "types": [
+      "bridge_damage",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u57463"
+     ],
+     "omega": [
+      1869.2
+     ],
+     "over_m": [
+      0.227
+     ],
+     "p_loso": [
+      0.94
+     ],
+     "rank_pct_omega": [
+      9.4
+     ]
+    },
+    {
+     "labels": [
+      "L056"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u52499"
+     ],
+     "omega": [
+      785.9
+     ],
+     "over_m": [
+      0.313
+     ],
+     "p_loso": [
+      0.809
+     ],
+     "rank_pct_omega": [
+      17.3
+     ]
+    },
+    {
+     "labels": [
+      "L059"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u53731"
+     ],
+     "omega": [
+      19.5
+     ],
+     "over_m": [
+      -1.399
+     ],
+     "p_loso": [
+      0.016
+     ],
+     "rank_pct_omega": [
+      71.9
+     ]
+    },
+    {
+     "labels": [
+      "L062"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u61140"
+     ],
+     "omega": [
+      10573.8
+     ],
+     "over_m": [
+      -0.988
+     ],
+     "p_loso": [
+      0.995
+     ],
+     "rank_pct_omega": [
+      0.3
+     ]
+    },
+    {
+     "labels": [
+      "L067"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u66716"
+     ],
+     "omega": [
+      4884.7
+     ],
+     "over_m": [
+      -1.22
+     ],
+     "p_loso": [
+      0.985
+     ],
+     "rank_pct_omega": [
+      2.1
+     ]
+    },
+    {
+     "labels": [
+      "L069"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u60470"
+     ],
+     "omega": [
+      2961.8
+     ],
+     "over_m": [
+      -1.76
+     ],
+     "p_loso": [
+      0.969
+     ],
+     "rank_pct_omega": [
+      5.0
+     ]
+    },
+    {
+     "labels": [
+      "L081",
+      "D078"
+     ],
+     "types": [
+      "culvert_failure",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u67943"
+     ],
+     "omega": [
+      1046.6
+     ],
+     "over_m": [
+      -1.678
+     ],
+     "p_loso": [
+      0.867
+     ],
+     "rank_pct_omega": [
+      14.3
+     ]
+    },
+    {
+     "labels": [
+      "L089",
+      "D137",
+      "D138",
+      "D139",
+      "D140"
+     ],
+     "types": [
+      "culvert_failure",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u67127"
+     ],
+     "omega": [
+      135.2
+     ],
+     "over_m": [
+      -0.901
+     ],
+     "p_loso": [
+      0.232
+     ],
+     "rank_pct_omega": [
+      42.2
+     ]
+    },
+    {
+     "labels": [
+      "L090"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u57609"
+     ],
+     "omega": [
+      467.4
+     ],
+     "over_m": [
+      -3.634
+     ],
+     "p_loso": [
+      0.66
+     ],
+     "rank_pct_omega": [
+      23.4
+     ]
+    },
+    {
+     "labels": [
+      "L092"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D008"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u54946"
+     ],
+     "omega": [
+      2773.5
+     ],
+     "over_m": [
+      1.351
+     ],
+     "p_loso": [
+      0.966
+     ],
+     "rank_pct_omega": [
+      6.0
+     ]
+    },
+    {
+     "labels": [
+      "D009"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57668"
+     ],
+     "omega": [
+      47.3
+     ],
+     "over_m": [
+      -2.129
+     ],
+     "p_loso": [
+      0.059
+     ],
+     "rank_pct_omega": [
+      59.0
+     ]
+    },
+    {
+     "labels": [
+      "D012"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D013"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D022"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u51052"
+     ],
+     "omega": [
+      2043.8
+     ],
+     "over_m": [
+      0.427
+     ],
+     "p_loso": [
+      0.947
+     ],
+     "rank_pct_omega": [
+      8.8
+     ]
+    },
+    {
+     "labels": [
+      "D025"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D026"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57813"
+     ],
+     "omega": [
+      107.6
+     ],
+     "over_m": [
+      -3.52
+     ],
+     "p_loso": [
+      0.177
+     ],
+     "rank_pct_omega": [
+      46.4
+     ]
+    },
+    {
+     "labels": [
+      "D027",
+      "D028",
+      "D146"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55057",
+      "u57812",
+      "naacc:xy4250344571758122"
+     ],
+     "omega": [
+      2737.0,
+      3253.1,
+      2215.6
+     ],
+     "over_m": [
+      -3.755,
+      -3.614,
+      0.486
+     ],
+     "p_loso": [
+      0.965,
+      0.973,
+      0.953
+     ],
+     "rank_pct_omega": [
+      6.2,
+      4.3,
+      8.4
+     ]
+    },
+    {
+     "labels": [
+      "D029"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57811"
+     ],
+     "omega": [
+      165.4
+     ],
+     "over_m": [
+      -1.804
+     ],
+     "p_loso": [
+      0.29
+     ],
+     "rank_pct_omega": [
+      38.4
+     ]
+    },
+    {
+     "labels": [
+      "D032"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u60476",
+      "naacc:xy4249656071745007"
+     ],
+     "omega": [
+      656.5,
+      1389.6
+     ],
+     "over_m": [
+      -3.124,
+      -2.716
+     ],
+     "p_loso": [
+      0.764,
+      0.909
+     ],
+     "rank_pct_omega": [
+      18.4,
+      12.3
+     ]
+    },
+    {
+     "labels": [
+      "D035"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57607"
+     ],
+     "omega": [
+      15.6
+     ],
+     "over_m": [
+      -2.428
+     ],
+     "p_loso": [
+      0.012
+     ],
+     "rank_pct_omega": [
+      75.3
+     ]
+    },
+    {
+     "labels": [
+      "D037"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55479"
+     ],
+     "omega": [
+      3719.2
+     ],
+     "over_m": [
+      1.642
+     ],
+     "p_loso": [
+      0.978
+     ],
+     "rank_pct_omega": [
+      3.5
+     ]
+    },
+    {
+     "labels": [
+      "D045"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55055"
+     ],
+     "omega": [
+      2915.7
+     ],
+     "over_m": [
+      -2.996
+     ],
+     "p_loso": [
+      0.968
+     ],
+     "rank_pct_omega": [
+      5.6
+     ]
+    },
+    {
+     "labels": [
+      "D046"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55478"
+     ],
+     "omega": [
+      1116.7
+     ],
+     "over_m": [
+      -2.357
+     ],
+     "p_loso": [
+      0.878
+     ],
+     "rank_pct_omega": [
+      13.9
+     ]
+    },
+    {
+     "labels": [
+      "D071"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u52250"
+     ],
+     "omega": [
+      74.3
+     ],
+     "over_m": [
+      0.245
+     ],
+     "p_loso": [
+      0.11
+     ],
+     "rank_pct_omega": [
+      52.3
+     ]
+    },
+    {
+     "labels": [
+      "D077"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u67944"
+     ],
+     "omega": [
+      2572.4
+     ],
+     "over_m": [
+      0.562
+     ],
+     "p_loso": [
+      0.962
+     ],
+     "rank_pct_omega": [
+      7.2
+     ]
+    },
+    {
+     "labels": [
+      "D112",
+      "D113",
+      "D114",
+      "D115"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D116",
+      "D117",
+      "D118",
+      "D119",
+      "D121",
+      "D122",
+      "D123",
+      "D124",
+      "D125",
+      "D126",
+      "D127",
+      "D128",
+      "D129",
+      "D130"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D131",
+      "D132",
+      "D133"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D134",
+      "D135",
+      "D136"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D141",
+      "D142",
+      "D143"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    }
+   ],
+   "spatial_cv_4km": {
+    "roc_auc": 0.593,
+    "pr_auc": 0.048,
+    "strict": [
+     {
+      "share": 0.02,
+      "flagged": 15,
+      "sites": 35,
+      "reachable": 23,
+      "hit": 1.0,
+      "recall": 0.029,
+      "recall_reachable": 0.043,
+      "chance": 0.016,
+      "lift": 1.77
+     },
+     {
+      "share": 0.05,
+      "flagged": 36,
+      "sites": 35,
+      "reachable": 23,
+      "hit": 1.0,
+      "recall": 0.029,
+      "recall_reachable": 0.043,
+      "chance": 0.039,
+      "lift": 0.74
+     },
+     {
+      "share": 0.1,
+      "flagged": 72,
+      "sites": 35,
+      "reachable": 23,
+      "hit": 2.0,
+      "recall": 0.057,
+      "recall_reachable": 0.087,
+      "chance": 0.076,
+      "lift": 0.75
+     }
+    ],
+    "note": "leave-one-4-km-block-out within this storm (in-sample storm, not a held-out result)"
+   }
+  },
+  "sep2021_worcester_20m": {
+   "storm": "sep2021",
+   "crossings": 1074,
+   "with_q": 1073,
+   "damage_labels": 1,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 1,
+   "omega_ge_300": 200,
+   "damage_p_ge_50_prior": 200,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    58.2,
+    523.9,
+    2804.8
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 22,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 54,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 108,
+       "sites": 1,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": null,
+       "chance": 0.0,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "sep2022_webster_20m": {
+   "storm": "sep2022",
+   "crossings": 642,
+   "with_q": 615,
+   "damage_labels": 0,
+   "damage_labels_exact": 0,
+   "strict_sites": 0,
+   "strict_sites_reachable": 0,
+   "positive_crossings": 0,
+   "tolerant_sites": 0,
+   "omega_ge_300": 41,
+   "damage_p_ge_50_prior": 41,
+   "damage_p_ge_50_loso": 0,
+   "omega_pctl": [
+    19.1,
+    215.1,
+    930.4
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": null,
+     "pr_auc": null,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.05,
+       "flagged": 33,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      },
+      {
+       "share": 0.1,
+       "flagged": 65,
+       "sites": 0,
+       "reachable": 0,
+       "hit": 0.0,
+       "recall": null,
+       "recall_reachable": null,
+       "chance": null,
+       "lift": null
+      }
+     ]
+    }
+   },
+   "sites": []
+  },
+  "sep2023_leominster_20m": {
+   "storm": "sep2023",
+   "crossings": 616,
+   "with_q": 615,
+   "damage_labels": 114,
+   "damage_labels_exact": 69,
+   "strict_sites": 35,
+   "strict_sites_reachable": 23,
+   "positive_crossings": 27,
+   "tolerant_sites": 37,
+   "omega_ge_300": 210,
+   "damage_p_ge_50_prior": 210,
+   "damage_p_ge_50_loso": 210,
+   "omega_pctl": [
+    133.6,
+    1750.4,
+    6288.7
+   ],
+   "scores": {
+    "fragility LOSO": {
+     "roc_auc": 0.782,
+     "pr_auc": 0.155,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.016,
+       "lift": 1.76
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 4.0,
+       "recall": 0.114,
+       "recall_reachable": 0.174,
+       "chance": 0.038,
+       "lift": 2.97
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 11.0,
+       "recall": 0.314,
+       "recall_reachable": 0.478,
+       "chance": 0.076,
+       "lift": 4.12
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 4.0,
+       "recall": 0.108,
+       "recall_reachable": 0.211,
+       "chance": 0.024,
+       "lift": 4.49
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 8.0,
+       "recall": 0.216,
+       "recall_reachable": 0.421,
+       "chance": 0.056,
+       "lift": 3.87
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 9.0,
+       "recall": 0.243,
+       "recall_reachable": 0.474,
+       "chance": 0.107,
+       "lift": 2.28
+      }
+     ]
+    },
+    "omega (prior fragility)": {
+     "roc_auc": 0.782,
+     "pr_auc": 0.155,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.016,
+       "lift": 1.76
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 4.0,
+       "recall": 0.114,
+       "recall_reachable": 0.174,
+       "chance": 0.038,
+       "lift": 2.97
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 11.0,
+       "recall": 0.314,
+       "recall_reachable": 0.478,
+       "chance": 0.076,
+       "lift": 4.12
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 4.0,
+       "recall": 0.108,
+       "recall_reachable": 0.211,
+       "chance": 0.024,
+       "lift": 4.49
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 8.0,
+       "recall": 0.216,
+       "recall_reachable": 0.421,
+       "chance": 0.056,
+       "lift": 3.87
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 9.0,
+       "recall": 0.243,
+       "recall_reachable": 0.474,
+       "chance": 0.107,
+       "lift": 2.28
+      }
+     ]
+    },
+    "overtopped yes/no": {
+     "roc_auc": 0.574,
+     "pr_auc": 0.056,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.05,
+       "recall": 0.03,
+       "recall_reachable": 0.046,
+       "chance": 0.016,
+       "lift": 1.85
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 2.25,
+       "recall": 0.064,
+       "recall_reachable": 0.098,
+       "chance": 0.038,
+       "lift": 1.67
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 5.2,
+       "recall": 0.149,
+       "recall_reachable": 0.226,
+       "chance": 0.076,
+       "lift": 1.95
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.0,
+       "recall": 0.027,
+       "recall_reachable": 0.053,
+       "chance": 0.024,
+       "lift": 1.12
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 3.05,
+       "recall": 0.082,
+       "recall_reachable": 0.161,
+       "chance": 0.056,
+       "lift": 1.48
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 6.2,
+       "recall": 0.168,
+       "recall_reachable": 0.326,
+       "chance": 0.107,
+       "lift": 1.57
+      }
+     ]
+    },
+    "HDS-5 / overtopping layer": {
+     "roc_auc": 0.681,
+     "pr_auc": 0.094,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.3,
+       "recall": 0.037,
+       "recall_reachable": 0.057,
+       "chance": 0.016,
+       "lift": 2.29
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 3.6,
+       "recall": 0.103,
+       "recall_reachable": 0.157,
+       "chance": 0.038,
+       "lift": 2.67
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 8.0,
+       "recall": 0.229,
+       "recall_reachable": 0.348,
+       "chance": 0.076,
+       "lift": 3.0
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 2.35,
+       "recall": 0.064,
+       "recall_reachable": 0.124,
+       "chance": 0.024,
+       "lift": 2.64
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 5.35,
+       "recall": 0.145,
+       "recall_reachable": 0.282,
+       "chance": 0.056,
+       "lift": 2.59
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 9.0,
+       "recall": 0.243,
+       "recall_reachable": 0.474,
+       "chance": 0.107,
+       "lift": 2.28
+      }
+     ]
+    },
+    "upstream area": {
+     "roc_auc": 0.592,
+     "pr_auc": 0.054,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.65,
+       "recall": 0.019,
+       "recall_reachable": 0.028,
+       "chance": 0.016,
+       "lift": 1.14
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.038,
+       "lift": 0.74
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.076,
+       "lift": 0.37
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 0.7,
+       "recall": 0.019,
+       "recall_reachable": 0.037,
+       "chance": 0.024,
+       "lift": 0.79
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.0,
+       "recall": 0.027,
+       "recall_reachable": 0.053,
+       "chance": 0.056,
+       "lift": 0.48
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 1.0,
+       "recall": 0.027,
+       "recall_reachable": 0.053,
+       "chance": 0.107,
+       "lift": 0.25
+      }
+     ]
+    },
+    "peak Q": {
+     "roc_auc": 0.806,
+     "pr_auc": 0.122,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.016,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 3.0,
+       "recall": 0.086,
+       "recall_reachable": 0.13,
+       "chance": 0.038,
+       "lift": 2.23
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 8.0,
+       "recall": 0.229,
+       "recall_reachable": 0.348,
+       "chance": 0.076,
+       "lift": 3.0
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.024,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 5.0,
+       "recall": 0.135,
+       "recall_reachable": 0.263,
+       "chance": 0.056,
+       "lift": 2.42
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 7.0,
+       "recall": 0.189,
+       "recall_reachable": 0.368,
+       "chance": 0.107,
+       "lift": 1.78
+      }
+     ]
+    },
+    "peak speed": {
+     "roc_auc": 0.634,
+     "pr_auc": 0.065,
+     "strict": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.016,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 1.0,
+       "recall": 0.029,
+       "recall_reachable": 0.043,
+       "chance": 0.038,
+       "lift": 0.74
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 35,
+       "reachable": 23,
+       "hit": 3.0,
+       "recall": 0.086,
+       "recall_reachable": 0.13,
+       "chance": 0.076,
+       "lift": 1.12
+      }
+     ],
+     "tolerant": [
+      {
+       "share": 0.02,
+       "flagged": 13,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 0.0,
+       "recall": 0.0,
+       "recall_reachable": 0.0,
+       "chance": 0.024,
+       "lift": 0.0
+      },
+      {
+       "share": 0.05,
+       "flagged": 31,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 2.0,
+       "recall": 0.054,
+       "recall_reachable": 0.105,
+       "chance": 0.056,
+       "lift": 0.97
+      },
+      {
+       "share": 0.1,
+       "flagged": 62,
+       "sites": 37,
+       "reachable": 19,
+       "hit": 3.0,
+       "recall": 0.081,
+       "recall_reachable": 0.158,
+       "chance": 0.107,
+       "lift": 0.76
+      }
+     ]
+    }
+   },
+   "bootstrap_2km_blocks": {
+    "ref": "HDS-5 / overtopping layer",
+    "B": 2000,
+    "scores": {
+     "fragility LOSO": {
+      "roc_auc_ci": [
+       0.656,
+       0.852
+      ],
+      "pr_auc_ci": [
+       0.076,
+       0.273
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.064,
+       0.191
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       0.005,
+       0.162
+      ],
+      "replicates": 2000
+     },
+     "omega (prior fragility)": {
+      "roc_auc_ci": [
+       0.656,
+       0.852
+      ],
+      "pr_auc_ci": [
+       0.076,
+       0.273
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.064,
+       0.191
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       0.005,
+       0.162
+      ],
+      "replicates": 2000
+     },
+     "overtopped yes/no": {
+      "roc_auc_ci": [
+       0.528,
+       0.64
+      ],
+      "pr_auc_ci": [
+       0.025,
+       0.09
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.201,
+       -0.038
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.077,
+       -0.014
+      ],
+      "replicates": 2000
+     },
+     "HDS-5 / overtopping layer": {
+      "roc_auc_ci": [
+       0.599,
+       0.793
+      ],
+      "pr_auc_ci": [
+       0.047,
+       0.154
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       0.0,
+       0.0
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       0.0,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "upstream area": {
+      "roc_auc_ci": [
+       0.534,
+       0.665
+      ],
+      "pr_auc_ci": [
+       0.029,
+       0.091
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.214,
+       0.017
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.082,
+       -0.005
+      ],
+      "replicates": 2000
+     },
+     "peak Q": {
+      "roc_auc_ci": [
+       0.739,
+       0.86
+      ],
+      "pr_auc_ci": [
+       0.065,
+       0.2
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.005,
+       0.216
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.017,
+       0.085
+      ],
+      "replicates": 2000
+     },
+     "peak speed": {
+      "roc_auc_ci": [
+       0.543,
+       0.733
+      ],
+      "pr_auc_ci": [
+       0.031,
+       0.114
+      ],
+      "d_roc_auc_vs_ref_ci": [
+       -0.151,
+       0.036
+      ],
+      "d_pr_auc_vs_ref_ci": [
+       -0.062,
+       -0.002
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "sites": [
+    {
+     "labels": [
+      "L015",
+      "L019",
+      "D007"
+     ],
+     "types": [
+      "culvert_failure",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u67941",
+      "naacc:xy4252059071767466"
+     ],
+     "omega": [
+      2723.2,
+      1572.2
+     ],
+     "over_m": [
+      -0.527,
+      -2.135
+     ],
+     "p_loso": [
+      0.965,
+      0.923
+     ],
+     "rank_pct_omega": [
+      6.5,
+      11.0
+     ]
+    },
+    {
+     "labels": [
+      "L034",
+      "D048"
+     ],
+     "types": [
+      "sinkhole",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "L035"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "L043",
+      "D038"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "L044",
+      "D072"
+     ],
+     "types": [
+      "bridge_damage",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u57463"
+     ],
+     "omega": [
+      1882.8
+     ],
+     "over_m": [
+      0.227
+     ],
+     "p_loso": [
+      0.94
+     ],
+     "rank_pct_omega": [
+      9.4
+     ]
+    },
+    {
+     "labels": [
+      "L056"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u52499"
+     ],
+     "omega": [
+      780.3
+     ],
+     "over_m": [
+      0.312
+     ],
+     "p_loso": [
+      0.807
+     ],
+     "rank_pct_omega": [
+      18.8
+     ]
+    },
+    {
+     "labels": [
+      "L059"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u53731"
+     ],
+     "omega": [
+      19.5
+     ],
+     "over_m": [
+      -1.399
+     ],
+     "p_loso": [
+      0.016
+     ],
+     "rank_pct_omega": [
+      76.3
+     ]
+    },
+    {
+     "labels": [
+      "L062"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u61140"
+     ],
+     "omega": [
+      10626.5
+     ],
+     "over_m": [
+      -0.986
+     ],
+     "p_loso": [
+      0.995
+     ],
+     "rank_pct_omega": [
+      0.3
+     ]
+    },
+    {
+     "labels": [
+      "L067"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u66716"
+     ],
+     "omega": [
+      4846.5
+     ],
+     "over_m": [
+      -1.221
+     ],
+     "p_loso": [
+      0.985
+     ],
+     "rank_pct_omega": [
+      2.1
+     ]
+    },
+    {
+     "labels": [
+      "L069"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u60470"
+     ],
+     "omega": [
+      2933.6
+     ],
+     "over_m": [
+      -1.761
+     ],
+     "p_loso": [
+      0.968
+     ],
+     "rank_pct_omega": [
+      5.4
+     ]
+    },
+    {
+     "labels": [
+      "L081",
+      "D078"
+     ],
+     "types": [
+      "culvert_failure",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u67943"
+     ],
+     "omega": [
+      1037.1
+     ],
+     "over_m": [
+      -1.68
+     ],
+     "p_loso": [
+      0.865
+     ],
+     "rank_pct_omega": [
+      15.1
+     ]
+    },
+    {
+     "labels": [
+      "L089",
+      "D137",
+      "D138",
+      "D139",
+      "D140"
+     ],
+     "types": [
+      "culvert_failure",
+      "washout"
+     ],
+     "src": [
+      "dpw",
+      "news"
+     ],
+     "crossings": [
+      "u67127"
+     ],
+     "omega": [
+      134.6
+     ],
+     "over_m": [
+      -0.902
+     ],
+     "p_loso": [
+      0.231
+     ],
+     "rank_pct_omega": [
+      49.5
+     ]
+    },
+    {
+     "labels": [
+      "L090"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [
+      "u57609"
+     ],
+     "omega": [
+      462.6
+     ],
+     "over_m": [
+      -3.636
+     ],
+     "p_loso": [
+      0.657
+     ],
+     "rank_pct_omega": [
+      26.1
+     ]
+    },
+    {
+     "labels": [
+      "L092"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "news"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D008"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u54946"
+     ],
+     "omega": [
+      2784.8
+     ],
+     "over_m": [
+      1.352
+     ],
+     "p_loso": [
+      0.966
+     ],
+     "rank_pct_omega": [
+      6.2
+     ]
+    },
+    {
+     "labels": [
+      "D009"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57668"
+     ],
+     "omega": [
+      47.9
+     ],
+     "over_m": [
+      -2.129
+     ],
+     "p_loso": [
+      0.06
+     ],
+     "rank_pct_omega": [
+      65.1
+     ]
+    },
+    {
+     "labels": [
+      "D012"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D013"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D022"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u51052"
+     ],
+     "omega": [
+      2085.7
+     ],
+     "over_m": [
+      0.427
+     ],
+     "p_loso": [
+      0.948
+     ],
+     "rank_pct_omega": [
+      8.6
+     ]
+    },
+    {
+     "labels": [
+      "D025"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D026"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57813"
+     ],
+     "omega": [
+      106.9
+     ],
+     "over_m": [
+      -3.524
+     ],
+     "p_loso": [
+      0.175
+     ],
+     "rank_pct_omega": [
+      53.2
+     ]
+    },
+    {
+     "labels": [
+      "D027",
+      "D028",
+      "D146"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55057",
+      "u57812",
+      "naacc:xy4250344571758122"
+     ],
+     "omega": [
+      2726.0,
+      3222.4,
+      2199.6
+     ],
+     "over_m": [
+      -3.756,
+      -3.615,
+      0.485
+     ],
+     "p_loso": [
+      0.965,
+      0.972,
+      0.952
+     ],
+     "rank_pct_omega": [
+      6.3,
+      4.2,
+      8.3
+     ]
+    },
+    {
+     "labels": [
+      "D029"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57811"
+     ],
+     "omega": [
+      165.3
+     ],
+     "over_m": [
+      -1.804
+     ],
+     "p_loso": [
+      0.29
+     ],
+     "rank_pct_omega": [
+      43.8
+     ]
+    },
+    {
+     "labels": [
+      "D032"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u60476",
+      "naacc:xy4249656071745007"
+     ],
+     "omega": [
+      651.5,
+      1378.3
+     ],
+     "over_m": [
+      -3.125,
+      -2.717
+     ],
+     "p_loso": [
+      0.762,
+      0.908
+     ],
+     "rank_pct_omega": [
+      20.6,
+      12.5
+     ]
+    },
+    {
+     "labels": [
+      "D035"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u57607"
+     ],
+     "omega": [
+      15.4
+     ],
+     "over_m": [
+      -2.428
+     ],
+     "p_loso": [
+      0.011
+     ],
+     "rank_pct_omega": [
+      80.0
+     ]
+    },
+    {
+     "labels": [
+      "D037"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55479"
+     ],
+     "omega": [
+      3695.7
+     ],
+     "over_m": [
+      1.642
+     ],
+     "p_loso": [
+      0.977
+     ],
+     "rank_pct_omega": [
+      3.4
+     ]
+    },
+    {
+     "labels": [
+      "D045"
+     ],
+     "types": [
+      "culvert_failure"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55055"
+     ],
+     "omega": [
+      2917.4
+     ],
+     "over_m": [
+      -2.995
+     ],
+     "p_loso": [
+      0.968
+     ],
+     "rank_pct_omega": [
+      5.5
+     ]
+    },
+    {
+     "labels": [
+      "D046"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u55478"
+     ],
+     "omega": [
+      1110.0
+     ],
+     "over_m": [
+      -2.358
+     ],
+     "p_loso": [
+      0.877
+     ],
+     "rank_pct_omega": [
+      14.4
+     ]
+    },
+    {
+     "labels": [
+      "D071"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u52250"
+     ],
+     "omega": [
+      75.3
+     ],
+     "over_m": [
+      0.245
+     ],
+     "p_loso": [
+      0.112
+     ],
+     "rank_pct_omega": [
+      58.6
+     ]
+    },
+    {
+     "labels": [
+      "D077"
+     ],
+     "types": [
+      "other_damage"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [
+      "u67944"
+     ],
+     "omega": [
+      2562.4
+     ],
+     "over_m": [
+      0.562
+     ],
+     "p_loso": [
+      0.961
+     ],
+     "rank_pct_omega": [
+      7.1
+     ]
+    },
+    {
+     "labels": [
+      "D112",
+      "D113",
+      "D114",
+      "D115"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D116",
+      "D117",
+      "D118",
+      "D119",
+      "D121",
+      "D122",
+      "D123",
+      "D124",
+      "D125",
+      "D126",
+      "D127",
+      "D128",
+      "D129",
+      "D130"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D131",
+      "D132",
+      "D133"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D134",
+      "D135",
+      "D136"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    },
+    {
+     "labels": [
+      "D141",
+      "D142",
+      "D143"
+     ],
+     "types": [
+      "washout"
+     ],
+     "src": [
+      "dpw"
+     ],
+     "crossings": [],
+     "omega": [],
+     "over_m": [],
+     "p_loso": [],
+     "rank_pct_omega": []
+    }
+   ],
+   "spatial_cv_4km": {
+    "roc_auc": 0.536,
+    "pr_auc": 0.049,
+    "strict": [
+     {
+      "share": 0.02,
+      "flagged": 13,
+      "sites": 35,
+      "reachable": 23,
+      "hit": 1.0,
+      "recall": 0.029,
+      "recall_reachable": 0.043,
+      "chance": 0.016,
+      "lift": 1.76
+     },
+     {
+      "share": 0.05,
+      "flagged": 31,
+      "sites": 35,
+      "reachable": 23,
+      "hit": 1.0,
+      "recall": 0.029,
+      "recall_reachable": 0.043,
+      "chance": 0.038,
+      "lift": 0.74
+     },
+     {
+      "share": 0.1,
+      "flagged": 62,
+      "sites": 35,
+      "reachable": 23,
+      "hit": 2.0,
+      "recall": 0.057,
+      "recall_reachable": 0.087,
+      "chance": 0.076,
+      "lift": 0.75
+     }
+    ],
+    "note": "leave-one-4-km-block-out within this storm (in-sample storm, not a held-out result)"
+   }
+  }
+ },
+ "loso": {
+  "aug2021_worcester_20m": {
+   "b0": -4.578989529954048,
+   "b1": 0.9692724126280978,
+   "b2": 0.2879065178001309,
+   "n": 7421,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "aug2023_metrowest_20m": {
+   "b0": -4.742809392543708,
+   "b1": 0.9746339538549553,
+   "b2": 0.2743497627019245,
+   "n": 7770,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "aug2023b_millbury_20m": {
+   "b0": -4.755874851796627,
+   "b1": 0.9679433815279144,
+   "b2": 0.2816823912127809,
+   "n": 7477,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "aug2026_leominster_20m": {
+   "b0": -4.658635119537142,
+   "b1": 1.0254044900898882,
+   "b2": 0.2789392671076626,
+   "n": 8152,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "jul2021_worcester_20m": {
+   "b0": -4.747446464526057,
+   "b1": 0.9655686546175152,
+   "b2": 0.28357697932303244,
+   "n": 7607,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "jul2023_worcester_20m": {
+   "b0": -4.773567781325405,
+   "b1": 0.9785761626220258,
+   "b2": 0.2919746381258395,
+   "n": 7745,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "leo48_cn088": "prior (fewer than 5 positive crossings outside this storm)",
+  "sep2021_worcester_20m": {
+   "b0": -4.550192458238802,
+   "b1": 0.9949172365217075,
+   "b2": 0.3403656734504832,
+   "n": 7694,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "sep2022_webster_20m": {
+   "b0": -4.748104618597447,
+   "b1": 0.9780186489913646,
+   "b2": 0.2768196239471602,
+   "n": 8126,
+   "n_pos": 27,
+   "C": 1.0
+  },
+  "sep2023_leominster_20m": "prior (fewer than 5 positive crossings outside this storm)"
+ },
+ "fit_all": {
+  "b0": -4.788618693140569,
+  "b1": 0.9938084525942843,
+  "b2": 0.30212181640952435,
+  "n": 8768,
+  "n_pos": 27,
+  "C": 1.0
+ },
+ "layer_fit_all": {
+  "aug2021_worcester_20m": {
+   "expected_repair_usd": 4943000.0,
+   "p_ge_05": 8,
+   "p_ge_10": 0,
+   "top": [
+    [
+     "",
+     "Blackstone River",
+     0.08,
+     4287
+    ],
+    [
+     "",
+     "Blackstone River",
+     0.071,
+     3774
+    ],
+    [
+     "Blackstone St",
+     "Blackstone River",
+     0.07,
+     3716
+    ]
+   ]
+  },
+  "aug2023_metrowest_20m": {
+   "expected_repair_usd": 1055000.0,
+   "p_ge_05": 1,
+   "p_ge_10": 1,
+   "top": [
+    [
+     "Massachusetts Tpke, I- 90",
+     "",
+     0.196,
+     12141
+    ],
+    [
+     "W Central St, State Rte 135",
+     "",
+     0.034,
+     1745
+    ],
+    [
+     "",
+     "",
+     0.024,
+     882
+    ]
+   ]
+  },
+  "aug2023b_millbury_20m": {
+   "expected_repair_usd": 771000.0,
+   "p_ge_05": 0,
+   "p_ge_10": 0,
+   "top": [
+    [
+     "",
+     "Blackstone River",
+     0.019,
+     926
+    ],
+    [
+     "Blackstone St",
+     "Blackstone River",
+     0.013,
+     642
+    ],
+    [
+     "",
+     "Blackstone River",
+     0.01,
+     490
+    ]
+   ]
+  },
+  "aug2026_leominster_20m": {
+   "expected_repair_usd": 5957000.0,
+   "p_ge_05": 17,
+   "p_ge_10": 4,
+   "top": [
+    [
+     "I- 190",
+     "North Nashua River",
+     0.174,
+     10475
+    ],
+    [
+     "I- 190",
+     "North Nashua River",
+     0.11,
+     6118
+    ],
+    [
+     "Unknown",
+     "North Nashua River",
+     0.109,
+     3964
+    ]
+   ]
+  },
+  "jul2021_worcester_20m": {
+   "expected_repair_usd": 933000.0,
+   "p_ge_05": 0,
+   "p_ge_10": 0,
+   "top": [
+    [
+     "I- 90, Massachusetts Tpke",
+     "Little River",
+     0.018,
+     498
+    ],
+    [
+     "State Rte 56, Leicester St",
+     "",
+     0.014,
+     676
+    ],
+    [
+     "State Rte 56, Leicester St",
+     "French River",
+     0.014,
+     677
+    ]
+   ]
+  },
+  "jul2023_worcester_20m": {
+   "expected_repair_usd": 382000.0,
+   "p_ge_05": 0,
+   "p_ge_10": 0,
+   "top": [
+    [
+     "",
+     "Blackstone River",
+     0.008,
+     397
+    ],
+    [
+     "State Rte 56, Leicester St",
+     "",
+     0.008,
+     379
+    ],
+    [
+     "State Rte 56, Leicester St",
+     "French River",
+     0.008,
+     378
+    ]
+   ]
+  },
+  "leo48_cn088": {
+   "expected_repair_usd": 12280000.0,
+   "p_ge_05": 62,
+   "p_ge_10": 18,
+   "top": [
+    [
+     "I- 190",
+     "North Nashua River",
+     0.446,
+     26363
+    ],
+    [
+     "I- 190",
+     "North Nashua River",
+     0.299,
+     15399
+    ],
+    [
+     "Gleason Rd",
+     "Keyes Brook",
+     0.185,
+     6292
+    ]
+   ]
+  },
+  "sep2021_worcester_20m": {
+   "expected_repair_usd": 6709000.0,
+   "p_ge_05": 15,
+   "p_ge_10": 1,
+   "top": [
+    [
+     "",
+     "Blackstone River",
+     0.144,
+     8397
+    ],
+    [
+     "Friedel St",
+     "",
+     0.098,
+     5372
+    ],
+    [
+     "",
+     "Blackstone River",
+     0.095,
+     2850
+    ]
+   ]
+  },
+  "sep2022_webster_20m": {
+   "expected_repair_usd": 1024000.0,
+   "p_ge_05": 0,
+   "p_ge_10": 0,
+   "top": [
+    [
+     "Sunnyside Rd, Sunnyside Number 1",
+     "",
+     0.046,
+     2406
+    ],
+    [
+     "N Section Dudley Hill Rd, Dudley Hill Rd",
+     "",
+     0.039,
+     1992
+    ],
+    [
+     "Sunnyside Rd, Sunnyside Number 1",
+     "",
+     0.037,
+     1918
+    ]
+   ]
+  },
+  "sep2023_leominster_20m": {
+   "expected_repair_usd": 11199000.0,
+   "p_ge_05": 55,
+   "p_ge_10": 16,
+   "top": [
+    [
+     "I- 190",
+     "North Nashua River",
+     0.393,
+     26440
+    ],
+    [
+     "I- 190",
+     "North Nashua River",
+     0.251,
+     15449
+    ],
+    [
+     "Gleason Rd",
+     "Keyes Brook",
+     0.185,
+     6300
+    ]
+   ]
+  }
+ }
+}

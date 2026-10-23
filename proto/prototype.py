@@ -949,6 +949,10 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         wt = (ptier > 0) & (pclose < 0.5) & inbox
         summ.update(segments_watch=int(wt.sum()), km_watch=round(float(np.asarray(props['len'], float)[wt].sum() / 1000), 1),
                     watch_rule=f'two-tier alerts (PROTO_TIERS=1): watch = not likely closed and learned closure model p_close_ml >= {TIER_WATCH_P}')
+    if os.environ.get('PROTO_DAMAGE', '0') == '1':      # crossing damage layer (T7, docs/proto/damage/DAMAGE.md): out/damage.geojson, never in p_close
+        try:
+            import damage as DMG; summ['damage'] = DMG.run_layer(run_dir, out)
+        except Exception as e_: summ['damage'] = dict(error=repr(e_)[:200])
     json.dump(summ, open(os.path.join(out, 'summary.json'), 'w'), indent=1)
     write_map(os.path.join(out, 'map.html'), out, meta, np.where(WM, 0, H) if WM is not None else H, summ)
     write_figure(os.path.join(out, 'figure.png'), meta, H, S, keep)
