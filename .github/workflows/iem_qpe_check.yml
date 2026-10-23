@@ -1,0 +1,32 @@
+name: IEM MRMS fallback check (w9 GaugeCorr/Pass2 from mtarchive vs ASOS; proto/rain/iem_qpe_check.py)
+on:
+  workflow_dispatch:
+    inputs:
+      storms:
+        description: 'JSON list of catalogue storm ids'
+        required: true
+        default: '["jul2019"]'
+      consistency:
+        description: 'UTC hour after Oct 2020 to compare AWS Pass2 with IEM Pass2 (empty = skip)'
+        required: false
+        default: '2021-07-09T15:00Z'
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        storm: ${{ fromJSON(inputs.storms) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pygrib
+      - run: python proto/rain/iem_qpe_check.py --storm ${{ matrix.storm }} --consistency "${{ inputs.consistency }}" --out docs/proto/rain/iem_check/${{ matrix.storm }}.json 2>&1 | tail -120
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/rain/iem_check; git commit -qm "IEM MRMS check: ${{ matrix.storm }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
