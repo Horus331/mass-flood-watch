@@ -58,6 +58,10 @@ LOSO9 = ('aug2021', 'aug2023', 'aug2023b', 'aug2026', 'jul2021', 'jul2023', 'sep
 DEV = ('sep2023', 'aug2021')                                                            # rules were built on these: in-sample
 HELDOUT = ('aug2023', 'aug2023b', 'aug2026', 'jul2021', 'jul2023', 'sep2021', 'sep2022')  # OOS-7: the headline
 LOCKED = ('aug2015', 'aug2018', 'aug2020', 'jul2018', 'oct2016')                       # pre-Oct-2020 IEM storms: opened once
+# label expansion 2026-10-23 (docs/proto/obs/LABELS_EXPANSION.md): 16 new storms, none locked; never used for tuning -> held out.
+# Reported as their own pool and pooled with OOS-7 ('heldout23'); the frozen OOS-7 decision set (PROTOCOL.md §5) is unchanged.
+NEW16 = ('may2018', 'aug2018b', 'sep2018', 'sep2018w', 'sep2018m', 'sep2018b', 'jul2019', 'aug2019', 'sep2019', 'jun2020', 'jun2020b', 'aug2020b',
+         'jul2021b', 'jul2023b', 'jul2023c', 'jul2023d')
 DOMAIN_OVERRIDE = dict(sep2023=('Leominster',))
 COMPLETE = dict(sep2023=('Leominster',))                                                # domains with a complete inventory (DPW)
 # adoption rule (PROTOCOL.md §5) - fixed 23 Oct 2026 before any candidate was scored
@@ -307,7 +311,7 @@ def score_domain(R, dm, towns):
 
 def score_run(R):
     """All metrics for one loaded run, box-wide and inside the reporting towns."""
-    out = dict(run=R['run'], storm=R['storm'], role=('dev' if R['storm'] in DEV else 'heldout' if R['storm'] in HELDOUT else
+    out = dict(run=R['run'], storm=R['storm'], role=('dev' if R['storm'] in DEV else 'heldout' if R['storm'] in HELDOUT else 'heldout-new' if R['storm'] in NEW16 else
                                                        'locked' if R['storm'] in LOCKED else 'other'),
                universe=R['universe'], matches=R['match_src'], label_files=[os.path.basename(f) for f in label_files(R['storm'])],
                labels_in_box=len(R['labels']), domains={})
@@ -411,6 +415,7 @@ def find_runs():
             if not (os.path.exists(os.path.join(p, 'flood_meta.json')) and os.path.exists(os.path.join(p, 'segments.geojson'))): continue
             s = storm_of(d)
             if not s or not label_files(s): continue
+            if s in LOCKED and os.environ.get('SCORE_LOCKED') != '1': print('locked storm, not scored:', d); continue   # PROTOCOL.md §2
             out.append((p, s, grp, bool(re.fullmatch(rf'{s}_[a-z]+_20m', d))))
     return out
 
@@ -456,7 +461,7 @@ def catalog(out, md=None, boot=NBOOT):
     pools = {}
     for grp in sorted({r['group'] for r in runs}):
         P = {s: r for r in runs if r['group'] == grp and r['primary'] for s in [r['storm']]}
-        for name, st in (('all9', LOSO9), ('heldout7', HELDOUT), ('dev2', DEV)):
+        for name, st in (('all9', LOSO9), ('heldout7', HELDOUT), ('dev2', DEV), ('new16', NEW16), ('heldout23', HELDOUT + NEW16), ('all25', LOSO9 + NEW16)):
             sel = [P[s] for s in st if s in P]
             if sel: pools[f'{grp}:{name}'] = {dom: pooled(sel, dom, boot) for dom in ('box', 'towns')}
     res = dict(made_by='proto/score_v2.py --catalog', settings=dict(shares=SHARES, radii=RADII, cell_m=CELL, match_m=MATCH_M, site_link_m=SITE_LINK_M,
