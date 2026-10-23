@@ -4,7 +4,7 @@
     python w9_lisflood.py --selftest            (offline: checks the input writers on a tiny synthetic grid)
 
 env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multiple of 10), STORM (default sep2023), T0, HOURS,
-     LF_LOSS none|fc (default none), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
+     LF_LOSS none|fc|cn|cn_dcia (default none; cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
      LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
      LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s),
      LF_DOMAIN basin + LF_DOMAIN_FILE (watershed-shaped domain, sim/colab/lf_domain.py; default box), LF_EXE / LF_EXE_CUDA (prebuilt LISFLOOD-FP),
@@ -151,6 +151,43 @@ def write_par(path, resroot, sim_time, saveint=1800, massint=300, cuda=False, de
 # branches), wooded swamp ~0.12, emergent marsh 0.07-0.10.  Forest and woody wetland take LF_N_FOREST.  Developed classes keep the paved rule.
 NLCD_N = {31: 0.03, 52: 0.07, 71: 0.035, 81: 0.035, 82: 0.04, 95: 0.08}
 NLCD_FOREST = (41, 42, 43, 90)
+
+
+def cn_excess(P, CN):
+    """TR-55 cumulative runoff Q(P) (mm) for cumulative rain P (mm) and curve number CN (Ia = 0.2 S)."""
+    S_ = 25400.0 / np.maximum(CN, 1.0) - 254.0; Ia = 0.2 * S_
+    return np.where(P > Ia, (P - Ia) ** 2 / np.maximum(P - Ia + S_, 1e-6), 0.0)
+
+
+def dcia_fraction(imp, mode='sutherland'):
+    """Directly connected impervious area (share of the cell) from total impervious share `imp` (0-1).
+    'sutherland' = Sutherland (1995) 'average' connection, DCIA% = 0.1 TIA%^1.5 (TIA >= 1 %), the relation in EPA SWMM /
+    Lee & Heaney (2003) guidance; 'sutherland_high' = highly connected 0.4 TIA%^1.2; a number (e.g. '1' or '0.7') = that
+    fixed fraction of TIA (1 = every paved square metre drains straight to the street / pipe)."""
+    tia = np.clip(np.asarray(imp, np.float64), 0, 1) * 100
+    if mode == 'sutherland': d = np.where(tia >= 1, 0.1 * tia ** 1.5, 0.0)
+    elif mode == 'sutherland_high': d = np.where(tia >= 1, 0.4 * tia ** 1.2, 0.0)
+    else: d = float(mode) * tia
+    return (np.minimum(d, tia) / 100).astype(np.float32)
+
+
+def cn_dcia_excess(RAIN, imp, cnp, water=None, scale=1.0, amc='II', ia_imp=2.0, mode='sutherland'):
+    """LF_LOSS=cn_dcia: hourly rain excess (mm) per cell, cumulative per event like LF_LOSS=cn.
+    Cell = DCIA + unconnected impervious (UIA) + pervious. DCIA sheds cumulative rain minus a depression storage `ia_imp` mm.
+    UIA sheds the same depth onto the pervious part (run-on, spread evenly), which then loses water by TR-55 CN on the
+    pervious CN only (AMC, then x `scale`, clipped 30-98). Cell excess = DCIA * Q_imp + pervious share * Q_perv; water cells = rain."""
+    RAIN = np.asarray(RAIN, np.float64); P = np.cumsum(RAIN, axis=0)
+    cnp = np.asarray(cnp, np.float64)
+    if amc == 'III': cnp = 23.0 * cnp / (10.0 + 0.13 * cnp)
+    cnp = np.clip(cnp * scale, 30, 98)
+    tia = np.clip(np.asarray(imp, np.float64), 0, 1); dc = dcia_fraction(tia, mode).astype(np.float64)
+    ua = tia - dc; pv = 1.0 - tia
+    Qi = np.maximum(P - ia_imp, 0.0)
+    runon = np.where(pv > 1e-6, ua / np.maximum(pv, 1e-6), 0.0)
+    Qp = cn_excess(P + runon * Qi, cnp)
+    Q = dc * Qi + pv * Qp + np.where(pv > 1e-6, 0.0, ua * Qi)       # fully paved cell: unconnected part has nowhere to go -> runs off
+    if water is not None: Q = np.where(water, P, Q)
+    return np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32), dict(dcia_mean=float(dc.mean()), tia_mean=float(tia.mean()), cnp_mean=float(cnp.mean()))
 
 
 def manning_map(water, chan, imp, lc=None):
@@ -762,6 +799,13 @@ def build_inputs(BOX, RES, S, TOK):
         if amc == 'III': CNG = 23.0 * CNG / (10.0 + 0.13 * CNG)                  # wet antecedent conditions (Chow et al. 1988)
         CNG = np.clip(CNG * float(os.environ.get('LF_CN_SCALE', '1')), 30, 98); CNG = np.where(water, 100.0, CNG).astype(np.float32)
         log(f'LF_LOSS=cn: AMC {amc}, mean CN {float(CNG[~water].mean()):.1f} (HSG A-D + NLCD impervious)')
+    CNP_D = None
+    if os.environ.get('LF_LOSS', 'none') == 'cn_dcia':   # opt-in: connected pavement sheds rain minus depression storage, CN on the pervious part only (cn_dcia_excess)
+        SO = hf_grid('soils30/soils30.npz', 'soils30/soils30_meta.json', ['hydgrp', 'wtd'])
+        grp = np.where(SO['hydgrp'] >= 5, 4, SO['hydgrp']).astype(np.int64); grp[(SO['wtd'] < 25) & (grp > 0)] = 4
+        CNP_D = np.array([77.0, 36.0, 60.0, 73.0, 79.0], np.float32)[grp]      # same pervious CN table as LF_LOSS=cn
+        log(f"LF_LOSS=cn_dcia: DCIA {os.environ.get('LF_DCIA', 'sutherland')}, impervious depression storage {os.environ.get('LF_DCIA_IA', '2')} mm, "
+            f"AMC {os.environ.get('LF_CN_AMC', 'II')}, pervious CN x {os.environ.get('LF_CN_SCALE', '1')}")
     # MRMS hourly (w4 mrms_hour)
     import requests, pygrib
     from scipy.interpolate import RegularGridInterpolator
@@ -825,6 +869,11 @@ def build_inputs(BOX, RES, S, TOK):
         Q = np.where(P > Ia, (P - Ia) ** 2 / np.maximum(P - Ia + Sx, 1e-6), 0.0)
         RAIN = np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32)
         log(f'effective rain (CN) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%)')
+    if CNP_D is not None:
+        RAIN, dst_ = cn_dcia_excess(RAIN, IMP, CNP_D, water, float(os.environ.get('LF_CN_SCALE', '1')), os.environ.get('LF_CN_AMC', 'II'),
+                                    float(os.environ.get('LF_DCIA_IA', '2')), os.environ.get('LF_DCIA', 'sutherland'))
+        log(f"effective rain (CN+DCIA) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%); "
+            f"mean impervious {100 * dst_['tia_mean']:.1f}%, connected {100 * dst_['dcia_mean']:.1f}%, mean pervious CN {dst_['cnp_mean']:.1f}")
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
                 NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM)
 
@@ -1235,6 +1284,27 @@ def selftest():
     assert 'infilfile drains.asc' in write_par(f'{d}/dr.par', 'r', 60, infiltration=1e-6, extra=['infilfile drains.asc'])
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_drains; lf_drains.selftest()
     ok.append('storm-drain sink: LISFLOOD-FP source patch (CPU FPInfiltration + opt-in CUDA kernel, idempotent, CRLF kept), lf_drains synthetic pipes')
+    # LF_LOSS=cn and cn_dcia against the hand numbers in docs/proto/urban/FINDINGS.md section 2 (HSG C, CN 73, AMC II, x 0.91)
+    Pt = np.array([20.0, 30.0, 45.0, 60.0, 106.0])
+    hand = {0.3: [0.0, 1.3, 5.9, 12.8, 42.4], 0.5: [0.4, 2.7, 9.0, 17.6, 51.1], 0.8: [2.0, 6.5, 15.6, 26.6, 65.5]}
+    hand_imp = {0.3: [5.4, 8.4, 12.9, 17.4, 31.2], 0.5: [9.0, 14.0, 21.5, 29.0, 52.0], 0.8: [14.4, 22.4, 34.4, 46.4, 83.2]}
+    for f_, q_ in hand.items():
+        assert np.allclose(cn_excess(Pt, (f_ * 98 + (1 - f_) * 73) * 0.91), q_, atol=0.06), f_
+    for f_, q_ in hand_imp.items():
+        rp = Pt[None, :]                                              # one hour of rain, five storms side by side
+        ex, _ = cn_dcia_excess(rp, np.full(5, f_), np.full(5, 73.0), None, 0.91, 'II', 2.0, '1')
+        perv = (1 - f_) * cn_excess(Pt, 73 * 0.91)
+        assert np.allclose(ex[0] - perv, q_, atol=0.06), (f_, ex[0] - perv)
+    r3 = np.array([[2.0], [20.0], [3.0]])                            # cumulative per event: hourly split sums to the event total
+    e3, _ = cn_dcia_excess(r3, np.array([0.5]), np.array([73.0]), None, 0.91, 'II', 2.0, 'sutherland')
+    e1, _ = cn_dcia_excess(r3.sum(0, keepdims=True), np.array([0.5]), np.array([73.0]), None, 0.91, 'II', 2.0, 'sutherland')
+    assert abs(e3.sum() - e1.sum()) < 1e-4 and np.all(e3 >= -1e-6)
+    assert abs(dcia_fraction(np.array([0.5]))[0] - 0.354) < 0.001 and dcia_fraction(np.array([0.005]))[0] == 0 and abs(dcia_fraction(np.array([1.0]))[0] - 1) < 1e-6
+    e0, _ = cn_dcia_excess(r3, np.array([0.0]), np.array([73.0]), None, 0.91); assert np.allclose(e0[:, 0].sum(), cn_excess(25.0, 73 * 0.91), atol=1e-4)  # no pavement -> plain CN
+    ew, _ = cn_dcia_excess(r3, np.array([0.5]), np.array([73.0]), np.array([True]), 0.91); assert np.allclose(ew[:, 0], r3[:, 0])
+    m_ = cn_dcia_excess(np.array([[30.0]]), np.array([0.5]), np.array([73.0]), None, 0.91, 'II', 2.0, 'sutherland')[0][0, 0]
+    assert 14.0 * 0.354 / 0.5 < m_ < 14.0 + 0.5 * 3.4, m_                 # 30 mm on a half-paved cell: between connected-only and all-connected
+    ok.append('LF_LOSS=cn reproduces FINDINGS table; cn_dcia: connected pavement = IMP (P - 2 mm), CN on pervious only, event-cumulative, water = rain')
     shutil.rmtree(d)
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')
