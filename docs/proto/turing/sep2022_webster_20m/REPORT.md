@@ -12,7 +12,7 @@ Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) o
 | Road segments cut off from hospitals | 368 |
 | Worst added trip time to a hospital | 22.4 min |
 | Heaviest hour of rain | 85.7 mm |
-| Flood model run time | 36 s |
+| Flood model run time | 44 s |
 
 ## Checks against what happened
 
@@ -23,9 +23,9 @@ Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) o
 
 | # | P(close) | Road | Town | Why |
 | --- | --- | --- | --- | --- |
-| 1 | 1.00 | (unnamed) | Southbridge | 1.82 m of water at peak; over 30 cm for 18.0 h; 30 cm reached 0.5 h into the storm; worst hour 35 mm (74% of the storm); a culvert within 100 m is overtopped |
-| 2 | 1.00 | Route 12 | Dudley | 0.72 m of water at peak; over 30 cm for 5.0 h; 30 cm reached 9.0 h into the storm; worst hour 83 mm (81% of the storm); a culvert within 100 m is overtopped |
-| 3 | 1.00 | Dresser Hill Road | Southbridge | 1.14 m of water at peak; over 30 cm for 5.0 h; 30 cm reached 0.5 h into the storm; worst hour 42 mm (81% of the storm); water beside the road 1.17 m above its crest (design freeboard 0.30 m; P 1.00); a culvert within 100 m is overtopped |
+| 1 | 1.00 | (unnamed) | Southbridge | 1.82 m of water at peak; over 30 cm for 18.0 h; 30 cm reached 0.5 h into the storm; worst hour 35 mm (74% of the storm); runoff beside / along the road at 2.8 m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P 0.80); a culvert within 100 m is overtopped |
+| 2 | 1.00 | Route 12 | Dudley | 0.72 m of water at peak; over 30 cm for 5.0 h; 30 cm reached 9.0 h into the storm; worst hour 83 mm (81% of the storm); runoff beside / along the road at 0.7 m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P 0.19); a culvert within 100 m is overtopped |
+| 3 | 1.00 | Dresser Hill Road | Southbridge | 1.14 m of water at peak; over 30 cm for 5.0 h; 30 cm reached 0.5 h into the storm; worst hour 42 mm (81% of the storm); water beside the road 1.17 m above its crest (design freeboard 0.30 m; P 1.00); fast water: depth x speed 0.39 m2/s (small cars unstable from 0.3); runoff beside / along the road at 5.0 m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P 1.00); a culvert within 100 m is overtopped |
 | 4 | 1.00 | Village Drive | Southbridge | 1.26 m of water at peak; over 30 cm for 7.5 h; 30 cm reached 0.0 h into the storm; worst hour 33 mm (70% of the storm); a culvert within 100 m is overtopped |
 | 5 | 1.00 | Route 131 | Southbridge | 1.84 m of water at peak; over 30 cm for 0.5 h; 30 cm reached 0.0 h into the storm; worst hour 36 mm (76% of the storm); water beside the road 1.76 m above its crest (design freeboard 0.30 m; P 1.00); a culvert within 100 m is overtopped |
 | 6 | 1.00 | Route 131 | Southbridge | 1.27 m of water at peak; over 30 cm for 0.5 h; 30 cm reached 0.5 h into the storm; worst hour 34 mm (72% of the storm); a culvert within 100 m is overtopped |
@@ -36,7 +36,7 @@ Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) o
 | 11 | 1.00 | Potter Village Road | Charlton | 2.19 m of water at peak; over 30 cm for 0.5 h; 30 cm reached 0.5 h into the storm; worst hour 28 mm (59% of the storm); water beside the road 0.76 m above its crest (design freeboard 0.30 m; P 1.00); a culvert within 100 m is overtopped |
 | 12 | 1.00 | (unnamed) | Southbridge | 2.19 m of water at peak; worst hour 35 mm (74% of the storm); water beside the road 2.54 m above its crest (design freeboard 0.30 m; P 1.00) |
 | 13 | 1.00 | Dudley Southbridge Road |  | 0.71 m of water at peak; worst hour 36 mm (69% of the storm); a culvert within 100 m is overtopped |
-| 14 | 1.00 | Mason Road Extension | Dudley | 0.62 m of water at peak; over 30 cm for 3.5 h; 30 cm reached 9.0 h into the storm; worst hour 50 mm (64% of the storm); water beside the road 0.03 m above its crest (design freeboard 0.30 m; P 0.99); a culvert within 100 m is overtopped |
+| 14 | 1.00 | Mason Road Extension | Dudley | 0.62 m of water at peak; over 30 cm for 3.5 h; 30 cm reached 9.0 h into the storm; worst hour 50 mm (64% of the storm); water beside the road 0.03 m above its crest (design freeboard 0.30 m; P 0.99); runoff beside / along the road at 4.3 m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P 0.85); a culvert within 100 m is overtopped |
 | 15 | 1.00 | (unnamed) | Southbridge | 0.61 m of water at peak; over 30 cm for 0.5 h; 30 cm reached 0.5 h into the storm; worst hour 39 mm (79% of the storm); a culvert within 100 m is overtopped |
 
 Closure probability (depth): Phi((peak depth - 0.30) / 0.10), physics prior v0. A physics prior from published thresholds, not calibrated on observed closures.

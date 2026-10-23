@@ -12,7 +12,7 @@ Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) o
 | Road segments cut off from hospitals | 822 |
 | Worst added trip time to a hospital | 37.1 min |
 | Heaviest hour of rain | 63.6 mm |
-| Flood model run time | 46 s |
+| Flood model run time | 48 s |
 
 ## Checks against what happened
 
@@ -33,8 +33,8 @@ Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) o
 | 7 | 1.00 | Route 9 | Framingham | 0.66 m of water at peak; over 30 cm for 5.0 h; 30 cm reached 1.5 h into the storm; worst hour 25 mm (38% of the storm); a culvert within 100 m is overtopped |
 | 8 | 1.00 | Route 30 | Framingham | 0.63 m of water at peak; over 30 cm for 8.5 h; 30 cm reached 8.0 h into the storm; worst hour 30 mm (44% of the storm); a culvert within 100 m is overtopped |
 | 9 | 1.00 | Route 30 | Framingham | 0.87 m of water at peak; over 30 cm for 7.5 h; 30 cm reached 0.5 h into the storm; worst hour 23 mm (35% of the storm); a culvert within 100 m is overtopped |
-| 10 | 1.00 | Route 126 | Wayland | 6.61 m of water at peak; over 30 cm for 14.5 h; 30 cm reached 0.5 h into the storm; worst hour 36 mm (45% of the storm); water beside the road 6.89 m above its crest (design freeboard 0.30 m; P 1.00); a culvert within 100 m is overtopped |
-| 11 | 1.00 | (unnamed) | Framingham | 0.71 m of water at peak; over 30 cm for 13.5 h; 30 cm reached 0.5 h into the storm; worst hour 29 mm (41% of the storm); water beside the road 0.16 m below its crest (design freeboard 0.30 m; P 0.82); a culvert within 100 m is overtopped |
+| 10 | 1.00 | Route 126 | Wayland | 6.61 m of water at peak; over 30 cm for 14.5 h; 30 cm reached 0.5 h into the storm; worst hour 36 mm (45% of the storm); water beside the road 6.89 m above its crest (design freeboard 0.30 m; P 1.00); runoff beside / along the road at 0.7 m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P 0.21); a culvert within 100 m is overtopped |
+| 11 | 1.00 | (unnamed) | Framingham | 0.71 m of water at peak; over 30 cm for 13.5 h; 30 cm reached 0.5 h into the storm; worst hour 29 mm (41% of the storm); water beside the road 0.16 m below its crest (design freeboard 0.30 m; P 0.82); runoff beside / along the road at 1.9 m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P 0.87); a culvert within 100 m is overtopped |
 | 12 | 1.00 | Irving Street | Framingham | 0.79 m of water at peak; over 30 cm for 18.0 h; 30 cm reached 0.5 h into the storm; worst hour 34 mm (46% of the storm); a culvert within 100 m is overtopped |
 | 13 | 1.00 | Salem End Road | Framingham | 0.87 m of water at peak; over 30 cm for 16.0 h; 30 cm reached 1.5 h into the storm; worst hour 26 mm (39% of the storm); a culvert within 100 m is overtopped |
 | 14 | 1.00 | Middlesex Street | Millis | 0.68 m of water at peak; over 30 cm for 10.5 h; 30 cm reached 8.0 h into the storm; worst hour 53 mm (59% of the storm) |
