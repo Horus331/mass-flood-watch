@@ -73,7 +73,9 @@ def main():
     rows, base_runs, cand_runs = [], [], []
     for n in names:
         db, dc = os.path.join(BASE, n), os.path.join(CAND, n)
-        if not os.path.exists(os.path.join(dc, 'flood_meta.json')): raise SystemExit(f'missing candidate run {dc}')
+        if not os.path.exists(os.path.join(dc, 'flood_meta.json')):
+            if n in T4_RUNS[-1:]: print('no extra run', n); continue        # worcester_aug2021_48h: reported if present (C has only the 9 LOSO runs)
+            raise SystemExit(f'missing candidate run {dc}')
         s = json.load(open(os.path.join(db, 'config.json')))['storm']; prim = n == f'{s}_' + n.split('_')[1] + '_20m'
         row = dict(name=n, storm=s, primary=prim, role=('dev' if s in V.DEV else 'heldout-new' if s in V.NEW16 else 'heldout'), amc=amc_of(dc), gauges_base=gauges(db), gauges_auto=gauges(dc))
         try:
