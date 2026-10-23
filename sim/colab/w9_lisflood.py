@@ -4,7 +4,7 @@
     python w9_lisflood.py --selftest            (offline: checks the input writers on a tiny synthetic grid)
 
 env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multiple of 10), STORM (default sep2023), T0, HOURS,
-     LF_LOSS none|fc|cn|cn_dcia (default none; cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
+     LF_LOSS none|fc|cn|cn_dcia (default none; LF_CN_AMC II|III|auto (default II; auto = class from 5-day MRMS rain, lf_antecedent.py); cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
      LF_INFIL_MMH (constant infiltration mm/h, default 4) + LF_INFIL_MODE solver|rain (default solver = the solver's keyword, CPU only;
      rain = out of the hourly rain excess, identical on CPU and GPU; docs/proto/parity/PARITY.md),
      LF_PARITY 1 (= LF_INFIL_MODE rain + LF_INIT_TSTEP 1: the same physics and time step on the CPU and CUDA builds),
@@ -813,6 +813,11 @@ def build_inputs(BOX, RES, S, TOK):
         CNP = np.array([77.0, 36.0, 60.0, 73.0, 79.0], np.float32)[grp]        # pervious: woods/grass mix, good condition, HSG A-D (TR-55 table 2-2); 0 = unknown -> C/D
         CNG = IMP * 98.0 + (1.0 - IMP) * CNP
         amc = os.environ.get('LF_CN_AMC', 'II')
+        if amc == 'auto':    # opt-in: AMC I/II/III from 5-day antecedent MRMS rain, NEH-4 thresholds (sim/colab/lf_antecedent.py, docs/proto/runoff/AMC.md)
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_antecedent
+            amc, p5_, _ = lf_antecedent.resolve(S['t0'], lat_c, lon_c, log=log)
+            os.environ['LF_CN_AMC_RESOLVED'] = f'{amc} (P5 {p5_:.1f} mm)'; log(f'LF_CN_AMC=auto: 5-day antecedent rain {p5_:.1f} mm -> AMC {amc}')
+            if amc == 'I': CNG = 4.2 * CNG / (10.0 - 0.058 * CNG)                # dry antecedent conditions (Chow et al. 1988)
         if amc == 'III': CNG = 23.0 * CNG / (10.0 + 0.13 * CNG)                  # wet antecedent conditions (Chow et al. 1988)
         CNG = np.clip(CNG * float(os.environ.get('LF_CN_SCALE', '1')), 30, 98); CNG = np.where(water, 100.0, CNG).astype(np.float32)
         log(f'LF_LOSS=cn: AMC {amc}, mean CN {float(CNG[~water].mean()):.1f} (HSG A-D + NLCD impervious)')
@@ -1377,6 +1382,7 @@ def selftest():
     shutil.rmtree(d)
     import lf_subhourly; ok += ['lf_subhourly: ' + o for o in lf_subhourly.selftest(sys.modules[__name__])]
     import lf_raingauge; ok += lf_raingauge.selftest()
+    import lf_antecedent; ok += lf_antecedent.selftest()
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')
 
