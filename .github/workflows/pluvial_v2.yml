@@ -1,0 +1,41 @@
+name: Pluvial rule v2 inputs (catchment flow length, upstream impervious and road length per segment; docs/proto/urban/PLUVIAL_v2.md)
+# mode=geo:  python proto/pluvial_v2.py geo per catalogue run -> docs/proto/urban/pluvial_v2/geo_<storm>.csv (10 m DEM + NLCD tiles from HF)
+# mode=rain: python proto/pluvial_v2.py rain per storm (needs docs/proto/rain/data/<storm>/mrms_box.npz from rain_test.yml mode=fetch)
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'geo | rain'
+        required: true
+        default: 'geo'
+      runs:
+        description: 'JSON list of {storm, run} (run = folder under docs/proto/parity/catalog)'
+        required: true
+        default: '[{"storm": "jul2023", "run": "jul2023_worcester_20m"}]'
+permissions:
+  contents: write
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        r: ${{ fromJSON(inputs.runs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas pyproj pillow huggingface_hub
+      - name: geo
+        if: inputs.mode == 'geo'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python proto/pluvial_v2.py geo --run docs/proto/parity/catalog/${{ matrix.r.run }} --storm ${{ matrix.r.storm }} --out docs/proto/urban/pluvial_v2/geo_${{ matrix.r.storm }}.csv
+      - name: rain
+        if: inputs.mode == 'rain'
+        run: python proto/pluvial_v2.py rain --storm ${{ matrix.r.storm }}
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/urban/pluvial_v2; git commit -qm "pluvial v2 ${{ inputs.mode }}: ${{ matrix.r.storm }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
