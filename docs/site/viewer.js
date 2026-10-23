@@ -178,8 +178,8 @@
 
   // ---------- rain layer (radar loop) ----------
   // mm/h stops: colour and opacity, classic radar greens -> yellow -> red -> magenta, kept clear of the blue depth ramp
-  var RAIN_STOPS = [[0.4, [120, 210, 110, 0]], [1, [96, 196, 92, 0.16]], [3, [46, 168, 66, 0.28]], [8, [22, 128, 46, 0.38]], [15, [238, 222, 40, 0.48]],
-    [30, [248, 150, 24, 0.58]], [50, [226, 36, 36, 0.66]], [80, [204, 34, 168, 0.72]], [150, [150, 70, 236, 0.8]]];
+  var RAIN_STOPS = [[0.4, [120, 210, 110, 0]], [1, [96, 196, 92, 0.1]], [3, [46, 168, 66, 0.17]], [8, [22, 128, 46, 0.24]], [15, [238, 222, 40, 0.3]],
+    [30, [248, 150, 24, 0.36]], [50, [226, 36, 36, 0.41]], [80, [204, 34, 168, 0.45]], [150, [150, 70, 236, 0.5]]];
   function rainColor(mm) {
     if (mm <= RAIN_STOPS[0][0]) return [0, 0, 0, 0];
     for (var i = 1; i < RAIN_STOPS.length; i++) {
@@ -539,9 +539,9 @@
     map.addLayer({ id: 'halo', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 9, 12], [0, 20, 26]), 'line-blur': w(4, 9), 'line-opacity': ['interpolate', ['linear'], D, 22, 0, 40, 0.42] } });
     map.addLayer({ id: 'wetcase', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([2.5, 5, 6], [4.5, 9.5, 11]), 'line-opacity': ['interpolate', ['linear'], D, 2, 0, 8, 1] } });
+      paint: { 'line-width': byD([2.5, 5, 6], [4.5, 9.5, 11]), 'line-opacity': ['interpolate', ['linear'], D, 5, 0, 12, 1] } });
     map.addLayer({ id: 'wet', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([1.2, 3, 3.8], [2.5, 6.5, 7.5]), 'line-opacity': ['interpolate', ['linear'], D, 2, 0, 6, 1] } });
+      paint: { 'line-width': byD([1.2, 3, 3.8], [2.5, 6.5, 7.5]), 'line-opacity': ['interpolate', ['linear'], D, 5, 0, 10, 1] } });
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
     applyTheme();
     if (g.features.some(function (f) { return f.properties.rk; })) { $('riskRow').hidden = false; }
