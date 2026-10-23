@@ -333,18 +333,44 @@ def _decode(g):
     return out
 
 
-def net_pair(G, T, TI, a, b, town, near):
+def _netnames(spec):
+    out = []
+    for v in spec.split('|'):
+        v = v.strip()
+        if v == 'rail' or v.startswith('water:'): continue
+        if v.startswith('ref:'):
+            r = v[4:].split()[-1]; out += ['I-' + r if v[4:].startswith('I ') else 'Route ' + r]
+        else: out.append(v)
+    return out
+
+
+def _netpts(G, T, spec, towns, near, rad=3000.0):
+    names = set(_netnames(spec)); P = []
+    idx = [i for i, r in enumerate(G['props']['road']) if r in names]
+    inn = [i for i in idx if G['props']['town'][i] in towns]
+    for i in (inn or idx): P += [p for part in _decode(G['geo'][i]) for p in part]
+    if not P: return None
+    x, y = T.transform([p[0] for p in P], [p[1] for p in P]); P = np.column_stack([x, y])
+    if near: nx, ny = T.transform(*near); P = P[np.hypot(P[:, 0] - nx, P[:, 1] - ny) < rad]
+    return P if len(P) else None
+
+
+def net_geocode(G, T, TI, s):
+    """Fallback on docs/graph_segments.json (MassGIS road names) when OSM gave nothing."""
     from scipy.spatial import cKDTree
-    def pts(name):
-        P = [p for i, (r, t) in enumerate(zip(G['props']['road'], G['props']['town'])) if r == name for part in _decode(G['geo'][i]) for p in part]
-        if not P: return None
-        x, y = T.transform([p[0] for p in P], [p[1] for p in P]); P = np.column_stack([x, y])
-        if near: nx, ny = T.transform(*near); P = P[np.hypot(P[:, 0] - nx, P[:, 1] - ny) < 3000]
-        return P if len(P) else None
-    A, B = pts(a), pts(b)
-    if A is None or B is None: return None
-    d, j = cKDTree(B).query(A); k = d.argmin(); p = (A[k] + B[j[k]]) / 2; lo, la = TI.transform(*p)
-    return lo, la, float(d[k])
+    g = s[9]; near = g.get('near'); tw = g.get('towns') or [s[1]]; A = _netpts(G, T, g['a'], tw, near)
+    if A is None: return None
+    if g.get('b') and g['g'] in ('pair', 'net'):
+        B = _netpts(G, T, g['b'], tw, near)
+        d = cKDTree(B).query(A)[0] if B is not None else None
+        if B is not None and d.min() <= 400:
+            d, j = cKDTree(B).query(A); k = d.argmin(); p = (A[k] + B[j[k]]) / 2; lo, la = TI.transform(*p)
+            q = 'exact' if d[k] <= 80 and g.get('q') != 'approx' else 'approx'
+            return round(lo, 6), round(la, 6), q, f'graph_segments pair gap {d[k]:.0f} m'
+    if g['g'] == 'cent':
+        c = A.mean(0); k = np.hypot(*(A - c).T).argmin(); lo, la = TI.transform(*A[k]); return round(lo, 6), round(la, 6), 'approx', 'graph_segments road centroid vertex'
+    nx, ny = T.transform(*near); d = np.hypot(A[:, 0] - nx, A[:, 1] - ny); k = d.argmin(); lo, la = TI.transform(*A[k])
+    return round(lo, 6), round(la, 6), 'approx', f'graph_segments road vertex {d[k]:.0f} m from NWS point'
 
 
 def pick(s, R):
@@ -372,9 +398,9 @@ def build():
     for i, s in enumerate(S):
         storm, town, road, name, typ, t, quote, url, src, g = s
         r = pick(s, R.get(key(i, s)))
-        if r is None and g['g'] == 'net':
-            n = net_pair(G, T, TI, g['a'], g['b'], town, g.get('near'))
-            if n: r = (round(n[0], 6), round(n[1], 6), 'exact' if n[2] <= 80 else 'approx', f'graph_segments pair gap {n[2]:.0f} m')
+        if r is None or (g['g'] == 'pair' and r[2] != 'exact' and g.get('q') != 'approx'):
+            n = net_geocode(G, T, TI, s)
+            if n and (r is None or n[2] == 'exact'): r = n
         if r is None:
             nr = g.get('near'); r = (nr[0], nr[1], 'town', 'not placed: NWS point kept')
         lon, lat, q, how = r
@@ -399,12 +425,14 @@ def build():
             w = csv.DictWriter(f, fieldnames=hdr, extrasaction='ignore'); w.writeheader(); w.writerows(out)
         print(f'{storm:9s} {len(L):3d} rows -> {os.path.relpath(path, ROOT)}')
     json.dump(audit, open(AUDIT_PATH, 'w'), indent=1)
-    fix(R)
+    fix(R, (G, T, TI))
 
 
-def fix(R):
+def fix(R, NET):
     from pyproj import Transformer
     T = Transformer.from_crs(4326, 26986, always_xy=True); log = []
+    LP = os.path.join(ROOT, 'docs', 'proto', 'obs', 'labels_fix_changelog.json')
+    prev = {e['id']: e for e in json.load(open(LP))} if os.path.exists(LP) else {}     # re-runs keep the original (pre-fix) values
     for f, rid, town, g, over in FIX:
         path = os.path.join(HERE, 'data', f); rows = list(csv.DictReader(open(path))); hdr = list(rows[0].keys())
         r = next(x for x in rows if x['id'] == rid); before = dict(lon=r['lon'], lat=r['lat'], coord_quality=r['coord_quality'], name=r['name'], road=r['road'])
@@ -417,15 +445,25 @@ def fix(R):
         elif g and res.get('single') and r['coord_quality'] in ('town',) or (g and g['g'] == 'near' and res.get('single')):
             sg = res['single']; v = sg.get('nearest_vertex') if g['g'] == 'near' and sg.get('nearest_m', 1e9) < 1500 else sg['centroid_vertex']
             r['lon'], r['lat'] = f'{v[0]:.5f}', f'{v[1]:.5f}'; r['coord_quality'] = 'approx'; how = f"OSM road vertex (road {sg['length_m']} m)"
+        if how is None and g:
+            n = net_geocode(*NET, ('', town, '', '', '', '', '', '', '', g))
+            if n:
+                x0, y0 = T.transform(float(r['lon']), float(r['lat'])); x1, y1 = T.transform(n[0], n[1])
+                if (g['g'] == 'pair' and n[2] == 'exact' and np.hypot(x1 - x0, y1 - y0) <= 1500) or (g['g'] != 'pair' and r['coord_quality'] == 'town') \
+                        or (g['g'] == 'pair' and r['coord_quality'] == 'town'):
+                    r['lon'], r['lat'] = f'{n[0]:.5f}', f'{n[1]:.5f}'; r['coord_quality'] = n[2]; how = n[3]
         for k, v in over.items(): r[k] = v
         if g is None: how = 'name/road corrected only'
         after = dict(lon=r['lon'], lat=r['lat'], coord_quality=r['coord_quality'], name=r['name'], road=r['road'])
+        if rid in prev:
+            before = prev[rid]['before']
+            if after == dict(prev[rid]['after']): how = prev[rid]['how']
         if after != before:
             x0, y0 = T.transform(float(before['lon']), float(before['lat'])); x1, y1 = T.transform(float(after['lon']), float(after['lat']))
             log.append(dict(file=f, id=rid, before=before, after=after, moved_m=round(float(np.hypot(x1 - x0, y1 - y0))), how=how or 'names only (OSM did not confirm the point)'))
         with open(path, 'w', newline='') as fh:
             w = csv.DictWriter(fh, fieldnames=hdr); w.writeheader(); w.writerows(rows)
-    json.dump(log, open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'labels_fix_changelog.json'), 'w'), indent=1)
+    json.dump(log, open(LP, 'w'), indent=1)
     for e in log: print('fix', e['id'], e['moved_m'], 'm', e['before']['coord_quality'], '->', e['after']['coord_quality'], '|', e['how'])
 
 

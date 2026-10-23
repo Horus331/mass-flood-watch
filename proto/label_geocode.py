@@ -27,15 +27,18 @@ UA = {'User-Agent': 'mass-flood-watch label geocoder (github.com/Horus331/mass-f
 T = Transformer.from_crs(4326, 26986, always_xy=True); TI = Transformer.from_crs(26986, 4326, always_xy=True)
 
 
+LOG = []
+
+
 def overpass(q):
-    for k in range(6):
+    for k in range(3):
         u = OVERPASS[k % len(OVERPASS)]
         try:
-            r = requests.post(u, data={'data': q}, headers=UA, timeout=180)
+            r = requests.post(u, data={'data': q}, headers=UA, timeout=60)
             if r.status_code == 200: return r.json()
-            print('  overpass', u, r.status_code, r.text[:120])
-        except Exception as e: print('  overpass', u, repr(e)[:120])
-        time.sleep(10 + 10 * k)
+            LOG.append(f'{u} {r.status_code}'); print('  overpass', u, r.status_code, r.text[:120], flush=True)
+        except Exception as e: LOG.append(f'{u} {repr(e)[:80]}'); print('  overpass', u, repr(e)[:120], flush=True)
+        time.sleep(5 + 5 * k)
     return None
 
 
@@ -122,6 +125,7 @@ def nominatim(q):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--queries', required=True); ap.add_argument('--out', required=True)
+    ap.add_argument('--addr-only', action='store_true', help='Nominatim only (no Overpass): queries need "addr"')
     a = ap.parse_args(); Q = json.load(open(a.queries)); R = {}
     try: R = json.load(open(a.out))
     except Exception: pass
@@ -131,13 +135,14 @@ def main():
         towns = q.get('towns') or ([q['town']] if q.get('town') else []); near = q.get('near'); r = dict(q=q)
         try:
             if q.get('addr'): r['addr'] = nominatim(q['addr'])
-            if q.get('a'):
+            if q.get('a') and not a.addr_only:
                 A = lines(fetch(q['a'], towns, near)); r['a_ways'] = len(A)
                 if q.get('b'):
                     B = lines(fetch(q['b'], towns, near)); r['b_ways'] = len(B)
                     if A and B: r['pair'] = pair(A, B, near)
                 if A: r['single'] = single(A, near)
         except Exception as e: r['error'] = repr(e)[:300]
+        if LOG: r['overpass_log'] = LOG[:]; LOG.clear()
         R[k] = r; print(k, {x: r.get(x) for x in ('a_ways', 'b_ways')}, (r.get('pair') or {}).get('candidates', [None])[:1], flush=True)
         json.dump(R, open(a.out, 'w'), indent=1); time.sleep(2)
 
