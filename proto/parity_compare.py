@@ -7,7 +7,7 @@ Runs (all 20 m, catalogue box and hours, LF_LOSS=cn LF_CN_SCALE=0.91 LF_INFIL_MM
   cpu_cn    CPU control of the loss test, docs/proto/urban/dcia/<id>_cn
   solver / rain / infil0   .github/workflows/parity_test.yml, docs/proto/parity/<id>_<variant>:
             solver = CPU solver infiltration (as cpu_cn), rain = LF_INFIL_MODE=rain, infil0 = LF_INFIL_MMH=0 (the GPU's physics on the CPU),
-            rain_dt1 = rain with LF_INIT_TSTEP=1 (time-step cap; the CPU's sensitivity to it)
+            rain_dt1 / solver_dt1 / rain_dt05 = with LF_INIT_TSTEP=1 (or 0.5): the time-step cap (rain_dt1 = LF_PARITY=1)
   gpu_rain / gpu_rain_dt1   Turing confirmation runs docs/proto/turing/parity_<id>_gpu_rain[_dt1] (PARITY.md section 5)
 Summary metrics as proto/dcia_compare.py; cell by cell from hmax_cm.npz; volumes from the .mass file.
 """
@@ -19,8 +19,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dcia_compare import read  # noqa: E402
 
 STORMS = [('jul2023', 'worcester'), ('aug2023b', 'millbury'), ('sep2023', 'leominster')]
-VARIANTS = ['solver', 'rain', 'infil0', 'rain_dt1']
-PAIRS = [('rain', 'solver'), ('infil0', 'solver'), ('rain', 'infil0'), ('rain_dt1', 'rain')]
+VARIANTS = ['solver', 'rain', 'infil0', 'rain_dt1', 'solver_dt1', 'rain_dt05']
+PAIRS = [('rain', 'solver'), ('infil0', 'solver'), ('rain', 'infil0'), ('rain_dt1', 'rain'), ('rain_dt1', 'solver_dt1'), ('rain_dt05', 'rain_dt1')]
 # parity tolerance between two runs of the same storm (what the catalogue reports): same labels caught, flagged share within
 # 0.1 percentage point or 10 % of it, every gauge rise within 0.10 m, land area >= 0.3 m within 10 % or 0.05 km2
 TOL = dict(flag_pts=0.10, flag_rel=0.10, rise_m=0.10, wet03_rel=0.10, wet03_abs_km2=0.05)
