@@ -387,10 +387,10 @@ def compare(base, cand, boot=NBOOT, seed=0, rule=ADOPT):
     lift_c = sum(C[s]['domains'][dom]['rule']['site_hits'] for s in storms) / max(1e-9, sum(sum(C[s]['domains'][dom]['rule']['_chance']) for s in storms))
     dfss = fss(fc, range(len(storms))) - fss(fb, range(len(storms)))
     worst = min(p['cand_hits'] - p['base_hits'] for p in per.values()) if per else 0
-    checks = dict(gain=d0 >= rule['min_gain'], ci_lower_gt_0=lo > 0, fss_no_drop=dfss >= -rule['fss_tol'],
-                  no_storm_loses_gt_1=worst >= -rule['max_storm_site_loss'], lift_ge_0p8=lift_c >= rule['lift_frac'] * lift_b)
-    return dict(rule=rule, storms=storms, n_sites=N, delta_recall=d0, delta_recall_lower=lo, delta_fss=dfss, worst_storm_change=worst,
-                lift_rule=dict(base=lift_b, cand=lift_c), per_storm=per, checks=checks, adopt=all(checks.values()))
+    checks = dict(gain=bool(d0 >= rule['min_gain']), ci_lower_gt_0=bool(lo > 0), fss_no_drop=bool(dfss >= -rule['fss_tol']),
+                  no_storm_loses_gt_1=bool(worst >= -rule['max_storm_site_loss']), lift_ge_0p8=bool(lift_c >= rule['lift_frac'] * lift_b))
+    return dict(rule=rule, storms=storms, n_sites=int(N), delta_recall=float(d0), delta_recall_lower=lo, delta_fss=float(dfss), worst_storm_change=float(worst),
+                lift_rule=dict(base=float(lift_b), cand=float(lift_c)), per_storm=per, checks=checks, adopt=all(checks.values()))
 
 
 # ------------------------------------------------------------------------------------------------ catalogue
