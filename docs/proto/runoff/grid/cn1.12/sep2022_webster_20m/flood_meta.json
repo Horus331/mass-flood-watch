@@ -1,0 +1,85 @@
+{
+ "run": "sep2022_loss_sep2022_webster_20m",
+ "title": "Sept 5, 2022 flash floods, Webster-Southbridge \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  151000.0,
+  855000.0,
+  171000.0,
+  875000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2022-09-05T06:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 204
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "1.12",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 20.64,
+   "excess_out_mean_mm": 15.28,
+   "kept_share": 0.74,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 110,
+ "rain_total_mean_mm": 53,
+ "rain_missing_hours": [],
+ "runtime_s": 914,
+ "total_s": 1229,
+ "peak_wet_km2": 12.8,
+ "peak_snapshot_wet_km2": 7.1,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      25197200.0000 4886134.9570  0.000       0.000      51.647           -0.0000      -0.0000 6111420.7291",
+  "64800.000    1.0000     1.0000     64800      25106000.0000 4870718.5709  0.000       0.000      51.116            0.0000       0.0000 6111420.7291"
+ ],
+ "git_sha": "36dd62fa",
+ "forecast": null
+}
