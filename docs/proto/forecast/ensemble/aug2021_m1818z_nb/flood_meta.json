@@ -1,0 +1,80 @@
+{
+ "run": "aug2021_ens_aug2021_m1818z_nb",
+ "title": "Aug 19, 2021 flash floods (Fred) \u00b7 NOAA HRRR forecast issued Aug 18 18z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  875000.0,
+  188000.0,
+  895000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-08-18T18:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 134
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2021-08-18T18:00Z, forecast hours 1-33 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2021-08-18T18Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 96,
+ "rain_total_mean_mm": 88,
+ "rain_missing_hours": [],
+ "runtime_s": 963,
+ "total_s": 1174,
+ "peak_wet_km2": 21.7,
+ "peak_snapshot_wet_km2": 14.9,
+ "mass_tail": [
+  "118501.942   1.9428     1.3375     61872      26396800.0000 5800959.4087  0.000       0.000      77.781           -0.0001      -0.0297 8015432.1758",
+  "118800.874   1.5994     1.3375     62041      26278400.0000 5771515.4055  0.000       0.000      77.511           -0.0001      -0.0290 8009200.9186"
+ ],
+ "git_sha": "9a4ad3f4",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2021-08-18T18:00Z",
+  "forecast_hours": 33,
+  "run_hours": 33
+ }
+}
