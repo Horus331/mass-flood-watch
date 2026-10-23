@@ -209,7 +209,7 @@ def refs(src, cn, storm, t0, frame_min, nf, run_dir=None):
 
 
 # ---------------------------------------------------------------- flow field
-def flow(run_dir, keep, f_out, od, cn):
+def flow(run_dir, keep, f_out, od, cn, step_min):
     """Water velocity from the modelled water surface (diffusive-wave estimate, Manning n 0.05) on blocks of f_out cells,
     one frame per kept snapshot, packed 1 frame per atlas cell: R, G = east / north speed (128 = 0, +-VMAX), B = wet share."""
     D = np.load(os.path.join(run_dir, 'frames_cm.npz'))
@@ -242,7 +242,7 @@ def flow(run_dir, keep, f_out, od, cn):
         cy, cx = divmod(i, cols)
         atlas[cy * h2:(cy + 1) * h2, cx * w2:(cx + 1) * w2] = a
     Image.fromarray(atlas, 'RGB').save(os.path.join(od, 'flow.png'), optimize=True)
-    json.dump({'n': n, 'w': w2, 'h': h2, 'cols': cols, 'rows': rows, 'vmax_ms': VMAX, 'cell_m': res * f_out, 'corners': cn,
+    json.dump({'n': n, 'frame_min': step_min, 'w': w2, 'h': h2, 'cols': cols, 'rows': rows, 'vmax_ms': VMAX, 'cell_m': res * f_out, 'corners': cn,
                'method': 'water-surface slope with Manning n %.2f on %d m blocks, depth-weighted' % (N_MAN, int(res * f_out)), 'sheet': 'flow.png'},
               open(os.path.join(od, 'flow.json'), 'w'), separators=(',', ':'))
     print('  flow', n, 'frames', '%dx%d' % (w2, h2), 'atlas %dx%d' % (cols * w2, rows * h2))
@@ -349,7 +349,8 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
     R = refs(src, cn, storm, t0, fmin, nf, run_dir)
     json.dump(clean(R), open(os.path.join(od, 'refs.json'), 'w'), separators=(',', ':'), allow_nan=False)
     if do_flow and run_dir:
-        flow(run_dir, keep, max(2, int(round(100 / S['resolution_m']))), od, cn)
+        fk = max(1, int(round(15 / fmin)))           # the flow field changes slowly: one field every 15 min keeps flow.png small
+        flow(run_dir, keep[::fk], max(2, int(round(100 / S['resolution_m']))), od, cn, fmin * fk)
         meta['flow'] = 'flow.json'
     json.dump(meta, open(os.path.join(od, 'meta.json'), 'w'), separators=(',', ':'))
     size = sum(os.path.getsize(os.path.join(od, x)) for x in os.listdir(od)) / 1e6
