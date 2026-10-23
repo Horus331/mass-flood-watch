@@ -4,6 +4,8 @@ and the final all-storm fit.
     python proto/closure_loso.py            # -> docs/proto/ml/LOSO.md, loso_results.json, loso_reliability.png, loso_importance.png,
                                             #    docs/proto/ml/closure_lr_all.json (final model used by `closure_ml.py map`)
     python proto/closure_loso.py --reps 200 # fewer bootstrap replicates (quick)
+    python proto/closure_loso.py --runs docs/proto/parity/catalog   # other run set (env PROTO_RUNS); output then defaults to <runs>/ml
+                                            #    (env PROTO_ML_OUT / --out), so docs/proto/ml and the production model are not overwritten
 
 Data: docs/proto/turing/<storm>_<area>_20m/features_<storm>.csv + matches_<storm>.json (closure_ml.extract output; strict 30 m label match).
 
@@ -28,8 +30,10 @@ sys.path.insert(0, HERE)
 import closure_ml as CM  # noqa: E402
 
 ROOT = CM.ROOT
-TUR = os.path.join(ROOT, 'docs', 'proto', 'turing')
-OUT = os.path.join(ROOT, 'docs', 'proto', 'ml')
+TUR_DEFAULT = os.path.join(ROOT, 'docs', 'proto', 'turing')
+TUR = os.path.abspath(os.path.join(ROOT, os.environ['PROTO_RUNS'])) if os.environ.get('PROTO_RUNS') else TUR_DEFAULT   # folder of <storm>_<area>_20m runs
+OUT = os.path.abspath(os.path.join(ROOT, os.environ['PROTO_ML_OUT'])) if os.environ.get('PROTO_ML_OUT') else (
+    os.path.join(TUR, 'ml') if TUR != TUR_DEFAULT else os.path.join(ROOT, 'docs', 'proto', 'ml'))
 STORMS = ['aug2021', 'aug2023', 'aug2023b', 'aug2026', 'jul2021', 'jul2023', 'sep2021', 'sep2022', 'sep2023']
 AREA = dict(aug2021='worcester', aug2023='metrowest', aug2023b='millbury', aug2026='leominster', jul2021='worcester', jul2023='worcester',
             sep2021='worcester', sep2022='webster', sep2023='leominster')
@@ -363,7 +367,7 @@ def write_md(res):
     B = res['boot']['lr']; PB = res['boot_pooled']['lr']; PL = res['pooled']['lr']; W = res['wins']['lr']
     L = ['# Learned road-closure model: leave-one-storm-out (LOSO)', '',
          'Made by `python proto/closure_loso.py` (reuses `proto/closure_ml.py`: same 10 hazard/terrain features `MAIN`, same sign-constrained L2 logistic with C = 0.5, '
-         'same strict 30 m label matching from `extract`). Data: `docs/proto/turing/<storm>_<area>_20m/features_<storm>.csv`, 9 storms. For each held-out storm the '
+         'same strict 30 m label matching from `extract`). Data: `' + os.path.relpath(TUR, ROOT) + '/<storm>_<area>_20m/features_<storm>.csv`, 9 storms. For each held-out storm the '
          'model is fitted on the other 8 and scored on the held-out box against the rule-based closure probability `p_close` = Phi((peak depth - 0.30) / 0.10) and the '
          'may-close overtop layer `p_may_close`, both read off the same flood run. Nothing was tuned on LOSO: features, C, HGB settings and the main variant were fixed '
          'before the first LOSO run.', '',
@@ -456,11 +460,18 @@ def write_md(res):
         hurt = sum(v > 0.002 for v in I[ft]['per_storm'].values())
         L.append(f"| {ft} | {sg} | {('%+.3f' % C[ft]) if ft in C else 'dropped (sign)'} | [{CI[ft][0]:+.2f}, {CI[ft][1]:+.2f}] | {CI[ft][2]:.2f} | {I[ft]['macro']:+.4f} | {hurt} / 9 |")
     L += ['', f"Dropped from the final fit for contradicting the expected sign: {', '.join(res['final']['dropped']) or 'none'}.", '']
-    L += open(os.path.join(HERE, 'ml', 'LOSO_notes.md')).read().splitlines() if os.path.exists(os.path.join(HERE, 'ml', 'LOSO_notes.md')) else []
+    if TUR == TUR_DEFAULT:            # the hand-written notes discuss the published (docs/proto/turing) run set only
+        L += open(os.path.join(HERE, 'ml', 'LOSO_notes.md')).read().splitlines() if os.path.exists(os.path.join(HERE, 'ml', 'LOSO_notes.md')) else []
+    os.makedirs(OUT, exist_ok=True)
     open(os.path.join(OUT, 'LOSO.md'), 'w').write('\n'.join(L) + '\n')
 
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('--reps', type=int, default=1000); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument('--reps', type=int, default=1000)
+    ap.add_argument('--runs', help='folder of <storm>_<area>_20m runs (default docs/proto/turing; env PROTO_RUNS)')
+    ap.add_argument('--out', help='output folder (default docs/proto/ml, or <runs>/ml with --runs; env PROTO_ML_OUT)'); a = ap.parse_args()
+    if a.runs: TUR = os.path.abspath(a.runs); OUT = os.path.join(TUR, 'ml') if TUR != TUR_DEFAULT and not os.environ.get('PROTO_ML_OUT') else OUT
+    if a.out: OUT = os.path.abspath(a.out)
+    os.makedirs(OUT, exist_ok=True)
     r = main(a.reps); p = r['pooled']['lr']
     print(json.dumps({k: round(v, 4) if isinstance(v, float) else v for k, v in p.items()}, indent=0)); print('wins', r['wins'])
