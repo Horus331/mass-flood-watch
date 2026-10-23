@@ -1,0 +1,3336 @@
+{
+ "made_by": "proto/closure_v2.py loso (summary of docs/proto/ml/v2/loso.json)",
+ "task": "T5",
+ "baseline": "docs/proto/parity/catalog (commit 26e6498f)",
+ "preregistration_commit": "d60a7615",
+ "k_variants": 4,
+ "alpha": 0.0125,
+ "variants": {
+  "v2_lambdamart": "A: LightGBM lambdarank (query = storm), init score = rule logit, monotone, + graph, SAR-PU",
+  "v2_pairlr": "B: linear pairwise logistic (RankNet-linear), offset = rule logit, sign-bounded, + graph, SAR-PU",
+  "v2_pairlr_nograph": "ablation of B: no neighbour features",
+  "v2_pairlr_nopu": "ablation of B: no SAR-PU weights"
+ },
+ "eligible": [
+  "v2_lambdamart",
+  "v2_pairlr"
+ ],
+ "verdict": {
+  "adopted": false,
+  "replace_watch_tier": false,
+  "reason": "No eligible variant passes PROTOCOL.md \u00a75 vs the depth rule (OOS-7 recall@3% gain 0 / -1 site, FSS300 drops); at the watch tier share v2 catches fewer OOS-7 sites than today (v1) watch tier."
+ },
+ "compare": {
+  "v2_lambdamart_vs_base": {
+   "delta_recall": -0.034482758620689655,
+   "delta_recall_lower": -0.16129032258064516,
+   "delta_fss": -0.0036191783760103347,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.674790413563126,
+    "cand": 6.307954330410648
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_lambdamart_vs_v1": {
+   "delta_recall": -0.13793103448275862,
+   "delta_recall_lower": -0.4075231481481481,
+   "delta_fss": -0.007601981011216674,
+   "worst_storm_change": -2.0,
+   "lift_rule": {
+    "base": 4.47620894943376,
+    "cand": 6.307954330410648
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 2.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 2.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 0.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 2.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": false,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_lambdamart_vs_eq_v2_lambdamart": {
+   "delta_recall": -0.034482758620689655,
+   "delta_recall_lower": -0.16129032258064516,
+   "delta_fss": -0.0036802803799788064,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 3.153977165205324,
+    "cand": 6.307954330410648
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_vs_base": {
+   "delta_recall": 0.0,
+   "delta_recall_lower": -0.1429096638655462,
+   "delta_fss": -0.003243608022321487,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.674790413563126,
+    "cand": 4.776917932549918
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_vs_v1": {
+   "delta_recall": -0.10344827586206896,
+   "delta_recall_lower": -0.34620192307692305,
+   "delta_fss": -0.007226410657527826,
+   "worst_storm_change": -2.0,
+   "lift_rule": {
+    "base": 4.47620894943376,
+    "cand": 4.776917932549918
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 2.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 2.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 2.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": false,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_vs_eq_v2_pairlr": {
+   "delta_recall": 0.0,
+   "delta_recall_lower": -0.1429096638655462,
+   "delta_fss": -0.0033047100262899587,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.776917932549918,
+    "cand": 4.776917932549918
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_nograph_vs_base": {
+   "delta_recall": 0.0,
+   "delta_recall_lower": -0.1429096638655462,
+   "delta_fss": -0.003561007558403273,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.674790413563126,
+    "cand": 6.2401522597151375
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_nograph_vs_v1": {
+   "delta_recall": -0.10344827586206896,
+   "delta_recall_lower": -0.34620192307692305,
+   "delta_fss": -0.0075438101936096125,
+   "worst_storm_change": -2.0,
+   "lift_rule": {
+    "base": 4.47620894943376,
+    "cand": 6.2401522597151375
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 2.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 2.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 2.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": false,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_nograph_vs_eq_v2_pairlr_nograph": {
+   "delta_recall": 0.0,
+   "delta_recall_lower": -0.1429096638655462,
+   "delta_fss": -0.0036221095623717448,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.680114194786353,
+    "cand": 6.2401522597151375
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_nopu_vs_base": {
+   "delta_recall": 0.06896551724137931,
+   "delta_recall_lower": 0.0,
+   "delta_fss": 0.0013174064178609335,
+   "worst_storm_change": 0.0,
+   "lift_rule": {
+    "base": 4.674790413563126,
+    "cand": 4.88631181184442
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 3.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": true,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": true,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_nopu_vs_v1": {
+   "delta_recall": -0.034482758620689655,
+   "delta_recall_lower": -0.23076923076923078,
+   "delta_fss": -0.002665396217345406,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.47620894943376,
+    "cand": 4.88631181184442
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 2.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 2.0,
+     "cand_hits": 1.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 2.0,
+     "cand_hits": 3.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": false,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": false,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v2_pairlr_nopu_vs_eq_v2_pairlr_nopu": {
+   "delta_recall": 0.06896551724137931,
+   "delta_recall_lower": 0.0,
+   "delta_fss": 0.0012563044138924617,
+   "worst_storm_change": 0.0,
+   "lift_rule": {
+    "base": 3.25754120789628,
+    "cand": 4.88631181184442
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 3.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": true,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": true,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  },
+  "v1_vs_base": {
+   "delta_recall": 0.10344827586206896,
+   "delta_recall_lower": -0.09375,
+   "delta_fss": 0.0039828026352063395,
+   "worst_storm_change": -1.0,
+   "lift_rule": {
+    "base": 4.674790413563126,
+    "cand": 4.47620894943376
+   },
+   "per_storm": {
+    "aug2023": {
+     "sites": 5,
+     "base_hits": 1.0,
+     "cand_hits": 2.0
+    },
+    "aug2023b": {
+     "sites": 2,
+     "base_hits": 0.0,
+     "cand_hits": 2.0
+    },
+    "aug2026": {
+     "sites": 4,
+     "base_hits": 1.0,
+     "cand_hits": 1.0
+    },
+    "jul2021": {
+     "sites": 4,
+     "base_hits": 0.0,
+     "cand_hits": 1.0
+    },
+    "jul2023": {
+     "sites": 5,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    },
+    "sep2021": {
+     "sites": 6,
+     "base_hits": 3.0,
+     "cand_hits": 2.0
+    },
+    "sep2022": {
+     "sites": 3,
+     "base_hits": 0.0,
+     "cand_hits": 0.0
+    }
+   },
+   "checks": {
+    "gain": true,
+    "ci_lower_gt_0": false,
+    "fss_no_drop": true,
+    "no_storm_loses_gt_1": true,
+    "lift_ge_0p8": true
+   },
+   "adopt": false
+  }
+ },
+ "oos7_box": {
+  "base": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.3931034482758621
+   },
+   "ci90_3": [
+    0.0,
+    0.34375
+   ],
+   "fss300_3": 0.017407219374037775,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.674790413563126
+  },
+  "v1": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.1724137931034483,
+    "share_0.03": 0.27586206896551724,
+    "share_0.05": 0.4482758620689655,
+    "share_0.1": 0.5517241379310345
+   },
+   "ci90_3": [
+    0.11538461538461539,
+    0.45849358974358956
+   ],
+   "fss300_3": 0.021390022009244114,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.47620894943376
+  },
+  "eq_v1": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.3793103448275862
+   },
+   "ci90_3": [
+    0.0,
+    0.34375
+   ],
+   "fss300_3": 0.017468321378006246,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.47620894943376
+  },
+  "v2_lambdamart": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.13793103448275862,
+    "share_0.05": 0.27586206896551724,
+    "share_0.1": 0.5655172413793103
+   },
+   "ci90_3": [
+    0.0,
+    0.2727272727272727
+   ],
+   "fss300_3": 0.01378804099802744,
+   "tier_recall": 0.13793103448275862,
+   "tier_lift": 6.307954330410649
+  },
+  "eq_v2_lambdamart": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.3793103448275862
+   },
+   "ci90_3": [
+    0.0,
+    0.34375
+   ],
+   "fss300_3": 0.017468321378006246,
+   "tier_recall": 0.06896551724137931,
+   "tier_lift": 3.1539771652053243
+  },
+  "v2_pairlr": {
+   "recall": {
+    "share_0.01": 0.10344827586206896,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.27586206896551724,
+    "share_0.1": 0.5862068965517241
+   },
+   "ci90_3": [
+    0.037037037037037035,
+    0.3142857142857143
+   ],
+   "fss300_3": 0.014163611351716288,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.776917932549918
+  },
+  "eq_v2_pairlr": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.3793103448275862
+   },
+   "ci90_3": [
+    0.0,
+    0.34375
+   ],
+   "fss300_3": 0.017468321378006246,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.776917932549918
+  },
+  "v2_pairlr_nograph": {
+   "recall": {
+    "share_0.01": 0.10344827586206896,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.5517241379310345
+   },
+   "ci90_3": [
+    0.037037037037037035,
+    0.3142857142857143
+   ],
+   "fss300_3": 0.013846211815634502,
+   "tier_recall": 0.13793103448275862,
+   "tier_lift": 6.240152259715137
+  },
+  "eq_v2_pairlr_nograph": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.3793103448275862
+   },
+   "ci90_3": [
+    0.0,
+    0.34375
+   ],
+   "fss300_3": 0.017468321378006246,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.680114194786352
+  },
+  "v2_pairlr_nopu": {
+   "recall": {
+    "share_0.01": 0.10344827586206896,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.2413793103448276,
+    "share_0.05": 0.3448275862068966,
+    "share_0.1": 0.5862068965517241
+   },
+   "ci90_3": [
+    0.07692307692307693,
+    0.4166666666666667
+   ],
+   "fss300_3": 0.018724625791898708,
+   "tier_recall": 0.10344827586206896,
+   "tier_lift": 4.88631181184442
+  },
+  "eq_v2_pairlr_nopu": {
+   "recall": {
+    "share_0.01": 0.06896551724137931,
+    "share_0.02": 0.13793103448275862,
+    "share_0.03": 0.1724137931034483,
+    "share_0.05": 0.2413793103448276,
+    "share_0.1": 0.3793103448275862
+   },
+   "ci90_3": [
+    0.0,
+    0.34375
+   ],
+   "fss300_3": 0.017468321378006246,
+   "tier_recall": 0.06896551724137931,
+   "tier_lift": 3.25754120789628
+  }
+ },
+ "dev2_box": {
+  "base": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.2314392288778413
+  },
+  "v1": {
+   "recall3": 0.2,
+   "fss300_3": 0.11305793429258393
+  },
+  "eq_v1": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.2314392288778413
+  },
+  "v2_lambdamart": {
+   "recall3": 0.3888888888888889,
+   "fss300_3": 0.22919786171074463
+  },
+  "eq_v2_lambdamart": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.2314392288778413
+  },
+  "v2_pairlr": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.24636440404841198
+  },
+  "eq_v2_pairlr": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.2314392288778413
+  },
+  "v2_pairlr_nograph": {
+   "recall3": 0.35555555555555557,
+   "fss300_3": 0.2369557707124762
+  },
+  "eq_v2_pairlr_nograph": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.2314392288778413
+  },
+  "v2_pairlr_nopu": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.25126909075626025
+  },
+  "eq_v2_pairlr_nopu": {
+   "recall3": 0.36666666666666664,
+   "fss300_3": 0.2314392288778413
+  }
+ },
+ "per_storm_hits3": {
+  "base": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "v1": {
+   "aug2021": 3.0,
+   "aug2023": 2.0,
+   "aug2023b": 2.0,
+   "aug2026": 1.0,
+   "jul2021": 1.0,
+   "jul2023": 0.0,
+   "sep2021": 2.0,
+   "sep2022": 0.0,
+   "sep2023": 15.0
+  },
+  "eq_v1": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "v2_lambdamart": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 2.0,
+   "sep2022": 0.0,
+   "sep2023": 32.0
+  },
+  "eq_v2_lambdamart": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "v2_pairlr": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 1.0,
+   "jul2023": 0.0,
+   "sep2021": 2.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "eq_v2_pairlr": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "v2_pairlr_nograph": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 1.0,
+   "jul2023": 0.0,
+   "sep2021": 2.0,
+   "sep2022": 0.0,
+   "sep2023": 29.0
+  },
+  "eq_v2_pairlr_nograph": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "v2_pairlr_nopu": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 1.0,
+   "aug2026": 1.0,
+   "jul2021": 1.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  },
+  "eq_v2_pairlr_nopu": {
+   "aug2021": 3.0,
+   "aug2023": 1.0,
+   "aug2023b": 0.0,
+   "aug2026": 1.0,
+   "jul2021": 0.0,
+   "jul2023": 0.0,
+   "sep2021": 3.0,
+   "sep2022": 0.0,
+   "sep2023": 30.0
+  }
+ },
+ "ranking_full_res": {
+  "rule": {
+   "aug2021": {
+    "roc": 0.6761930693321254,
+    "pr": 0.013714803296081894
+   },
+   "aug2023": {
+    "roc": 0.7235075746212689,
+    "pr": 0.005955820127295587
+   },
+   "aug2023b": {
+    "roc": 0.5572177822177822,
+    "pr": 0.0007816831935385033
+   },
+   "aug2026": {
+    "roc": 0.7317845329973224,
+    "pr": 0.005277859123379403
+   },
+   "jul2021": {
+    "roc": 0.6054713411787829,
+    "pr": 0.0029484499595667734
+   },
+   "jul2023": {
+    "roc": 0.57103406236146,
+    "pr": 0.0016229779810504464
+   },
+   "sep2021": {
+    "roc": 0.8203282665636138,
+    "pr": 0.020420404814235838
+   },
+   "sep2022": {
+    "roc": 0.5087523655041902,
+    "pr": 0.002920835069795853
+   },
+   "sep2023": {
+    "roc": 0.8033785768376968,
+    "pr": 0.1784431294795017
+   }
+  },
+  "v1": {
+   "aug2021": {
+    "roc": 0.8228170533719444,
+    "pr": 0.027627190624978086
+   },
+   "aug2023": {
+    "roc": 0.8437578121093945,
+    "pr": 0.009031943253798875
+   },
+   "aug2023b": {
+    "roc": 0.7887612387612387,
+    "pr": 0.005518204391011416
+   },
+   "aug2026": {
+    "roc": 0.7653173728146164,
+    "pr": 0.00629892822104618
+   },
+   "jul2021": {
+    "roc": 0.7038916050413974,
+    "pr": 0.007832563333336342
+   },
+   "jul2023": {
+    "roc": 0.6432318604994828,
+    "pr": 0.002049400617667479
+   },
+   "sep2021": {
+    "roc": 0.8006140237880544,
+    "pr": 0.013504912333347892
+   },
+   "sep2022": {
+    "roc": 0.7028250878615842,
+    "pr": 0.007266259790363668
+   },
+   "sep2023": {
+    "roc": 0.7946319211472255,
+    "pr": 0.10532979795655743
+   }
+  },
+  "v2_lambdamart": {
+   "aug2021": {
+    "roc": 0.7906600369486332,
+    "pr": 0.01598197187261369
+   },
+   "aug2023": {
+    "roc": 0.6724788760561972,
+    "pr": 0.00586431464685198
+   },
+   "aug2023b": {
+    "roc": 0.7608641358641358,
+    "pr": 0.0031017920862572595
+   },
+   "aug2026": {
+    "roc": 0.6130099228224917,
+    "pr": 0.005142362728533322
+   },
+   "jul2021": {
+    "roc": 0.6324042453873179,
+    "pr": 0.0047310200277737744
+   },
+   "jul2023": {
+    "roc": 0.7502124279592138,
+    "pr": 0.003988321874816559
+   },
+   "sep2021": {
+    "roc": 0.7808407402636438,
+    "pr": 0.021739785428425792
+   },
+   "sep2022": {
+    "roc": 0.3722627737226277,
+    "pr": 0.002124940227951094
+   },
+   "sep2023": {
+    "roc": 0.8080261430595213,
+    "pr": 0.1821095251140138
+   }
+  },
+  "v2_pairlr": {
+   "aug2021": {
+    "roc": 0.7826697677732597,
+    "pr": 0.017637840881352618
+   },
+   "aug2023": {
+    "roc": 0.7988600569971501,
+    "pr": 0.007737173336298955
+   },
+   "aug2023b": {
+    "roc": 0.7164335664335665,
+    "pr": 0.0027939768309025743
+   },
+   "aug2026": {
+    "roc": 0.6579303827374389,
+    "pr": 0.007496614497088858
+   },
+   "jul2021": {
+    "roc": 0.6196410583986438,
+    "pr": 0.004483084471582781
+   },
+   "jul2023": {
+    "roc": 0.6877493719521206,
+    "pr": 0.003446772542800546
+   },
+   "sep2021": {
+    "roc": 0.867705783846451,
+    "pr": 0.017900025754482546
+   },
+   "sep2022": {
+    "roc": 0.6770072992700731,
+    "pr": 0.005513727236823425
+   },
+   "sep2023": {
+    "roc": 0.8100132473620165,
+    "pr": 0.19111486113147266
+   }
+  },
+  "v2_pairlr_nograph": {
+   "aug2021": {
+    "roc": 0.7577701550722942,
+    "pr": 0.015962258701472967
+   },
+   "aug2023": {
+    "roc": 0.8184465776711163,
+    "pr": 0.00844002673999068
+   },
+   "aug2023b": {
+    "roc": 0.7014485514485514,
+    "pr": 0.0029236002339161913
+   },
+   "aug2026": {
+    "roc": 0.6520396912899669,
+    "pr": 0.006487754258045513
+   },
+   "jul2021": {
+    "roc": 0.6029469572267401,
+    "pr": 0.004383391091472013
+   },
+   "jul2023": {
+    "roc": 0.6808408452785577,
+    "pr": 0.002949359459124995
+   },
+   "sep2021": {
+    "roc": 0.841105242818498,
+    "pr": 0.015635495005323827
+   },
+   "sep2022": {
+    "roc": 0.7226277372262774,
+    "pr": 0.005898924178867379
+   },
+   "sep2023": {
+    "roc": 0.7930674136873422,
+    "pr": 0.17288212049539806
+   }
+  },
+  "v2_pairlr_nopu": {
+   "aug2021": {
+    "roc": 0.7838301380738871,
+    "pr": 0.01860797087683641
+   },
+   "aug2023": {
+    "roc": 0.792560371981401,
+    "pr": 0.007572049543578066
+   },
+   "aug2023b": {
+    "roc": 0.8267482517482518,
+    "pr": 0.004072143379323171
+   },
+   "aug2026": {
+    "roc": 0.6735548905339424,
+    "pr": 0.008485770291623904
+   },
+   "jul2021": {
+    "roc": 0.7072144559369089,
+    "pr": 0.007239550940963422
+   },
+   "jul2023": {
+    "roc": 0.630005911038865,
+    "pr": 0.002334103088869811
+   },
+   "sep2021": {
+    "roc": 0.8731804714672163,
+    "pr": 0.02058229892096
+   },
+   "sep2022": {
+    "roc": 0.673154906731549,
+    "pr": 0.006382958096077699
+   },
+   "sep2023": {
+    "roc": 0.8225792593865453,
+    "pr": 0.20014052636253982
+   }
+  }
+ },
+ "watch": {
+  "heldout7": {
+   "share_mean": 0.06728126333430769,
+   "hits": {
+    "today": 13.0,
+    "eq_depth": 8.0,
+    "v2_lambdamart_rulefirst": 10.0,
+    "v2_pairlr_rulefirst": 11.0,
+    "v2_lambdamart": 10.0,
+    "v2_pairlr": 11.0
+   },
+   "sites": 29,
+   "eq_depth_vs_today": {
+    "delta": -0.1724137931034483,
+    "ci90": [
+     -0.3939393939393939,
+     0.02638888888888882
+    ],
+    "p_gt0": 0.0505,
+    "hits_a": 8.0,
+    "hits_b": 13.0,
+    "sites": 29
+   },
+   "v2_lambdamart_rulefirst_vs_today": {
+    "delta": -0.10344827586206896,
+    "ci90": [
+     -0.3076923076923077,
+     0.058823529411764705
+    ],
+    "p_gt0": 0.1105,
+    "hits_a": 10.0,
+    "hits_b": 13.0,
+    "sites": 29
+   },
+   "v2_pairlr_rulefirst_vs_today": {
+    "delta": -0.06896551724137931,
+    "ci90": [
+     -0.25,
+     0.06896551724137931
+    ],
+    "p_gt0": 0.1775,
+    "hits_a": 11.0,
+    "hits_b": 13.0,
+    "sites": 29
+   },
+   "v2_lambdamart_vs_today": {
+    "delta": -0.10344827586206896,
+    "ci90": [
+     -0.3076923076923077,
+     0.058823529411764705
+    ],
+    "p_gt0": 0.1105,
+    "hits_a": 10.0,
+    "hits_b": 13.0,
+    "sites": 29
+   },
+   "v2_pairlr_vs_today": {
+    "delta": -0.06896551724137931,
+    "ci90": [
+     -0.25,
+     0.06896551724137931
+    ],
+    "p_gt0": 0.1775,
+    "hits_a": 11.0,
+    "hits_b": 13.0,
+    "sites": 29
+   },
+   "v2_lambdamart_rulefirst_vs_eq_depth": {
+    "delta": 0.06896551724137931,
+    "ci90": [
+     -0.06666666666666667,
+     0.21892361111111094
+    ],
+    "p_gt0": 0.6855,
+    "hits_a": 10.0,
+    "hits_b": 8.0,
+    "sites": 29
+   },
+   "v2_pairlr_rulefirst_vs_eq_depth": {
+    "delta": 0.10344827586206896,
+    "ci90": [
+     -0.03571428571428571,
+     0.27586206896551724
+    ],
+    "p_gt0": 0.825,
+    "hits_a": 11.0,
+    "hits_b": 8.0,
+    "sites": 29
+   },
+   "v2_lambdamart_vs_eq_depth": {
+    "delta": 0.06896551724137931,
+    "ci90": [
+     -0.06666666666666667,
+     0.21892361111111094
+    ],
+    "p_gt0": 0.6855,
+    "hits_a": 10.0,
+    "hits_b": 8.0,
+    "sites": 29
+   },
+   "v2_pairlr_vs_eq_depth": {
+    "delta": 0.10344827586206896,
+    "ci90": [
+     -0.03571428571428571,
+     0.27586206896551724
+    ],
+    "p_gt0": 0.825,
+    "hits_a": 11.0,
+    "hits_b": 8.0,
+    "sites": 29
+   },
+   "today_vs_eq_depth": {
+    "delta": 0.1724137931034483,
+    "ci90": [
+     -0.026388888888888882,
+     0.3939393939393939
+    ],
+    "p_gt0": 0.91,
+    "hits_a": 13.0,
+    "hits_b": 8.0,
+    "sites": 29
+   }
+  },
+  "dev2": {
+   "share_mean": 0.07098836161478521,
+   "hits": {
+    "today": 44.0,
+    "eq_depth": 48.0,
+    "v2_lambdamart_rulefirst": 50.0,
+    "v2_pairlr_rulefirst": 48.0,
+    "v2_lambdamart": 50.0,
+    "v2_pairlr": 48.0
+   },
+   "sites": 90,
+   "eq_depth_vs_today": {
+    "delta": 0.044444444444444446,
+    "ci90": [
+     -0.13636363636363635,
+     0.11392405063291139
+    ],
+    "p_gt0": 0.6455,
+    "hits_a": 48.0,
+    "hits_b": 44.0,
+    "sites": 90
+   },
+   "v2_lambdamart_rulefirst_vs_today": {
+    "delta": 0.06666666666666667,
+    "ci90": [
+     0.0,
+     0.13333333333333333
+    ],
+    "p_gt0": 0.7105,
+    "hits_a": 50.0,
+    "hits_b": 44.0,
+    "sites": 90
+   },
+   "v2_pairlr_rulefirst_vs_today": {
+    "delta": 0.044444444444444446,
+    "ci90": [
+     -0.011111111111111112,
+     0.10759493670886076
+    ],
+    "p_gt0": 0.6575,
+    "hits_a": 48.0,
+    "hits_b": 44.0,
+    "sites": 90
+   },
+   "v2_lambdamart_vs_today": {
+    "delta": 0.06666666666666667,
+    "ci90": [
+     0.0,
+     0.13333333333333333
+    ],
+    "p_gt0": 0.7105,
+    "hits_a": 50.0,
+    "hits_b": 44.0,
+    "sites": 90
+   },
+   "v2_pairlr_vs_today": {
+    "delta": 0.044444444444444446,
+    "ci90": [
+     -0.011111111111111112,
+     0.10759493670886076
+    ],
+    "p_gt0": 0.6575,
+    "hits_a": 48.0,
+    "hits_b": 44.0,
+    "sites": 90
+   },
+   "v2_lambdamart_rulefirst_vs_eq_depth": {
+    "delta": 0.022222222222222223,
+    "ci90": [
+     -0.011111111111111112,
+     0.13636363636363635
+    ],
+    "p_gt0": 0.7825,
+    "hits_a": 50.0,
+    "hits_b": 48.0,
+    "sites": 90
+   },
+   "v2_pairlr_rulefirst_vs_eq_depth": {
+    "delta": 0.0,
+    "ci90": [
+     -0.03333333333333333,
+     0.13636363636363635
+    ],
+    "p_gt0": 0.446,
+    "hits_a": 48.0,
+    "hits_b": 48.0,
+    "sites": 90
+   },
+   "v2_lambdamart_vs_eq_depth": {
+    "delta": 0.022222222222222223,
+    "ci90": [
+     -0.011111111111111112,
+     0.13636363636363635
+    ],
+    "p_gt0": 0.7825,
+    "hits_a": 50.0,
+    "hits_b": 48.0,
+    "sites": 90
+   },
+   "v2_pairlr_vs_eq_depth": {
+    "delta": 0.0,
+    "ci90": [
+     -0.03333333333333333,
+     0.13636363636363635
+    ],
+    "p_gt0": 0.446,
+    "hits_a": 48.0,
+    "hits_b": 48.0,
+    "sites": 90
+   },
+   "today_vs_eq_depth": {
+    "delta": -0.044444444444444446,
+    "ci90": [
+     -0.11392405063291139,
+     0.13636363636363635
+    ],
+    "p_gt0": 0.291,
+    "hits_a": 44.0,
+    "hits_b": 48.0,
+    "sites": 90
+   }
+  },
+  "all9": {
+   "share_mean": 0.06810506295219158,
+   "hits": {
+    "today": 57.0,
+    "eq_depth": 56.0,
+    "v2_lambdamart_rulefirst": 60.0,
+    "v2_pairlr_rulefirst": 59.0,
+    "v2_lambdamart": 60.0,
+    "v2_pairlr": 59.0
+   },
+   "sites": 119,
+   "eq_depth_vs_today": {
+    "delta": -0.008403361344537815,
+    "ci90": [
+     -0.25,
+     0.06698687910028116
+    ],
+    "p_gt0": 0.366,
+    "hits_a": 56.0,
+    "hits_b": 57.0,
+    "sites": 119
+   },
+   "v2_lambdamart_rulefirst_vs_today": {
+    "delta": 0.025210084033613446,
+    "ci90": [
+     -0.16682389937106917,
+     0.09026134879791074
+    ],
+    "p_gt0": 0.5455,
+    "hits_a": 60.0,
+    "hits_b": 57.0,
+    "sites": 119
+   },
+   "v2_pairlr_rulefirst_vs_today": {
+    "delta": 0.01680672268907563,
+    "ci90": [
+     -0.12831661092530655,
+     0.075
+    ],
+    "p_gt0": 0.524,
+    "hits_a": 59.0,
+    "hits_b": 57.0,
+    "sites": 119
+   },
+   "v2_lambdamart_vs_today": {
+    "delta": 0.025210084033613446,
+    "ci90": [
+     -0.16682389937106917,
+     0.09026134879791074
+    ],
+    "p_gt0": 0.5455,
+    "hits_a": 60.0,
+    "hits_b": 57.0,
+    "sites": 119
+   },
+   "v2_pairlr_vs_today": {
+    "delta": 0.01680672268907563,
+    "ci90": [
+     -0.12831661092530655,
+     0.075
+    ],
+    "p_gt0": 0.524,
+    "hits_a": 59.0,
+    "hits_b": 57.0,
+    "sites": 119
+   },
+   "v2_lambdamart_rulefirst_vs_eq_depth": {
+    "delta": 0.03361344537815126,
+    "ci90": [
+     -0.009528388278388278,
+     0.14285714285714285
+    ],
+    "p_gt0": 0.858,
+    "hits_a": 60.0,
+    "hits_b": 56.0,
+    "sites": 119
+   },
+   "v2_pairlr_rulefirst_vs_eq_depth": {
+    "delta": 0.025210084033613446,
+    "ci90": [
+     -0.019083969465648856,
+     0.1794871794871795
+    ],
+    "p_gt0": 0.7545,
+    "hits_a": 59.0,
+    "hits_b": 56.0,
+    "sites": 119
+   },
+   "v2_lambdamart_vs_eq_depth": {
+    "delta": 0.03361344537815126,
+    "ci90": [
+     -0.009528388278388278,
+     0.14285714285714285
+    ],
+    "p_gt0": 0.858,
+    "hits_a": 60.0,
+    "hits_b": 56.0,
+    "sites": 119
+   },
+   "v2_pairlr_vs_eq_depth": {
+    "delta": 0.025210084033613446,
+    "ci90": [
+     -0.019083969465648856,
+     0.1794871794871795
+    ],
+    "p_gt0": 0.7545,
+    "hits_a": 59.0,
+    "hits_b": 56.0,
+    "sites": 119
+   },
+   "today_vs_eq_depth": {
+    "delta": 0.008403361344537815,
+    "ci90": [
+     -0.06698687910028116,
+     0.25
+    ],
+    "p_gt0": 0.58,
+    "hits_a": 57.0,
+    "hits_b": 56.0,
+    "sites": 119
+   }
+  },
+  "per_storm_share": {
+   "aug2021": 0.08825589540042027,
+   "aug2023": 0.09013325348106004,
+   "aug2023b": 0.022463496817671284,
+   "aug2026": 0.1096433289299868,
+   "jul2021": 0.042549800796812746,
+   "jul2023": 0.015498154981549815,
+   "sep2021": 0.12231511254019292,
+   "sep2022": 0.06836569579288027,
+   "sep2023": 0.05372082782915016
+  },
+  "per_storm_hits": {
+   "today": {
+    "aug2021": 9.0,
+    "aug2023": 3.0,
+    "aug2023b": 1.0,
+    "aug2026": 2.0,
+    "jul2021": 3.0,
+    "jul2023": 0.0,
+    "sep2021": 3.0,
+    "sep2022": 1.0,
+    "sep2023": 35.0
+   },
+   "eq_depth": {
+    "aug2021": 8.0,
+    "aug2023": 1.0,
+    "aug2023b": 0.0,
+    "aug2026": 2.0,
+    "jul2021": 1.0,
+    "jul2023": 0.0,
+    "sep2021": 4.0,
+    "sep2022": 0.0,
+    "sep2023": 40.0
+   },
+   "v2_lambdamart_rulefirst": {
+    "aug2021": 9.0,
+    "aug2023": 3.0,
+    "aug2023b": 0.0,
+    "aug2026": 2.0,
+    "jul2021": 1.0,
+    "jul2023": 0.0,
+    "sep2021": 4.0,
+    "sep2022": 0.0,
+    "sep2023": 41.0
+   },
+   "v2_pairlr_rulefirst": {
+    "aug2021": 9.0,
+    "aug2023": 3.0,
+    "aug2023b": 0.0,
+    "aug2026": 2.0,
+    "jul2021": 1.0,
+    "jul2023": 0.0,
+    "sep2021": 4.0,
+    "sep2022": 1.0,
+    "sep2023": 39.0
+   },
+   "v2_lambdamart": {
+    "aug2021": 9.0,
+    "aug2023": 3.0,
+    "aug2023b": 0.0,
+    "aug2026": 2.0,
+    "jul2021": 1.0,
+    "jul2023": 0.0,
+    "sep2021": 4.0,
+    "sep2022": 0.0,
+    "sep2023": 41.0
+   },
+   "v2_pairlr": {
+    "aug2021": 9.0,
+    "aug2023": 3.0,
+    "aug2023b": 0.0,
+    "aug2026": 2.0,
+    "jul2021": 1.0,
+    "jul2023": 0.0,
+    "sep2021": 4.0,
+    "sep2022": 1.0,
+    "sep2023": 39.0
+   }
+  }
+ },
+ "leave_one_area_out": {
+  "v2_lambdamart": {
+   "oos7_vs_rule": {
+    "delta": 0.0,
+    "ci90": [
+     0.0,
+     0.0
+    ],
+    "p_gt0": 0.0,
+    "hits_a": 5.0,
+    "hits_b": 5.0,
+    "sites": 29
+   },
+   "per_storm": {
+    "aug2021": 3.0,
+    "aug2023": 1.0,
+    "aug2023b": 0.0,
+    "aug2026": 1.0,
+    "jul2021": 0.0,
+    "jul2023": 0.0,
+    "sep2021": 3.0,
+    "sep2022": 0.0,
+    "sep2023": 33.0
+   }
+  },
+  "v2_pairlr": {
+   "oos7_vs_rule": {
+    "delta": 0.034482758620689655,
+    "ci90": [
+     -0.08571428571428572,
+     0.18518518518518517
+    ],
+    "p_gt0": 0.5755,
+    "hits_a": 6.0,
+    "hits_b": 5.0,
+    "sites": 29
+   },
+   "per_storm": {
+    "aug2021": 3.0,
+    "aug2023": 1.0,
+    "aug2023b": 1.0,
+    "aug2026": 1.0,
+    "jul2021": 1.0,
+    "jul2023": 0.0,
+    "sep2021": 2.0,
+    "sep2022": 0.0,
+    "sep2023": 30.0
+   }
+  }
+ },
+ "calibration": {
+  "v1": {
+   "box": {
+    "platt": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 502.4,
+     "brier": 0.00411,
+     "bss": -0.154,
+     "bins": [
+      {
+       "p_mean": 0.0015,
+       "obs": 0.0044,
+       "n": 2923,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.0037,
+       "obs": 0.0019,
+       "n": 27992,
+       "pos": 52
+      },
+      {
+       "p_mean": 0.0065,
+       "obs": 0.0033,
+       "n": 16747,
+       "pos": 56
+      },
+      {
+       "p_mean": 0.0138,
+       "obs": 0.0072,
+       "n": 4283,
+       "pos": 31
+      },
+      {
+       "p_mean": 0.03,
+       "obs": 0.0108,
+       "n": 2489,
+       "pos": 27
+      },
+      {
+       "p_mean": 0.0687,
+       "obs": 0.0166,
+       "n": 722,
+       "pos": 12
+      },
+      {
+       "p_mean": 0.1324,
+       "obs": 0.0131,
+       "n": 305,
+       "pos": 4
+      },
+      {
+       "p_mean": 0.2763,
+       "obs": 0.0236,
+       "n": 127,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.5349,
+       "obs": 0.0196,
+       "n": 51,
+       "pos": 1
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 92.5,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 73.5,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 41.2,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 59.3,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 42.9,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 30.9,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 122.3,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 21.0,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 18.8,
+      "labelled": 113
+     }
+    }
+   },
+   "towns": {
+    "platt": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 308.1,
+     "brier": 0.00693,
+     "bss": -0.109,
+     "bins": [
+      {
+       "p_mean": 0.0016,
+       "obs": 0.0111,
+       "n": 993,
+       "pos": 11
+      },
+      {
+       "p_mean": 0.0038,
+       "obs": 0.0035,
+       "n": 14071,
+       "pos": 49
+      },
+      {
+       "p_mean": 0.0065,
+       "obs": 0.0055,
+       "n": 10077,
+       "pos": 55
+      },
+      {
+       "p_mean": 0.0137,
+       "obs": 0.0113,
+       "n": 2473,
+       "pos": 28
+      },
+      {
+       "p_mean": 0.0301,
+       "obs": 0.0171,
+       "n": 1465,
+       "pos": 25
+      },
+      {
+       "p_mean": 0.0692,
+       "obs": 0.0245,
+       "n": 490,
+       "pos": 12
+      },
+      {
+       "p_mean": 0.1325,
+       "obs": 0.018,
+       "n": 222,
+       "pos": 4
+      },
+      {
+       "p_mean": 0.2714,
+       "obs": 0.0326,
+       "n": 92,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.5354,
+       "obs": 0.025,
+       "n": 40,
+       "pos": 1
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 49.6,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 46.9,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 6.5,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 46.4,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 25.2,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 21.9,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 92.7,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 12.6,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 6.4,
+      "labelled": 102
+     }
+    }
+   }
+  },
+  "v2_lambdamart": {
+   "box": {
+    "platt": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 348.8,
+     "brier": 0.00369,
+     "bss": -0.036,
+     "bins": [
+      {
+       "p_mean": 0.002,
+       "obs": 0.0,
+       "n": 10,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.0039,
+       "obs": 0.0027,
+       "n": 36608,
+       "pos": 99
+      },
+      {
+       "p_mean": 0.0064,
+       "obs": 0.0028,
+       "n": 15837,
+       "pos": 45
+      },
+      {
+       "p_mean": 0.0133,
+       "obs": 0.0107,
+       "n": 1966,
+       "pos": 21
+      },
+      {
+       "p_mean": 0.0302,
+       "obs": 0.0231,
+       "n": 822,
+       "pos": 19
+      },
+      {
+       "p_mean": 0.0669,
+       "obs": 0.0622,
+       "n": 193,
+       "pos": 12
+      },
+      {
+       "p_mean": 0.1391,
+       "obs": 0.0,
+       "n": 108,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.2726,
+       "obs": 0.0323,
+       "n": 93,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4192,
+       "obs": 0.0,
+       "n": 2,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 352.2,
+     "brier": 0.00367,
+     "bss": -0.031,
+     "bins": [
+      {
+       "p_mean": 0.0013,
+       "obs": 0.0009,
+       "n": 14371,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.0035,
+       "obs": 0.0025,
+       "n": 25268,
+       "pos": 62
+      },
+      {
+       "p_mean": 0.0067,
+       "obs": 0.0039,
+       "n": 8689,
+       "pos": 34
+      },
+      {
+       "p_mean": 0.0132,
+       "obs": 0.0161,
+       "n": 3417,
+       "pos": 55
+      },
+      {
+       "p_mean": 0.0278,
+       "obs": 0.0079,
+       "n": 3549,
+       "pos": 28
+      },
+      {
+       "p_mean": 0.067,
+       "obs": 0.0185,
+       "n": 162,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.1286,
+       "obs": 0.0163,
+       "n": 123,
+       "pos": 2
+      },
+      {
+       "p_mean": 0.2698,
+       "obs": 0.0333,
+       "n": 60,
+       "pos": 2
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 60.5,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 43.8,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 37.2,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 32.4,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 32.8,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 30.7,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 80.7,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 14.1,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 16.8,
+      "labelled": 113
+     }
+    }
+   },
+   "towns": {
+    "platt": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 209.3,
+     "brier": 0.00642,
+     "bss": -0.029,
+     "bins": [
+      {
+       "p_mean": 0.002,
+       "obs": 0.0,
+       "n": 5,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.004,
+       "obs": 0.0047,
+       "n": 18678,
+       "pos": 88
+      },
+      {
+       "p_mean": 0.0064,
+       "obs": 0.0049,
+       "n": 9225,
+       "pos": 45
+      },
+      {
+       "p_mean": 0.0132,
+       "obs": 0.0179,
+       "n": 1175,
+       "pos": 21
+      },
+      {
+       "p_mean": 0.0304,
+       "obs": 0.0351,
+       "n": 541,
+       "pos": 19
+      },
+      {
+       "p_mean": 0.0664,
+       "obs": 0.0902,
+       "n": 133,
+       "pos": 12
+      },
+      {
+       "p_mean": 0.1394,
+       "obs": 0.0,
+       "n": 78,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.2734,
+       "obs": 0.0349,
+       "n": 86,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4192,
+       "obs": 0.0,
+       "n": 2,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 210.2,
+     "brier": 0.00637,
+     "bss": -0.021,
+     "bins": [
+      {
+       "p_mean": 0.0013,
+       "obs": 0.0017,
+       "n": 7862,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.0037,
+       "obs": 0.004,
+       "n": 13059,
+       "pos": 52
+      },
+      {
+       "p_mean": 0.0067,
+       "obs": 0.0073,
+       "n": 4642,
+       "pos": 34
+      },
+      {
+       "p_mean": 0.0132,
+       "obs": 0.0271,
+       "n": 1992,
+       "pos": 54
+      },
+      {
+       "p_mean": 0.0284,
+       "obs": 0.0133,
+       "n": 2098,
+       "pos": 28
+      },
+      {
+       "p_mean": 0.0678,
+       "obs": 0.024,
+       "n": 125,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.1294,
+       "obs": 0.0222,
+       "n": 90,
+       "pos": 2
+      },
+      {
+       "p_mean": 0.2697,
+       "obs": 0.0364,
+       "n": 55,
+       "pos": 2
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 34.0,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 27.7,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 5.4,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 25.8,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 18.3,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 22.3,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 61.4,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 7.8,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 6.5,
+      "labelled": 102
+     }
+    }
+   }
+  },
+  "v2_pairlr": {
+   "box": {
+    "platt": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 334.2,
+     "brier": 0.00369,
+     "bss": -0.036,
+     "bins": [
+      {
+       "p_mean": 0.0019,
+       "obs": 0.004,
+       "n": 497,
+       "pos": 2
+      },
+      {
+       "p_mean": 0.0038,
+       "obs": 0.0024,
+       "n": 39821,
+       "pos": 95
+      },
+      {
+       "p_mean": 0.0063,
+       "obs": 0.0041,
+       "n": 12237,
+       "pos": 50
+      },
+      {
+       "p_mean": 0.0133,
+       "obs": 0.01,
+       "n": 1900,
+       "pos": 19
+      },
+      {
+       "p_mean": 0.0302,
+       "obs": 0.0207,
+       "n": 772,
+       "pos": 16
+      },
+      {
+       "p_mean": 0.0671,
+       "obs": 0.0631,
+       "n": 206,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.1455,
+       "obs": 0.0082,
+       "n": 122,
+       "pos": 1
+      },
+      {
+       "p_mean": 0.2767,
+       "obs": 0.038,
+       "n": 79,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4576,
+       "obs": 0.0,
+       "n": 5,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 329.0,
+     "brier": 0.00368,
+     "bss": -0.031,
+     "bins": [
+      {
+       "p_mean": 0.0015,
+       "obs": 0.0013,
+       "n": 21727,
+       "pos": 28
+      },
+      {
+       "p_mean": 0.0032,
+       "obs": 0.0017,
+       "n": 22028,
+       "pos": 38
+      },
+      {
+       "p_mean": 0.0064,
+       "obs": 0.0097,
+       "n": 4633,
+       "pos": 45
+      },
+      {
+       "p_mean": 0.016,
+       "obs": 0.0179,
+       "n": 2844,
+       "pos": 51
+      },
+      {
+       "p_mean": 0.026,
+       "obs": 0.0067,
+       "n": 4002,
+       "pos": 27
+      },
+      {
+       "p_mean": 0.0683,
+       "obs": 0.0279,
+       "n": 251,
+       "pos": 7
+      },
+      {
+       "p_mean": 0.1455,
+       "obs": 0.0,
+       "n": 92,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.2433,
+       "obs": 0.0536,
+       "n": 56,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4853,
+       "obs": 0.0,
+       "n": 6,
+       "pos": 0
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 53.9,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 43.9,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 35.8,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 30.1,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 30.8,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 30.6,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 80.1,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 13.3,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 15.8,
+      "labelled": 113
+     }
+    }
+   },
+   "towns": {
+    "platt": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 203.7,
+     "brier": 0.00643,
+     "bss": -0.03,
+     "bins": [
+      {
+       "p_mean": 0.0019,
+       "obs": 0.0109,
+       "n": 184,
+       "pos": 2
+      },
+      {
+       "p_mean": 0.0039,
+       "obs": 0.0041,
+       "n": 20257,
+       "pos": 84
+      },
+      {
+       "p_mean": 0.0062,
+       "obs": 0.0067,
+       "n": 7468,
+       "pos": 50
+      },
+      {
+       "p_mean": 0.0134,
+       "obs": 0.0163,
+       "n": 1163,
+       "pos": 19
+      },
+      {
+       "p_mean": 0.0306,
+       "obs": 0.0302,
+       "n": 529,
+       "pos": 16
+      },
+      {
+       "p_mean": 0.0674,
+       "obs": 0.0861,
+       "n": 151,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.1457,
+       "obs": 0.0108,
+       "n": 93,
+       "pos": 1
+      },
+      {
+       "p_mean": 0.2776,
+       "obs": 0.0411,
+       "n": 73,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4576,
+       "obs": 0.0,
+       "n": 5,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 201.3,
+     "brier": 0.00639,
+     "bss": -0.023,
+     "bins": [
+      {
+       "p_mean": 0.0015,
+       "obs": 0.0025,
+       "n": 10798,
+       "pos": 27
+      },
+      {
+       "p_mean": 0.0032,
+       "obs": 0.0028,
+       "n": 12388,
+       "pos": 35
+      },
+      {
+       "p_mean": 0.0064,
+       "obs": 0.0163,
+       "n": 2328,
+       "pos": 38
+      },
+      {
+       "p_mean": 0.0163,
+       "obs": 0.031,
+       "n": 1647,
+       "pos": 51
+      },
+      {
+       "p_mean": 0.0264,
+       "obs": 0.011,
+       "n": 2454,
+       "pos": 27
+      },
+      {
+       "p_mean": 0.0693,
+       "obs": 0.0395,
+       "n": 177,
+       "pos": 7
+      },
+      {
+       "p_mean": 0.1445,
+       "obs": 0.0,
+       "n": 72,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.2432,
+       "obs": 0.0566,
+       "n": 53,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4853,
+       "obs": 0.0,
+       "n": 6,
+       "pos": 0
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 31.0,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 28.3,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 5.2,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 23.9,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 17.0,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 22.3,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 62.1,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 7.6,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 6.3,
+      "labelled": 102
+     }
+    }
+   }
+  },
+  "v2_pairlr_nograph": {
+   "box": {
+    "platt": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 337.7,
+     "brier": 0.0037,
+     "bss": -0.037,
+     "bins": [
+      {
+       "p_mean": 0.0018,
+       "obs": 0.0079,
+       "n": 508,
+       "pos": 4
+      },
+      {
+       "p_mean": 0.0039,
+       "obs": 0.0025,
+       "n": 38869,
+       "pos": 97
+      },
+      {
+       "p_mean": 0.0062,
+       "obs": 0.0036,
+       "n": 13232,
+       "pos": 47
+      },
+      {
+       "p_mean": 0.0133,
+       "obs": 0.0097,
+       "n": 1850,
+       "pos": 18
+      },
+      {
+       "p_mean": 0.03,
+       "obs": 0.0236,
+       "n": 762,
+       "pos": 18
+      },
+      {
+       "p_mean": 0.0666,
+       "obs": 0.0521,
+       "n": 211,
+       "pos": 11
+      },
+      {
+       "p_mean": 0.1482,
+       "obs": 0.0085,
+       "n": 118,
+       "pos": 1
+      },
+      {
+       "p_mean": 0.2715,
+       "obs": 0.0349,
+       "n": 86,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4677,
+       "obs": 0.0,
+       "n": 3,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 337.2,
+     "brier": 0.00366,
+     "bss": -0.027,
+     "bins": [
+      {
+       "p_mean": 0.0015,
+       "obs": 0.0016,
+       "n": 18687,
+       "pos": 29
+      },
+      {
+       "p_mean": 0.0033,
+       "obs": 0.0018,
+       "n": 24880,
+       "pos": 44
+      },
+      {
+       "p_mean": 0.0063,
+       "obs": 0.0033,
+       "n": 4547,
+       "pos": 15
+      },
+      {
+       "p_mean": 0.0142,
+       "obs": 0.0246,
+       "n": 2679,
+       "pos": 66
+      },
+      {
+       "p_mean": 0.0265,
+       "obs": 0.008,
+       "n": 4494,
+       "pos": 36
+      },
+      {
+       "p_mean": 0.0614,
+       "obs": 0.0355,
+       "n": 169,
+       "pos": 6
+      },
+      {
+       "p_mean": 0.1375,
+       "obs": 0.0,
+       "n": 130,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.2777,
+       "obs": 0.0566,
+       "n": 53,
+       "pos": 3
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 53.3,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 45.0,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 37.3,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 30.7,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 31.4,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 31.2,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 79.1,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 13.8,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 15.9,
+      "labelled": 113
+     }
+    }
+   },
+   "towns": {
+    "platt": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 203.3,
+     "brier": 0.00643,
+     "bss": -0.029,
+     "bins": [
+      {
+       "p_mean": 0.0018,
+       "obs": 0.0192,
+       "n": 208,
+       "pos": 4
+      },
+      {
+       "p_mean": 0.0039,
+       "obs": 0.0043,
+       "n": 20163,
+       "pos": 86
+      },
+      {
+       "p_mean": 0.0062,
+       "obs": 0.0062,
+       "n": 7617,
+       "pos": 47
+      },
+      {
+       "p_mean": 0.0134,
+       "obs": 0.0165,
+       "n": 1093,
+       "pos": 18
+      },
+      {
+       "p_mean": 0.0305,
+       "obs": 0.0346,
+       "n": 520,
+       "pos": 18
+      },
+      {
+       "p_mean": 0.0673,
+       "obs": 0.0719,
+       "n": 153,
+       "pos": 11
+      },
+      {
+       "p_mean": 0.1486,
+       "obs": 0.0112,
+       "n": 89,
+       "pos": 1
+      },
+      {
+       "p_mean": 0.2727,
+       "obs": 0.039,
+       "n": 77,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.4677,
+       "obs": 0.0,
+       "n": 3,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 201.1,
+     "brier": 0.00635,
+     "bss": -0.017,
+     "bins": [
+      {
+       "p_mean": 0.0014,
+       "obs": 0.0025,
+       "n": 9649,
+       "pos": 24
+      },
+      {
+       "p_mean": 0.0033,
+       "obs": 0.0033,
+       "n": 13457,
+       "pos": 44
+      },
+      {
+       "p_mean": 0.0062,
+       "obs": 0.0062,
+       "n": 2419,
+       "pos": 15
+      },
+      {
+       "p_mean": 0.0144,
+       "obs": 0.0413,
+       "n": 1454,
+       "pos": 60
+      },
+      {
+       "p_mean": 0.0269,
+       "obs": 0.0135,
+       "n": 2667,
+       "pos": 36
+      },
+      {
+       "p_mean": 0.0612,
+       "obs": 0.0472,
+       "n": 127,
+       "pos": 6
+      },
+      {
+       "p_mean": 0.137,
+       "obs": 0.0,
+       "n": 99,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.2776,
+       "obs": 0.0588,
+       "n": 51,
+       "pos": 3
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 30.0,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 29.0,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 5.4,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 24.3,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 17.1,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 22.7,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 60.6,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 7.8,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 6.4,
+      "labelled": 102
+     }
+    }
+   }
+  },
+  "v2_pairlr_nopu": {
+   "box": {
+    "platt": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 333.4,
+     "brier": 0.0037,
+     "bss": -0.037,
+     "bins": [
+      {
+       "p_mean": 0.0019,
+       "obs": 0.0,
+       "n": 349,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.0039,
+       "obs": 0.0022,
+       "n": 42759,
+       "pos": 92
+      },
+      {
+       "p_mean": 0.0064,
+       "obs": 0.0054,
+       "n": 9224,
+       "pos": 50
+      },
+      {
+       "p_mean": 0.0132,
+       "obs": 0.0099,
+       "n": 2125,
+       "pos": 21
+      },
+      {
+       "p_mean": 0.03,
+       "obs": 0.022,
+       "n": 771,
+       "pos": 17
+      },
+      {
+       "p_mean": 0.0684,
+       "obs": 0.0657,
+       "n": 198,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.1454,
+       "obs": 0.0233,
+       "n": 129,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.2837,
+       "obs": 0.038,
+       "n": 79,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.5108,
+       "obs": 0.0,
+       "n": 5,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 55639,
+     "pos": 199,
+     "expected": 328.4,
+     "brier": 0.00371,
+     "bss": -0.041,
+     "bins": [
+      {
+       "p_mean": 0.0015,
+       "obs": 0.0016,
+       "n": 18473,
+       "pos": 30
+      },
+      {
+       "p_mean": 0.0026,
+       "obs": 0.0011,
+       "n": 24426,
+       "pos": 28
+      },
+      {
+       "p_mean": 0.0061,
+       "obs": 0.0084,
+       "n": 5228,
+       "pos": 44
+      },
+      {
+       "p_mean": 0.0149,
+       "obs": 0.0168,
+       "n": 2682,
+       "pos": 45
+      },
+      {
+       "p_mean": 0.0262,
+       "obs": 0.0087,
+       "n": 4371,
+       "pos": 38
+      },
+      {
+       "p_mean": 0.0663,
+       "obs": 0.0319,
+       "n": 313,
+       "pos": 10
+      },
+      {
+       "p_mean": 0.1419,
+       "obs": 0.0119,
+       "n": 84,
+       "pos": 1
+      },
+      {
+       "p_mean": 0.26,
+       "obs": 0.0517,
+       "n": 58,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.8425,
+       "obs": 0.0,
+       "n": 4,
+       "pos": 0
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 54.3,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 43.1,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 35.1,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 29.9,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 31.0,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 29.4,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 81.7,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 13.0,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 16.0,
+      "labelled": 113
+     }
+    }
+   },
+   "towns": {
+    "platt": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 203.9,
+     "brier": 0.00644,
+     "bss": -0.031,
+     "bins": [
+      {
+       "p_mean": 0.0019,
+       "obs": 0.0,
+       "n": 74,
+       "pos": 0
+      },
+      {
+       "p_mean": 0.0039,
+       "obs": 0.0039,
+       "n": 21868,
+       "pos": 85
+      },
+      {
+       "p_mean": 0.0063,
+       "obs": 0.0079,
+       "n": 5856,
+       "pos": 46
+      },
+      {
+       "p_mean": 0.0133,
+       "obs": 0.0165,
+       "n": 1276,
+       "pos": 21
+      },
+      {
+       "p_mean": 0.0303,
+       "obs": 0.0323,
+       "n": 527,
+       "pos": 17
+      },
+      {
+       "p_mean": 0.0691,
+       "obs": 0.0897,
+       "n": 145,
+       "pos": 13
+      },
+      {
+       "p_mean": 0.1453,
+       "obs": 0.0306,
+       "n": 98,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.2843,
+       "obs": 0.0405,
+       "n": 74,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.5108,
+       "obs": 0.0,
+       "n": 5,
+       "pos": 0
+      }
+     ]
+    },
+    "isotonic": {
+     "n": 29923,
+     "pos": 188,
+     "expected": 201.8,
+     "brier": 0.00645,
+     "bss": -0.033,
+     "bins": [
+      {
+       "p_mean": 0.0015,
+       "obs": 0.0028,
+       "n": 10475,
+       "pos": 29
+      },
+      {
+       "p_mean": 0.0028,
+       "obs": 0.0023,
+       "n": 11951,
+       "pos": 27
+      },
+      {
+       "p_mean": 0.0061,
+       "obs": 0.0129,
+       "n": 3028,
+       "pos": 39
+      },
+      {
+       "p_mean": 0.0146,
+       "obs": 0.0274,
+       "n": 1495,
+       "pos": 41
+      },
+      {
+       "p_mean": 0.0267,
+       "obs": 0.0145,
+       "n": 2617,
+       "pos": 38
+      },
+      {
+       "p_mean": 0.0672,
+       "obs": 0.0422,
+       "n": 237,
+       "pos": 10
+      },
+      {
+       "p_mean": 0.1451,
+       "obs": 0.0164,
+       "n": 61,
+       "pos": 1
+      },
+      {
+       "p_mean": 0.2602,
+       "obs": 0.0545,
+       "n": 55,
+       "pos": 3
+      },
+      {
+       "p_mean": 0.8425,
+       "obs": 0.0,
+       "n": 4,
+       "pos": 0
+      }
+     ]
+    },
+    "per_storm": {
+     "aug2021": {
+      "expected": 31.2,
+      "labelled": 23
+     },
+     "aug2023": {
+      "expected": 27.8,
+      "labelled": 12
+     },
+     "aug2023b": {
+      "expected": 5.2,
+      "labelled": 5
+     },
+     "aug2026": {
+      "expected": 23.7,
+      "labelled": 7
+     },
+     "jul2021": {
+      "expected": 17.3,
+      "labelled": 13
+     },
+     "jul2023": {
+      "expected": 21.4,
+      "labelled": 8
+     },
+     "sep2021": {
+      "expected": 63.4,
+      "labelled": 12
+     },
+     "sep2022": {
+      "expected": 7.5,
+      "labelled": 6
+     },
+     "sep2023": {
+      "expected": 6.5,
+      "labelled": 102
+     }
+    }
+   }
+  }
+ }
+}
