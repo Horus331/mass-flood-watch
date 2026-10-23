@@ -1,0 +1,88 @@
+name: Storm-drain capacity test (Leominster pipe network vs no drains vs generic design drains, CPU)
+# The Actions version of proto/turing/run_drains.slurm: storm x case on the Leominster box 168000,908000,188000,928000 at 20 m,
+# LF_LOSS=cn LF_CN_SCALE=0.91 LF_INFIL_MMH=2 LF_QOUT=1, on the CPU acceleration solver.  w9 downloads LISFLOOD-FP 8.2 and builds it with
+# patch_source -> patch_drain_sink (the per-cell 'infilfile' sink in infevap.cpp FPInfiltration, inert without an infilfile), and probes
+# the sink before the run.  Cases: base (no drains), drains (LF_DRAINS = City of Leominster DPW pipe network, sim/colab/lf_drains.py),
+# design (LF_DRAIN_DESIGN=1, generic 10-yr design-storm drains on developed cells everywhere).  LF_INFIL_MODE=solver is pinned: the
+# sink is applied by the solver's infiltration routine, so it needs the solver-side scalar infiltration.
+# Each job commits aggregate json only to docs/proto/drains/<storm>_<case>/ (no depth rasters); proto/drains_eval.py compares them.
+on:
+  workflow_dispatch:
+    inputs:
+      storms:
+        description: 'JSON list of storms (sep2023, aug2026)'
+        default: '["sep2023", "aug2026"]'
+      cases:
+        description: 'JSON list of cases (base, drains, design)'
+        default: '["base", "drains", "design"]'
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        storm: ${{ fromJSON(inputs.storms) }}
+        case: ${{ fromJSON(inputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - name: flood depth (LISFLOOD-FP 8.2 + mfw-drains patch, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: '168000,908000,188000,928000'
+          RES: '20'
+          STORM: ${{ matrix.storm }}
+          RUN_DIR: runs/${{ matrix.storm }}_proto_drains_${{ matrix.storm }}_${{ matrix.case }}
+          LF_LOSS: cn
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_INFIL_MODE: solver
+          LF_QOUT: '1'
+          LF_FORCE_CPU: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          case ${{ matrix.storm }} in
+            sep2023) export T0=2023-09-11T16:00Z HOURS=48;;
+            aug2026) export T0=2026-08-03T04:00Z HOURS=18;;
+          esac
+          [ "${{ matrix.case }}" = drains ] && export LF_DRAINS=$PWD/proto/data/drains/leominster_drain_pipe.zip
+          [ "${{ matrix.case }}" = design ] && export LF_DRAIN_DESIGN=1
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: scores + City of Leominster evaluation
+        if: always()
+        env:
+          STORM: ${{ matrix.storm }}
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.storm }}
+          P=${{ runner.temp }}/proto; D=docs/proto/drains/${S}_${{ matrix.case }}; mkdir -p $D
+          echo '{"storm": "${{ matrix.storm }}", "case": "${{ matrix.case }}", "box": "168000,908000,188000,928000", "res": 20, "env": "LF_LOSS=cn LF_CN_SCALE=0.91 LF_INFIL_MMH=2 LF_INFIL_MODE=solver LF_QOUT=1"}' > $D/config.json
+          tail -c 40000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
+          [ -n "$OUTDIR" ] || exit 0
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S 2>&1 | tail -5
+          cp $P/summary.json $P/segments.geojson $D/ 2>/dev/null
+          python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
+          python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
+          if [ "$S" = sep2023 ]; then
+            DPW=proto/data/labels_sep2023_leominster_dpw.csv
+            python proto/prototype.py --run-dir $OUTDIR --out ${P}_dpw --storm $S --labels $DPW 2>&1 | tail -3
+            cp ${P}_dpw/summary.json $D/summary_dpw.json 2>/dev/null
+            python proto/validate_points.py --run-dir $OUTDIR --storm $S --labels $DPW --out $D/points_dpw.json | tail -3 || true
+          fi
+          cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          python proto/drains_eval.py city $OUTDIR $D | tail -40
+          gzip -f $D/segments.geojson 2>/dev/null || true
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/drains/${{ matrix.storm }}_${{ matrix.case }}; git commit -qm "drains test: ${{ matrix.storm }} ${{ matrix.case }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
