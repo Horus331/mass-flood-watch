@@ -20,14 +20,14 @@
  "model_build": {
   "cuda": false,
   "exe": "lisflood",
-  "build_s": 177
+  "build_s": 135
  },
  "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
  "inputs": {
   "dem": "HF data/dem10 averaged to RES",
   "channels": "vol",
   "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
-  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "rain": "MRMS AWS MultiSensor_QPE_01H_Pass2 -> TUFLOW NetCDF dynamicrainfile",
   "loss": "cn",
   "boundary": "FREE on all edges",
   "baseflow": true,
@@ -53,7 +53,62 @@
    "applied_by": "rain excess, hourly, before the solver (both solvers)"
   },
   "initial_tstep_s": 1.0,
-  "t0_snapshot": "solver"
+  "t0_snapshot": "solver",
+  "rain_products": {
+   "hours": {
+    "AWS MultiSensor_QPE_01H_Pass2": 48
+   },
+   "by_hour": {
+    "2021-08-19T10:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T11:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T12:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T13:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T14:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T15:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T16:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T17:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T18:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T22:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-19T23:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T00:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T01:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T02:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T03:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T04:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T05:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T06:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T07:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T08:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T09:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T10:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T11:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T12:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T13:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T14:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T15:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T16:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T17:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T18:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T22:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-20T23:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T00:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T01:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T02:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T03:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T04:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T05:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T06:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T07:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T08:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2021-08-21T09:00Z": "AWS MultiSensor_QPE_01H_Pass2"
+   }
+  }
  },
  "rain_probe": {
   "quadrants": {
@@ -72,14 +127,14 @@
  "rain_total_max_mm": 121,
  "rain_total_mean_mm": 69,
  "rain_missing_hours": [],
- "runtime_s": 2712,
- "total_s": 3191,
+ "runtime_s": 2571,
+ "total_s": 2974,
  "peak_wet_km2": 12.1,
  "peak_snapshot_wet_km2": 8.0,
  "mass_tail": [
   "172500.000   1.0000     1.0000     172500     13492400.0000 1885751.1508  0.000       0.000      6.369             0.0000       0.0000 5327067.2040",
   "172800.000   1.0000     1.0000     172800     13478400.0000 1883848.0238  0.000       0.000      6.332             0.0000       0.0000 5327067.2040"
  ],
- "git_sha": "37177775",
+ "git_sha": "96317f51",
  "forecast": null
 }

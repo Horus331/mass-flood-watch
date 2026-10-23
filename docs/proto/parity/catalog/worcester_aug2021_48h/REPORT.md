@@ -12,7 +12,7 @@ Flood model: LISFLOOD-FP 8.2 (acceleration (local inertial, Bates et al. 2010) o
 | Road segments cut off from hospitals | 777 |
 | Worst added trip time to a hospital | 21.5 min |
 | Heaviest hour of rain | 89.6 mm |
-| Flood model run time | 2712 s |
+| Flood model run time | 2571 s |
 
 ## Checks against what happened
 
