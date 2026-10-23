@@ -37,7 +37,7 @@ OUT=$(ls -d $LF_WORK/run_forecast_${NAME}/out)
 # 3. closures (full outputs in scratch), viewer pack, status
 python proto/prototype.py --run-dir "$OUT" --out "$SCR/proto" --storm forecast | tail -5
 cp $OUT/meta.json "$SCR/proto/flood_meta.json"
-python docs/site/build_data.py --key $KEY --src "$SCR/proto" --pool 4
+python docs/site/build_data.py --run $KEY --src "$SCR/proto" --pool 4
 python proto/forecast.py status --gate "$SCR/gate.json" --run "$KEY=$SCR/proto" --out docs/site/data/${KEY}_status.json
 mkdir -p results/$NAME
 cp "$SCR/proto/summary.json" "$SCR/proto/REPORT.md" "$SCR/proto/watchlist.csv" "$SCR/gate.json" results/$NAME/
