@@ -21,7 +21,7 @@ Re-run with `python proto/labels_expand.py queries | build | catalog | report`.
 | aug2019 | 2019-08-07 | iem | 162000,871000,182000,891000 | 2019-08-07T19:00Z / 18 | 2 | 2 | 1 / 1 / 0 | impassable 1, flooded 1 | StormEvents 2 |
 | sep2019 | 2019-09-02 | iem | 183000,865000,203000,885000 | 2019-09-02T14:00Z / 18 | 4 | 2 | 2 / 0 / 0 | impassable 1, closed 1 | StormEvents 4 |
 | jun2020 | 2020-06-28 | iem | 190000,859000,210000,879000 | 2020-06-28T14:00Z / 18 | 8 | 6 | 2 / 4 / 0 | flooded 4, impassable 2 | StormEvents 8 |
-| jun2020b | 2020-06-28 | iem | 154000,914000,174000,934000 | 2020-06-28T16:00Z / 18 | 6 | 5 | 1 / 2 / 2 | impassable 3, flooded 2 | StormEvents 5, LSR 1 |
+| jun2020b | 2020-06-28 | iem | 152000,914000,172000,934000 | 2020-06-28T16:00Z / 18 | 6 | 5 | 1 / 3 / 1 | impassable 3, flooded 2 | StormEvents 5, LSR 1 |
 | aug2020b | 2020-08-27 | iem | 166000,877000,186000,897000 | 2020-08-27T11:00Z / 18 | 3 | 3 | 2 / 1 / 0 | flooded 2, impassable 1 | StormEvents 3 |
 | jul2021b | 2021-07-17 | aws | 163000,880000,183000,900000 | 2021-07-17T14:00Z / 24 | 4 | 4 | 3 / 1 / 0 | impassable 2, flooded 2 | StormEvents 4 |
 | jul2023b | 2023-07-10 | aws | 161000,886000,181000,906000 | 2023-07-10T08:00Z / 18 | 4 | 2 | 1 / 1 / 0 | impassable 1, flooded 1 | LSR 3, StormEvents 1 |
@@ -29,8 +29,8 @@ Re-run with `python proto/labels_expand.py queries | build | catalog | report`.
 | jul2023d | 2023-07-21 | aws | 148000,904000,168000,924000 | 2023-07-21T15:00Z / 18 | 3 | 2 | 0 / 2 / 0 | impassable 1, flooded 1 | LSR 3 |
 
 **New storms: 16 boxes, from 13 storm days in 2018–2023.** Florence on 18 Sep 2018 hit three separate areas and has three boxes; 28 Jun 2020 has two.
-They hold 73 label rows, 61 of them inside the storm's box. **58 of those are road-level** (`exact` or `approx`) and the
-other 3 are town-level. 12 of the road-level in-box sites are in the 4 storms on MRMS Pass2/AWS. The other 12 boxes are `era: iem` (before Oct 2020).
+They hold 73 label rows, 61 of them inside the storm's box. **59 of those are road-level** (`exact` or `approx`) and the
+other 2 are town-level. 12 of the road-level in-box sites are in the 4 storms on MRMS Pass2/AWS. The other 12 boxes are `era: iem` (before Oct 2020).
 
 **Additions to existing storms:** five news sites, plus one Storm Events row that the first parser missed (aug2020 Washington Square, event 916327).
 
@@ -42,7 +42,7 @@ other 3 are town-level. 12 of the road-level in-box sites are in the 4 storms on
 | aug2026 | 3 (Merriam Avenue, Route 2, Granite Street) | 3 | 0 / 3 / 0 |
 | jul2018 | 1 (Quinsigamond Avenue) | 1 | 0 / 1 / 0 |
 
-**Totals.** 58 + 6 = **64 new road-level sites inside model boxes.** Counting only the 5 MRMS-Pass2 (AWS) storms, that is 12 + 5 = 17:
+**Totals.** 59 + 6 = **65 new road-level sites inside model boxes.** Counting only the 5 MRMS-Pass2 (AWS) storms, that is 12 + 5 = 17:
 the 4 new storms, plus the additions to `aug2021` and `aug2026`. The other additions, to `jul2018` and `aug2020`, are IEM-era storms.
 In the new storms the type mix is 36 `flooded`, 31 `impassable`, 5 `closed` and 1 `washout` (Birch St). The additions to existing storms include 1 `other_damage`. So almost every new site is a `flood_closure`-group label, and `culvert_washout` gains only one.
 
@@ -118,7 +118,7 @@ artefacts of the earlier automatic road-name parser. **Row ids are unchanged, an
 | labels_aug2018_natick.csv | AUG2018-05 | town → approx | 527 | Subury Street: flooded → Thompson Street at Sudbury Street: flooded (3 ft) | graph_segments pair gap 213 m |
 | labels_aug2018_natick.csv | AUG2018-21 | town → town | 0 | Terrance Avenue, Weathers Field Road: flooded → Terrace Avenue at Wethersfield Road: flooded (3 ft) | names only (OSM did not confirm the point) |
 | labels_aug2021_worcester.csv | W011 | approx → exact | 45 |  | OSM intersection, gap 0.0 m, 44 m from the old point |
-| labels_aug2023_metrowest.csv | AUG2023-04 | approx → exact | 140 |  | graph_segments pair gap 19 m |
+| labels_aug2023_metrowest.csv | AUG2023-04 | approx → exact | 0 |  | OSM intersection, gap 0.0 m, 3 m from the old point |
 | labels_aug2023b_millbury.csv | AUG2023b-04 | approx → approx | 442 | Municiple Drive: flooded → Municipal Drive: flooded | OSM road vertex (road 375 m) |
 | labels_jul2018_worcester.csv | JUL2018-01 | approx → approx | 0 | Worcester Brought Street, Chandler Street, Murray Avenue: flooded → Chandler Street at Murray Avenue: flooded (1 ft) | names only (OSM did not confirm the point) |
 | labels_jul2018_worcester.csv | JUL2018-02 | town → approx | 1120 | Unnamed road: flooded → Auburn Street: flooded | OSM road vertex (road 1945 m) |
@@ -174,12 +174,13 @@ Problems found but left alone, so the evaluation sets stay comparable:
 
 ## Status at hand-off (2026-10-23) and how to refresh
 
-- **Geocoding.** The first Overpass pass placed 72 of 96 queries. Coordinates for the rest come from `docs/graph_segments.json`.
-  A second pass (`label_geocode.yml`, run 40002914717) was still queued behind other Actions jobs. When its
-  `labels_geocode_osm_<k>.json` files have been committed, run `python proto/labels_expand.py build && python proto/labels_expand.py catalog && python proto/labels_expand.py report`.
-  The build is idempotent: it rewrites the new label files, replaces the rows it appended to existing files (matched by id prefix) and re-applies the fixes.
-  Points can only move to OSM-confirmed positions. Five sites are still `town`: Templeton Boulder Dr, Gardner Route 2A and Timpany Blvd (jun2020b), Gardner Ripley St and Douglas Gilboa Rd (jul2023b, both outside the box).
-- **Observed data.** `obs_catalog.yml` with `mode=fetch` and `only=<16 new ids>` (run 40003329320) was also queued. When it runs, it commits
-  `gauges_<id>.json`, `lsr_<id>.csv`, `stormevents_<id>.csv` and the MRMS archive check for the new storms. `catalog` then copies the in-box gauges into `catalog.json`.
-- **GPU runs.** `bash proto/turing/submit_catalog.sh 20 jul2021b jul2023b jul2023c jul2023d` submits the 4 new storms in the AWS era.
+- **Geocoding.** Two Overpass passes (6 shards each) placed 82 of 100 queries. The road-network fallback placed most of the rest.
+  Four sites are still `town` at the NWS point:
+  - in the box: Templeton Boulder Dr (sep2018b) and Gardner Timpany Blvd (jun2020b);
+  - outside the box: Gardner Ripley St and Douglas Gilboa Rd (both jul2023b).
 
+  To refresh after another `label_geocode.yml` run, run `python proto/labels_expand.py build && python proto/labels_expand.py catalog && python proto/labels_expand.py report`.
+  The build is idempotent. It rewrites the new label files, replaces the rows it appended to existing files (matched by id prefix) and re-applies the fixes.
+- **Observed data.** `obs_catalog.yml` ran with `mode=fetch` and `only=<16 new ids>`. It committed `gauges_<id>.json`, `lsr_<id>.csv`, `stormevents_<id>.csv`
+  and the MRMS archive check for the new storms, and `catalog` copied the in-box gauges into `catalog.json`.
+- **GPU runs.** `bash proto/turing/submit_catalog.sh 20 jul2021b jul2023b jul2023c jul2023d` submits the 4 new storms in the AWS era.
