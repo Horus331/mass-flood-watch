@@ -1,0 +1,143 @@
+20:32:54 w9 LISFLOOD-FP benchmark: aug2019_loss_aug2019_oxford_20m box (162000.0, 871000.0, 182000.0, 891000.0) res 20.0 m, 18 h from 2019-08-07T19:00Z; GPU False, nvcc None
+20:32:54 downloading LISFLOOD-FP 8.2 from zenodo 13121102: LISFLOOD-FP-v8.2.zip (348 MB)
+20:33:54 source tree: /home/runner/work/_temp/lf/src/LISFLOOD-FP
+20:33:54 $ apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null
+20:33:54 E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+
+20:33:54 cmake files: ['config.default.cmake', 'CMakeLists.txt']
+20:33:54 build switches found: ['CMAKE_CUDA_ARCHITECTURES', 'CMAKE_CUDA_COMPILER', '_NETCDF']
+20:33:54 config.cmake from config.default.cmake
+20:33:54 patched sync() -> lfp_cuda_sync() in 4 CUDA source files
+20:33:54 patched infevap.cpp FPInfiltration: + per-cell infilfile sink (mfw-drains)
+20:33:54 config.cmake used:
+set(_NETCDF ON)
+add_compile_definitions(_NUMERIC_MODE=1)
+add_compile_definitions(_ONLY_RECT=1)
+add_compile_definitions(_PROFILE_MODE=0)
+add_compile_definitions(_DISABLE_WET_DRY=0)
+add_compile_definitions(_CALCULATE_Q_MODE=1)
+add_compile_definitions(_SGM_BY_BLOCKS=0)
+add_compile_definitions(_BALANCE_TYPE=0)
+
+20:33:54 $ cmake -S /home/runner/work/_temp/lf/src/LISFLOOD-FP -B /home/runner/work/_temp/lf/build_cpu -DCMAKE_BUILD_TYPE=Release -D_NETCDF=ON
+20:33:56 $ cmake --build /home/runner/work/_temp/lf/build_cpu -j 4
+20:34:26 $ ldd /home/runner/work/_temp/lf/build_cpu/lisflood
+20:34:26 built /home/runner/work/_temp/lf/build_cpu/lisflood (CUDA False) in 92s
+20:34:26 probe: {'quadrants': {'NW': 0.05369, 'NE': 0.00894, 'SW': 0.00894, 'SE': 0.00031}, 'flip_y': False, 'flip_x': False, 'scale': 1.0, 'probe_B_ratio': 1.0, 'convention': 'forward'}
+20:34:26 elevation: 4 tiles of 10 m
+20:34:30 edges (raw DEM at RES): N: nan 0, z 108.2..336.5, median 176.0, >1 m below inner 177 | S: nan 0, z 117.5..256.3, median 192.3, >1 m below inner 172 | W: nan 0, z 215.3..320.7, median 267.0, >1 m below inner 156 | E: nan 0, z 94.0..190.6, median 143.1, >1 m below inner 229
+20:34:30 row 0 (north edge) every 20th cell: 292.9 270.7 302.5 309.8 335.4 331.8 308.2 307.1 312.6 317.0 324.9 328.8 310.5 293.5 297.0 284.2 275.2 298.2 303.3 284.7 256.5 221.7 167.5 169.6 172.2 172.8 201.4 158.8 158.5 167.6 151.1 150.8 161.1 144.5 147.2 177.2 186.1 147.2 150.9 169.4 156.5 127.8 116.7 113.7 110.0 124.1 120.3 118.4 152.9 168.2
+20:34:30 row 1 every 20th cell: 295.7 270.9 300.9 310.8 337.7 332.4 308.2 307.3 312.1 317.6 324.5 328.3 310.9 293.2 297.1 285.7 274.4 296.4 303.3 289.3 258.2 222.9 167.2 169.2 171.2 171.9 195.5 158.8 158.7 169.5 151.1 150.8 162.2 144.3 147.3 175.6 179.5 146.0 150.8 170.4 156.9 128.1 117.6 112.9 110.0 124.9 120.4 117.9 153.3 167.5
+20:34:30 grid 1000 x 1000 = 1.00 M cells at 20 m; sea 0.0%
+20:34:32 NLCD impervious: 4/4 tiles, mean 13.4% paved
+20:34:34 channels: 66,478 cells burnt, mean 0.10 m (volume-equivalent)
+20:34:34 crossings: 1136 road fills opened to the lowest ground within 40 m
+20:34:36 depressions (4-connected): 29,405 cells carved (mean 0.32 m, max 3.98 m), 72 basins deeper than the cap kept, 2s
+20:34:37 LF_LOSS=cn: AMC II, mean CN 61.9 (HSG A-D + NLCD impervious)
+20:36:05 rain: max 74 mm, mean 46 mm over 18 h; missing []
+20:36:05 effective rain (CN) mean 8 mm of 46 mm (17%)
+20:36:05 MRMS products (hours): {'IEM GaugeCorr_QPE_01H': 18}
+20:36:05 edges (model DEM): N: nan 0, z 107.8..336.5, median 176.0, >1 m below inner 176 | S: nan 0, z 117.1..256.3, median 192.3, >1 m below inner 173 | W: nan 0, z 215.3..320.7, median 267.0, >1 m below inner 156 | E: nan 0, z 93.1..190.6, median 143.1, >1 m below inner 225
+20:36:05 model row 0 every 20th cell: 292.9 270.6 302.5 309.8 335.4 331.8 308.2 307.1 312.6 317.0 324.9 328.8 310.5 293.5 297.0 284.2 275.2 298.2 303.3 284.7 256.5 221.7 167.5 169.6 172.2 172.8 201.4 158.8 158.5 167.6 151.1 150.8 161.1 144.5 147.1 177.2 186.1 147.2 150.9 169.4 156.5 127.8 116.7 113.7 110.0 124.1 120.3 118.4 152.9 168.2
+20:36:05 edge flags: sea N/S/W/E 0/0/0/0, chan 48/68/132/58, water 77/69/143/43, rain total row 0 mean 8 mm vs box 8 mm
+20:36:06 Manning n: channel/water 0.035, land mean 0.084
+20:36:06 par: DEMfile dem.asc | resroot res | dirroot results | sim_time 64800 | initial_tstep 1 | massint 300 | saveint 1800 | fpfric 0.08 | acceleration | manningfile n.asc | dynamicrainfile rain.nc | bcifile run.bci | startfile start.wd | qoutput | hazard
+21:01:02 LISFLOOD-FP run 1496s
+21:01:02 ISFLOOD-FP version 8.1.0 (double)
+Rectangular channels only.
+_CALCULATE_Q_MODE 1.
+***************************
+
+Loading parameters... 'run.par'
+DEMfile = dem.asc
+resroot = res
+dirroot = results
+sim_time = 64800.000
+initial_tstep = 1.000
+massint = 300.000
+saveint = 1800.000
+fpfric = 0.080
+acceleration
+
+Using acceleration formulation for floodplain flow
+manningfile = n.asc
+dynamicrainfile = rain.nc
+bcifile = run.bci
+startfile = start.wd
+qoutput
+hazard
+
+Hazard mode on
+Reading parameters done.
+
+Reading command line.
+Reading command line done.
+
+
+Start Date: 23/10/2026 
+Start Time: 20:36:6 
+
+Loading DEM1000x1000
+BL corner	(162000.000000,871000.000000)
+NODATA_value	-9999.000000
+Done.
+
+Loading startfile Done.
+
+Loading boundary condition IDs
+FREE on N side start 162000.000000 end 182000.000000
+FREE on S side start 162000.000000 end 182000.000000
+FREE on W side start 871000.000000 end 891000.000000
+FREE on E side start 871000.000000 end 891000.000000
+Done.
+
+No bdyfile used
+Done.
+
+Loading floodplain Manning's n dataDone.
+
+Porosity off
+
+Starting time steps: acceleration mode
+
+loop time 1494.000000
+Finished.
+
+
+Finish Date: 23/10/2026 
+Finish Time: 21:1:2 
+
+
+  Total computation time: 24.92 mins
+
+
+21:01:20 peak wet (hmax >= 10 cm, land) 4.3 km2; largest snapshot wet area 2.9 km2; 37 snapshots
+21:01:38 fluxes: 37 snapshots read in 18s; gauge peak flow 01109730 8.0 m3/s (obs 38.2)
+21:02:04 velocity ({'snapshots': 37, 'vmax_source': 'maxVc (every time step)', 'dv_source': 'max(snapshot h x speed, maxVc x maxVcd)'}): peak speed on wet land p50/p95/max 0.12/1.30/9.88 m/s, peak dv max 3.42 m2/s, 26s
+21:02:06 no upload: outputs left in /home/runner/work/_temp/lf/run_aug2019_loss_aug2019_oxford_20m/out
+	Command being timed: "python sim/colab/w9_lisflood.py"
+	User time (seconds): 6128.19
+	System time (seconds): 16.05
+	Percent of CPU this job got: 350%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 29:13.18
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1224032
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 881
+	Minor (reclaiming a frame) page faults: 2706435
+	Voluntary context switches: 27987
+	Involuntary context switches: 914803
+	Swaps: 0
+	File system inputs: 129144
+	File system outputs: 6174032
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
