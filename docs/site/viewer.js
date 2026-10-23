@@ -473,9 +473,12 @@
   function start() {
     getJson(base + 'meta.json').then(function (m) {
       meta = m; nf = m.nf;
+      if (m.kofn) { var bl = document.querySelector('[data-band=rain] .blabel'); if (bl) bl.innerHTML = '<b>Input</b> forecast rain, NOAA HRRR (box mean, mm/h)'; }
       t0 = new Date(m.storm_start.replace(/Z$/, ':00Z'));
       $('scrub').max = nf - 1;
-      $('runStats').innerHTML = '<b>' + n(m.segments_p_ge_50) + '</b> road segments likely closed (' + m.km_p_ge_50 + ' km), <b>' +
+      $('runStats').innerHTML = m.kofn ? '<b>' + n(m.kofn.likely) + '</b> road segments likely closed (2 or more of ' + m.kofn.n + ' forecast runs agree), <b>' +
+        n(m.kofn.possible) + '</b> possible (1 of ' + m.kofn.n + '), out of ' + n(m.segments_in_box) + ' segments in the area.' :
+        '<b>' + n(m.segments_p_ge_50) + '</b> road segments likely closed (' + m.km_p_ge_50 + ' km), <b>' +
         n(m.segments_may_close) + '</b> more may close, <b>' + n(m.culverts_overtopped) + '</b> culverts overtopped, out of ' +
         n(m.segments_in_box) + ' segments in the area.';
       var peak = 0, cp = m.closed_per_frame || [];
@@ -538,7 +541,7 @@
       container: 'map', bounds: boxBounds(), maxZoom: 17, minZoom: 6, dragRotate: false, pitchWithRotate: false,
       fitBoundsOptions: { padding: framePadding() }, attributionControl: false, fadeDuration: 0, style: baseStyle()
     });
-    map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: NOAA MRMS · Roads: MassDOT' }));
+    map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: ' + (meta && meta.kofn ? 'NOAA HRRR forecast' : 'NOAA MRMS') + ' · Roads: MassDOT' }));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.touchZoomRotate.disableRotation();
     map.once('style.load', function () {
@@ -605,6 +608,10 @@
       return ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], D, 0, z9[0], 30, z9[1], 100, z9[2]], 15, ['interpolate', ['linear'], D, 0, z15[0], 30, z15[1], 100, z15[2]]];
     };
     map.addLayer({ id: 'peak', type: 'line', source: 'roads', filter: ['>=', ['get', 'p'], 0.5], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(1, 2.5) } });
+    if (meta.kofn) { // forecast ensemble: how many of the time-lagged forecast runs close the road (likely >= 2, possible 1)
+      map.addLayer({ id: 'agree', type: 'line', source: 'roads', filter: ['has', 'k'], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(2, 5), 'line-opacity': 0.9 } });
+      kofnLegend();
+    }
     map.addLayer({ id: 'may', type: 'line', source: 'roads', filter: ['==', ['get', 'm'], 1], paint: { 'line-width': w(1.5, 3.5), 'line-dasharray': [2, 1.2] } });
     map.addLayer({ id: 'risk', type: 'line', source: 'roads', filter: ['has', 'rk'], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-width': w(2.5, 6) } });
     map.addLayer({ id: 'halo', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -621,12 +628,22 @@
     map.on('click', 'hit', function (e) {
       if (map.queryRenderedFeatures(e.point, { layers: refLayers.filter(function (l) { return map.getLayer(l); }) }).length) return;
       var vis_ = e.features.filter(function (f) {
-        var p = f.properties; return p.p >= 0.5 || p.m === 1 || (p.rk && $('lyRisk').checked) || p.d;
+        var p = f.properties; return p.p >= 0.5 || p.m === 1 || (p.rk && $('lyRisk').checked) || p.d || p.k;
       });
       var f = (vis_.length ? vis_ : e.features).sort(function (a, b) { return b.properties.p - a.properties.p; })[0];
       showPopup(e.lngLat, popupHtml(f));
     });
     computeViews(g);
+  }
+  function kofnLegend() {
+    var lb = $('legendBody'); if (!lb || $('kofnKey')) return;
+    var k = document.createElement('div'); k.id = 'kofnKey'; k.className = 'kofn';
+    k.innerHTML = '<h2>Forecast agreement</h2><label class="row"><input type="checkbox" id="lyAgree" checked><span>Roads closed in the ' + meta.kofn.n + ' forecast runs</span></label>' +
+      '<p class="note"><i style="display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;background:var(--closed)"></i> likely closed: 2 or more of ' + meta.kofn.n + ' agree<br>' +
+      '<i style="display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;background:var(--amber)"></i> possible: 1 of ' + meta.kofn.n +
+      '<br>Runs from this and the 7 previous HRRR forecasts; the replay shows this forecast\'s run.</p>';
+    var h2 = lb.querySelectorAll('h2'); lb.insertBefore(k, h2.length > 1 ? h2[1] : null);
+    $('lyAgree').addEventListener('change', function () { vis('agree', this.checked); });
   }
   function showPopup(ll, html) {
     if (popup) popup.remove();
@@ -639,7 +656,8 @@
   function popupHtml(f) {
     var p = f.properties, iv = arr(p.iv), a = arr(p.a), rc = arr(p.rc), d = arr(p.d);
     var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] + '</p><dl>';
-    h += '<dt>Chance of closing</dt><dd><b>' + Math.round(p.p * 100) + '%</b></dd>';
+    if (p.k) h += '<dt>Forecast runs closing it</dt><dd><b>' + p.k + ' of ' + meta.kofn.n + '</b> (' + (p.k >= 2 ? 'likely closed' : 'possible') + ')</dd>';
+    h += '<dt>' + (p.k ? 'Chance of closing in the run shown' : 'Chance of closing') + '</dt><dd><b>' + Math.round(p.p * 100) + '%</b></dd>';
     if (d) {
       var fa = Math.min(Math.floor(t), nf - 1), now = Math.round(((d[fa] || 0) * (1 - (t - fa)) + (d[fa + 1] || 0) * (t - fa)));
       h += '<dt>Water on it now</dt><dd>' + (now >= 3 ? now + ' cm' : 'dry') + '</dd>';
@@ -898,6 +916,7 @@
       map.setPaintProperty('halo', 'line-color', P.halo);
       map.setPaintProperty('peak', 'line-color', P.peak); map.setPaintProperty('peak', 'line-opacity', P.peakOp);
       map.setPaintProperty('may', 'line-color', P.may);
+      if (map.getLayer('agree')) map.setPaintProperty('agree', 'line-color', ['case', ['>=', ['get', 'k'], 2], P.closed, P.amber]);
       map.setPaintProperty('risk', 'line-color', ['match', ['get', 'rk'], 'Extreme', css('--rx'), 'High', css('--rh'), 'Medium', css('--rm'), css('--rl')]);
     }
     map.triggerRepaint();
