@@ -108,6 +108,52 @@ tr:last-child th,tr:last-child td{border-bottom:0}
 .top5 li span:last-child{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .cls{display:inline-block;font:700 12px var(--sans);padding:0 6px;border-radius:3px;background:#67000d;color:#fff;margin-right:6px}
 
+/* validation */
+.vh{font-size:19px;margin:38px 0 6px}
+.vsub{font-size:15.5px;color:var(--muted);margin:0 0 14px}
+tr.grp th{background:var(--surface-2);font:800 13px/1.3 var(--sans);letter-spacing:.02em;text-transform:uppercase;padding:8px 14px;width:auto}
+tr.grp th span{display:inline;text-transform:none;letter-spacing:0;font-weight:400;margin-left:8px}
+.storms td .pc{display:block;color:var(--muted);font-size:13px}
+.barcell{width:34%;min-width:180px;vertical-align:middle}
+.bar,.db{position:relative;display:block;height:10px;border-radius:5px;background:var(--surface-2)}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--water);border-radius:5px;min-width:0}
+.bar u{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1px;background:var(--ink);border-radius:1px}
+thead .key{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-weight:400;font-size:13px;color:var(--muted)}
+thead .key i{display:inline-block;width:12px;height:10px;border-radius:3px;background:var(--water);margin-right:-8px}
+thead .key i.k-rnd{width:3px;height:14px;border-radius:1px;background:var(--ink)}
+thead .key i.k-obs{width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--ink)}
+thead .key i.k-mod{border-radius:3px}
+.gauges thead .key i.k-mod{width:10px;border-radius:50%}
+thead .scale{display:flex;justify-content:space-between;font-weight:400;font-size:12px;color:var(--muted);margin-top:4px}
+thead .scale b{font-weight:400}
+.dbcell{width:42%;min-width:220px}
+.db{height:4px;margin:8px 6px 6px;background:var(--rule)}
+.db s{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--water) 45%,transparent)}
+.db em{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%}
+.db em.o{background:var(--surface);border:2px solid var(--ink);z-index:1}
+.db em.m{background:var(--water);box-shadow:0 0 0 2px var(--surface);z-index:2}
+.dbv{display:block;font-size:13px;color:var(--muted)}
+.gauges td:last-child{white-space:nowrap}
+.vchecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:8px 0 0;padding:0;list-style:none;border-top:3px solid var(--ink)}
+.vchecks li{padding:16px 22px 18px 0;margin-right:22px;border-right:1px solid var(--rule)}
+.vchecks li:last-child{border-right:0;margin-right:0;padding-right:0}
+.vchecks h3{margin:0 0 6px}
+.vchecks p{font-size:15.5px;line-height:1.5;margin:0}
+.vchecks .src{display:block;font:13px/1.6 var(--sans);color:var(--muted);margin-top:10px}
+.vchecks .tag-dev{margin-left:4px;vertical-align:1px}
+@media (max-width:980px){.vchecks{grid-template-columns:1fr}.vchecks li{border-right:0;margin-right:0;padding-right:0;border-bottom:1px solid var(--rule)}.vchecks li:last-child{border-bottom:0}}
+
+@media (max-width:640px){
+  .tablewrap table.storms,.tablewrap table.gauges{min-width:0}
+  .storms th,.storms td,.gauges th,.gauges td{padding:9px 6px}
+  .storms th:first-child,.storms td:first-child,.gauges th:first-child{padding-left:10px}
+  .storms .barcell{display:none}.storms tbody th{width:auto}.dbcell{min-width:110px;width:auto}
+  .storms,.gauges{font-size:13.5px}
+  tr.grp th span{display:block;margin:2px 0 0}
+  thead .key{font-size:12px;gap:2px 12px}
+  .gauges td:last-child{white-space:normal}
+}
+
 /* byline */
 .byline{display:flex;flex-direction:column;gap:2px;margin:22px 0 0;padding:12px 0 0 16px;border-left:3px solid var(--accent);font:15px/1.4 var(--sans);color:var(--muted);max-width:none}
 .byline b{font-size:18px;font-weight:800;color:var(--ink)}
@@ -242,35 +288,103 @@ html{scroll-behavior:smooth}
 <section class="block" id="validation">
   <div class="wrap">
     <h2>Validation</h2>
-    <p class="muted">Three runs. Leominster is the storm the settings were checked on. Worcester is a blind test with the same settings. The District 3 run covers the whole district in one model.</p>
+    <p class="muted">Every storm is scored against what happened on the ground, with the same closure rule and the same settings. The settings were checked on one storm (Leominster, Sept 2023) and then frozen. Worcester, Aug 2021 is the blind test, and seven more District 3 storms from the storm catalogue were run without any change.</p>
+
+    <h3 class="vh">Documented closure sites caught, storm by storm</h3>
+    <p class="vsub">A site counts as caught when a road segment within 30 m of it has a 50% or higher chance of closing (30 cm of modelled water). Flagged share is the share of all road segments in the area the model flags. Lift is the share caught divided by the share random flagging of the same number of segments would catch.</p>
+    <div class="tablewrap">
+      <table class="storms">
+        <thead><tr><th scope="col">Storm</th><th scope="col">Sites caught</th>
+          <th scope="col" class="barcell"><span class="key"><i class="k-mod"></i>caught <i class="k-rnd"></i>random flagging</span><span class="scale"><b>0%</b><b>25%</b><b>50%</b></span></th>
+          <th scope="col">Flagged</th><th scope="col">Lift</th></tr></thead>
+        <tbody>
+<tr class="grp"><th scope="rowgroup" colspan="5">Tuned case<span>the storm the settings were checked on</span></th></tr>
+<tr title="Sept 11, 2023, Leominster–Fitchburg: 28 of 78 sites caught at 2.6% flagged; random flagging would catch 3.8%"><th scope="row">Sept 11, 2023<span>Leominster–Fitchburg, 5,096 segments</span></th><td><b>28</b> of 78<span class="pc">36%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:71.8%"></i><u style="left:7.6%"></u></span></td><td>2.6%</td><td><b>9.45</b></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="5">Blind test<span>same settings, scored once</span></th></tr>
+<tr title="Aug 19, 2021, Worcester: 5 of 12 sites caught at 2.2% flagged; random flagging would catch 2.6%"><th scope="row">Aug 19, 2021<span>Worcester, 8,353 segments</span></th><td><b>5</b> of 12<span class="pc">42%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:83.4%"></i><u style="left:5.2%"></u></span></td><td>2.2%</td><td><b>16.0</b></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="5">Whole district<span>the tuned storm, all of District 3 in one run</span></th></tr>
+<tr title="Sept 11, 2023, All of District 3: 28 of 79 sites caught at 1.5% flagged; random flagging would catch 2.2%"><th scope="row">Sept 11, 2023<span>All of District 3, 44,335 segments</span></th><td><b>28</b> of 79<span class="pc">35%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:70.8%"></i><u style="left:4.4%"></u></span></td><td>1.5%</td><td><b>16.44</b></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="5">Out-of-sample catalogue storms<span>same settings, never used for tuning</span></th></tr>
+<tr title="July 9, 2021, Worcester–Millbury: 1 of 5 sites caught at 1.2% flagged; random flagging would catch 2.4%"><th scope="row">July 9, 2021<span>Worcester–Millbury, 6,083 segments</span></th><td><b>1</b> of 5<span class="pc">20%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:40.0%"></i><u style="left:4.8%"></u></span></td><td>1.2%</td><td><b>8.29</b></td></tr>
+<tr title="Sept 1–2, 2021, Worcester–West Boylston: 2 of 5 sites caught at 4.1% flagged; random flagging would catch 8.6%"><th scope="row">Sept 1–2, 2021<span>Worcester–West Boylston, 7,586 segments</span></th><td><b>2</b> of 5<span class="pc">40%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:80.0%"></i><u style="left:17.2%"></u></span></td><td>4.1%</td><td><b>4.63</b></td></tr>
+<tr title="Sept 5, 2022, Webster–Southbridge: 0 of 4 sites caught at 1.9% flagged; random flagging would catch 4.1%"><th scope="row">Sept 5, 2022<span>Webster–Southbridge, 2,408 segments</span></th><td><b>0</b> of 4<span class="pc">0%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:8.2%"></u></span></td><td>1.9%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 14, 2023, Worcester–Holden: 0 of 5 sites caught at 0.7% flagged; random flagging would catch 1.0%"><th scope="row">July 14, 2023<span>Worcester–Holden, 6,605 segments</span></th><td><b>0</b> of 5<span class="pc">0%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:2.0%"></u></span></td><td>0.7%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 8, 2023, Hopkinton–Framingham: 1 of 4 sites caught at 3.6% flagged; random flagging would catch 6.2%"><th scope="row">Aug 8, 2023<span>Hopkinton–Framingham, 6,587 segments</span></th><td><b>1</b> of 4<span class="pc">25%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:50.0%"></i><u style="left:12.4%"></u></span></td><td>3.6%</td><td><b>4.05</b></td></tr>
+<tr title="Aug 18, 2023, Millbury–Grafton: 0 of 2 sites caught at 0.5% flagged; random flagging would catch 1.3%"><th scope="row">Aug 18, 2023<span>Millbury–Grafton, 7,806 segments</span></th><td><b>0</b> of 2<span class="pc">0%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:2.6%"></u></span></td><td>0.5%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 3, 2026, Leominster–Fitchburg: 1 of 4 sites caught at 2.2% flagged; random flagging would catch 3.8%"><th scope="row">Aug 3, 2026<span>Leominster–Fitchburg, 4,462 segments</span></th><td><b>1</b> of 4<span class="pc">25%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:50.0%"></i><u style="left:7.6%"></u></span></td><td>2.2%</td><td><b>6.57</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Out of sample, the model caught 5 of 29 documented sites across the seven catalogue storms, flagging 0.5% to 4.1% of road segments. It catches nothing in three short storms over built-up streets: Webster–Southbridge 2022, Worcester–Holden July 2023 and Millbury–Grafton Aug 2023. There, streets flood when storm drains back up, and the model does not yet include storm drains (<a href="#next">storm-drain capacity is in development</a>). In Worcester, July 2023 the radar put at most 32 mm of rain in the whole area, and none of the 13 storm reports had 30 cm of modelled water nearby. Labels: the 93 Sept 2023 closures, washouts and failed culverts in the Leominster area (the District 3 run is scored on the same set), 14 Aug 2021 sites in the Worcester area, and NWS storm reports and NOAA Storm Events for the catalogue storms (<a href="proto/obs/CATALOG.md">storm catalogue</a>).</p>
+
+    <h3 class="vh">The three main runs, every check</h3>
     <div class="tablewrap">
       <table>
         <thead><tr><th scope="col">Check</th>
           <th scope="col">Leominster, Sept 2023<span>tuned case, 5,096 segments</span></th>
-          <th scope="col">Worcester, Aug 2021<span>blind test, 8,354 segments</span></th>
-          <th scope="col">All of District 3, Sept 2023<span>GPU run, 44,335 segments</span></th></tr></thead>
+          <th scope="col">Worcester, Aug 2021<span>blind test, 8,353 segments</span></th>
+          <th scope="col">All of District 3, Sept 2023<span>one run, 44,335 segments</span></th></tr></thead>
         <tbody>
-          <tr><th scope="row">Documented sites caught, depth rule<span>share of sites with a segment of 50% or more chance of closing within 30 m</span></th>
-            <td><b>36%</b> of 78 at 2.2% flagged, lift 11.1</td><td><b>33%</b> of 12 at 1.5% flagged, lift 19.8</td><td><b>35%</b> of 79 at 1.5% flagged, lift 16.4</td></tr>
+          <tr><th scope="row">Documented sites caught, depth rule<span>segment within 30 m with a 50% or higher chance of closing</span></th>
+            <td><b>36%</b> of 78 at 2.6% flagged, lift 9.45</td><td><b>42%</b> of 12 at 2.2% flagged, lift 16.0</td><td><b>35%</b> of 79 at 1.5% flagged, lift 16.44</td></tr>
           <tr><th scope="row">Documented sites caught, stream at road level<span>same test with the “may close” rule added</span></th>
-            <td><b>51%</b> of 78 at 5.3% flagged, lift 6.8</td><td><b>58%</b> of 12 at 3.8% flagged, lift 13.3</td><td><b>53%</b> of 79 at 2.6% flagged, lift 14.1</td></tr>
+            <td><b>54%</b> of 78 at 6.5% flagged, lift 5.82</td><td><b>67%</b> of 12 at 5.2% flagged, lift 11.05</td><td><b>53%</b> of 79 at 2.6% flagged, lift 14.06</td></tr>
           <tr><th scope="row">Reports with 30 cm of water nearby<span>storm reports and documented sites, against 2,000 random road points</span></th>
-            <td><b>78%</b> of 116 vs 33% random</td><td><b>56%</b> of 16 vs 22% random</td><td><b>80%</b> of 121 vs 15% random</td></tr>
+            <td><b>83%</b> of 116 vs 40% random</td><td><b>69%</b> of 16 vs 29% random</td><td><b>80%</b> of 121 vs 15% random</td></tr>
           <tr><th scope="row">MassDOT repeat flood sites flagged<span>sites with a likely-closed segment within 150 m</span></th>
-            <td><b>2</b> of 4</td><td><b>3</b> of 10</td><td><b>7</b> of 30</td></tr>
-          <tr><th scope="row">USGS river gauges<span>mean error in stage rise and in rise timing</span></th>
-            <td><b>0.17 m</b>, 0.6 h at 2 gauges</td><td><b>0.37 m</b>, 1.6 h at 3 gauges</td><td><b>0.44 m</b>, 22.1 h at 10 gauges</td></tr>
+            <td><b>2</b> of 4</td><td><b>4</b> of 10</td><td><b>7</b> of 30</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">Lift is the share of sites caught divided by the share caught when the same number of segments is flagged at random. Documented sites are the 93 Sept 2023 closures, washouts and failed culverts in the Leominster area (the District 3 run is scored on the same set) and 14 Aug 2021 sites in the Worcester area. Sources: <a href="proto/leominster_sep2023/summary.json">Leominster</a>, <a href="proto/worcester_aug2021/summary.json">Worcester</a> and <a href="proto/turing/d3_sep2023_20m/summary.json">District 3</a> run summaries, with gauge and report scores in each run’s score.json and points.json.</p>
-    <h3 style="margin-top:34px">Known limits</h3>
-    <ul class="limits">
-      <li><b>20 m grid.</b> Curbs, gutters and narrow ditches are smaller than one cell, so water on city streets is smoothed out.</li>
-      <li><b>Storm drains and small culverts are not resolved yet.</b> The model drains no more than 2 mm of rain per hour through pipes, so some low spots stay flooded longer than they did.</li>
-      <li><b>Short urban downpours are under-predicted.</b> In the Worcester 2021 storm only 56% of reports had 30 cm of modelled water nearby.</li>
-      <li><b>River floods need basin-scale runs.</b> Large rivers drain land outside the model box and keep rising after the 48-hour window; 5 of the 10 District 3 gauges show no modelled rise, hence the 22 h timing error.</li>
+
+    <h3 class="vh">River gauges: observed and modelled rise</h3>
+    <p class="vsub">Stage rise from before the storm to the peak at each USGS gauge, and when the modelled peak arrives compared with the observed one.</p>
+    <div class="tablewrap">
+      <table class="gauges">
+        <thead><tr><th scope="col">Gauge</th>
+          <th scope="col" class="dbcell"><span class="key"><i class="k-obs"></i>observed <i class="k-mod"></i>modelled</span><span class="scale"><b>0 m</b><b>1.75 m</b><b>3.5 m</b></span></th>
+          <th scope="col">Modelled peak</th></tr></thead>
+        <tbody>
+<tr class="grp"><th scope="rowgroup" colspan="3">Leominster, Sept 2023<span>tuned case: mean rise error 0.25 m, mean peak-time error 2.1 h, 2 gauges</span></th></tr>
+<tr><th scope="row">North Nashua River at Fitchburg<span>USGS 01094400, 166.3 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:28.6%;width:4.6%"></s><em class="o" style="left:28.6%"></em><em class="m" style="left:33.1%"></em></span><span class="dbv">1.00 m observed, 1.16 m modelled</span></td><td>0.2 h late</td></tr>
+<tr><th scope="row">North Nashua River near Leominster<span>USGS 01094500, 284.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:83.4%;width:9.7%"></s><em class="o" style="left:83.4%"></em><em class="m" style="left:93.1%"></em></span><span class="dbv">2.92 m observed, 3.26 m modelled</span></td><td>4.0 h early<sup>*</sup></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="3">Worcester, Aug 2021<span>blind test: mean rise error 0.76 m, mean peak-time error 7.6 h, 3 gauges</span></th></tr>
+<tr><th scope="row">Blackstone River at Millbury<span>USGS 01109730, 184.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.0%;width:46.9%"></s><em class="o" style="left:46.9%"></em><em class="m" style="left:0.0%"></em></span><span class="dbv">1.64 m observed, 0.00 m modelled</span></td><td><span class="muted">no modelled rise</span></td></tr>
+<tr><th scope="row">Quinsigamond River at North Grafton<span>USGS 01110000, 66.3 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:5.1%;width:5.1%"></s><em class="o" style="left:10.3%"></em><em class="m" style="left:5.1%"></em></span><span class="dbv">0.36 m observed, 0.18 m modelled</span></td><td>10.5 h early</td></tr>
+<tr><th scope="row">Blackstone River at Northbridge<span>USGS 01110500, 365.2 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:27.1%;width:13.4%"></s><em class="o" style="left:40.6%"></em><em class="m" style="left:27.1%"></em></span><span class="dbv">1.42 m observed, 0.95 m modelled</span></td><td>3.2 h early</td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="3">All of District 3, Sept 2023<span>one district-wide run: mean rise error 0.44 m, mean peak-time error 22.1 h, 10 gauges</span></th></tr>
+<tr><th scope="row">North Nashua River at Fitchburg<span>USGS 01094400, 166.3 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:12.6%;width:16.0%"></s><em class="o" style="left:28.6%"></em><em class="m" style="left:12.6%"></em></span><span class="dbv">1.00 m observed, 0.44 m modelled</span></td><td>2.8 h late</td></tr>
+<tr><th scope="row">North Nashua River near Leominster<span>USGS 01094500, 284.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:69.4%;width:14.0%"></s><em class="o" style="left:83.4%"></em><em class="m" style="left:69.4%"></em></span><span class="dbv">2.92 m observed, 2.43 m modelled</span></td><td>4.0 h early<sup>*</sup></td></tr>
+<tr><th scope="row">Stillwater River near Sterling<span>USGS 01095220, 75.4 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:37.7%;width:5.1%"></s><em class="o" style="left:37.7%"></em><em class="m" style="left:42.9%"></em></span><span class="dbv">1.32 m observed, 1.50 m modelled</span></td><td>4.6 h early</td></tr>
+<tr><th scope="row">Nashua River at Clinton<span>USGS 01095503, 284.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.0%;width:15.7%"></s><em class="o" style="left:15.7%"></em><em class="m" style="left:0.0%"></em></span><span class="dbv">0.55 m observed, 0.00 m modelled</span></td><td><span class="muted">no modelled rise</span></td></tr>
+<tr><th scope="row">Squannacook River near West Groton<span>USGS 01096000, 170.7 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.0%;width:19.4%"></s><em class="o" style="left:19.4%"></em><em class="m" style="left:0.0%"></em></span><span class="dbv">0.68 m observed, 0.00 m modelled</span></td><td><span class="muted">no modelled rise</span></td></tr>
+<tr><th scope="row">Nashua River at East Pepperell<span>USGS 01096500, 1126.6 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:19.1%;width:19.1%"></s><em class="o" style="left:38.3%"></em><em class="m" style="left:19.1%"></em></span><span class="dbv">1.34 m observed, 0.67 m modelled</span></td><td>7.0 h early</td></tr>
+<tr><th scope="row">Millers River near Winchendon<span>USGS 01162000, 211.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.0%;width:13.7%"></s><em class="o" style="left:13.7%"></em><em class="m" style="left:0.0%"></em></span><span class="dbv">0.48 m observed, 0.00 m modelled</span></td><td><span class="muted">no modelled rise</span></td></tr>
+<tr><th scope="row">Priest Brook near Winchendon<span>USGS 01162500, 50.2 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:4.3%;width:0.6%"></s><em class="o" style="left:4.9%"></em><em class="m" style="left:4.3%"></em></span><span class="dbv">0.17 m observed, 0.15 m modelled</span></td><td>21.8 h early</td></tr>
+<tr><th scope="row">Otter River at Otter River<span>USGS 01163200, 88.3 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.0%;width:18.9%"></s><em class="o" style="left:18.9%"></em><em class="m" style="left:0.0%"></em></span><span class="dbv">0.66 m observed, 0.00 m modelled</span></td><td><span class="muted">no modelled rise</span></td></tr>
+<tr><th scope="row">Ware River near Barre<span>USGS 01172500, 142.7 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.0%;width:3.4%"></s><em class="o" style="left:3.4%"></em><em class="m" style="left:0.0%"></em></span><span class="dbv">0.12 m observed, 0.00 m modelled</span></td><td><span class="muted">no modelled rise</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">In Leominster the modelled rise is within 0.34 m of the observed rise at both gauges. In Worcester the model rises too little at all three gauges (0.76 m low on average) and not at all at Millbury. In the district-wide run, 5 of the 10 gauges show no modelled rise: large rivers drain land outside the model and keep rising after the 48-hour window, which drives the 22.1 h mean peak-time error. <sup>*</sup>The Leominster gauge record has a gap around the peak, so its observed peak time is uncertain.</p>
+
+    <h3 class="vh">Forecast, learned model and other tests</h3>
+    <ul class="vchecks">
+      <li><h3>Forecast skill</h3><p>Driven by the NOAA HRRR rain forecast instead of radar, with each hour’s rain spread over 20 km (90th percentile), the forecast catches <b>27%</b> of Leominster sites at 2.0% flagged (lift 9.19) from the cycle issued 3.2 h before the first report, and <b>58%</b> of Worcester sites at 2.4% flagged (lift 21.38) from 3.6 h before. Issued 9 to 10 h ahead it catches 0% to 8%.</p><span class="src"><a href="proto/forecast/HINDCAST.md">Forecast hindcast</a>. Longer lead from HRRR ensembles: <span class="tag-dev">In development</span></span></li>
+      <li><h3>Learned model, nine storms</h3><p>Trained on eight storms and tested on the ninth, in turn. It ranks roads within a storm slightly better than the depth rule (ROC-AUC 0.783 vs 0.757), but among the top 2.1% of segments it finds 12% of labelled segments against the rule’s 22%. The depth rule therefore stays the alert layer.</p><span class="src"><a href="proto/ml/LOSO.md">Leave-one-storm-out test</a></span></li>
+      <li><h3>Dam storage</h3><p>Adding dam storage (tested together with a smaller model time step) flagged more roads in both test storms with few or no extra sites caught, so lift fell: 9.5 to 7.6 in Leominster, 16.0 to 12.7 in Worcester. Dams stay off.</p><span class="src"><a href="proto/exp/DAMS_2026-10-22.md">Dams test, Oct 22, 2026</a></span></li>
     </ul>
+
+    <h3 class="vh">Limitations</h3>
+    <ul class="limits">
+      <li><b>No storm drains yet.</b> The model drains no more than 2 mm of rain per hour through pipes. Short, intense storms over city streets, where flooding comes from backed-up drains, are missed (three catalogue storms with no sites caught). Storm-drain capacity is in development.</li>
+      <li><b>Radar rain under-catch.</b> Hourly 1 km radar rainfall can miss or smear the core of a small thunderstorm. Worcester, July 2023 shows at most 32 mm in the area and is missed entirely.</li>
+      <li><b>Labels follow who reported.</b> Outside Leominster, closure sites come from news, NWS and agency reports, which favour named main roads and towns that report. An unreported road is not proof it stayed open, so a flagged road with no report is not necessarily a false alarm, and storms with 2 to 5 sites carry wide uncertainty.</li>
+      <li><b>20 m grid.</b> Curbs, gutters and narrow ditches are smaller than one cell, so water on city streets is smoothed out.</li>
+      <li><b>River floods need basin-scale runs.</b> Large rivers drain land outside the model and peak after the 48-hour window (see the gauge table).</li>
+      <li><b>Forecast lead time.</b> Useful about 3 to 4 hours before a convective storm, not yet 9 to 12 hours ahead.</li>
+    </ul>
+    <p class="note">Sources: run summaries for <a href="proto/turing/leominster_sep2023_gpu/summary.json">Leominster</a>, <a href="proto/turing/worcester_aug2021_gpu/summary.json">Worcester</a>, <a href="proto/turing/d3_sep2023_20m/summary.json">District 3</a> and each catalogue storm in <code>proto/turing/&lt;storm&gt;_20m/</code>, all on one GPU of WPI’s Turing cluster at 20 m; gauge and report scores in each run’s score.json and points.json.</p>
   </div>
 </section>
 
