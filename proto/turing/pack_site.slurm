@@ -17,7 +17,11 @@ python proto/validate_points.py --run-dir $OUT --storm $STORM --out $R/points.js
 python proto/prototype.py --run-dir $OUT --storm $STORM --out $R | tail -3
 python docs/site/build_data.py --run $SITE --src $R --run-dir $OUT $([ "${FLOW:-1}" = 1 ] && echo --flow) ${POOL:+--pool $POOL}
 du -sh docs/site/data/$SITE
-git add docs/site/data/$SITE
+if [ -n "${LIVE:-}" ] && [ -d docs/site/data/$LIVE ]; then   # replace a live replay, keeping its radar-rain loop
+  cp docs/site/data/$LIVE/rain.* docs/site/data/$SITE/ 2>/dev/null || true
+  git rm -rq docs/site/data/$LIVE; rm -rf docs/site/data/$LIVE; mv docs/site/data/$SITE docs/site/data/$LIVE; SITE=$LIVE
+fi
+git add -A docs/site/data/$SITE
 git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Site replay: $SITE from Turing run $NAME (5-min frames, flow)"
 for i in 1 2 3 4 5; do git pull -q --rebase --autostash origin main && git push -q origin HEAD:main && echo "pushed $SITE" && exit 0; sleep 15; done
 exit 1
