@@ -13,6 +13,16 @@ Below both thresholds the forecast is published as quiet: "No road closures expe
 When the gate fires, up to four 20 x 20 km boxes are placed, one at a time, on the heaviest forecast rain. Each box is centred on the highest
 remaining exceedance score, max(6 h / 25 mm, 24 h / 40 mm), and its points plus a 5 km margin are then taken out before the next box is placed.
 Each box runs at 20 m, the prototype set-up validated on Sept 2023 Leominster, as a parallel GitHub Actions job.
+
+**Ensemble (live default).** When the gate fires, the flood model runs for the 8 time-lagged HRRR members:
+
+- the cycles at T, T-6, T-12 and T-18 h;
+- the hourly cycles at T-1 to T-4 h.
+
+Every member runs on every box. The boxes are this cycle's, plus those the older members' own gates place on their rain after T,
+deduplicated and capped at 4. A road is **likely closed when 2 or more of the 8 runs close it**, and possible at 1 of 8. That rule was
+validated out of sample on 7 storms (`ENSEMBLE.md`). A quiet gate still costs one job. `FORECAST_ENSEMBLE=0` falls back to the single
+cycle.
 The thresholds can be changed with the env variables `GATE_6H_MM` and `GATE_24H_MM`.
 
 ## Why 25 mm / 6 h and 40 mm / 24 h

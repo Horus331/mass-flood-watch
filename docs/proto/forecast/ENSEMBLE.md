@@ -11,7 +11,7 @@ same `label_recall` as a single run (`proto/forecast_ens.py`).
 
 Code: `proto/forecast_ens.py` (members, scoring, QM fit), `sim/colab/hrrr_ens.py` (lagged rain field and QM, used only when the env flags
 `LF_HRRR_LAG` / `LF_HRRR_QMAP` are set; a 2-line hook in `hrrr_rain.hourly`), `.github/workflows/forecast_ens.yml`. Numbers:
-`ensemble.json` (made with `python proto/forecast_ens.py report`), `qmap.json`. **The live forecast defaults are unchanged; the k-of-n layer (section 4) is in forecast.yml behind `FORECAST_KOFN`, off by default.**
+`ensemble.json` (made with `python proto/forecast_ens.py report`), `qmap.json`. **The live forecast now runs the 8-member ensemble with the 2-of-8 rule (section "What is live"); `FORECAST_ENSEMBLE=0` falls back to the single cycle.**
 
 Reference rows (from `HINDCAST.md`):
 
@@ -196,25 +196,43 @@ How to read it:
 4. **At short lead the single newest cycle is weaker out of sample than on the two development storms.** Pooled 0.07, against 0.27 and 0.58 on
    Sept 2023 and Aug 2021. On these storms the ensemble is what makes the 3 to 8 h forecast useful at all.
 
-## Verdict and what is live
+## What is live
 
-- **A live k-of-n layer is implemented and OFF by default.** It is enabled by the repository variable `FORECAST_KOFN=1` (forecast.yml, publish
-  job).
-  - **Every cycle:** `proto/forecast_kofn.py record` stores a small file in `docs/proto/forecast/live_cycles/<YYYYmmddHH>.json`. It holds the gate
-    decision, the boxes and the segments at P(close) >= 0.5 with their centres.
-  - **combine** counts, for each segment, k = how many of the last 4 synoptic cycles closed it and n = how many could have. A quiet cycle counts
-    as "no closure"; a cycle that ran counts only inside its boxes; a missing cycle or failed run is left out.
-  - **status** (`proto/forecast.py status --kofn`) writes this into `forecast_status.json`: `k_of_n` (cycles, counts k>=1..4, top 200 segments)
-    and `runs[].k_of_n` (segments in that run's box with k and n).
-  - `FORECAST_KOFN_HOURLY=4` also counts the hourly cycles 1 to 4 h before, if they were recorded. That gives the validated 2-of-8 rule, but
-    forecast.yml does not run hourly cycles, so this would need a separate schedule. It was not added.
-  - Live closures use the run's p_close. The hindcast scored p_depth; with the current defaults (no culvert or freeboard rule) they are the same.
-  - The site does not display the layer yet (`docs/site` not touched).
-- **Recommendation:**
-  1. Turn on `FORECAST_KOFN=1` and show "closed in k of the last 4 forecasts" as a watch layer next to the current run's closures.
-  2. If the extra compute is acceptable, add the 4 hourly cycles before each synoptic cycle on gate-fired days to get the validated 2-of-8 rule.
-- **Not recommended:** quantile mapping, and the lagged mean or maximum rain fields (sections 1b and 2). The lagged p90 rain field is a
-  cheaper fallback that was tested only on the two development storms.
+**The forecast is the 8-member time-lagged ensemble, with the 2-of-8 rule validated above** (`.github/workflows/forecast.yml`,
+`proto/forecast_kofn.py`).
+
+1. **Gate.** The gate reads the newest 00/06/12/18z cycle T, exactly as before (`GATE.md`).
+   - If the gate is quiet, there is one cheap job and the quiet card. Nothing else runs.
+2. **Members and boxes.** If the gate fires, `forecast_kofn.py members` builds the 8 members: T, T-6, T-12 and T-18 h (48 h cycles) and
+   T-1 to T-4 h (18 h hourly cycles).
+   - The boxes are T's boxes first. Then come the boxes each older member's own gate places on its rain after T.
+   - A box that overlaps a box already chosen by more than 25 % is dropped (deduplication). At most `FORECAST_MAX_BOXES`, default 4.
+   - Every member runs on every box as one matrix job: up to 32 jobs, at most 20 at a time on the free runners, about 25 to 40 min each.
+     The flood settings are unchanged (20 m, `LF_HRRR_NBHD=20,90`, CN losses).
+3. **Ensemble.** `forecast_kofn.py ensemble` computes, per segment:
+   - k = how many members close it (P(close) >= 0.5 in a run whose box holds it);
+   - n = how many members finished a run that covers it.
+   - **Likely closed = k >= 2 of 8. Possible = k = 1.** A failed member is left out of n; the rule stays "2 or more".
+4. **Published** in `forecast_status.json`:
+   - top level: `likely_closed` (k >= 2), `possible`, `ensemble` (members, rule) and `k_of_n` (members, which finished per box, counts
+     k>=1..8, top 200 segments with k, n and the members that close them). The headline counts likely and possible segments.
+   - `runs[]`: `likely_closed`, `possible`, `likely_closed_single` (the issue cycle alone), `k_of_n` (segment, road, town, k, n), and k on
+     each `top` entry.
+5. **Viewer pack.** `docs/site/data/forecast_latest[_bN]/` is the replay of the issue cycle's run (or the newest member that finished).
+   - `roads.json` features carry `k` / `kn`. Segments that only older members close are added with their geometry.
+   - `meta.json` carries `kofn` = {n, finished, likely, possible}.
+   - `docs/site/viewer.js` adds, for forecast runs only (`meta.kofn` present):
+     - an agreement layer (red = 2 or more of 8, amber = 1 of 8) with a labelled legend item, built in JS;
+     - the k in the road popup;
+     - the likely / possible counts in the stats line.
+   - The replay of past storms is unchanged.
+6. **Fallback to the single cycle.** Set the repository variable `FORECAST_ENSEMBLE=0`, or run the workflow with input `ensemble=0`. This
+   runs the issue cycle only, with no k-of-n, exactly the previous behaviour.
+7. **Tests.** Input `prefix=<name>` (anything other than `forecast_latest`) writes `docs/site/data/<name>[_bN]/` and
+   `<name>_status.json` and leaves the live status alone. Input `max_boxes` limits the boxes.
+
+Not used live: quantile mapping and the lagged mean / max rain fields (sections 1b, 2). The cross-cycle `record` / `combine` commands in
+`forecast_kofn.py` are kept but are not called.
 
 ## Runs
 
