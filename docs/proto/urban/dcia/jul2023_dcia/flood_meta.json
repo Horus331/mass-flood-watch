@@ -1,0 +1,72 @@
+{
+ "run": "jul2023_loss_jul2023_dcia",
+ "title": "July 14, 2023 flash floods, Worcester-Holden \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  157000.0,
+  882000.0,
+  177000.0,
+  902000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-07-14T08:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 164
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn_dcia",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn_dcia",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 32,
+ "rain_total_mean_mm": 23,
+ "rain_missing_hours": [],
+ "runtime_s": 578,
+ "total_s": 875,
+ "peak_wet_km2": 1.5,
+ "peak_snapshot_wet_km2": 0.9,
+ "mass_tail": [
+  "64500.373    1.9460     1.9334     33150      7944800.0000  852951.9853  0.000       0.000      3.435            -0.0000      -0.0000  492712.5104",
+  "64800.053    1.9460     1.9334     33304      7850400.0000  849959.5216  0.000       0.000      3.423             0.0000       0.0000  490748.1029"
+ ],
+ "git_sha": "d4cc3d37",
+ "forecast": null
+}
