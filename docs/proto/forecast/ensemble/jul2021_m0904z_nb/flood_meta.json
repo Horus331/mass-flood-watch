@@ -1,0 +1,80 @@
+{
+ "run": "jul2021_ens_jul2021_m0904z_nb",
+ "title": "July 9, 2021 flash floods (Elsa), Worcester \u00b7 NOAA HRRR forecast issued Jul 09 04z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  159000.0,
+  872000.0,
+  179000.0,
+  892000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-07-09T04:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 135
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2021-07-09T04:00Z, forecast hours 1-18 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2021-07-09T04Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 105,
+ "rain_total_mean_mm": 90,
+ "rain_missing_hours": [],
+ "runtime_s": 830,
+ "total_s": 1004,
+ "peak_wet_km2": 18.9,
+ "peak_snapshot_wet_km2": 14.7,
+ "mass_tail": [
+  "78900.142    1.1267     1.0211     43927      29230000.0000 5923786.4276  0.000       0.000      58.296          -17.5358   -5260.7377 8029425.7158",
+  "79200.811    1.2568     1.0211     44176      29095200.0000 5906190.3276  0.000       0.000      58.073          -21.1538   -6346.1255 8022976.0503"
+ ],
+ "git_sha": "e11dbf9e",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2021-07-09T04:00Z",
+  "forecast_hours": 18,
+  "run_hours": 22
+ }
+}
