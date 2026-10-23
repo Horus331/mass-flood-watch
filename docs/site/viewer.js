@@ -2,7 +2,8 @@
    GPU layers (custom WebGL, one draw each per animation frame):
      depth  all frames decoded once into textures (9 frames per texture, depth class packed base 5 in RGB), interpolated in time
      rain   MRMS radar rain, every frame in one atlas texture (3 frames per cell, log-scaled mm/h), filtered in space and time
-     flow   (5-min runs only) particles advected through a low-res velocity field, drawn as fading streaks
+     flow   (5-min runs only) moving water surface: a ripple texture advected along the modelled velocity field (flow-map),
+            masked to wet cells and faded by depth and speed; frozen still when the replay is paused
    Roads: depth on each segment per frame (cm) is interpolated in time and written to feature-state only when it changes,
    so a road turns grey -> amber -> red as the water rises and fades back as it drains.
    Framing: the camera opens on where roads close, with one-click hotspot views and an optional 'follow the storm'. */
@@ -84,7 +85,7 @@
 
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
-  var flowRGB = [0.04, 0.2, 0.43];
+  var flowRGB = { hi: [1, 1, 1], dk: 0.2 }; // flow layer: glint colour and trough shading, per basemap
   var segs = [], ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null;
   var fmtClock = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
   var fmtShort = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
@@ -172,7 +173,12 @@
         }
       },
       add: function (i, img) { queue.push({ i: i, img: img }); },
-      setRamp: function (cols) { ramp = new Float32Array([].concat.apply([], cols)); }
+      setRamp: function (cols) { ramp = new Float32Array([].concat.apply([], cols)); },
+      // the two depth frames around t, for the flow layer's wet mask (null until both are on the GPU)
+      frames: function () {
+        var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1), A = slot(fa), B = slot(fb);
+        return A.tex && B.tex ? { A: A, B: B, ft: fb === fa ? 0 : t - fa } : null;
+      }
     };
   })();
 
@@ -245,108 +251,149 @@
     };
   })();
 
-  // ---------- flow layer (particles through the modelled velocity field) ----------
+  // ---------- flow layer (moving water surface along the modelled velocity field) ----------
+  // One quad over the model box, all on the GPU. Per pixel: the depth frames around t give a smooth wet mask (bilinear
+  // on the 20 m depth classes, so nothing moves on dry land); the 100 m velocity field is read bilinearly, weighted by
+  // each block's wet share, and interpolated between its 15-min frames; a tiling ripple texture is then advected
+  // along that velocity with the flow-map technique (two layers half a cycle apart, cross-faded so the resets never
+  // show), smeared a little along the current so fast water reads as streaks, and lit with a soft glint.
+  // The animation clock only runs while the replay plays and eases to a stop on pause: a paused picture is still.
   var flowLayer = (function () {
-    var gl, prog, buf, loc = {}, F = null, P = null, N = 0, verts = null, lastT = 0, wetIdx = [];
-    var VS = 'attribute vec3 aP;uniform mat4 uM;varying float vA;void main(){vA=aP.z;gl_Position=uM*vec4(aP.xy,0.0,1.0);}';
-    var FS = 'precision mediump float;varying float vA;uniform vec3 uC;void main(){gl_FragColor=vec4(uC*vA,vA);}';
-    var corners = null;
-    function toMerc(u, v) { // bilinear inside the model quad TL, TR, BR, BL
-      var a = corners[0], b = corners[1], c = corners[2], d = corners[3];
-      var tx = a.x + (b.x - a.x) * u, ty = a.y + (b.y - a.y) * u, bx = d.x + (c.x - d.x) * u, by = d.y + (c.y - d.y) * u;
-      return [tx + (bx - tx) * v, ty + (by - ty) * v];
-    }
-    function sample(fi, x, y) { // velocity in cells per second of model time, bilinear
-      var w = F.w, h = F.h; if (x < 0 || y < 0 || x > w - 1 || y > h - 1) return null;
-      var x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(x0 + 1, w - 1), y1 = Math.min(y0 + 1, h - 1), fx = x - x0, fy = y - y0;
-      var c = Math.floor(fi), ox = (c % F.cols) * w, oy = Math.floor(c / F.cols) * h, W = F.cols * w, d = F.data;
-      function at(xx, yy, k) { return d[((oy + yy) * W + ox + xx) * 4 + k]; }
-      var out = [0, 0, 0];
-      for (var k = 0; k < 3; k++) {
-        var v = (at(x0, y0, k) * (1 - fx) + at(x1, y0, k) * fx) * (1 - fy) + (at(x0, y1, k) * (1 - fx) + at(x1, y1, k) * fx) * fy;
-        out[k] = k < 2 ? (v - 128) / 127 * F.vmax_ms : v / 255;
+    var gl, prog, buf, loc = {}, F = null, img = null, ftex = null, ntex = null, clock = 0, rate = 0, lastT = 0;
+    var Q = 160, T = 1.6; // ripple tile (px at the zoom level it belongs to; wavelengths Q/7..Q/2.5), flow-map cycle (s)
+    var VS = 'attribute vec2 aPos;attribute vec2 aUv;uniform mat4 uM;varying vec2 vUv;' +
+      'void main(){vUv=aUv;gl_Position=uM*vec4(aPos,0.0,1.0);}';
+    var FS = [
+      'precision highp float;varying vec2 vUv;',
+      'uniform sampler2D uDa;uniform sampler2D uDb;uniform vec3 uMa;uniform vec3 uMb;uniform float uKa;uniform float uKb;uniform float uDt;uniform vec2 uDs;',
+      'uniform sampler2D uF;uniform vec4 uFa;uniform vec4 uFb;uniform vec2 uFn;uniform float uFt;uniform float uVmax;',
+      'uniform sampler2D uN;uniform vec2 uBox;uniform vec4 uLod;uniform float uPh;uniform float uT;uniform vec3 uHi;uniform float uDk;uniform float uOp;',
+      'float code(sampler2D s,vec3 m,float d,vec2 uv){float x=floor(dot(texture2D(s,uv).rgb,m)*255.0+0.5);return mod(floor(x/d+0.001),5.0);}',
+      'float depthAt(sampler2D s,vec3 m,float d,vec2 uv){vec2 p=uv*uDs-0.5;vec2 i=floor(p);vec2 f=p-i;vec2 c=(i+0.5)/uDs;vec2 dx=vec2(1.0/uDs.x,0.0);vec2 dy=vec2(0.0,1.0/uDs.y);',
+      ' return mix(mix(code(s,m,d,c),code(s,m,d,c+dx),f.x),mix(code(s,m,d,c+dy),code(s,m,d,c+dx+dy),f.x),f.y);}',
+      // velocity (m/s, x east, y north) from one atlas cell: bilinear, each block weighted by its wet share
+      'vec3 tap(vec4 cell,vec2 c,float w){c=clamp(c,vec2(0.0),uFn-1.0);vec3 s=texture2D(uF,cell.xy+(c+0.5)/uFn*cell.zw).rgb;float k=w*s.b;',
+      ' return vec3((s.rg*255.0-128.0)/127.0*uVmax*k,k);}',
+      'vec2 vel(vec4 cell,vec2 uv){vec2 p=uv*uFn-0.5;vec2 i=floor(p);vec2 f=p-i;',
+      ' vec3 a=tap(cell,i,(1.0-f.x)*(1.0-f.y))+tap(cell,i+vec2(1.0,0.0),f.x*(1.0-f.y))+tap(cell,i+vec2(0.0,1.0),(1.0-f.x)*f.y)+tap(cell,i+vec2(1.0,1.0),f.x*f.y);',
+      ' return a.xy/max(a.z,0.004);}',
+      'vec3 nz(vec2 x){return texture2D(uN,x/' + Q.toFixed(1) + ').rgb*2.0-1.0;}', // value, slope x, slope y; x in level px
+      // one advected layer: the ripple texture at x (level px), smeared over L px along the current d (line-integral style)
+      'vec3 lay(vec2 x,vec2 d,float L){vec2 o=d*(L*0.25);return (nz(x-2.0*o)+nz(x-o)+nz(x)+nz(x+o)+nz(x+2.0*o))*0.2;}',
+      // flow-map at one zoom level: s = level px per metre, v = velocity in level px per s
+      'vec3 surf(float s,vec2 v,vec2 d,float L,float pn){vec2 x=vUv*uBox*s;',
+      ' float p0=fract(uPh+pn);float p1=fract(p0+0.5);float w0=1.0-abs(2.0*p0-1.0);float w1=1.0-w0;',
+      ' vec3 a=lay(x-v*(p0*uT),d,L);vec3 b=lay(x-v*(p1*uT)+vec2(53.0,91.0),d,L);',
+      ' return (a*w0+b*w1)/sqrt(w0*w0+w1*w1);}',
+      'void main(){',
+      // only where the depth layer itself draws water (its 20 m cells, >= 5 cm), faded towards the edges of the water
+      ' if(mix(code(uDa,uMa,uKa,vUv),code(uDb,uMb,uKb,vUv),uDt)<0.9)discard;',
+      ' float L=mix(depthAt(uDa,uMa,uKa,vUv),depthAt(uDb,uMb,uKb,vUv),uDt);',
+      ' vec2 u=mix(vel(uFa,vUv),vel(uFb,vUv),uFt);float sp=length(u);',
+      ' float amp=smoothstep(0.4,1.2,L)*mix(0.35,1.0,smoothstep(1.2,3.2,L))*smoothstep(0.03,0.25,sp)*mix(0.45,1.0,smoothstep(0.25,1.5,sp))*uOp;',
+      ' if(amp<0.004)discard;',
+      ' vec2 d=vec2(u.x,-u.y)/max(sp,1e-4);', // uv y runs south
+      ' float vis=30.0*sp/(1.0+0.6*sp);', // screen px per s: 1 m/s ~ 19 px/s, compressive so floods in rivers do not smear
+      ' float st=mix(4.0,110.0,smoothstep(0.1,1.8,sp));', // streak length, px
+      ' float pn=texture2D(uN,vUv*uBox/700.0).r;', // per-place phase (fixed on the ground), so cycles never pulse in step
+      // two zoom levels cross-faded, so ripples keep their on-screen size while zooming; a level at weight ~0 is skipped
+      ' float w=uLod.w;vec3 h=vec3(0.0);',
+      ' if(w<0.99)h=surf(uLod.x,d*vis*uLod.z,d,st,pn);',
+      ' if(w>0.01){vec3 h1=surf(uLod.y,d*vis*uLod.z*2.0,d,st,pn);h=(h*(1.0-w)+h1*w)/sqrt((1.0-w)*(1.0-w)+w*w);}',
+      ' vec3 n=normalize(vec3(-h.yz*1.6,1.0));vec3 H=normalize(vec3(-0.35,-0.45,1.0)+vec3(0.0,0.0,1.0));',
+      ' float spec=pow(max(dot(n,normalize(H)),0.0),36.0);',
+      ' float lit=dot(n,normalize(vec3(-0.45,-0.55,0.7)))-0.7;',
+      ' float aHi=amp*clamp(0.55*spec+0.6*max(lit,0.0)+0.14*smoothstep(0.3,0.9,h.x),0.0,0.62);',
+      ' float aDk=amp*uDk*clamp(smoothstep(0.0,0.8,-h.x)+2.0*max(-lit,0.0),0.0,1.0);',
+      ' gl_FragColor=vec4(uHi*aHi,min(1.0,aHi+aDk));}'
+    ].join('\n');
+    // tiling ripple texture: a sum of waves with whole-number wavenumbers (so it wraps), value in R, slope in G, B
+    function ripples() {
+      var S = 128, W = [], r = 0.5, rnd = function () { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+      for (var k = 0; k < 36; k++) {
+        var kx, ky, m;
+        do { kx = Math.round((rnd() * 2 - 1) * 7); ky = Math.round((rnd() * 2 - 1) * 7); m = Math.hypot(kx, ky); } while (m < 2.5 || m > 7.5);
+        W.push([kx * 2 * Math.PI / S, ky * 2 * Math.PI / S, rnd() * 6.2832, 1 / m]);
       }
-      return out;
-    }
-    function wetCells(fi) {
-      if (wetIdx[fi]) return wetIdx[fi];
-      var a = [], w = F.w, h = F.h, c = fi, ox = (c % F.cols) * w, oy = Math.floor(c / F.cols) * h, W = F.cols * w;
-      for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
-        var i = ((oy + y) * W + ox + x) * 4, u = F.data[i] - 128, v = F.data[i + 1] - 128;
-        if (F.data[i + 2] > 25 && (u * u + v * v) > 4) a.push(y * w + x);
+      var V = new Float32Array(S * S * 3), mx = [0, 0, 0];
+      for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
+        var v = 0, gx = 0, gy = 0;
+        for (var j = 0; j < W.length; j++) { var w = W[j], a = w[0] * x + w[1] * y + w[2], c = Math.cos(a) * w[3]; v += Math.sin(a) * w[3]; gx += c * w[0] * S / 8; gy += c * w[1] * S / 8; }
+        var i = (y * S + x) * 3; V[i] = v; V[i + 1] = gx; V[i + 2] = gy;
+        mx[0] = Math.max(mx[0], Math.abs(v)); mx[1] = Math.max(mx[1], Math.abs(gx), Math.abs(gy));
       }
-      return (wetIdx[fi] = a);
-    }
-    var view = null; // visible part of the map in mercator, refreshed every frame, so particles are spent where they are seen
-    function spawn(p, fi) {
-      var cells = wetCells(fi);
-      if (!cells.length) { p.age = 1e9; return; }
-      for (var tries = 0; tries < 10; tries++) {
-        var k = cells[(Math.random() * cells.length) | 0];
-        p.x = (k % F.w) + Math.random(); p.y = Math.floor(k / F.w) + Math.random();
-        if (!view) break;
-        var m = toMerc(p.x / F.w, p.y / F.h);
-        if (m[0] >= view[0] && m[0] <= view[2] && m[1] >= view[1] && m[1] <= view[3]) break;
+      var D = new Uint8Array(S * S * 4);
+      for (var q = 0; q < S * S; q++) {
+        D[q * 4] = Math.round(127.5 + 127.5 * V[q * 3] / mx[0]);
+        D[q * 4 + 1] = Math.round(127.5 + 127.5 * V[q * 3 + 1] / mx[1]);
+        D[q * 4 + 2] = Math.round(127.5 + 127.5 * V[q * 3 + 2] / mx[1]);
+        D[q * 4 + 3] = 255;
       }
-      p.age = 0; p.life = 50 + Math.random() * 60;
+      var tx = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tx);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, D);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      return tx;
     }
+    function cell(f) { return [(f % F.cols) / F.cols, Math.floor(f / F.cols) / F.rows, 1 / F.cols, 1 / F.rows]; } // atlas cell of flow frame f, in uv
     return {
       layer: {
         id: 'flow', type: 'custom', renderingMode: '2d',
         onAdd: function (m, g) {
           gl = g; prog = program(gl, VS, FS);
-          loc.aP = gl.getAttribLocation(prog, 'aP'); loc.uM = gl.getUniformLocation(prog, 'uM'); loc.uC = gl.getUniformLocation(prog, 'uC');
-          buf = gl.createBuffer();
+          ['aPos', 'aUv'].forEach(function (k) { loc[k] = gl.getAttribLocation(prog, k); });
+          ['uM', 'uDa', 'uDb', 'uMa', 'uMb', 'uKa', 'uKb', 'uDt', 'uDs', 'uF', 'uFa', 'uFb', 'uFn', 'uFt', 'uVmax', 'uN', 'uBox', 'uLod', 'uPh', 'uT', 'uHi', 'uDk', 'uOp']
+            .forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
+          buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(F.corners), gl.STATIC_DRAW);
+          ntex = ripples();
+          lastT = performance.now();
         },
         render: function (g, matrix) {
-          if (!F || !N) return;
-          var fi = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min));
-          var f0 = Math.floor(fi), f1 = Math.min(f0 + 1, F.n - 1), ft = fi - f0;
-          var now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
-          // speeds are drawn in screen space: 1 m/s moves ~22 px a second at any zoom, so the pattern reads the same zoomed in or out
-          var b = map.getBounds(), sw = maplibregl.MercatorCoordinate.fromLngLat(b.getSouthWest()), ne = maplibregl.MercatorCoordinate.fromLngLat(b.getNorthEast());
-          view = [sw.x, ne.y, ne.x, sw.y];
-          var lat = map.getCenter().lat, mpp = 40075016.7 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, map.getZoom()));
-          var pxCell = F.cell_m / mpp, stepK = dt * 22 / pxCell, tailPx = 7, halfW = 0.8 / (512 * Math.pow(2, map.getZoom()));
-          var j = 0, zoomFade = 1;
-          for (var i = 0; i < N; i++) {
-            var p = P[i];
-            if (p.age > p.life) spawn(p, ft < 0.5 ? f0 : f1);
-            var a = sample(f0, p.x, p.y), b = a && sample(f1, p.x, p.y);
-            if (!a || !b) { p.age = 1e9; continue; }
-            var u = a[0] + (b[0] - a[0]) * ft, v = a[1] + (b[1] - a[1]) * ft, wv = a[2] + (b[2] - a[2]) * ft, sp = Math.sqrt(u * u + v * v);
-            if (sp < 0.05 || wv < 0.05) { p.age = 1e9; continue; }
-            p.px = p.x; p.py = p.y;
-            p.x += u * stepK; p.y -= v * stepK; p.age += 1;
-            var al = Math.min(1, 0.45 + sp / 1.5) * Math.min(1, p.age / 5, (p.life - p.age) / 10);
-            var tl = (tailPx + 9 * Math.min(sp, 2)) / pxCell / sp, hx = p.x - u * tl, hy = p.y + v * tl;
-            var m0 = toMerc(p.x / F.w, p.y / F.h), m1 = toMerc(hx / F.w, hy / F.h);
-            var dx = m0[0] - m1[0], dy = m0[1] - m1[1], dl = Math.sqrt(dx * dx + dy * dy) || 1, nx = -dy / dl * halfW, ny = dx / dl * halfW;
-            // a thin quad (two triangles), opaque at the head and fading to nothing at the tail
-            verts[j++] = m0[0] + nx; verts[j++] = m0[1] + ny; verts[j++] = al;
-            verts[j++] = m0[0] - nx; verts[j++] = m0[1] - ny; verts[j++] = al;
-            verts[j++] = m1[0] + nx; verts[j++] = m1[1] + ny; verts[j++] = 0;
-            verts[j++] = m1[0] + nx; verts[j++] = m1[1] + ny; verts[j++] = 0;
-            verts[j++] = m0[0] - nx; verts[j++] = m0[1] - ny; verts[j++] = al;
-            verts[j++] = m1[0] - nx; verts[j++] = m1[1] - ny; verts[j++] = 0;
-          }
-          if (!j) return;
+          if (img) { ftex = texture(gl, img, gl.NEAREST); if (img.close) img.close(); img = null; }
+          var D = depth.frames();
+          if (!F || !ftex || !D) return;
+          // animation clock: runs with the replay, eases to a stop in about half a second when paused
+          var now = performance.now(), real = (now - lastT) / 1000, dt = Math.min(0.1, real); lastT = now;
+          var target = playing && !reduced ? 1 : 0;
+          rate += (target - rate) * Math.min(1, real * 6);
+          if (target === 0 && rate < 0.003) rate = 0;
+          clock = (clock + dt * rate) % (T * 1000);
+          var fi = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min)), f0 = Math.floor(fi), f1 = Math.min(f0 + 1, F.n - 1);
+          var z = map.getZoom(), zl = Math.floor(z), lat = map.getCenter().lat;
+          var mppL = function (zz) { return 40075016.7 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, zz)); };
+          var fr = z - zl, w1 = Math.min(1, Math.max(0, (fr - 0.15) / 0.7)); w1 = w1 * w1 * (3 - 2 * w1); // mostly one level, blended over the middle of each zoom step
           gl.useProgram(prog);
           gl.uniformMatrix4fv(loc.uM, false, matrix);
-          gl.uniform3f(loc.uC, flowRGB[0], flowRGB[1], flowRGB[2]);
-          gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, j), gl.DYNAMIC_DRAW);
-          gl.enableVertexAttribArray(loc.aP); gl.vertexAttribPointer(loc.aP, 3, gl.FLOAT, false, 12, 0);
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, D.A.tex); gl.uniform1i(loc.uDa, 0);
+          gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, D.B.tex); gl.uniform1i(loc.uDb, 1);
+          gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, ftex); gl.uniform1i(loc.uF, 2);
+          gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, ntex); gl.uniform1i(loc.uN, 3);
+          gl.uniform3fv(loc.uMa, D.A.m); gl.uniform3fv(loc.uMb, D.B.m); gl.uniform1f(loc.uKa, D.A.d); gl.uniform1f(loc.uKb, D.B.d);
+          gl.uniform1f(loc.uDt, D.ft); gl.uniform2f(loc.uDs, meta.w, meta.h);
+          gl.uniform4fv(loc.uFa, cell(f0)); gl.uniform4fv(loc.uFb, cell(f1)); gl.uniform2f(loc.uFn, F.w, F.h);
+          gl.uniform1f(loc.uFt, fi - f0); gl.uniform1f(loc.uVmax, F.vmax_ms);
+          gl.uniform2f(loc.uBox, F.w * F.cell_m, F.h * F.cell_m);
+          // level px per metre at the two zoom levels around z, the level-to-screen scale, and the cross-fade weight
+          gl.uniform4f(loc.uLod, 1 / mppL(zl), 1 / mppL(zl + 1), Math.pow(2, zl - z), w1);
+          gl.uniform1f(loc.uPh, (clock / T) % 1); gl.uniform1f(loc.uT, T);
+          gl.uniform3fv(loc.uHi, flowRGB.hi); gl.uniform1f(loc.uDk, flowRGB.dk); gl.uniform1f(loc.uOp, 1);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 16, 0);
+          gl.enableVertexAttribArray(loc.aUv); gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 16, 8);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-          gl.drawArrays(gl.TRIANGLES, 0, j / 3);
-          gl.disableVertexAttribArray(loc.aP);
-          map.triggerRepaint();
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aUv);
+          gl.activeTexture(gl.TEXTURE0);
+          if (rate > 0) map.triggerRepaint(); // only animate while the water is moving; a paused map is not redrawn
         }
       },
-      set: function (info, data) {
-        F = info; F.data = data; F.frame_min = info.frame_min || (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
-        corners = info.corners.map(function (p) { return maplibregl.MercatorCoordinate.fromLngLat(p); });
-        N = small() ? 1400 : 3200; P = []; verts = new Float32Array(N * 18);
-        for (var i = 0; i < N; i++) P.push({ x: 0, y: 0, age: 1e9, life: 0 });
+      set: function (info, image) {
+        F = info; img = image; F.frame_min = info.frame_min || (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
       }
     };
   })();
@@ -523,11 +570,9 @@
     if (meta.flow) {
       jobs.push(getJson(base + meta.flow).then(function (fi) {
         return getBitmap(base + fi.sheet).then(function (img) {
-          var cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
-          var cx = cv.getContext('2d', { colorSpace: 'srgb' }); cx.drawImage(img, 0, 0);
-          flowLayer.set(fi, cx.getImageData(0, 0, img.width, img.height).data);
+          flowLayer.set(fi, img);
           whenStyle(function () { map.addLayer(flowLayer.layer, map.getLayer('rain') ? 'rain' : 'l-voy'); vis('flow', $('lyFlow').checked); });
-          $('flowRow').hidden = false;
+          $('flowRow').hidden = $('flowKey').hidden = false;
         });
       }).catch(function (e) { console.warn('flow', e); }));
     } else $('flowSoon').hidden = false;
@@ -837,7 +882,7 @@
     ['d1', 'd2', 'd3', 'd4'].forEach(function (k, i) { root.setProperty('--' + k, P.d[i]); });
     root.setProperty('--closed', P.closed); root.setProperty('--amber', P.amber); root.setProperty('--orange', P.orange); root.setProperty('--grey', P.grey);
     root.setProperty('--peak', P.peak); root.setProperty('--peak-op', P.peakOp); root.setProperty('--may', P.may);
-    flowRGB = b === 'satellite' || b === 'dark' ? [0.88, 0.96, 1] : [0.04, 0.2, 0.43];
+    flowRGB = b === 'dark' ? { hi: [0.9, 0.97, 1], dk: 0.24 } : b === 'satellite' ? { hi: [0.92, 0.98, 1], dk: 0.26 } : { hi: [1, 1, 1], dk: 0.2 };
     depth.setRamp(P.d.map(rgba));
     if (map.getLayer('wet')) {
       var D = ['coalesce', ['feature-state', 'd'], 0];
@@ -992,7 +1037,7 @@
   function vis(id, on) { if (map && map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
   $('lyRain').addEventListener('change', function (e) { vis('rain', e.target.checked); });
   $('lyDepth').addEventListener('change', function (e) { vis('depth', e.target.checked); });
-  $('lyFlow').addEventListener('change', function (e) { vis('flow', e.target.checked); });
+  $('lyFlow').addEventListener('change', function (e) { vis('flow', e.target.checked); $('flowKey').hidden = !e.target.checked; });
   $('lyClosed').addEventListener('change', function (e) { ['wet', 'wetcase', 'halo'].forEach(function (l) { vis(l, e.target.checked); }); });
   $('lyPeak').addEventListener('change', function (e) { vis('peak', e.target.checked); });
   $('lyMay').addEventListener('change', function (e) { vis('may', e.target.checked); });
