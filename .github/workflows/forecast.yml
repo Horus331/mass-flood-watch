@@ -103,7 +103,7 @@ jobs:
           for d in arts/proto_*/proto_*; do
             [ -f "$d/summary.json" ] || continue
             id=${d##*_}; key=forecast_latest; [ "$id" = "b1" ] || key=forecast_latest_$id
-            python docs/site/build_data.py --key $key --src $(realpath $d) && RUNS="$RUNS --run $key=$(realpath $d)"
+            python docs/site/build_data.py --run $key --src $(realpath $d) && RUNS="$RUNS --run $key=$(realpath $d)"
           done
           python proto/forecast.py status --gate arts/gate/gate.json $RUNS --out docs/site/data/forecast_status.json
           cat docs/site/data/forecast_status.json | head -c 1500; echo
