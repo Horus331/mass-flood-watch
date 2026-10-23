@@ -920,6 +920,55 @@
     "applied_by": "solver (CPU FPInfiltration: every cell deeper than 1 mm, whole run)"
    }
   },
+  "rain_dt05": {
+   "n": 89,
+   "caught": 35,
+   "recall": 0.393,
+   "flagged_share": 0.0233,
+   "n_flagged": 106,
+   "lift": 16.85,
+   "lift_adj": 10.85,
+   "rise_bias_m": -0.12,
+   "abs_rise_err_m": 0.22,
+   "gauges": [
+    {
+     "site": "01094400",
+     "obs": 1.0,
+     "model": 1.1
+    },
+    {
+     "site": "01094500",
+     "obs": 2.92,
+     "model": 2.58
+    }
+   ],
+   "eff_rain_pct": 35,
+   "rain_mean_mm": 101,
+   "wet_land_km2_0p1": 13.8284,
+   "wet_land_km2_0p3": 3.8080000000000003,
+   "snap_wet_land_km2_0p3": 3.762,
+   "spike_cells_0p3": 0,
+   "mass": {
+    "vol_start_m3": 655800,
+    "vol_peak_m3": 9549347,
+    "vol_end_m3": 1914858,
+    "qout_end_m3s": 12.94
+   },
+   "segments": {
+    "flagged": 106,
+    "hmax_above_snapshots": 1,
+    "startup_surge": 0,
+    "snapshot_confirmed": 105
+   },
+   "infiltration": {
+    "mode": "rain",
+    "mmh": 2.0,
+    "excess_in_mean_mm": 35.35,
+    "excess_out_mean_mm": 27.03,
+    "kept_share": 0.765,
+    "applied_by": "rain excess, hourly, before the solver (both solvers)"
+   }
+  },
   "pairs": {
    "rain_vs_solver": {
     "match": true,
@@ -1001,6 +1050,20 @@
      "deep03_jaccard": 0.971
     },
     "flagged_segments_jaccard": 0.981
+   },
+   "rain_dt05_vs_rain_dt1": {
+    "match": true,
+    "why": [],
+    "cells": {
+     "wet_cells": 35926,
+     "mean_abs_diff_wet_m": 0.0,
+     "p95_abs_diff_wet_m": 0.0,
+     "mean_diff_wet_m": -0.0,
+     "deep03_a_km2": 3.9,
+     "deep03_b_km2": 3.9,
+     "deep03_jaccard": 1.0
+    },
+    "flagged_segments_jaccard": 1.0
    },
    "infil0_vs_gpu": {
     "match": false,
