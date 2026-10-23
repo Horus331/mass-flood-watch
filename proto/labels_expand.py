@@ -28,6 +28,14 @@ AUDIT_PATH = os.path.join(ROOT, 'docs', 'proto', 'obs', 'labels_expansion_sites.
 COLS = ['id', 'name', 'road', 'town', 'type', 'time_local', 'time_quality', 'lon', 'lat', 'coord_quality', 'source_url', 'quote', 'source']
 
 
+def write_csv(path, hdr, rows):
+    """Keep the file's existing line ending (the catalogue files are CRLF, the hand-made aug2021 file is LF)."""
+    lt = '\r\n'
+    if os.path.exists(path): lt = '\r\n' if b'\r\n' in open(path, 'rb').read(4096) else '\n'
+    with open(path, 'w', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=hdr, extrasaction='ignore', lineterminator=lt); w.writeheader(); w.writerows(rows)
+
+
 def SE(i): return f'https://www.ncdc.noaa.gov/stormevents/eventdetails.jsp?id={i}'
 
 
@@ -442,8 +450,7 @@ def build():
             hdr = COLS
             for k, r in enumerate(L): r['id'] = f'{PREFIX[storm]}-{k + 1:02d}'
             out = L
-        with open(path, 'w', newline='') as f:
-            w = csv.DictWriter(f, fieldnames=hdr, extrasaction='ignore'); w.writeheader(); w.writerows(out)
+        write_csv(path, hdr, out)
         print(f'{storm:9s} {len(L):3d} rows -> {os.path.relpath(path, ROOT)}')
     json.dump(audit, open(AUDIT_PATH, 'w'), indent=1)
     fix(R, (G, T, TI))
@@ -482,8 +489,7 @@ def fix(R, NET):
         if after != before:
             x0, y0 = T.transform(float(before['lon']), float(before['lat'])); x1, y1 = T.transform(float(after['lon']), float(after['lat']))
             log.append(dict(file=f, id=rid, before=before, after=after, moved_m=round(float(np.hypot(x1 - x0, y1 - y0))), how=how or 'names only (OSM did not confirm the point)'))
-        with open(path, 'w', newline='') as fh:
-            w = csv.DictWriter(fh, fieldnames=hdr); w.writeheader(); w.writerows(rows)
+        write_csv(path, hdr, rows)
     json.dump(log, open(LP, 'w'), indent=1)
     for e in log: print('fix', e['id'], e['moved_m'], 'm', e['before']['coord_quality'], '->', e['after']['coord_quality'], '|', e['how'])
 
