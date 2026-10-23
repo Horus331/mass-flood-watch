@@ -377,15 +377,34 @@
   // ---------- forecast tab ----------
   if (runKey === 'forecast') {
     getJson('site/data/forecast_status.json').then(function (s) {
-      var ok = s && (s.ready === true || s.status === 'ok') && (s.run || s.dir);
+      var run0 = s && s.runs && s.runs[0], dir = s && (s.dir || (run0 && run0.viewer) || (s.state === 'run' && s.run));
+      if (s && s.state === 'quiet') { forecastQuiet(s); return; }
+      var ok = s && (s.ready === true || s.status === 'ok' || s.state === 'run') && dir;
       if (!ok) throw new Error('forecast not ready');
-      base = 'site/data/' + (s.dir || s.run || 'forecast_latest').replace(/^site\/data\//, '').replace(/\/?$/, '/');
+      base = 'site/data/' + String(dir).replace(/^(site\/)?data\//, '').replace(/\/?$/, '/');
+      if (!s.title && s.headline) s.title = s.headline;
       if (s.title) $('runTitle').textContent = s.title;
       $('runKind').textContent = s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.');
       start();
     }).catch(function () { forecastPlaceholder(); });
   } else start();
 
+  // forecast issued, but rain below the gate: a live 'quiet' card with the forecast rain, no replay
+  function forecastQuiet(s) {
+    forecastPlaceholder();
+    var R = (s.rain && s.rain.district) || {}, v = s.valid || [], f = function (x) { return x ? fmtShort.format(new Date(x)) : ''; };
+    var towns = ((s.rain && s.rain.towns) || []).slice().sort(function (a, b) { return (b.max24h_mm || 0) - (a.max24h_mm || 0); }).slice(0, 3)
+      .filter(function (t) { return t.max24h_mm > 0; });
+    var g = (s.gate && s.gate.thresholds) || {};
+    $('runStats').innerHTML = '<span class="tag-live">Live</span> ' + esc(s.headline || 'No road closures expected');
+    var c = $('forecastCard');
+    c.innerHTML = '<span class="tag-live">Live · updated every 6 h</span><h2 id="fcTitle">' + esc(s.headline || 'No road closures expected') + '</h2>' +
+      '<p>NOAA HRRR forecast issued ' + esc(f(s.issued)) + ', valid to ' + esc(f(v[1])) + '. Heaviest forecast rain anywhere in District 3: <b>' +
+      (R.max6h_mm || 0).toFixed(0) + ' mm in 6 h</b>, <b>' + (R.max24h_mm || 0).toFixed(0) + ' mm in 24 h</b>' +
+      (towns.length ? ' (wettest: ' + towns.map(function (t) { return esc(t.town) + ' ' + t.max24h_mm.toFixed(0) + ' mm'; }).join(', ') + ')' : '') + '.</p>' +
+      '<p class="muted">The flood model runs on the road network when a town is forecast ' + (g.max6h_mm || 25) + ' mm in 6 h or ' + (g.max24h_mm || 40) +
+      ' mm in 24 h. Below that, no closures are expected.</p><a href="?run=leominster_sep2023">See what the model shows for a real storm: Leominster 2023</a>';
+  }
   function forecastPlaceholder() {
     document.documentElement.classList.add('no-replay');
     $('runKind').textContent = 'Road-by-road closure forecast for the next 48 hours.';
