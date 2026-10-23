@@ -1,0 +1,236 @@
+{
+ "run": "sep2023_rain_sep2023_dt5i",
+ "title": "Sept 11, 2023 flash floods \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  162000.0,
+  908000.0,
+  182000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-09-11T16:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 157
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN_DT": "5",
+   "LF_RAIN_DT_INFIL": "sub",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 35.35,
+   "excess_out_mean_mm": 27.03,
+   "kept_share": 0.765,
+   "applied_by": "rain excess, per 5-min record, before the solver (both solvers; LF_RAIN_DT_INFIL=sub)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_subhourly": {
+   "dt_min": 5,
+   "source": "MRMS PrecipRate_00.00 (AWS noaa-mrms-pds), radar timing inside each hour; hourly totals = MRMS MultiSensor QPE 01H Pass2",
+   "files": 1079,
+   "hours": 36,
+   "hours_uniform": 0,
+   "hour_cover": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.97,
+    0.97,
+    1.0,
+    1.0,
+    0.97,
+    0.97,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "uniform_pixel_share_per_hour": [
+    0.856,
+    0.698,
+    0.687,
+    0.407,
+    0.004,
+    0.001,
+    0.0,
+    0.0,
+    0.0,
+    0.003,
+    0.214,
+    0.962,
+    1.0,
+    1.0,
+    1.0,
+    0.97,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.983,
+    0.833,
+    0.561,
+    0.634,
+    0.955,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mean_max_weight": 0.13,
+   "note": "weights = radar sub-interval accumulation / radar hour accumulation per 0.01 deg pixel (uniform where the radar hour < 0.1 mm or less than half the hour is covered by files), bilinear to the model grid, applied to the hourly rain excess",
+   "radar_vs_pass2": [
+    {
+     "hour_end": "2023-09-11T18:00Z",
+     "pass2_box_mm": 1.6,
+     "radar_box_mm": 1.5
+    },
+    {
+     "hour_end": "2023-09-11T19:00Z",
+     "pass2_box_mm": 1.2,
+     "radar_box_mm": 1.5
+    },
+    {
+     "hour_end": "2023-09-11T20:00Z",
+     "pass2_box_mm": 2.1,
+     "radar_box_mm": 1.4
+    },
+    {
+     "hour_end": "2023-09-11T21:00Z",
+     "pass2_box_mm": 15.5,
+     "radar_box_mm": 14.3
+    },
+    {
+     "hour_end": "2023-09-11T22:00Z",
+     "pass2_box_mm": 30.8,
+     "radar_box_mm": 28.7
+    },
+    {
+     "hour_end": "2023-09-11T23:00Z",
+     "pass2_box_mm": 20.8,
+     "radar_box_mm": 18.4
+    },
+    {
+     "hour_end": "2023-09-12T00:00Z",
+     "pass2_box_mm": 15.7,
+     "radar_box_mm": 12.3
+    },
+    {
+     "hour_end": "2023-09-12T01:00Z",
+     "pass2_box_mm": 9.4,
+     "radar_box_mm": 9.0
+    },
+    {
+     "hour_end": "2023-09-12T02:00Z",
+     "pass2_box_mm": 2.4,
+     "radar_box_mm": 2.4
+    }
+   ],
+   "probe": {
+    "dt_min": 5,
+    "value": 360.0,
+    "depth_m": 0.36,
+    "ratio_to_rate": 12.0,
+    "ratio_to_depth": 1.0,
+    "units": "depth"
+   },
+   "file": {
+    "records": 433,
+    "unit": "depth",
+    "total_excess_mean_mm": 27.469,
+    "hourly_excess_mean_mm": 35.351,
+    "peak_excess_rate_box_max_mmh": 135.7,
+    "peak_excess_hourly_box_max_mmh": 88.3,
+    "peak_rate_over_hourly_mean_where_wet": 1.8
+   }
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 198,
+ "rain_total_mean_mm": 101,
+ "rain_missing_hours": [],
+ "runtime_s": 1927,
+ "total_s": 2499,
+ "peak_wet_km2": 21.3,
+ "peak_snapshot_wet_km2": 15.4,
+ "mass_tail": [
+  "129300.000   1.0000     1.0000     129300     14560400.0000 1931752.2856  0.000       0.000      13.070            0.0000       0.0000 10987417.2717",
+  "129600.000   1.0000     1.0000     129600     14537600.0000 1927841.6206  0.000       0.000      13.015           -0.0000      -0.0000 10987417.2717"
+ ],
+ "git_sha": "a2b4338c",
+ "forecast": null
+}
