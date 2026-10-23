@@ -1,0 +1,112 @@
+name: forecast ensemble experiments (time-lagged HRRR, quantile mapping)
+# Experiments for docs/proto/forecast/ENSEMBLE.md; nothing here changes the live forecast (forecast.yml).
+# qmfit: HRRR vs MRMS hourly histograms on the AWS catalogue storms -> docs/proto/forecast/qmap.json (leave-one-storm-out maps), plus a probe
+#        of public HREF / HRRR-ensemble buckets -> docs/proto/forecast/ensemble/href_probe.txt
+# runs:  hindcast runs exactly like forecast_hindcast.yml (20 m CPU LISFLOOD-FP, same loss settings), one matrix job per case; each commits
+#        docs/proto/forecast/ensemble/<name>/ with summary/points/score and seg.json (P_depth of every in-box segment, for the ensemble scoring).
+#        cases: JSON list of {name, storm, box, init, hours, env}; env = space separated VAR=value (LF_HRRR_NBHD, LF_HRRR_LAG, LF_HRRR_QMAP, ...).
+#        Default = the time-lagged members (python proto/forecast_ens.py matrix).
+on:
+  workflow_dispatch:
+    inputs:
+      what: {description: 'qmfit | runs', default: 'runs'}
+      cases: {description: 'runs: cases JSON (empty = all ensemble members)', default: ''}
+permissions:
+  contents: write
+jobs:
+  qmfit:
+    if: inputs.what == 'qmfit'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj
+      - name: HREF / HRRR-ensemble probe
+        run: |
+          mkdir -p docs/proto/forecast/ensemble; P=docs/proto/forecast/ensemble/href_probe.txt; date -u > $P
+          for b in noaa-href-pds noaa-hrefv3-pds noaa-nws-href-pds noaa-hrrre-pds noaa-hrrr-ensemble-pds noaa-rrfs-pds; do
+            echo "== s3://$b" >> $P; curl -s -m 30 -o /tmp/l.xml -w "HTTP %{http_code}\n" "https://$b.s3.amazonaws.com/?list-type=2&delimiter=/&max-keys=20" >> $P; head -c 1500 /tmp/l.xml | sed 's/></>\n</g' | grep -E "Prefix|Code|Key" | head -20 >> $P; echo >> $P
+          done
+          echo "== NOMADS href/prod" >> $P; curl -s -m 30 https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/ | grep -o 'href\.[0-9]*' | sort -u >> $P
+          echo "::notice title=href probe::$(cat $P | cut -c1-200 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+      - name: fit
+        run: |
+          set -o pipefail
+          python proto/forecast_ens.py qmfit --out docs/proto/forecast/qmap.json 2>&1 | tee qmfit.log
+          python -c "import json; Q=json.load(open('docs/proto/forecast/qmap.json')); print({k: (v['x'][-5:], v['y'][-5:]) for k, v in Q['maps'].items() if k.startswith('all') or 'sep2023' in k or 'aug2021' in k})" | tee -a qmfit.log
+      - name: diagnostics (annotation)
+        if: always()
+        run: echo "::notice title=qmfit::$(tail -n 40 qmfit.log | cut -c1-250 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+      - name: commit
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/forecast/qmap.json docs/proto/forecast/ensemble/href_probe.txt; git commit -qm "forecast ensemble: quantile-mapping fit + HREF probe" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
+  setup:
+    if: inputs.what == 'runs'
+    runs-on: ubuntu-latest
+    outputs:
+      cases: ${{ steps.m.outputs.cases }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        env: {CASES: '${{ inputs.cases }}'}
+        run: |
+          if [ -z "$CASES" ]; then CASES=$(python proto/forecast_ens.py matrix); fi
+          echo "cases=$(echo "$CASES" | python -c 'import json,sys; print(json.dumps(json.load(sys.stdin)))')" >> $GITHUB_OUTPUT
+  runs:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(needs.setup.outputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.storm }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.storm }}_ens_${{ matrix.c.name }}
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          if [ "${{ matrix.c.init }}" != "mrms" ]; then export LF_RAIN=hrrr LF_HRRR_INIT=${{ matrix.c.init }}; fi
+          if [ -n "${{ matrix.c.env }}" ]; then export ${{ matrix.c.env }}; fi
+          env | grep -E '^LF_HRRR|^LF_RAIN' || true
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures + scores
+        run: |
+          set -o pipefail
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
+          P=${{ runner.temp }}/proto; D=docs/proto/forecast/ensemble/${{ matrix.c.name }}; mkdir -p $D
+          python proto/forecast_ens.py proto --run-dir $OUTDIR --out $P --storm $S --dump $D/seg.json 2>&1 | tee -a w9_stdout.txt | tail -5
+          python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
+          python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
+          cp $P/summary.json $P/watchlist.csv $D/; cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json,sys; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          grep -E "rain:|HRRR|hrrr_ens|effective|LISFLOOD-FP run|Elapsed|Maximum resident" w9_stdout.txt | tail -n 30 > $D/w9_log.txt || true
+      - name: diagnostics (annotation)
+        if: always()
+        run: |
+          f() { [ -f "$1" ] && { grep -E "$2" "$1" | tail -n ${3:-12}; echo ...; tail -n 15 "$1"; } | cut -c1-300 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
+          echo "::notice title=w9 ${{ matrix.c.name }}::$(f w9_stdout.txt 'rain:|HRRR|hrrr_ens|effective|Error|error|Traceback|Elapsed|dump')"
+      - name: commit
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/forecast/ensemble/${{ matrix.c.name }}; git commit -qm "forecast ensemble: ${{ matrix.c.name }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done

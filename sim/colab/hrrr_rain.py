@@ -158,6 +158,8 @@ def neighbourhood(spec=None, dx_km=3.0):
 def hourly(init, hours, sample=None, workers=12, log=print):
     """Forecast hours 1..hours: list of sampled fields (or raw messages' values when sample is None), missing hours None."""
     from concurrent.futures import ThreadPoolExecutor
+    if sample is not None and (os.environ.get('LF_HRRR_LAG') or os.environ.get('LF_HRRR_QMAP')):     # experiments only (hrrr_ens.py, ENSEMBLE.md)
+        import hrrr_ens; return hrrr_ens.model_hourly(init, hours, sample, workers=workers, log=log)
     def one(fh):
         for k in range(3):
             try:
