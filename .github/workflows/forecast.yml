@@ -3,6 +3,10 @@ name: forecast (HRRR rain -> gate -> LISFLOOD-FP -> road closures, District 3)
 # only when a town's 6 h / 24 h maximum reaches the thresholds (proto/forecast.py, docs/proto/forecast/GATE.md) runs the flood model on up to
 # four 20 x 20 km boxes around the heaviest rain (20 m, CPU, the validated prototype set-up), then proto/prototype.py and the viewer packs.
 # Publishes docs/site/data/forecast_status.json (always) and docs/site/data/forecast_latest[_bN]/ (only when the model ran; overwritten).
+# ENSEMBLE (default on; repository variable FORECAST_ENSEMBLE=0 or input ensemble=0 = the old single-cycle run): when the gate fires, the flood
+# model runs for the 8 time-lagged HRRR members (this cycle, the 6/12/18 h older 48 h cycles, the 1-4 h older hourly cycles) on every box
+# (boxes deduplicated across the members' own gates), one matrix job each; a road is 'likely closed' when >= 2 of the 8 runs close it and
+# 'possible' at 1 of 8 (proto/forecast_kofn.py, docs/proto/forecast/ENSEMBLE.md).  The replay shows the issue cycle's run per box.
 on:
   schedule:
     - cron: '40 2,8,14,20 * * *'
@@ -12,10 +16,13 @@ on:
       force: {description: 'run the flood model even when the gate is quiet', type: boolean, default: false}
       hours: {description: 'forecast hours to use (empty = whole cycle)', default: ''}
       publish: {description: 'commit the result to docs/site/data', type: boolean, default: true}
+      ensemble: {description: '1 = 8-member time-lagged ensemble, 0 = single cycle (empty = repository variable FORECAST_ENSEMBLE, default 1)', default: ''}
+      prefix: {description: 'site data key (forecast_latest = live; anything else is a test and writes <prefix>_status.json instead of the live status)', default: 'forecast_latest'}
+      max_boxes: {description: 'maximum boxes (empty = 4)', default: ''}
 permissions:
   contents: write
 concurrency:
-  group: forecast
+  group: forecast-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   gate:
@@ -26,15 +33,21 @@ jobs:
       boxes: ${{ steps.g.outputs.boxes }}
       init: ${{ steps.g.outputs.init }}
       hours: ${{ steps.g.outputs.hours }}
+      jobs: ${{ steps.g.outputs.jobs }}
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q numpy scipy pandas requests pygrib pyproj matplotlib
       - id: g
-        name: forecast rain over District 3 and the gate
+        name: forecast rain over District 3, the gate, and the ensemble members / boxes
+        env:
+          ENSEMBLE: ${{ inputs.ensemble || vars.FORECAST_ENSEMBLE || '1' }}
+          FORECAST_MAX_BOXES: ${{ inputs.max_boxes || '4' }}
         run: |
           set -o pipefail
           python proto/forecast.py gate ${{ inputs.init && format('--init {0}', inputs.init) || '' }} ${{ inputs.hours && format('--hours {0}', inputs.hours) || '' }} \
             ${{ inputs.force && '--force' || '' }} --out gate/gate.json --github-output $GITHUB_OUTPUT 2>&1 | tee gate.log
+          SINGLE=""; if [ "$ENSEMBLE" = "0" ]; then SINGLE=--single; fi
+          python proto/forecast_kofn.py members --gate gate/gate.json $SINGLE --github-output $GITHUB_OUTPUT 2>&1 | tee -a gate.log
           echo "::notice title=gate::$(cut -c1-300 gate.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
       - uses: actions/upload-artifact@v4
         with: {name: gate, path: gate}
@@ -46,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        b: ${{ fromJSON(needs.gate.outputs.boxes) }}
+        b: ${{ fromJSON(needs.gate.outputs.jobs) }}
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
@@ -59,9 +72,9 @@ jobs:
           BOX: ${{ matrix.b.box }}
           RES: '20'
           STORM: forecast
-          RUN_DIR: runs/forecast_${{ matrix.b.id }}
+          RUN_DIR: runs/forecast_${{ matrix.b.m }}_${{ matrix.b.id }}
           LF_RAIN: hrrr
-          LF_HRRR_INIT: ${{ needs.gate.outputs.init }}
+          LF_HRRR_INIT: ${{ matrix.b.init }}
           LF_HRRR_HOURS: ${{ needs.gate.outputs.hours }}
           LF_ALLOW_DRY: '1'
           LF_HRRR_NBHD: '20,90'     # neighbourhood 20 km / 90th percentile per hour: the best hindcast set-up (docs/proto/forecast/HINDCAST.md)
@@ -79,7 +92,7 @@ jobs:
         run: |
           set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
-          P=${{ runner.temp }}/proto_${{ matrix.b.id }}
+          P=${{ runner.temp }}/proto_${{ matrix.b.m }}_${{ matrix.b.id }}
           python proto/prototype.py --run-dir $OUTDIR --out $P --storm forecast 2>&1 | tee -a w9_stdout.txt | tail -5
           python proto/resilience.py --out $P || true
           python proto/risk.py --out $P --run-dir $OUTDIR || true
@@ -92,7 +105,7 @@ jobs:
           echo "::notice title=w9::$(f w9_stdout.txt 'rain:|HRRR|grid |LISFLOOD-FP run|peak wet|effective|Error|error|Traceback|Elapsed|Maximum resident')"
       - uses: actions/upload-artifact@v4
         if: always()
-        with: {name: 'proto_${{ matrix.b.id }}', path: art, if-no-files-found: ignore}
+        with: {name: 'proto_${{ matrix.b.m }}_${{ matrix.b.id }}', path: art, if-no-files-found: ignore}
   publish:
     needs: [gate, flood]
     if: always() && needs.gate.result == 'success'
@@ -105,32 +118,33 @@ jobs:
         with: {path: arts}
       - name: viewer packs + forecast_status.json
         env:
-          FORECAST_KOFN: ${{ vars.FORECAST_KOFN || '0' }}            # '1' = time-lagged 'closed in k of the last 4 cycles' layer (proto/forecast_kofn.py, ENSEMBLE.md); off by default
-          FORECAST_KOFN_HOURLY: ${{ vars.FORECAST_KOFN_HOURLY || '0' }}
+          PFX: ${{ inputs.prefix || 'forecast_latest' }}
         run: |
-          ls -R arts | head -40
-          rm -rf docs/site/data/forecast_latest docs/site/data/forecast_latest_b*
-          RUNS=""
-          for d in arts/proto_*/proto_*; do
-            [ -f "$d/summary.json" ] || continue
-            id=${d##*_}; key=forecast_latest; [ "$id" = "b1" ] || key=forecast_latest_$id
-            python docs/site/build_data.py --run $key --src $(realpath $d) && RUNS="$RUNS --run $key=$(realpath $d)"
-          done
-          KOFN=""
-          if [ "$FORECAST_KOFN" = "1" ]; then
-            python proto/forecast_kofn.py record --gate arts/gate/gate.json $RUNS --store docs/proto/forecast/live_cycles \
-              && python proto/forecast_kofn.py combine --gate arts/gate/gate.json --store docs/proto/forecast/live_cycles --n 4 --hourly $FORECAST_KOFN_HOURLY --out kofn.json \
-              && KOFN="--kofn kofn.json" || echo "k-of-n layer failed; status without it"
+          ls arts | head -60
+          ST=docs/site/data/forecast_status.json; [ "$PFX" = "forecast_latest" ] || ST=docs/site/data/${PFX}_status.json
+          rm -rf docs/site/data/${PFX} docs/site/data/${PFX}_b*
+          # members: arts/proto_<DDHH>_<box>/proto_<DDHH>_<box>/ -> --member <init>:<box>=<dir> (every job of the matrix, finished or not)
+          MEM=$(python proto/forecast_kofn.py memberargs --gate arts/gate/gate.json --arts arts)
+          RUNS=""; KOFN=""
+          if [ -n "$MEM" ]; then
+            python proto/forecast_kofn.py ensemble --gate arts/gate/gate.json $MEM --out kofn.json --viewers viewers.txt --prefix $PFX
+            NM=$(python -c "import json; print(len(json.load(open('arts/gate/gate.json'))['ensemble']['members']))")
+            if [ "$NM" -gt 1 ]; then KOFN="--kofn kofn.json"; fi
+            while read key dir box m; do
+              python docs/site/build_data.py --run $key --src $(realpath $dir) || continue
+              if [ -n "$KOFN" ]; then python proto/forecast_kofn.py pack --kofn kofn.json --key $key --box $box; fi
+              RUNS="$RUNS --run $key=$(realpath $dir)"
+            done < viewers.txt
           fi
-          python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out docs/site/data/forecast_status.json
-          cat docs/site/data/forecast_status.json | head -c 1500; echo
-          du -sh docs/site/data/forecast_* || true
+          python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out $ST
+          head -c 1500 $ST; echo
+          du -sh docs/site/data/${PFX}* || true
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish
         run: |
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A docs/site/data
-          [ -d docs/proto/forecast/live_cycles ] && git add docs/proto/forecast/live_cycles || true
           git diff --cached --quiet && { echo "no change"; exit 0; }
-          git commit -qm "Forecast $(python -c "import json;s=json.load(open('docs/site/data/forecast_status.json'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")"
+          P=${{ inputs.prefix || 'forecast_latest' }}; ST=docs/site/data/forecast_status.json; [ "$P" = "forecast_latest" ] || ST=docs/site/data/${P}_status.json
+          git commit -qm "Forecast $P $(python -c "import json;s=json.load(open('$ST'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")"
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done

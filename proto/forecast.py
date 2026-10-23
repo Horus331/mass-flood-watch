@@ -12,7 +12,7 @@ point for towns smaller than a cell).  The flood model runs only when a town's 6
 GATE_24H_MM (thresholds and their derivation: docs/proto/forecast/GATE.md, numbers in gate_calibration.json).  Then up to MAX_BOXES 20 x 20 km
 boxes (the validated prototype set-up) are centred on the heaviest forecast rain, greedily, each removing the points it covers.
 """
-import os, sys, json, math, argparse, time, datetime as dt
+import os, sys, re, json, math, argparse, time, datetime as dt
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.normpath(os.path.join(HERE, '..'))
@@ -202,7 +202,8 @@ def cmd_status(a):
     G = json.load(open(a.gate)); runs = []
     for spec in a.run or []:
         key, _, dirs = spec.partition('='); pdir = dirs.split(',')[0]
-        box = next((b['box'] for b in G['boxes'] if key.endswith(b['id'])), None)
+        bid = key.rsplit('_', 1)[-1] if re.match(r'b\d+$', key.rsplit('_', 1)[-1]) else 'b1'
+        box = next((b['box'] for b in G['boxes'] if b['id'] == bid), None)
         try: runs.append(run_summary(key, pdir, box=box))
         except Exception as e: log('run', key, 'unreadable:', repr(e)[:200]); runs.append(dict(key=key, box=box, error=repr(e)[:200]))
     ok = [r for r in runs if 'error' not in r]
@@ -222,12 +223,23 @@ def cmd_status(a):
                        'Flood: LISFLOOD-FP 8.2, 20 m, 20 x 20 km boxes on the heaviest rain, NRCS curve-number losses (calibrated on the Sept 2023 '
                        'Leominster storm). Closure: P = Phi((peak depth - 0.30 m) / 0.10 m) along the segment (proto/prototype.py). Hindcast skill: '
                        'docs/proto/forecast/HINDCAST.md.'))
-    if getattr(a, 'kofn', None) and os.path.exists(a.kofn):      # optional time-lagged layer (proto/forecast_kofn.py, FORECAST_KOFN=1; off by default)
-        K = json.load(open(a.kofn)); out['k_of_n'] = {k: v for k, v in K.items() if k != 'segments'}; out['k_of_n']['segments'] = K['segments'][:200]
+    if getattr(a, 'kofn', None) and os.path.exists(a.kofn):      # time-lagged ensemble (proto/forecast_kofn.py ensemble; live default, ENSEMBLE.md)
+        K = json.load(open(a.kofn)); segs = K['segments']
+        out['k_of_n'] = {k: v for k, v in K.items() if k != 'segments'}; out['k_of_n']['segments'] = segs[:200]
         for r in runs:
-            bid = r['key'].rsplit('_', 1)[-1] if r['key'].rsplit('_', 1)[-1].startswith('b') else 'b1'
-            b = r.get('box') or next((x['box'] for x in G['boxes'] if x['id'] == bid), None)
-            if b: r['k_of_n'] = [dict(segment=e['segment'], road=e['road'], town=e['town'], k=e['k'], n=e['n']) for e in K['segments'] if b[0] <= e['x'] < b[2] and b[1] <= e['y'] < b[3]][:100]
+            bid = r['key'].rsplit('_', 1)[-1] if re.match(r'b\d+$', r['key'].rsplit('_', 1)[-1]) else 'b1'
+            mine = [e for e in segs if e.get('box') == bid]
+            r['k_of_n'] = [dict(segment=e['segment'], road=e['road'], town=e['town'], k=e['k'], n=e['n']) for e in mine][:150]
+            r['likely_closed_single'] = r.get('likely_closed'); r['likely_closed'] = sum(e['k'] >= 2 for e in mine); r['possible'] = sum(e['k'] == 1 for e in mine)
+            kk = {e['segment']: e for e in mine}
+            for t_ in r.get('top', []): t_['k'] = kk.get(t_['segment'], {}).get('k', 0)
+        out['likely_closed'] = K['likely']; out['possible'] = K['possible']; N = K['n_members']; out['ensemble'] = G.get('ensemble')
+        if out['state'] == 'run':
+            out['headline'] = (f"{K['likely']} road segment{'s' if K['likely'] != 1 else ''} likely closed in the next {G['horizon_h']} h, "
+                               f"{K['possible']} more possible") if K['likely'] or K['possible'] else \
+                              f"Heavy rain forecast; none of the {N} forecast runs closes a road in the next {G['horizon_h']} h"
+        out['method'] += (f' Ensemble: the flood model is run on {N} time-lagged HRRR cycles (this one, the 3 previous 6-hourly cycles and the 4 hourly '
+                          f'cycles before it); likely closed = closed in >= 2 of {N} (validated out of sample on 7 storms, docs/proto/forecast/ENSEMBLE.md).')
     if a.extra: out.update(json.load(open(a.extra)))
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True); json.dump(out, open(a.out, 'w'), separators=(',', ':'))
     log(f"status {state}: {head}; {len(runs)} run(s)")
