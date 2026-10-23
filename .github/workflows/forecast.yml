@@ -104,6 +104,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with: {path: arts}
       - name: viewer packs + forecast_status.json
+        env:
+          FORECAST_KOFN: ${{ vars.FORECAST_KOFN || '0' }}            # '1' = time-lagged 'closed in k of the last 4 cycles' layer (proto/forecast_kofn.py, ENSEMBLE.md); off by default
+          FORECAST_KOFN_HOURLY: ${{ vars.FORECAST_KOFN_HOURLY || '0' }}
         run: |
           ls -R arts | head -40
           rm -rf docs/site/data/forecast_latest docs/site/data/forecast_latest_b*
@@ -113,7 +116,13 @@ jobs:
             id=${d##*_}; key=forecast_latest; [ "$id" = "b1" ] || key=forecast_latest_$id
             python docs/site/build_data.py --run $key --src $(realpath $d) && RUNS="$RUNS --run $key=$(realpath $d)"
           done
-          python proto/forecast.py status --gate arts/gate/gate.json $RUNS --out docs/site/data/forecast_status.json
+          KOFN=""
+          if [ "$FORECAST_KOFN" = "1" ]; then
+            python proto/forecast_kofn.py record --gate arts/gate/gate.json $RUNS --store docs/proto/forecast/live_cycles \
+              && python proto/forecast_kofn.py combine --gate arts/gate/gate.json --store docs/proto/forecast/live_cycles --n 4 --hourly $FORECAST_KOFN_HOURLY --out kofn.json \
+              && KOFN="--kofn kofn.json" || echo "k-of-n layer failed; status without it"
+          fi
+          python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out docs/site/data/forecast_status.json
           cat docs/site/data/forecast_status.json | head -c 1500; echo
           du -sh docs/site/data/forecast_* || true
       - name: commit
@@ -121,6 +130,7 @@ jobs:
         run: |
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A docs/site/data
+          [ -d docs/proto/forecast/live_cycles ] && git add docs/proto/forecast/live_cycles || true
           git diff --cached --quiet && { echo "no change"; exit 0; }
           git commit -qm "Forecast $(python -c "import json;s=json.load(open('docs/site/data/forecast_status.json'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")"
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done

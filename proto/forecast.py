@@ -222,6 +222,12 @@ def cmd_status(a):
                        'Flood: LISFLOOD-FP 8.2, 20 m, 20 x 20 km boxes on the heaviest rain, NRCS curve-number losses (calibrated on the Sept 2023 '
                        'Leominster storm). Closure: P = Phi((peak depth - 0.30 m) / 0.10 m) along the segment (proto/prototype.py). Hindcast skill: '
                        'docs/proto/forecast/HINDCAST.md.'))
+    if getattr(a, 'kofn', None) and os.path.exists(a.kofn):      # optional time-lagged layer (proto/forecast_kofn.py, FORECAST_KOFN=1; off by default)
+        K = json.load(open(a.kofn)); out['k_of_n'] = {k: v for k, v in K.items() if k != 'segments'}; out['k_of_n']['segments'] = K['segments'][:200]
+        for r in runs:
+            bid = r['key'].rsplit('_', 1)[-1] if r['key'].rsplit('_', 1)[-1].startswith('b') else 'b1'
+            b = r.get('box') or next((x['box'] for x in G['boxes'] if x['id'] == bid), None)
+            if b: r['k_of_n'] = [dict(segment=e['segment'], road=e['road'], town=e['town'], k=e['k'], n=e['n']) for e in K['segments'] if b[0] <= e['x'] < b[2] and b[1] <= e['y'] < b[3]][:100]
     if a.extra: out.update(json.load(open(a.extra)))
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True); json.dump(out, open(a.out, 'w'), separators=(',', ':'))
     log(f"status {state}: {head}; {len(runs)} run(s)")
@@ -416,7 +422,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0]); sp = ap.add_subparsers(dest='cmd')
     p = sp.add_parser('gate'); p.add_argument('--init'); p.add_argument('--hours', type=int); p.add_argument('--force', action='store_true')
     p.add_argument('--out', default='gate.json'); p.add_argument('--github-output')
-    p = sp.add_parser('status'); p.add_argument('--gate', required=True); p.add_argument('--run', action='append'); p.add_argument('--extra'); p.add_argument('--out', required=True)
+    p = sp.add_parser('status'); p.add_argument('--gate', required=True); p.add_argument('--run', action='append'); p.add_argument('--extra'); p.add_argument('--kofn'); p.add_argument('--out', required=True)
     p = sp.add_parser('calib'); p.add_argument('--out', required=True); p.add_argument('--only'); p.add_argument('--cycles', type=int, default=3); p.add_argument('--no-mrms', action='store_true')
     p = sp.add_parser('background'); p.add_argument('--start', required=True); p.add_argument('--end', required=True); p.add_argument('--hour', type=int, default=12); p.add_argument('--out', required=True)
     sp.add_parser('selftest'); p = sp.add_parser('report'); p.add_argument('--md', help='rewrite the tables between <!-- tables --> markers')
