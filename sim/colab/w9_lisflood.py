@@ -288,7 +288,8 @@ def get_lisflood():
     import requests
     os.makedirs(WORK, exist_ok=True)
     recs = [os.environ['LF_ZENODO']] if os.environ.get('LF_ZENODO') else ZENODO_RECORDS
-    for rec in recs:
+    for k, rec in enumerate([r for _ in range(4) for r in recs]):     # Zenodo rate-limits parallel CI jobs (HTML 429 -> JSONDecodeError): 4 rounds, backoff
+        if k and k % len(recs) == 0: time.sleep(30 * (k // len(recs)) + 30 * np.random.rand())
         try:
             ver, files = zenodo_files(rec)
             zips = [f for f in files if f[0].lower().endswith('.zip')]
