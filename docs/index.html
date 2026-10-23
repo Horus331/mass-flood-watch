@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mass Flood Watch</title>
-<meta name="description" content="Flash-flood road-closure forecasting for MassDOT Highway District 3 in central Massachusetts. PhD research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<meta name="description" content="Flash-flood road-closure forecasting for MassDOT Highway District 3 in central Massachusetts. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
 <link rel="icon" href="wpi-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,15 +13,15 @@
 <style>
 :root{
   --bg:#f4f6f7;--surface:#ffffff;--surface-2:#e9eef1;--ink:#15212b;--muted:#53616c;--rule:#d3dbe0;
-  --accent:#ac2b37;--water:#2171b5;--closed:#b2182b;--may:#c4620a;
+  --accent:#ac2b37;--water:#2171b5;--closed:#b2182b;--may:#c4620a;--dev:#7a4b00;--dev-bg:#fff1d6;
   --sans:Overpass,"Segoe UI",system-ui,-apple-system,sans-serif;--serif:"Source Serif 4",Georgia,"Times New Roman",serif;
   color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0e151b;--surface:#16212a;--surface-2:#1d2a35;--ink:#e3eaef;--muted:#9eacb7;--rule:#2b3945;
-  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;color-scheme:dark}}
+  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0e151b;--surface:#16212a;--surface-2:#1d2a35;--ink:#e3eaef;--muted:#9eacb7;--rule:#2b3945;
-  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;color-scheme:dark}
+  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--serif);overflow-x:hidden}
@@ -108,6 +108,23 @@ tr:last-child th,tr:last-child td{border-bottom:0}
 .top5 li span:last-child{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .cls{display:inline-block;font:700 12px var(--sans);padding:0 6px;border-radius:3px;background:#67000d;color:#fff;margin-right:6px}
 
+/* byline */
+.byline{display:flex;flex-direction:column;gap:2px;margin:22px 0 0;padding:12px 0 0 16px;border-left:3px solid var(--accent);font:15px/1.4 var(--sans);color:var(--muted);max-width:none}
+.byline b{font-size:18px;font-weight:800;color:var(--ink)}
+
+/* what comes next */
+.next{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:26px 0 0;padding:0;list-style:none;border-top:3px solid var(--ink)}
+.next li{padding:18px 22px 20px 0;margin-right:22px;border-bottom:1px solid var(--rule)}
+.next li:nth-child(3n){margin-right:0;padding-right:0}
+.next h3{margin:10px 0 6px}
+.next p{font-size:15.5px;line-height:1.5;margin:0}
+.next .src{display:block;font:13px/1.4 var(--sans);color:var(--muted);margin-top:8px}
+.tag-dev{display:inline-block;font:800 12px/1 var(--sans);color:var(--dev);background:var(--dev-bg);border-radius:4px;padding:5px 8px 3px}
+.tag-live{display:inline-block;font:800 12px/1 var(--sans);color:#fff;background:var(--accent);border-radius:4px;padding:5px 8px 3px}
+.next a{font:700 14px var(--sans)}
+@media (max-width:980px){.next{grid-template-columns:repeat(2,minmax(0,1fr))}.next li:nth-child(3n){margin-right:22px;padding-right:22px}.next li:nth-child(2n){margin-right:0;padding-right:0}}
+@media (max-width:640px){.next{grid-template-columns:1fr}.next li,.next li:nth-child(3n){margin-right:0;padding-right:0}}
+
 footer{margin-top:64px;border-top:1px solid var(--rule);background:var(--surface);padding:34px 0 40px;font:14px/1.6 var(--sans);color:var(--muted)}
 footer .wrap{display:grid;grid-template-columns:2fr 1fr;gap:30px}
 footer h3{color:var(--ink);font-size:14px}
@@ -149,9 +166,9 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="wrap">
     <img class="logo" src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="105" height="34">
-    <div class="ident"><b>Mass Flood Watch</b><span>PhD research · Mohab Eldokla · Worcester Polytechnic Institute</span></div>
+    <div class="ident"><b>Mass Flood Watch</b><span>PhD dissertation research by Mohab Eldokla, WPI</span></div>
     <nav class="nav" aria-label="Sections">
-      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a>
+      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a><a href="#next">What comes next</a>
       <button class="theme" id="theme" type="button" aria-label="Colour theme">Auto</button>
     </nav>
   </div>
@@ -162,6 +179,7 @@ html{scroll-behavior:smooth}
   <div class="wrap">
     <h1>Which roads a flash flood will close, when, and why</h1>
     <p class="lede">Mass Flood Watch turns radar rainfall into a road-by-road forecast of flash-flood closures for MassDOT Highway District 3 in central Massachusetts: where water reaches the road, when each segment closes and reopens, and who loses access to a hospital, fire station or police station while it is shut.</p>
+    <p class="byline"><b>Mohab Eldokla</b><span>PhD dissertation research, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute</span><span>Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff</span></p>
     <div class="facts" role="list">
       <div class="fact" role="listitem">
         <span class="v num">35<small>%</small></span>
@@ -192,7 +210,7 @@ html{scroll-behavior:smooth}
     <div class="replay-head">
       <div>
         <h2>Storm replay</h2>
-        <p class="muted">Press play to watch the modelled water rise and roads close through the storm. Click a road for when it closes, why, and who loses access. Switch storms at the top of the map.</p>
+        <p class="muted">Press play to watch the radar rain arrive, the modelled water rise and roads close through the storm. Click a road for when it closes, why, and who loses access; click a river gauge to compare observed and modelled flow. Switch storms at the top of the map.</p>
       </div>
       <a class="open" href="viewer.html?run=leominster_sep2023">Open the replay full screen</a>
     </div>
@@ -303,19 +321,33 @@ html{scroll-behavior:smooth}
     <p class="note">Residents in the lists lose access within the standard if that one road closes. Night-time population; staying home is not modelled. Detours have no congestion, so delay is a lower bound. Risk class is likelihood × consequence on a 5 × 5 matrix. Sources: each storm’s <a href="proto/leominster_sep2023/resilience.json">resilience.json</a> and <a href="proto/leominster_sep2023/risk.json">risk.json</a> (<a href="proto/worcester_aug2021/resilience.json">Worcester</a>, <a href="proto/worcester_aug2021/risk.json">risk</a>).</p>
   </div>
 </section>
+<section class="block" id="next">
+  <div class="wrap">
+    <h2>What comes next</h2>
+    <p class="muted">The parts of the dissertation still being built. Each will appear here and in the storm replay when it is finished and checked against observed storms.</p>
+    <ul class="next">
+      <li id="nextForecast"><span class="tag-dev">In development</span><h3>Live forecast</h3><p>The next 48 hours of road closures across District 3, rerun every six hours from the NOAA HRRR rain forecast on WPI’s Turing GPU cluster.</p><span class="src">NOAA HRRR, the flood model and closure rules above</span></li>
+      <li><span class="tag-dev">In development</span><h3>Learned closure model</h3><p>A machine-learning model trained on nine District 3 storms that turns the flood model’s water, rain and road features into a calibrated chance of closing.</p><span class="src">Documented closures from city, MassDOT and NWS records</span></li>
+      <li><span class="tag-dev">In development</span><h3>Live traffic impact</h3><p>Detours and delay measured from live travel times instead of daily counts, so the impact of each closure reflects real congestion.</p><span class="src">MassDOT GoTime travel times</span></li>
+      <li><span class="tag-dev">In development</span><h3>Storm-drain capacity</h3><p>The city pipe network drawn into the flood model, so streets drain as fast as their pipes allow instead of a single district-wide rate.</p><span class="src">City of Leominster storm-drain network</span></li>
+      <li><span class="tag-dev">In development</span><h3>Infrastructure damage and repair cost</h3><p>Which culverts and road embankments fail, not only which are overtopped: washout, scour and blockage, with the repair bill for each.</p><span class="src">NAACC culvert surveys, FHWA HDS-5, National Bridge Inventory</span></li>
+      <li><span class="tag-dev">In development</span><h3>Cascading hazards</h3><p>What the flood leaves behind: groundwater rise after the storm and the risk it poses to foundations, pavements and buried pipes.</p><span class="src">USGS groundwater wells, soils and geotechnical records</span></li>
+    </ul>
+  </div>
+</section>
 </main>
 
 <footer>
   <div class="wrap">
     <div>
       <h3>Data</h3>
-      <p>Rain: NOAA MRMS. Terrain and river gauges: USGS 3DEP and NWIS. Roads, traffic counts and repeat flood sites: MassGIS and MassDOT. Culverts: North Atlantic Aquatic Connectivity Collaborative (NAACC). Bridges: FHWA National Bridge Inventory. Residents: US Census 2020. Hospitals, fire and police stations: © OpenStreetMap contributors. Storm reports: NOAA National Weather Service. Flood model: LISFLOOD-FP 8.2, University of Bristol. Basemap: Esri.</p>
+      <p>Rain: NOAA MRMS. Terrain and river gauges: USGS 3DEP and NWIS. Roads, traffic counts and repeat flood sites: MassGIS and MassDOT. Culverts: North Atlantic Aquatic Connectivity Collaborative (NAACC). Bridges: FHWA National Bridge Inventory. Residents: US Census 2020. Hospitals, fire and police stations: © OpenStreetMap contributors. Storm reports: NOAA National Weather Service. Flood model: LISFLOOD-FP 8.2, University of Bristol. Basemaps: CARTO and Esri, © OpenStreetMap contributors.</p>
       <p><a href="proto/advisors/pipeline.html">Pipeline diagram</a> · <a href="proto/advisors/datasets.md">Dataset list</a></p>
     </div>
     <div>
       <h3>About</h3>
-      <p>PhD research by Mohab Eldokla, Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute.</p>
-      <p class="disc">Research prototype; not an official WPI or MassDOT product.</p>
+      <p>PhD dissertation research by Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</p>
+      <p class="disc">Dissertation research; not an official WPI or MassDOT product.</p>
     </div>
   </div>
 </footer>
@@ -332,6 +364,15 @@ html{scroll-behavior:smooth}
     var f=document.getElementById('viewer');
     if(f&&f.contentWindow)f.contentWindow.postMessage({mfwTheme:n},location.origin);
   });
+})();
+(function(){ // the live forecast card turns live once a forecast is published (site/data/forecast_status.json)
+  fetch('site/data/forecast_status.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).then(function(s){
+    if(!s||!(s.ready===true||s.status==='ok'))return;
+    var li=document.getElementById('nextForecast');
+    li.querySelector('.tag-dev').outerHTML='<span class="tag-live">Live</span>';
+    var a=document.createElement('a');a.href='viewer.html?run=forecast';a.textContent='Open the live forecast';
+    var p=document.createElement('p');p.style.marginTop='10px';p.appendChild(a);li.appendChild(p);
+  }).catch(function(){});
 })();
 </script>
 </body>
