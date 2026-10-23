@@ -105,6 +105,19 @@ def inside(b, lon, lat):
     return lon is not None and lat is not None and b[0] <= lon <= b[2] and b[1] <= lat <= b[3]
 
 
+def clean(x):
+    """NaN / 'nan' -> None, recursively, so the JSON stays valid for browsers"""
+    if isinstance(x, float) and (math.isnan(x) or math.isinf(x)):
+        return None
+    if isinstance(x, str) and x.lower() == 'nan':
+        return None
+    if isinstance(x, dict):
+        return {k: clean(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [clean(v) for v in x]
+    return x
+
+
 def jload(p):
     return json.load(open(p)) if os.path.exists(p) else None
 
@@ -334,7 +347,7 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
     storm = S['run'].split('_')[0]
     t0 = utc(S['storm_start'])
     R = refs(src, cn, storm, t0, fmin, nf, run_dir)
-    json.dump(R, open(os.path.join(od, 'refs.json'), 'w'), separators=(',', ':'))
+    json.dump(clean(R), open(os.path.join(od, 'refs.json'), 'w'), separators=(',', ':'), allow_nan=False)
     if do_flow and run_dir:
         flow(run_dir, keep, max(2, int(round(100 / S['resolution_m']))), od, cn)
         meta['flow'] = 'flow.json'
