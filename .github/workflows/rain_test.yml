@@ -1,0 +1,95 @@
+name: Rain forcing test (sub-hourly MRMS timing, gauge check; docs/proto/rain/RAIN.md)
+# mode=fetch: proto/rain/rain_fetch.py per storm -> docs/proto/rain/data/<storm>/ (MRMS product listing, gauges, native MRMS crops)
+# mode=sim:   one LISFLOOD-FP 8.2 CPU run per case, settings as .github/workflows/parity_test.yml (catalogue Turing settings
+#             LF_LOSS=cn LF_CN_SCALE=0.91 LF_INFIL_MMH=2 LF_QOUT=1 LF_VOUT=1, then the case env, e.g. LF_PARITY=1 LF_RAIN_DT=5),
+#             scored like parity_test.yml -> docs/proto/rain/runs/<name>/
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'fetch | sim'
+        required: true
+        default: 'sim'
+      storms:
+        description: 'mode=fetch: JSON list of storm ids'
+        required: false
+        default: '["jul2023"]'
+      cases:
+        description: 'mode=sim: JSON list of {name, storm, box, hours, env}'
+        required: false
+        default: '[]'
+permissions:
+  contents: write
+jobs:
+  fetch:
+    if: inputs.mode == 'fetch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        storm: ${{ fromJSON(inputs.storms) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pygrib
+      - run: python proto/rain/rain_fetch.py --storm ${{ matrix.storm }} 2>&1 | tail -80
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/rain/data/${{ matrix.storm }}; git commit -qm "rain test: fetch ${{ matrix.storm }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
+  sim:
+    if: inputs.mode == 'sim'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(inputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.storm }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.storm }}_rain_${{ matrix.c.name }}
+          LF_LOSS: cn
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          LF_VOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          if [ -n "${{ matrix.c.env }}" ]; then export ${{ matrix.c.env }}; fi
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures + scores
+        if: always()
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
+          P=${{ runner.temp }}/proto; D=docs/proto/rain/runs/${{ matrix.c.name }}; mkdir -p $D
+          echo '${{ toJSON(matrix.c) }}' > $D/config.json
+          tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
+          [ -n "$OUTDIR" ] || exit 0
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S 2>&1 | tail -5
+          SCORE_WINDOWS=$D/gauge_windows.npz python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
+          python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
+          cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          python proto/parity_pack.py $OUTDIR $D
+          if [ -f $D/segments.geojson ] && [ $(stat -c %s $D/segments.geojson) -gt 3200000 ]; then gzip -9 $D/segments.geojson; fi
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/rain/runs/${{ matrix.c.name }}; git commit -qm "rain test: ${{ matrix.c.name }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
