@@ -20,14 +20,14 @@
  "model_build": {
   "cuda": false,
   "exe": "lisflood",
-  "build_s": 167
+  "build_s": 195
  },
  "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
  "inputs": {
   "dem": "HF data/dem10 averaged to RES",
   "channels": "vol",
   "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
-  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "rain": "MRMS AWS MultiSensor_QPE_01H_Pass2 -> TUFLOW NetCDF dynamicrainfile",
   "loss": "cn",
   "boundary": "FREE on all edges",
   "baseflow": true,
@@ -53,7 +53,32 @@
    "applied_by": "rain excess, hourly, before the solver (both solvers)"
   },
   "initial_tstep_s": 1.0,
-  "t0_snapshot": "solver"
+  "t0_snapshot": "solver",
+  "rain_products": {
+   "hours": {
+    "AWS MultiSensor_QPE_01H_Pass2": 18
+   },
+   "by_hour": {
+    "2026-08-03T05:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T06:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T07:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T08:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T09:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T10:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T11:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T12:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T13:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T14:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T15:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T16:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T17:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T18:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-08-03T22:00Z": "AWS MultiSensor_QPE_01H_Pass2"
+   }
+  }
  },
  "rain_probe": {
   "quadrants": {
@@ -72,14 +97,14 @@
  "rain_total_max_mm": 118,
  "rain_total_mean_mm": 81,
  "rain_missing_hours": [],
- "runtime_s": 1578,
- "total_s": 1921,
+ "runtime_s": 1530,
+ "total_s": 1901,
  "peak_wet_km2": 12.4,
  "peak_snapshot_wet_km2": 7.7,
  "mass_tail": [
   "64500.000    1.0000     1.0000     64500      23795600.0000 2968898.5744  0.000       0.000      49.012            0.0000       0.0000 5146105.4989",
   "64800.000    1.0000     1.0000     64800      23706000.0000 2954317.0420  0.000       0.000      48.400            0.0000       0.0000 5146140.0189"
  ],
- "git_sha": "37177775",
+ "git_sha": "96317f51",
  "forecast": null
 }
