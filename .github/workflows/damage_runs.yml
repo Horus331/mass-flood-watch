@@ -1,0 +1,73 @@
+name: Crossing damage runs (T7; parity baseline + per-crossing peak Q table, CPU)
+# Re-runs catalogue storms with the clean parity baseline (docs/proto/parity/BASELINE.md: LF_PARITY=1, LF_CN_SCALE=0.88, LF_LOSS=cn,
+# LF_INFIL_MMH=2, LF_QOUT=1, LF_VOUT=1, 20 m, CPU) and keeps only small results: the per-crossing table from proto/damage.py extract
+# (peak Q through each crossing notch, up/downstream water, overtopping, speed, slope, width, stream power, HDS-5), the gauge score
+# (to check the run reproduces the baseline) and the run metadata.  -> docs/proto/damage/runs/<name>/
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: 'JSON list of {name, storm, box, hours, env}'
+        required: true
+      dest:
+        description: 'output folder'
+        required: false
+        default: 'docs/proto/damage/runs'
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(inputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.storm }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.storm }}_damage_${{ matrix.c.name }}
+          LF_LOSS: cn
+          LF_CN_SCALE: '0.88'
+          LF_PARITY: '1'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          LF_VOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          if [ -n "${{ matrix.c.env }}" ]; then export ${{ matrix.c.env }}; fi
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: crossing table + gauge score
+        if: always()
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
+          D=${{ inputs.dest || 'docs/proto/damage/runs' }}/${{ matrix.c.name }}; mkdir -p $D
+          echo '${{ toJSON(matrix.c) }}' > $D/config.json
+          tail -c 30000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
+          [ -n "$OUTDIR" ] || exit 0
+          python proto/damage.py extract --run-dir $OUTDIR --storm $S --out $D/crossings_${S}.csv 2>&1 | tail -5
+          python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -3 || true
+          cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          python -c "import json; x=json.load(open('$OUTDIR/xings.json')); x['crossings']=[{k:v for k,v in c.items() if k in ('id','q_peak_m3s','q_peak_h','zcrest','zcut')} for c in x['crossings']]; [g.pop('q_series',None) for g in x.get('gauges',[])]; json.dump(x,open('$D/xings_peak.json','w'))"
+          gzip -9f $D/xings_peak.json
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add ${{ inputs.dest || 'docs/proto/damage/runs' }}/${{ matrix.c.name }}; git commit -qm "damage run: ${{ matrix.c.name }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
