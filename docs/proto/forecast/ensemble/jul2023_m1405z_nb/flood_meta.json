@@ -1,0 +1,80 @@
+{
+ "run": "jul2023_ens_jul2023_m1405z_nb",
+ "title": "July 14, 2023 flash floods, Worcester-Holden \u00b7 NOAA HRRR forecast issued Jul 14 05z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  157000.0,
+  882000.0,
+  177000.0,
+  902000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-07-14T05:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 199
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2023-07-14T05:00Z, forecast hours 1-18 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2023-07-14T05Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 41,
+ "rain_total_mean_mm": 27,
+ "rain_missing_hours": [],
+ "runtime_s": 452,
+ "total_s": 699,
+ "peak_wet_km2": 0.6,
+ "peak_snapshot_wet_km2": 0.3,
+ "mass_tail": [
+  "75300.901    1.9445     1.9315     38718      7521200.0000  667546.0129  0.000       0.000      1.956             0.0000       0.0000  288808.5038",
+  "75600.363    1.9447     1.9315     38872      7470400.0000  664754.1791  0.000       0.000      1.940            -0.0000      -0.0000  286601.0366"
+ ],
+ "git_sha": "e11dbf9e",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2023-07-14T05:00Z",
+  "forecast_hours": 18,
+  "run_hours": 21
+ }
+}
