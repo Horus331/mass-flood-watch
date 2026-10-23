@@ -1,0 +1,85 @@
+{
+ "run": "sep2023_loss_leo48_cn100",
+ "title": "Sept 11, 2023 flash floods \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  908000.0,
+  188000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-09-11T16:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 380
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "1.00",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 49.38,
+   "excess_out_mean_mm": 38.24,
+   "kept_share": 0.774,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 207,
+ "rain_total_mean_mm": 107,
+ "rain_missing_hours": [],
+ "runtime_s": 4172,
+ "total_s": 4987,
+ "peak_wet_km2": 27.3,
+ "peak_snapshot_wet_km2": 18.0,
+ "mass_tail": [
+  "172500.000   1.0000     1.0000     172500     36922400.0000 2883095.4698  0.000       0.000      13.648           -0.0000      -0.0000 15194684.3886",
+  "172800.000   1.0000     1.0000     172800     39016400.0000 2979703.3986  0.000       0.000      14.372           -0.0000      -0.0000 15295521.2675"
+ ],
+ "git_sha": "ee503013",
+ "forecast": null
+}
