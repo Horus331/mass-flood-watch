@@ -1,0 +1,72 @@
+{
+ "run": "aug2023_loss_aug2023_dcia",
+ "title": "Aug 8, 2023 flash floods, MetroWest \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  193000.0,
+  879000.0,
+  213000.0,
+  899000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-08-08T07:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 207
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn_dcia",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn_dcia",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 96,
+ "rain_total_mean_mm": 63,
+ "rain_missing_hours": [],
+ "runtime_s": 505,
+ "total_s": 882,
+ "peak_wet_km2": 13.0,
+ "peak_snapshot_wet_km2": 7.3,
+ "mass_tail": [
+  "64501.118    3.4023     2.2388     17512      24700400.0000 3903744.2557  0.000       0.000      34.929           -0.0000      -0.0038 4384628.4306",
+  "64800.538    3.4028     2.2388     17600      24548000.0000 3887607.4210  0.000       0.000      34.808           -0.0000      -0.0060 4378933.2203"
+ ],
+ "git_sha": "d4cc3d37",
+ "forecast": null
+}
