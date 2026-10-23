@@ -25,7 +25,8 @@
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
   var params = new URLSearchParams(location.search);
-  var runKey = RUNS[params.get('run')] ? params.get('run') : 'leominster_sep2023';
+  var runKey = RUNS[params.get('run')] ? params.get('run') : /^[a-z0-9_]{3,60}$/.test(params.get('run') || '') ? params.get('run') : 'leominster_sep2023';
+  if (!RUNS[runKey]) RUNS[runKey] = { title: runKey.replace(/_/g, ' '), kind: '' }; // any other published run folder, e.g. a 5-minute rerun
   var base = 'site/data/' + runKey + '/';
   var $ = function (id) { return document.getElementById(id); };
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -166,6 +167,7 @@
           gl.enableVertexAttribArray(loc.aUv); gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 16, 8);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aUv);
           gl.activeTexture(gl.TEXTURE0);
         }
       },
@@ -235,6 +237,7 @@
           gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 8, 0);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          gl.disableVertexAttribArray(loc.aPos);
           gl.activeTexture(gl.TEXTURE0);
         }
       },
@@ -274,11 +277,18 @@
       }
       return (wetIdx[fi] = a);
     }
+    var view = null; // visible part of the map in mercator, refreshed every frame, so particles are spent where they are seen
     function spawn(p, fi) {
       var cells = wetCells(fi);
       if (!cells.length) { p.age = 1e9; return; }
-      var k = cells[(Math.random() * cells.length) | 0];
-      p.x = (k % F.w) + Math.random(); p.y = Math.floor(k / F.w) + Math.random(); p.age = 0; p.life = 40 + Math.random() * 50; p.px = p.x; p.py = p.y;
+      for (var tries = 0; tries < 10; tries++) {
+        var k = cells[(Math.random() * cells.length) | 0];
+        p.x = (k % F.w) + Math.random(); p.y = Math.floor(k / F.w) + Math.random();
+        if (!view) break;
+        var m = toMerc(p.x / F.w, p.y / F.h);
+        if (m[0] >= view[0] && m[0] <= view[2] && m[1] >= view[1] && m[1] <= view[3]) break;
+      }
+      p.age = 0; p.life = 50 + Math.random() * 60;
     }
     return {
       layer: {
@@ -293,8 +303,11 @@
           var fi = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min));
           var f0 = Math.floor(fi), f1 = Math.min(f0 + 1, F.n - 1), ft = fi - f0;
           var now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
-          // screen-space step: particles move a fixed share of a cell per frame at 1 m/s, independent of playback speed
-          var stepK = dt * 6 / F.vmax_ms;
+          // speeds are drawn in screen space: 1 m/s moves ~22 px a second at any zoom, so the pattern reads the same zoomed in or out
+          var b = map.getBounds(), sw = maplibregl.MercatorCoordinate.fromLngLat(b.getSouthWest()), ne = maplibregl.MercatorCoordinate.fromLngLat(b.getNorthEast());
+          view = [sw.x, ne.y, ne.x, sw.y];
+          var lat = map.getCenter().lat, mpp = 40075016.7 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, map.getZoom()));
+          var pxCell = F.cell_m / mpp, stepK = dt * 22 / pxCell, tailPx = 7, halfW = 0.8 / (512 * Math.pow(2, map.getZoom()));
           var j = 0, zoomFade = 1;
           for (var i = 0; i < N; i++) {
             var p = P[i];
@@ -305,11 +318,17 @@
             if (sp < 0.05 || wv < 0.05) { p.age = 1e9; continue; }
             p.px = p.x; p.py = p.y;
             p.x += u * stepK; p.y -= v * stepK; p.age += 1;
-            var al = Math.min(1, sp / 1.2) * Math.min(1, p.age / 6, (p.life - p.age) / 10) * zoomFade;
-            var tailK = 2.2 + sp * 1.2, hx = p.x - u * stepK * tailK, hy = p.y + v * stepK * tailK;
+            var al = Math.min(1, 0.45 + sp / 1.5) * Math.min(1, p.age / 5, (p.life - p.age) / 10);
+            var tl = (tailPx + 9 * Math.min(sp, 2)) / pxCell / sp, hx = p.x - u * tl, hy = p.y + v * tl;
             var m0 = toMerc(p.x / F.w, p.y / F.h), m1 = toMerc(hx / F.w, hy / F.h);
-            verts[j++] = m0[0]; verts[j++] = m0[1]; verts[j++] = 0.85 * al;
-            verts[j++] = m1[0]; verts[j++] = m1[1]; verts[j++] = 0;
+            var dx = m0[0] - m1[0], dy = m0[1] - m1[1], dl = Math.sqrt(dx * dx + dy * dy) || 1, nx = -dy / dl * halfW, ny = dx / dl * halfW;
+            // a thin quad (two triangles), opaque at the head and fading to nothing at the tail
+            verts[j++] = m0[0] + nx; verts[j++] = m0[1] + ny; verts[j++] = al;
+            verts[j++] = m0[0] - nx; verts[j++] = m0[1] - ny; verts[j++] = al;
+            verts[j++] = m1[0] + nx; verts[j++] = m1[1] + ny; verts[j++] = 0;
+            verts[j++] = m1[0] + nx; verts[j++] = m1[1] + ny; verts[j++] = 0;
+            verts[j++] = m0[0] - nx; verts[j++] = m0[1] - ny; verts[j++] = al;
+            verts[j++] = m1[0] - nx; verts[j++] = m1[1] - ny; verts[j++] = 0;
           }
           if (!j) return;
           gl.useProgram(prog);
@@ -318,14 +337,15 @@
           gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, j), gl.DYNAMIC_DRAW);
           gl.enableVertexAttribArray(loc.aP); gl.vertexAttribPointer(loc.aP, 3, gl.FLOAT, false, 12, 0);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-          gl.drawArrays(gl.LINES, 0, j / 3);
+          gl.drawArrays(gl.TRIANGLES, 0, j / 3);
+          gl.disableVertexAttribArray(loc.aP);
           map.triggerRepaint();
         }
       },
       set: function (info, data) {
-        F = info; F.data = data; F.frame_min = (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
+        F = info; F.data = data; F.frame_min = info.frame_min || (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
         corners = info.corners.map(function (p) { return maplibregl.MercatorCoordinate.fromLngLat(p); });
-        N = small() ? 1400 : 3200; P = []; verts = new Float32Array(N * 6);
+        N = small() ? 1400 : 3200; P = []; verts = new Float32Array(N * 18);
         for (var i = 0; i < N; i++) P.push({ x: 0, y: 0, age: 1e9, life: 0 });
       }
     };
