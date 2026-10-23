@@ -1,0 +1,72 @@
+{
+ "run": "aug2023b_loss_aug2023b_dcia",
+ "title": "Aug 18, 2023 flash floods, Millbury-Grafton \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  165000.0,
+  874000.0,
+  185000.0,
+  894000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-08-18T05:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 147
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn_dcia",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn_dcia",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 64,
+ "rain_total_mean_mm": 39,
+ "rain_missing_hours": [],
+ "runtime_s": 543,
+ "total_s": 805,
+ "peak_wet_km2": 4.2,
+ "peak_snapshot_wet_km2": 2.7,
+ "mass_tail": [
+  "64500.297    1.9457     1.9335     33163      15084800.0000 2076325.8547  0.000       0.000      14.597           -0.0000      -0.0000 2030818.1906",
+  "64801.894    1.9458     1.9335     33318      14994000.0000 2068103.4350  0.000       0.000      14.502            0.0000       0.0000 2026985.0693"
+ ],
+ "git_sha": "d4cc3d37",
+ "forecast": null
+}
