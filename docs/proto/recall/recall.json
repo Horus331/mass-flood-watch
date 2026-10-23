@@ -1,0 +1,439 @@
+{
+ "source": "proto/recall_study.py; details in anatomy.json, curves.json, tiers.json, anatomy_leominster_sep2023.csv",
+ "leominster_news_misses": {
+  "total": 50,
+  "by_class": {
+   "A_near_flag": 9,
+   "B_layer": 15,
+   "C_name_far": 8,
+   "D_nonflood_dry": 10,
+   "E_dry": 8
+  },
+  "hits": 28,
+  "sites": 78,
+  "hits_may_close": 42,
+  "unmatched_in_box": 14,
+  "distinct_locations_150m": {
+   "n": 57,
+   "hits": 19,
+   "hits_may_close": 28
+  }
+ },
+ "leominster_dpw": {
+  "sites": 54,
+  "hits": 24,
+  "by_class": {
+   "hit": 24,
+   "A_near_flag": 2,
+   "B_layer": 7,
+   "C_name_far": 0,
+   "D_nonflood_dry": 0,
+   "E_dry": 21,
+   "unmatched": 0
+  },
+  "distinct_locations_150m": {
+   "n": 27,
+   "hits": 17,
+   "hits_may_close": 19
+  },
+  "top_roads": [
+   [
+    "wa",
+    8,
+    32
+   ],
+   [
+    "lit",
+    4,
+    4
+   ],
+   [
+    "plS",
+    3,
+    3
+   ],
+   [
+    "lan",
+    3,
+    3
+   ],
+   [
+    "un",
+    2,
+    2
+   ]
+  ]
+ },
+ "recall_at_share": {
+  "leominster_news": {
+   "rule p_close (depth)": {
+    "0.020": 0.321,
+    "0.050": 0.449,
+    "0.100": 0.628
+   },
+   "may-close (overtop) alone": {
+    "0.020": 0.218,
+    "0.050": 0.385,
+    "0.100": 0.564
+   },
+   "union depth OR overtop": {
+    "0.020": 0.333,
+    "0.050": 0.474,
+    "0.100": 0.615
+   },
+   "pluvial union (depth OR pluvial)": {
+    "0.020": 0.282,
+    "0.050": 0.423,
+    "0.100": 0.526
+   },
+   "learned (LOSO logistic)": {
+    "0.020": 0.154,
+    "0.050": 0.346,
+    "0.100": 0.692
+   },
+   "hybrid: rule flags first, then learned": {
+    "0.020": 0.333,
+    "0.050": 0.436,
+    "0.100": 0.692
+   },
+   "hybrid: rule, then may-close, then learned": {
+    "0.020": 0.333,
+    "0.050": 0.5,
+    "0.100": 0.641
+   }
+  },
+  "leominster_dpw": {
+   "rule p_close (depth)": {
+    "0.020": 0.388,
+    "0.050": 0.429,
+    "0.100": 0.49
+   },
+   "may-close (overtop) alone": {
+    "0.020": 0.184,
+    "0.050": 0.184,
+    "0.100": 0.347
+   },
+   "union depth OR overtop": {
+    "0.020": 0.184,
+    "0.050": 0.388,
+    "0.100": 0.49
+   },
+   "pluvial union (depth OR pluvial)": {
+    "0.020": 0.245,
+    "0.050": 0.388,
+    "0.100": 0.429
+   },
+   "learned (LOSO logistic)": {
+    "0.020": 0.143,
+    "0.050": 0.224,
+    "0.100": 0.449
+   },
+   "hybrid: rule flags first, then learned": {
+    "0.020": 0.347,
+    "0.050": 0.429,
+    "0.100": 0.469
+   },
+   "hybrid: rule, then may-close, then learned": {
+    "0.020": 0.347,
+    "0.050": 0.388,
+    "0.100": 0.429
+   }
+  },
+  "all9_pooled": {
+   "rule p_close (depth)": {
+    "0.020": 0.315,
+    "0.050": 0.423,
+    "0.100": 0.554
+   },
+   "may-close (overtop) alone": {
+    "0.020": 0.214,
+    "0.050": 0.339,
+    "0.100": 0.506
+   },
+   "union depth OR overtop": {
+    "0.020": 0.268,
+    "0.050": 0.429,
+    "0.100": 0.548
+   },
+   "pluvial union (depth OR pluvial)": {
+    "0.020": 0.28,
+    "0.050": 0.417,
+    "0.100": 0.506
+   },
+   "learned (LOSO logistic)": {
+    "0.020": 0.19,
+    "0.050": 0.339,
+    "0.100": 0.613
+   },
+   "hybrid: rule flags first, then learned": {
+    "0.020": 0.321,
+    "0.050": 0.44,
+    "0.100": 0.619
+   },
+   "hybrid: rule, then may-close, then learned": {
+    "0.020": 0.327,
+    "0.050": 0.458,
+    "0.100": 0.583
+   }
+  },
+  "never_used7_pooled": {
+   "rule p_close (depth)": {
+    "0.020": 0.138,
+    "0.050": 0.276,
+    "0.100": 0.414
+   },
+   "may-close (overtop) alone": {
+    "0.020": 0.172,
+    "0.050": 0.345,
+    "0.100": 0.552
+   },
+   "union depth OR overtop": {
+    "0.020": 0.172,
+    "0.050": 0.276,
+    "0.100": 0.414
+   },
+   "pluvial union (depth OR pluvial)": {
+    "0.020": 0.276,
+    "0.050": 0.414,
+    "0.100": 0.483
+   },
+   "learned (LOSO logistic)": {
+    "0.020": 0.31,
+    "0.050": 0.448,
+    "0.100": 0.621
+   },
+   "hybrid: rule flags first, then learned": {
+    "0.020": 0.207,
+    "0.050": 0.448,
+    "0.100": 0.621
+   },
+   "hybrid: rule, then may-close, then learned": {
+    "0.020": 0.241,
+    "0.050": 0.379,
+    "0.100": 0.621
+   }
+  },
+  "tolerant_leominster_news": {
+   "rule p_close (depth)": {
+    "0.020": 0.644,
+    "0.050": 0.844,
+    "0.100": 0.944
+   },
+   "may-close (overtop) alone": {
+    "0.020": 0.589,
+    "0.050": 0.822,
+    "0.100": 0.944
+   },
+   "union depth OR overtop": {
+    "0.020": 0.7,
+    "0.050": 0.889,
+    "0.100": 0.944
+   },
+   "pluvial union (depth OR pluvial)": {
+    "0.020": 0.644,
+    "0.050": 0.789,
+    "0.100": 0.889
+   },
+   "learned (LOSO logistic)": {
+    "0.020": 0.4,
+    "0.050": 0.544,
+    "0.100": 0.911
+   },
+   "hybrid: rule flags first, then learned": {
+    "0.020": 0.611,
+    "0.050": 0.811,
+    "0.100": 0.922
+   },
+   "hybrid: rule, then may-close, then learned": {
+    "0.020": 0.611,
+    "0.050": 0.867,
+    "0.100": 0.944
+   }
+  }
+ },
+ "recommended": {
+  "scheme": "tier 1 likely closed: p_close >= 0.5; tier 2 watch: p_close_ml >= 0.02 (PROTO_TIERS=1)",
+  "loso": {
+   "all9": {
+    "sites": 168,
+    "hits": 95,
+    "hits_t1": 57,
+    "recall": 0.565,
+    "recall_ci": [
+     0.442,
+     0.71
+    ],
+    "recall_t1": 0.339,
+    "recall_t1_ci": [
+     0.143,
+     0.399
+    ],
+    "recall_eq": 0.488,
+    "d_vs_t1_ci": [
+     0.165,
+     0.464
+    ],
+    "d_vs_eq": 0.077,
+    "d_vs_eq_ci": [
+     0.017,
+     0.294
+    ],
+    "p_beats_eq": 0.974,
+    "mean_share": 0.0745,
+    "mean_share_t1": 0.0213,
+    "lift": 7.59,
+    "lift_ci": [
+     5.853,
+     10.596
+    ],
+    "lift_t1": 15.95,
+    "t2_added": 38,
+    "t2_added_random": 9.1
+   },
+   "never7": {
+    "sites": 29,
+    "hits": 15,
+    "hits_t1": 5,
+    "recall": 0.517,
+    "recall_ci": [
+     0.276,
+     0.765
+    ],
+    "recall_t1": 0.172,
+    "recall_t1_ci": [
+     0.036,
+     0.323
+    ],
+    "recall_eq": 0.31,
+    "d_vs_t1_ci": [
+     0.129,
+     0.6
+    ],
+    "d_vs_eq": 0.207,
+    "d_vs_eq_ci": [
+     0.0,
+     0.448
+    ],
+    "p_beats_eq": 0.934,
+    "mean_share": 0.0711,
+    "mean_share_t1": 0.0201,
+    "lift": 7.28,
+    "lift_ci": [
+     4.02,
+     12.019
+    ],
+    "lift_t1": 8.56,
+    "t2_added": 10,
+    "t2_added_random": 2.1
+   },
+   "other8": {
+    "sites": 41,
+    "hits": 24,
+    "hits_t1": 10,
+    "recall": 0.585,
+    "recall_ci": [
+     0.366,
+     0.769
+    ],
+    "recall_t1": 0.244,
+    "recall_t1_ci": [
+     0.08,
+     0.386
+    ],
+    "recall_eq": 0.415,
+    "d_vs_t1_ci": [
+     0.171,
+     0.523
+    ],
+    "d_vs_eq": 0.171,
+    "d_vs_eq_ci": [
+     0.024,
+     0.361
+    ],
+    "p_beats_eq": 0.962,
+    "mean_share": 0.0726,
+    "mean_share_t1": 0.0204,
+    "lift": 8.06,
+    "lift_ci": [
+     5.028,
+     11.441
+    ],
+    "lift_t1": 11.94,
+    "t2_added": 14,
+    "t2_added_random": 2.6
+   },
+   "sep2023": {
+    "sites": 127,
+    "hits": 71,
+    "hits_t1": 47,
+    "recall": 0.559,
+    "recall_ci": [
+     0.488,
+     0.63
+    ],
+    "recall_t1": 0.37,
+    "recall_t1_ci": [
+     0.299,
+     0.441
+    ],
+    "recall_eq": 0.512,
+    "d_vs_t1_ci": [
+     0.134,
+     0.244
+    ],
+    "d_vs_eq": 0.047,
+    "d_vs_eq_ci": [
+     -0.024,
+     0.118
+    ],
+    "p_beats_eq": 0.842,
+    "mean_share": 0.0899,
+    "mean_share_t1": 0.028,
+    "lift": 6.22,
+    "lift_ci": [
+     5.426,
+     7.007
+    ],
+    "lift_t1": 13.22,
+    "t2_added": 24,
+    "t2_added_random": 6.5
+   }
+  }
+ },
+ "budget_5pct_best": {
+  "sites": 168,
+  "hits": 80,
+  "hits_t1": 57,
+  "recall": 0.476,
+  "recall_ci": [
+   0.242,
+   0.546
+  ],
+  "recall_t1": 0.339,
+  "recall_t1_ci": [
+   0.143,
+   0.399
+  ],
+  "recall_eq": 0.47,
+  "d_vs_t1_ci": [
+   0.056,
+   0.219
+  ],
+  "d_vs_eq": 0.006,
+  "d_vs_eq_ci": [
+   -0.024,
+   0.059
+  ],
+  "p_beats_eq": 0.538,
+  "mean_share": 0.0487,
+  "mean_share_t1": 0.0213,
+  "lift": 9.77,
+  "lift_ci": [
+   5.684,
+   12.764
+  ],
+  "lift_t1": 15.95,
+  "t2_added": 23,
+  "t2_added_random": 6.1
+ }
+}

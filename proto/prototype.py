@@ -147,6 +147,12 @@ PLUV_SIGMA_LN = 0.5
 PLUV_HAND_M = 0.5
 PLUV_DENS = 15
 PLUV_DENS_R_M = 300.0
+# ---- TWO-TIER ALERTS (candidate; PROTO_TIERS=1; default OFF; docs/proto/recall/RECALL.md) ----
+# tier 'likely closed' = p_close >= 0.5 (unchanged); tier 'watch' = not likely closed but the learned closure model (closure_ml, all-storm
+# logistic docs/proto/ml/closure_lr_all.json) gives p_close_ml >= TIER_WATCH_P.  TIER_WATCH_P chosen leave-one-storm-out on the 9 published
+# storms (0.02 in 8 of 9 folds, budget: storm-averaged flagged share <= 8 %).  Held out: site recall 0.34 -> 0.57 (95 / 168) at 2.1 -> 7.5 %
+# flagged; +0.08 [0.02, 0.29] over relaxing the depth rule to the same share.  Below ~5 % flagged nothing beat the depth rule.
+TIER_WATCH_P = 0.02
 LABEL_GROUPS = {'all': None, 'flood_closure': ('flooded', 'closed', 'impassable'),
                 'culvert_washout': ('culvert_failure', 'washout', 'sinkhole', 'bridge_damage'), 'other_damage': ('other_damage',)}
 
@@ -786,8 +792,19 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         rows.append(r)
     rows.sort(key=lambda r: (-r['p_close'], -r['vehicle_hours_at_risk'], -r['peak_depth_m']))
     for r in rows: r['why'] = reason(r)
-    if os.environ.get('PROTO_ML', '0') == '1':                 # optional learned closure model (proto/closure_ml.py): adds p_close_ml; p_close unchanged
-        import closure_ml as _ML; _ML.on_rows(rows, run_dir, Q, meta, props)
+    tiers_on = os.environ.get('PROTO_TIERS', '0') == '1'      # two-tier alerts (needs the learned model, so it implies the PROTO_ML hook)
+    if os.environ.get('PROTO_ML', '0') == '1' or tiers_on:     # optional learned closure model (proto/closure_ml.py): adds p_close_ml; p_close unchanged
+        import closure_ml as _ML
+        try: _ML.on_rows(rows, run_dir, Q, meta, props)
+        except Exception as e_:
+            if not tiers_on or os.environ.get('PROTO_ML', '0') == '1': raise
+            print('learned model failed, watch tier empty:', repr(e_)[:300]); rules['tiers_error'] = repr(e_)[:300]
+    ptier = np.zeros(n, np.float32)
+    if tiers_on:
+        for r in rows:
+            r['tier'] = 'likely closed' if r['p_close'] >= 0.5 else 'watch' if (r.get('p_close_ml') or 0.0) >= TIER_WATCH_P else ''
+            if r['tier']: ptier[r['segment']] = 1.0
+            if r['tier'] == 'watch': r['why'] += f"; WATCH: learned closure model P {r['p_close_ml']:.3f} >= {TIER_WATCH_P} (similar roads were closed / damaged in past storms)"
 
     # checks: storm-day reports and MassDOT repeat sites
     checks = dict(reports=imp['summary'].get('reports'))
@@ -827,13 +844,17 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                                                      peak_speed_ms=None if np.isnan(spd[sg_]).all() else round(float(np.nanmax(spd[sg_])), 2),
                                                      p_depth=round(float(p_depth[sg_].max()), 3), p_freeboard=round(float(pfb[sg_].max()), 3), p_fastwater=round(float(pfw[sg_].max()), 3),
                                                      p_culvert=round(float(pcul[sg_].max()), 3), p_sag=round(float(psag[sg_].max()), 3), p_edge=round(float(pedge[sg_].max()), 3), hit=[k_ for k_, v_ in VAR.items() if (v_[sg_] >= 0.5).any()]) for L, sg_ in LM])
+    if tiers_on and 'labels_segments' in checks:                # tier 1 + tier 2 scored like the other variants (not part of VAR / p_close)
+        checks['labels_segments']['variants']['tiers'] = dict(strict=label_recall(LM, ptier, inbox), loose=label_recall(LL, ptier, inbox), split_strict=label_split(LM, ptier, inbox))
+    if tiers_on: rules['tiers'] = dict(watch_p=TIER_WATCH_P, likely_closed=int(((pclose >= 0.5) & inbox).sum()), watch=int(((ptier > 0) & (pclose < 0.5) & inbox).sum()),
+                                       note='PROTO_TIERS=1: watch = p_close < 0.5 and p_close_ml >= watch_p; docs/proto/recall/RECALL.md')
     checks['rules'] = dict(rules, applied=vkey, segments_p_ge_50={k_: int((v_[inbox] >= 0.5).sum()) for k_, v_ in VAR.items()})
     checks['culverts'] = dict(surveyed_in_box=len(CP), with_model_flow=sum(1 for c in CP if c['q_m3s'] is not None), p_ge_50=sum(1 for c in CP if c['p'] >= 0.5),
                               segments_raised_to_p_ge_50=int(((p_comb >= 0.5) & (p_depth < 0.5) & inbox).sum()), rule_applied_to_p_close=bool(culvert_rule),
                               blockage_factors=BLOCKAGE if blockage else {}, probability='Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)')
 
     # outputs
-    keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['p_close'] >= 0.1 or r['p_may_close'] >= 0.1 or r['p_sag'] >= 0.1 or r['p_edge'] >= 0.1 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5]
+    keep = [r for r in rows if r['peak_depth_m'] >= 0.05 or r['p_close'] >= 0.1 or r['p_may_close'] >= 0.1 or r['p_sag'] >= 0.1 or r['p_edge'] >= 0.1 or r['cut_off_hospital'] or r['adds_hospital_min'] >= 5 or r.get('tier')]
     write_geojson(os.path.join(out, 'segments.geojson'), S, keep)
     for r in rows: r.pop('d', None)
     with open(os.path.join(out, 'watchlist.csv'), 'w', newline='') as f:
@@ -870,6 +891,10 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                 frame_hours=frame_hours, closed_per_frame=[int(((seg_t[k] >= 30) & inbox).sum()) for k in range(len(frame_hours))] if seg_t is not None else [],
                 rain_hourly_mean_mm=[round(float(v), 1) for v in RS['hourly_mean']] if RS is not None and 'hourly_mean' in RS else [],
                 made=time.strftime('%Y-%m-%d %H:%M'), prototype_runtime_s=round(time.time() - t_start, 1))
+    if tiers_on:
+        wt = (ptier > 0) & (pclose < 0.5) & inbox
+        summ.update(segments_watch=int(wt.sum()), km_watch=round(float(np.asarray(props['len'], float)[wt].sum() / 1000), 1),
+                    watch_rule=f'two-tier alerts (PROTO_TIERS=1): watch = not likely closed and learned closure model p_close_ml >= {TIER_WATCH_P}')
     json.dump(summ, open(os.path.join(out, 'summary.json'), 'w'), indent=1)
     write_map(os.path.join(out, 'map.html'), out, meta, np.where(WM, 0, H) if WM is not None else H, summ)
     write_figure(os.path.join(out, 'figure.png'), meta, H, S, keep)
