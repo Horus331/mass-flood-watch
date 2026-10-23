@@ -1,0 +1,2911 @@
+{
+ "run": "sep2023_proto_drains_sep2023_base",
+ "model": "LISFLOOD-FP 8.2",
+ "storm_start": "2023-09-11T16:00Z",
+ "box_epsg26986": [
+  168000.0,
+  908000.0,
+  188000.0,
+  928000.0
+ ],
+ "resolution_m": 20.0,
+ "segments_in_box": 5183,
+ "closures_expected": 146.1,
+ "segments_p_ge_50": 115,
+ "segments_p_ge_90": 67,
+ "segments_may_close": 155,
+ "km_may_close": 94.1,
+ "may_close_rule": "water beside the road reaches the road crest: Phi((0 - f) / 0.15), f = lidar crest - peak water surface within 30 m; candidate, not in p_close until confirmed on a second storm",
+ "segments_sag": 21,
+ "sag_rule": "optional layer: road sag / underpass in a closed lidar depression whose drains (HEC-22 10-yr, 50-yr at underpasses) are exceeded by the peak-hour rain on its catchment, or where the model ponds 0.30 m; not in p_close or p_may_close",
+ "segments_edge": 0,
+ "edge_rule": "optional layer: fast shallow runoff beside / along the road above the permissible speed (Fortier & Scobey; ~1.0 m/s) AND shear (HEC-15 Table 2.3 gravel, 11 Pa) of a gravel / loam shoulder; in p_close only with --edge",
+ "segments_p_ge_50_depth_rule": 115,
+ "segments_p_ge_50_with_culverts": 129,
+ "km_p_ge_50": 78.0,
+ "culverts_overtopped": 135,
+ "culverts_surcharged": 4,
+ "crossings_assessed": 713,
+ "cut_off_from_hospitals": 706,
+ "worst_added_minutes": 23.9,
+ "rain_max_total_mm": 207,
+ "rain_peak1h_max_mm": 89.3,
+ "flood_model_runtime_s": 1444,
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "checks": {
+  "reports": {
+   "storm_days": [
+    "2023-09-11",
+    "2023-09-12",
+    "2023-09-13",
+    "2023-09-14"
+   ],
+   "n_storm_day": 10,
+   "point_hit_rate": 0.9,
+   "point_any_day_rate": 0.642,
+   "n_storm_day_near_road": 10,
+   "segment_hit_rate": 0.2,
+   "segment_wet10_rate": 0.2,
+   "flagged_segments": 296,
+   "flagged_with_report_200m": 0.054,
+   "all_segments_with_report_200m": 0.016,
+   "lift": 3.32
+  },
+  "massdot_repeat_sites": {
+   "in_box": 4,
+   "flagged_p05": 2,
+   "share_of_all_segments_flagged": 0.022,
+   "sites": [
+    {
+     "site": "Leominster, Rt 12 SB",
+     "max_p_close": 1.0,
+     "max_depth_m": 0.94,
+     "max_p_with_culverts": 1.0
+    },
+    {
+     "site": "Leominster, Pleasant St., Adams St.",
+     "max_p_close": 0.987,
+     "max_depth_m": 0.52,
+     "max_p_with_culverts": 0.987
+    },
+    {
+     "site": "Leominster, Commercial Dr.",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.02,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Westminster, Rte 140",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.0,
+     "max_p_with_culverts": 0.002
+    }
+   ],
+   "flagged_p05_with_culverts": 2
+  },
+  "labels_segments": {
+   "note": "recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the same share of segments; lift = recall / random_recall; lift_naive = recall / flagged share. strict: segments within 30 m of the site; loose: 100 m (exact) / 300 m + same-name segments within 1.5 km (approx). Line labels (.geojson): segments with >= 50 % of their points within 30 m (loose 100 m) of the closed stretch, or holding >= 50 % of it",
+   "labels": "labels_sep2023_leominster_dpw.csv",
+   "labels_in_file": 54,
+   "sites_matched": 54,
+   "depth_rule": {
+    "flagged_share": 0.0222,
+    "n_flagged": 115,
+    "all": {
+     "n": 54,
+     "recall": 0.389,
+     "random_recall": 0.027,
+     "lift_naive": 17.53,
+     "lift": 14.4
+    },
+    "culvert_washout": {
+     "n": 52,
+     "recall": 0.404,
+     "random_recall": 0.027,
+     "lift_naive": 18.2,
+     "lift": 14.86
+    },
+    "other_damage": {
+     "n": 2,
+     "recall": 0.0,
+     "random_recall": 0.022,
+     "lift_naive": 0.0,
+     "lift": 0.0
+    }
+   },
+   "with_culverts": {
+    "flagged_share": 0.0249,
+    "n_flagged": 129,
+    "all": {
+     "n": 54,
+     "recall": 0.389,
+     "random_recall": 0.03,
+     "lift_naive": 15.62,
+     "lift": 12.85
+    },
+    "culvert_washout": {
+     "n": 52,
+     "recall": 0.404,
+     "random_recall": 0.03,
+     "lift_naive": 16.23,
+     "lift": 13.25
+    },
+    "other_damage": {
+     "n": 2,
+     "recall": 0.0,
+     "random_recall": 0.025,
+     "lift_naive": 0.0,
+     "lift": 0.0
+    }
+   },
+   "loose": {
+    "sites_matched": 54,
+    "depth_rule": {
+     "flagged_share": 0.0222,
+     "n_flagged": 115,
+     "all": {
+      "n": 54,
+      "recall": 0.481,
+      "random_recall": 0.052,
+      "lift_naive": 21.7,
+      "lift": 9.25
+     },
+     "culvert_washout": {
+      "n": 52,
+      "recall": 0.481,
+      "random_recall": 0.048,
+      "lift_naive": 21.67,
+      "lift": 9.95
+     },
+     "other_damage": {
+      "n": 2,
+      "recall": 0.5,
+      "random_recall": 0.148,
+      "lift_naive": 22.53,
+      "lift": 3.37
+     }
+    },
+    "with_culverts": {
+     "flagged_share": 0.0249,
+     "n_flagged": 129,
+     "all": {
+      "n": 54,
+      "recall": 0.481,
+      "random_recall": 0.058,
+      "lift_naive": 19.35,
+      "lift": 8.28
+     },
+     "culvert_washout": {
+      "n": 52,
+      "recall": 0.481,
+      "random_recall": 0.054,
+      "lift_naive": 19.32,
+      "lift": 8.9
+     },
+     "other_damage": {
+      "n": 2,
+      "recall": 0.5,
+      "random_recall": 0.164,
+      "lift_naive": 20.09,
+      "lift": 3.04
+     }
+    }
+   },
+   "variants": {
+    "depth": {
+     "strict": {
+      "flagged_share": 0.0222,
+      "n_flagged": 115,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.027,
+       "lift_naive": 17.53,
+       "lift": 14.4
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.027,
+       "lift_naive": 18.2,
+       "lift": 14.86
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.022,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0222,
+      "n_flagged": 115,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.052,
+       "lift_naive": 21.7,
+       "lift": 9.25
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.048,
+       "lift_naive": 21.67,
+       "lift": 9.95
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.148,
+       "lift_naive": 22.53,
+       "lift": 3.37
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 11.66
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 16.84
+      }
+     }
+    },
+    "overtop": {
+     "strict": {
+      "flagged_share": 0.0521,
+      "n_flagged": 270,
+      "all": {
+       "n": 54,
+       "recall": 0.407,
+       "random_recall": 0.063,
+       "lift_naive": 7.82,
+       "lift": 6.46
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.423,
+       "random_recall": 0.063,
+       "lift_naive": 8.12,
+       "lift": 6.67
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.052,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0521,
+      "n_flagged": 270,
+      "all": {
+       "n": 54,
+       "recall": 0.519,
+       "random_recall": 0.117,
+       "lift_naive": 9.95,
+       "lift": 4.43
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.5,
+       "random_recall": 0.11,
+       "lift_naive": 9.6,
+       "lift": 4.55
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.301,
+       "lift_naive": 19.2,
+       "lift": 3.32
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 4.99
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.519,
+       "lift": 7.78
+      }
+     }
+    },
+    "freeboard": {
+     "strict": {
+      "flagged_share": 0.0714,
+      "n_flagged": 370,
+      "all": {
+       "n": 54,
+       "recall": 0.463,
+       "random_recall": 0.086,
+       "lift_naive": 6.49,
+       "lift": 5.38
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.087,
+       "lift_naive": 6.73,
+       "lift": 5.55
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.071,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0714,
+      "n_flagged": 370,
+      "all": {
+       "n": 54,
+       "recall": 0.574,
+       "random_recall": 0.156,
+       "lift_naive": 8.04,
+       "lift": 3.68
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.558,
+       "random_recall": 0.148,
+       "lift_naive": 7.81,
+       "lift": 3.78
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.378,
+       "lift_naive": 14.01,
+       "lift": 2.65
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.37,
+       "lift": 4.56
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.556,
+       "lift": 6.11
+      }
+     }
+    },
+    "fastwater": {
+     "strict": {
+      "flagged_share": 0.0222,
+      "n_flagged": 115,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.027,
+       "lift_naive": 17.53,
+       "lift": 14.4
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.027,
+       "lift_naive": 18.2,
+       "lift": 14.86
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.022,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0222,
+      "n_flagged": 115,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.052,
+       "lift_naive": 21.7,
+       "lift": 9.25
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.048,
+       "lift_naive": 21.67,
+       "lift": 9.95
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.148,
+       "lift_naive": 22.53,
+       "lift": 3.37
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 11.66
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 16.84
+      }
+     }
+    },
+    "both": {
+     "strict": {
+      "flagged_share": 0.0714,
+      "n_flagged": 370,
+      "all": {
+       "n": 54,
+       "recall": 0.463,
+       "random_recall": 0.086,
+       "lift_naive": 6.49,
+       "lift": 5.38
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.087,
+       "lift_naive": 6.73,
+       "lift": 5.55
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.071,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0714,
+      "n_flagged": 370,
+      "all": {
+       "n": 54,
+       "recall": 0.574,
+       "random_recall": 0.156,
+       "lift_naive": 8.04,
+       "lift": 3.68
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.558,
+       "random_recall": 0.148,
+       "lift_naive": 7.81,
+       "lift": 3.78
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.378,
+       "lift_naive": 14.01,
+       "lift": 2.65
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.37,
+       "lift": 4.56
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.556,
+       "lift": 6.11
+      }
+     }
+    },
+    "sag": {
+     "strict": {
+      "flagged_share": 0.0262,
+      "n_flagged": 136,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.032,
+       "lift_naive": 14.82,
+       "lift": 12.19
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.032,
+       "lift_naive": 15.39,
+       "lift": 12.57
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.026,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0262,
+      "n_flagged": 136,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.061,
+       "lift_naive": 18.35,
+       "lift": 7.87
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.057,
+       "lift_naive": 18.32,
+       "lift": 8.45
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.172,
+       "lift_naive": 19.06,
+       "lift": 2.91
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 9.87
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 14.25
+      }
+     }
+    },
+    "depth+edge": {
+     "strict": {
+      "flagged_share": 0.0222,
+      "n_flagged": 115,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.027,
+       "lift_naive": 17.53,
+       "lift": 14.4
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.027,
+       "lift_naive": 18.2,
+       "lift": 14.86
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.022,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0222,
+      "n_flagged": 115,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.052,
+       "lift_naive": 21.7,
+       "lift": 9.25
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.048,
+       "lift_naive": 21.67,
+       "lift": 9.95
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.148,
+       "lift_naive": 22.53,
+       "lift": 3.37
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 11.66
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 16.84
+      }
+     }
+    },
+    "overtop+edge": {
+     "strict": {
+      "flagged_share": 0.0521,
+      "n_flagged": 270,
+      "all": {
+       "n": 54,
+       "recall": 0.407,
+       "random_recall": 0.063,
+       "lift_naive": 7.82,
+       "lift": 6.46
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.423,
+       "random_recall": 0.063,
+       "lift_naive": 8.12,
+       "lift": 6.67
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.052,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0521,
+      "n_flagged": 270,
+      "all": {
+       "n": 54,
+       "recall": 0.519,
+       "random_recall": 0.117,
+       "lift_naive": 9.95,
+       "lift": 4.43
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.5,
+       "random_recall": 0.11,
+       "lift_naive": 9.6,
+       "lift": 4.55
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.301,
+       "lift_naive": 19.2,
+       "lift": 3.32
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 4.99
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.519,
+       "lift": 7.78
+      }
+     }
+    },
+    "depth+culvert": {
+     "strict": {
+      "flagged_share": 0.0249,
+      "n_flagged": 129,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.03,
+       "lift_naive": 15.62,
+       "lift": 12.85
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.03,
+       "lift_naive": 16.23,
+       "lift": 13.25
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.025,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0249,
+      "n_flagged": 129,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.058,
+       "lift_naive": 19.35,
+       "lift": 8.28
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.054,
+       "lift_naive": 19.32,
+       "lift": 8.9
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.164,
+       "lift_naive": 20.09,
+       "lift": 3.04
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 10.4
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 15.02
+      }
+     }
+    },
+    "overtop+culvert": {
+     "strict": {
+      "flagged_share": 0.0548,
+      "n_flagged": 284,
+      "all": {
+       "n": 54,
+       "recall": 0.407,
+       "random_recall": 0.066,
+       "lift_naive": 7.44,
+       "lift": 6.15
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.423,
+       "random_recall": 0.067,
+       "lift_naive": 7.72,
+       "lift": 6.34
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.055,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0548,
+      "n_flagged": 284,
+      "all": {
+       "n": 54,
+       "recall": 0.519,
+       "random_recall": 0.123,
+       "lift_naive": 9.46,
+       "lift": 4.23
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.5,
+       "random_recall": 0.115,
+       "lift_naive": 9.12,
+       "lift": 4.34
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.313,
+       "lift_naive": 18.25,
+       "lift": 3.2
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 4.74
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.519,
+       "lift": 7.4
+      }
+     }
+    },
+    "freeboard+culvert": {
+     "strict": {
+      "flagged_share": 0.0741,
+      "n_flagged": 384,
+      "all": {
+       "n": 54,
+       "recall": 0.463,
+       "random_recall": 0.089,
+       "lift_naive": 6.25,
+       "lift": 5.19
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.09,
+       "lift_naive": 6.49,
+       "lift": 5.35
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.074,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0741,
+      "n_flagged": 384,
+      "all": {
+       "n": 54,
+       "recall": 0.574,
+       "random_recall": 0.161,
+       "lift_naive": 7.75,
+       "lift": 3.56
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.558,
+       "random_recall": 0.153,
+       "lift_naive": 7.53,
+       "lift": 3.65
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.388,
+       "lift_naive": 13.5,
+       "lift": 2.58
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.37,
+       "lift": 4.4
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.556,
+       "lift": 5.9
+      }
+     }
+    },
+    "fastwater+culvert": {
+     "strict": {
+      "flagged_share": 0.0249,
+      "n_flagged": 129,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.03,
+       "lift_naive": 15.62,
+       "lift": 12.85
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.03,
+       "lift_naive": 16.23,
+       "lift": 13.25
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.025,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0249,
+      "n_flagged": 129,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.058,
+       "lift_naive": 19.35,
+       "lift": 8.28
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.054,
+       "lift_naive": 19.32,
+       "lift": 8.9
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.164,
+       "lift_naive": 20.09,
+       "lift": 3.04
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 10.4
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 15.02
+      }
+     }
+    },
+    "both+culvert": {
+     "strict": {
+      "flagged_share": 0.0741,
+      "n_flagged": 384,
+      "all": {
+       "n": 54,
+       "recall": 0.463,
+       "random_recall": 0.089,
+       "lift_naive": 6.25,
+       "lift": 5.19
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.09,
+       "lift_naive": 6.49,
+       "lift": 5.35
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.074,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0741,
+      "n_flagged": 384,
+      "all": {
+       "n": 54,
+       "recall": 0.574,
+       "random_recall": 0.161,
+       "lift_naive": 7.75,
+       "lift": 3.56
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.558,
+       "random_recall": 0.153,
+       "lift_naive": 7.53,
+       "lift": 3.65
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.388,
+       "lift_naive": 13.5,
+       "lift": 2.58
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.37,
+       "lift": 4.4
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.556,
+       "lift": 5.9
+      }
+     }
+    },
+    "sag+culvert": {
+     "strict": {
+      "flagged_share": 0.0289,
+      "n_flagged": 150,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.035,
+       "lift_naive": 13.44,
+       "lift": 11.06
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.035,
+       "lift_naive": 13.95,
+       "lift": 11.4
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.029,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0289,
+      "n_flagged": 150,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.067,
+       "lift_naive": 16.64,
+       "lift": 7.17
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.063,
+       "lift_naive": 16.61,
+       "lift": 7.68
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.187,
+       "lift_naive": 17.28,
+       "lift": 2.67
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 8.95
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 12.93
+      }
+     }
+    },
+    "depth+edge+culvert": {
+     "strict": {
+      "flagged_share": 0.0249,
+      "n_flagged": 129,
+      "all": {
+       "n": 54,
+       "recall": 0.389,
+       "random_recall": 0.03,
+       "lift_naive": 15.62,
+       "lift": 12.85
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.404,
+       "random_recall": 0.03,
+       "lift_naive": 16.23,
+       "lift": 13.25
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.025,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0249,
+      "n_flagged": 129,
+      "all": {
+       "n": 54,
+       "recall": 0.481,
+       "random_recall": 0.058,
+       "lift_naive": 19.35,
+       "lift": 8.28
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.481,
+       "random_recall": 0.054,
+       "lift_naive": 19.32,
+       "lift": 8.9
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.5,
+       "random_recall": 0.164,
+       "lift_naive": 20.09,
+       "lift": 3.04
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 10.4
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.481,
+       "lift": 15.02
+      }
+     }
+    },
+    "overtop+edge+culvert": {
+     "strict": {
+      "flagged_share": 0.0548,
+      "n_flagged": 284,
+      "all": {
+       "n": 54,
+       "recall": 0.407,
+       "random_recall": 0.066,
+       "lift_naive": 7.44,
+       "lift": 6.15
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.423,
+       "random_recall": 0.067,
+       "lift_naive": 7.72,
+       "lift": 6.34
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 0.0,
+       "random_recall": 0.055,
+       "lift_naive": 0.0,
+       "lift": 0.0
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0548,
+      "n_flagged": 284,
+      "all": {
+       "n": 54,
+       "recall": 0.519,
+       "random_recall": 0.123,
+       "lift_naive": 9.46,
+       "lift": 4.23
+      },
+      "culvert_washout": {
+       "n": 52,
+       "recall": 0.5,
+       "random_recall": 0.115,
+       "lift_naive": 9.12,
+       "lift": 4.34
+      },
+      "other_damage": {
+       "n": 2,
+       "recall": 1.0,
+       "random_recall": 0.313,
+       "lift_naive": 18.25,
+       "lift": 3.2
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 27,
+       "recall": 0.296,
+       "lift": 4.74
+      },
+      "even": {
+       "n": 27,
+       "recall": 0.519,
+       "lift": 7.4
+      }
+     }
+    }
+   },
+   "applied": "depth",
+   "sites": [
+    {
+     "id": "D007",
+     "type": "washout",
+     "name": "plS Road washed out",
+     "road": "plS",
+     "n_segments": 2,
+     "depth_m": 0.8,
+     "freeboard_m": 0.16,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.825,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D008",
+     "type": "washout",
+     "name": "kin Road half washed out",
+     "road": "kin",
+     "n_segments": 1,
+     "depth_m": 1.19,
+     "freeboard_m": -0.5,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D009",
+     "type": "washout",
+     "name": "grani sidewalk washed out",
+     "road": "grani",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": 1.75,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D012",
+     "type": "washout",
+     "name": "ad Storm Drain wash out",
+     "road": "ad",
+     "n_segments": 3,
+     "depth_m": 0.84,
+     "freeboard_m": -0.46,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.903,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D013",
+     "type": "washout",
+     "name": "wa Storm Drain wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D022",
+     "type": "washout",
+     "name": "mai Wash out",
+     "road": "mai",
+     "n_segments": 1,
+     "depth_m": 0.14,
+     "freeboard_m": -0.68,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.054,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D025",
+     "type": "other_damage",
+     "name": "mai Sidewalk/Road undermined",
+     "road": "mai",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": 0.58,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.006,
+     "p_freeboard": 0.031,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D026",
+     "type": "culvert_failure",
+     "name": "lit headwall damage",
+     "road": "lit",
+     "n_segments": 1,
+     "depth_m": 1.72,
+     "freeboard_m": 1.55,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D027",
+     "type": "washout",
+     "name": "lit edge washout",
+     "road": "lit",
+     "n_segments": 1,
+     "depth_m": 1.39,
+     "freeboard_m": 2.24,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D028",
+     "type": "washout",
+     "name": "un edge washout",
+     "road": "un",
+     "n_segments": 1,
+     "depth_m": 0.04,
+     "freeboard_m": 8.9,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.005,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D029",
+     "type": "washout",
+     "name": "lit edge washout",
+     "road": "lit",
+     "n_segments": 1,
+     "depth_m": 1.39,
+     "freeboard_m": 2.24,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D032",
+     "type": "washout",
+     "name": "cenS Wash out",
+     "road": "cenS",
+     "n_segments": 1,
+     "depth_m": 0.55,
+     "freeboard_m": 1.68,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.994,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.999,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D035",
+     "type": "washout",
+     "name": "will edge washout",
+     "road": "will",
+     "n_segments": 1,
+     "depth_m": 0.19,
+     "freeboard_m": 1.28,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.145,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.346,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D037",
+     "type": "washout",
+     "name": "lan Gutter line wash out",
+     "road": "lan",
+     "n_segments": 2,
+     "depth_m": 1.1,
+     "freeboard_m": 0.09,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.922,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D038",
+     "type": "washout",
+     "name": "lan Storm Drain wash out",
+     "road": "lan",
+     "n_segments": 1,
+     "depth_m": 1.1,
+     "freeboard_m": 0.09,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.922,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D045",
+     "type": "culvert_failure",
+     "name": "un Headwall damage",
+     "road": "un",
+     "n_segments": 1,
+     "depth_m": 0.56,
+     "freeboard_m": 1.36,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.995,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.903,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D046",
+     "type": "washout",
+     "name": "lan washout",
+     "road": "lan",
+     "n_segments": 2,
+     "depth_m": 1.1,
+     "freeboard_m": -0.0,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.922,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D048",
+     "type": "washout",
+     "name": "nort Wash Out",
+     "road": "nort",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": 0.77,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.006,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D071",
+     "type": "washout",
+     "name": "northS wash out",
+     "road": "northS",
+     "n_segments": 1,
+     "depth_m": 0.19,
+     "freeboard_m": 1.64,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.14,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D072",
+     "type": "washout",
+     "name": "mec wash out",
+     "road": "mec",
+     "n_segments": 2,
+     "depth_m": 1.61,
+     "freeboard_m": 1.99,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D077",
+     "type": "other_damage",
+     "name": "plS debris",
+     "road": "plS",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": 0.43,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.006,
+     "p_freeboard": 0.196,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D078",
+     "type": "washout",
+     "name": "plS wash out",
+     "road": "plS",
+     "n_segments": 1,
+     "depth_m": 0.71,
+     "freeboard_m": 4.19,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.999,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D112",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D113",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D114",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D115",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D116",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D117",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D118",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 2,
+     "depth_m": 0.03,
+     "freeboard_m": 0.76,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.001,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D119",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D121",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D122",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 2,
+     "depth_m": 0.05,
+     "freeboard_m": 2.32,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.006,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D123",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 2,
+     "depth_m": 0.05,
+     "freeboard_m": 2.32,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.006,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D124",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 2,
+     "depth_m": 0.05,
+     "freeboard_m": 2.32,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.006,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D125",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D126",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 2,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D127",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 2,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D128",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D129",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D130",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D131",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D132",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D133",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "D134",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D135",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D136",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D137",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D138",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D139",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D140",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "D141",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.15,
+     "freeboard_m": 0.11,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.068,
+     "p_freeboard": 0.901,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "freeboard",
+      "both",
+      "freeboard+culvert",
+      "both+culvert"
+     ]
+    },
+    {
+     "id": "D142",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.15,
+     "freeboard_m": 0.11,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.068,
+     "p_freeboard": 0.901,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "freeboard",
+      "both",
+      "freeboard+culvert",
+      "both+culvert"
+     ]
+    },
+    {
+     "id": "D143",
+     "type": "washout",
+     "name": "wa edge wash out",
+     "road": "wa",
+     "n_segments": 1,
+     "depth_m": 0.15,
+     "freeboard_m": 0.11,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 0.068,
+     "p_freeboard": 0.901,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "freeboard",
+      "both",
+      "freeboard+culvert",
+      "both+culvert"
+     ]
+    },
+    {
+     "id": "D146",
+     "type": "washout",
+     "name": "lit Wilder Brook wash out",
+     "road": "lit",
+     "n_segments": 1,
+     "depth_m": 1.39,
+     "freeboard_m": 2.24,
+     "dv_m2s": null,
+     "peak_speed_ms": null,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    }
+   ]
+  },
+  "rules": {
+   "freeboard": {
+    "margin_m": 0.3,
+    "sigma_m": 0.15,
+    "radius_m": 30.0,
+    "wet_m": 0.1,
+    "crest": "z_raw_max10",
+    "road_points_with_water_near": 9648,
+    "road_points": 138820,
+    "edited_cells": 51631
+   },
+   "fastwater": "unavailable (no vel_max.npz: run w9 with LF_VOUT=1)",
+   "edge": "unavailable (no vel_max.npz / z_raw.npz: run w9 with LF_VOUT=1)",
+   "sag": {
+    "sags": 159,
+    "underpasses": 5,
+    "sags_p_ge_50": 28,
+    "from_rain": 19,
+    "from_model_ponding": 21,
+    "min_depth_m": 0.3,
+    "radius_m": 150.0,
+    "i10_mm": 43.0,
+    "i50_mm": 58.0,
+    "runoff_c": 0.6,
+    "sigma_ln": 0.5,
+    "note": "candidate layer, not in p_close; variant sag = max(p_depth, p_sag) (the ponding half re-reads the model water the depth rule reads)"
+   },
+   "bridges": {
+    "rule": "on",
+    "deck_gap_m": 2.0,
+    "deck_radius_m": 150.0,
+    "deck_nbi_m": 100.0,
+    "snap_crest": false,
+    "deck_points_dropped": 14,
+    "deck_segments": 5,
+    "approach": {
+     "rule": "on",
+     "approach_m": 50.0,
+     "deck_only_segments": 87,
+     "with_approach_points": 61
+    }
+   },
+   "res_consistent": "off (PROTO_RES_CONSISTENT=0)",
+   "applied": "depth",
+   "segments_p_ge_50": {
+    "depth": 115,
+    "overtop": 270,
+    "freeboard": 370,
+    "fastwater": 115,
+    "both": 370,
+    "sag": 136,
+    "depth+edge": 115,
+    "overtop+edge": 270,
+    "depth+culvert": 129,
+    "overtop+culvert": 284,
+    "freeboard+culvert": 384,
+    "fastwater+culvert": 129,
+    "both+culvert": 384,
+    "sag+culvert": 150,
+    "depth+edge+culvert": 129,
+    "overtop+edge+culvert": 284
+   }
+  },
+  "culverts": {
+   "surveyed_in_box": 189,
+   "with_model_flow": 189,
+   "p_ge_50": 62,
+   "segments_raised_to_p_ge_50": 14,
+   "rule_applied_to_p_close": false,
+   "blockage_factors": {
+    "Poor": 0.25,
+    "Critical": 0.5
+   },
+   "probability": "Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)"
+  }
+ },
+ "method": {
+  "closure_depth_m": 0.3,
+  "sigma_m": 0.1,
+  "variant": "depth",
+  "probability": "Phi((peak depth - 0.30) / 0.10), physics prior v0",
+  "network": "segments >= 15 cm removed; Dijkstra to nearest hospital (sim/infra/impacts.py)",
+  "culverts": "FHWA HDS-5 (sim/infra/culvert.py)"
+ },
+ "frame_hours": [
+  0.0,
+  0.5,
+  1.0,
+  1.5,
+  2.0,
+  2.5,
+  3.0,
+  3.5,
+  4.0,
+  4.5,
+  5.0,
+  5.5,
+  6.0,
+  6.5,
+  7.0,
+  7.5,
+  8.0,
+  8.5,
+  9.0,
+  9.5,
+  10.0,
+  10.5,
+  11.0,
+  11.5,
+  12.0,
+  12.5,
+  13.0,
+  13.5,
+  14.0,
+  14.5,
+  15.0,
+  15.5,
+  16.0,
+  16.5,
+  17.0,
+  17.5,
+  18.0,
+  18.5,
+  19.0,
+  19.5,
+  20.0,
+  20.5,
+  21.0,
+  21.5,
+  22.0,
+  22.5,
+  23.0,
+  23.5,
+  24.0,
+  24.5,
+  25.0,
+  25.5,
+  26.0,
+  26.5,
+  27.0,
+  27.5,
+  28.0,
+  28.5,
+  29.0,
+  29.5,
+  30.0,
+  30.5,
+  31.0,
+  31.5,
+  32.0,
+  32.5,
+  33.0,
+  33.5,
+  34.0,
+  34.5,
+  35.0,
+  35.5,
+  36.0,
+  36.5,
+  37.0,
+  37.5,
+  38.0,
+  38.5,
+  39.0,
+  39.5,
+  40.0,
+  40.5,
+  41.0,
+  41.5,
+  42.0,
+  42.5,
+  43.0,
+  43.5,
+  44.0,
+  44.5,
+  45.0,
+  45.5,
+  46.0,
+  46.5,
+  47.0,
+  47.5,
+  48.0
+ ],
+ "closed_per_frame": [
+  0,
+  1,
+  1,
+  0,
+  0,
+  0,
+  1,
+  1,
+  1,
+  1,
+  0,
+  22,
+  40,
+  60,
+  76,
+  76,
+  77,
+  77,
+  70,
+  58,
+  53,
+  49,
+  43,
+  40,
+  37,
+  34,
+  30,
+  29,
+  28,
+  24,
+  24,
+  20,
+  18,
+  18,
+  16,
+  15,
+  13,
+  12,
+  11,
+  9,
+  8,
+  8,
+  7,
+  7,
+  7,
+  7,
+  7,
+  6,
+  6,
+  6,
+  6,
+  6,
+  6,
+  6,
+  6,
+  6,
+  6,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2,
+  2
+ ],
+ "rain_hourly_mean_mm": [
+  0.1,
+  0.7,
+  1.2,
+  1.9,
+  14.6,
+  32.0,
+  20.8,
+  16.0,
+  7.8,
+  3.1,
+  0.7,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.1,
+  0.2,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  1.0,
+  7.2
+ ],
+ "made": "2026-10-23 11:18",
+ "prototype_runtime_s": 40.9
+}
