@@ -1,0 +1,81 @@
+{
+ "run": "jul2023_loss_jul2023_rain",
+ "title": "July 14, 2023 flash floods, Worcester-Holden \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  157000.0,
+  882000.0,
+  177000.0,
+  902000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-07-14T08:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 230
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 2.29,
+   "excess_out_mean_mm": 1.59,
+   "kept_share": 0.697,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 32,
+ "rain_total_mean_mm": 23,
+ "rain_missing_hours": [],
+ "runtime_s": 475,
+ "total_s": 824,
+ "peak_wet_km2": 1.0,
+ "peak_snapshot_wet_km2": 0.6,
+ "mass_tail": [
+  "64500.261    1.9437     1.9331     33164      11736800.0000  944576.6973  0.000       0.000      4.910             0.0000       0.0000  637882.5172",
+  "64801.533    1.9437     1.9331     33319      11701200.0000  943102.1939  0.000       0.000      4.877            -0.0000      -0.0000  637882.5172"
+ ],
+ "git_sha": "62beffdd",
+ "forecast": null
+}
