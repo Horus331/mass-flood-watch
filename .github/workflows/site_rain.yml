@@ -1,0 +1,34 @@
+name: site rain (MRMS radar rain frames for the storm replay; run by hand)
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'replay runs under docs/site/data (space list; empty = all)'
+        default: ''
+permissions:
+  contents: write
+concurrency:
+  group: site-rain
+  cancel-in-progress: false
+jobs:
+  rain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q numpy requests pillow pygrib
+      - run: python docs/site/build_rain.py ${{ inputs.runs }}
+      - name: commit
+        run: |
+          ls -la docs/site/data/*/rain.*
+          git config user.name "flood-watch-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/site/data/*/rain.png docs/site/data/*/rain.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Site replay: MRMS radar rain frames"
+          for i in 1 2 3 4 5; do git pull --rebase -q origin main && git push && break; sleep $((i*7)); done
