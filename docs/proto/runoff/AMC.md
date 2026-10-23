@@ -49,3 +49,28 @@ P5/P10 = box-mean MRMS MultiSensor QPE 24H Pass2 over the 5 / 10 days before t0.
   percentile).
 
 The verdict follows in §2 once the runs are in.
+
+## 1. Results so far (interim, 23 Oct 2026)
+
+These numbers come from `proto/runoff/amc_compare.py`. Gauge MAE pools all 16 gauge rises on the 9 primary runs. The closure check is
+`score_v2.compare` on OOS-7 at α = 0.05/4. Full detail is in `amc.json` and `infil1.json`; in those files the candidate arm's key is `auto`.
+
+| variant | gauge MAE all (m) | bias (m) | Elsa+Ida MAE (3 gauges) | other 7 storms MAE | OOS-7 recall @3 % | Δ | FSS300 Δ | rule lift (OOS-7) | adopt |
+|---|---|---|---|---|---|---|---|---|---|
+| default (parity catalogue) | 0.445 | −0.42 | 1.11 | 0.29 | 0.172 (5/29) | – | – | 4.7 | – |
+| A `LF_CN_AMC=auto` | 0.554 | −0.50 | 1.24 | 0.40 | 0.207 (6/29) | +0.034 (lower bound 0.0) | −0.002 | 6.4 | **no** (fails gain, CI, FSS) |
+| B1 `LF_INFIL_MMH=1` | 0.417 | −0.35 | 1.02 | 0.28 | 0.172 (5/29) | 0.0 | −0.001 | 6.6 | **no** (fails gain, CI, FSS) |
+| B0 `LF_INFIL_MMH=0` | pending | | | | | | | | |
+| C NWM-wetness CN scale, LOSO on gauges | pending (grid runs 0.94/1.06 done, 1.00/1.12 running, then 9 LOSO runs) | | | | | | | | |
+
+**A: auto-AMC. Do not adopt.** Elsa has P5 = 29.7 mm and Ida 8.6 mm. Both fall in AMC I, so the standard NEH-4 rule makes them drier. Elsa's
+Millbury gauge goes from −1.32 to −1.36 m, and Ida's goes from −1.24 to −1.58 m. sep2023 (P5 32.8 mm, AMC I) breaks its calibration: gauge MAE
+rises from 0.23 to 0.71 m and rule hits fall from 29 to 26. Only aug2026 (AMC III, P5 98 mm) improves, from 0.29 to 0.23 m. The OOS-7 +1 site is
+jul2021 at 3 % share, which is ranking noise: rule hits are unchanged. 5-day rain does not capture why Elsa and Ida were wet. Elsa's wetness is
+10-day rain (P10 129 mm). Ida's is the river baseflow left by Henri, 9 days before.
+
+**B1: 1 mm/h. Not adopted on closures, but the gauges improve on every arm.** Elsa+Ida MAE −8 %, all-gauge −6 %. aug2021 gains 1 site (dev),
+and the rule catches +2 sites on OOS-7 (aug2026, sep2021). Rule lift rises from 4.7 to 6.6. Recall at 3 % is unchanged, so the PROTOCOL gain
+condition fails.
+
+The T4 target was Elsa/Ida MAE −30 to −50 %. Neither A nor B gets close. C and B0 are still pending.
