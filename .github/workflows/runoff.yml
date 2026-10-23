@@ -1,0 +1,26 @@
+name: Antecedent moisture table (T4, docs/proto/runoff/AMC.md)
+# proto/runoff/antecedent.py: 5/10-day MRMS 24H Pass2 antecedent rain + NWM analysis soil moisture per catalogue storm
+# -> docs/proto/runoff/antecedent.json + antecedent.csv.  The model runs use parity_test.yml with dest=docs/proto/runoff/runs.
+on:
+  workflow_dispatch:
+    inputs:
+      args:
+        description: 'extra antecedent.py arguments (e.g. --storms jul2021,sep2021 or --skip-nwm)'
+        required: false
+        default: ''
+permissions:
+  contents: write
+jobs:
+  ante:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy pandas requests pygrib pyproj netCDF4
+      - run: python sim/colab/lf_antecedent.py && python proto/runoff/antecedent.py ${{ inputs.args }} 2>&1 | tail -120
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/runoff/antecedent.json docs/proto/runoff/antecedent.csv; git commit -qm "runoff: antecedent table" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
