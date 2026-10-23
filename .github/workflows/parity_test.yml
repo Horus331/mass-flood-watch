@@ -56,7 +56,7 @@ jobs:
           SCORE_WINDOWS=$D/gauge_windows.npz python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
           cp $OUTDIR/lisflood.mass $D/ 2>/dev/null || true
           python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
-          cp $P/summary.json $P/REPORT.md $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
+          cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
           python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
           python - "$OUTDIR" "$D" <<'PY'
           import sys, json, numpy as np
