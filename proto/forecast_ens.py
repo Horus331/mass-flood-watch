@@ -225,6 +225,10 @@ def cmd_report(a):
                 mt = metrics(d); mem.append(dict(init=m, lead_h=round((ts(E['first_report']) - ts(m)).total_seconds() / 3600, 1), **{q: mt[q] for q in ('rain_max_mm', 'rain_peak1h_mm', 'flagged_share', 'recall', 'lift', 'loose_recall')}))
         r = dict(storm=E['storm'], issue=E['issue'], members_expected=len(dumps), members_found=len(have), members=mem)
         if len(have) >= 2: r['ensemble'] = ensemble_scores(have)
+        syn = [p for m, p in zip(E['members'], dumps) if ts(m).hour % 6 == 0 and os.path.exists(p)]
+        hrl = [p for i, (m, p) in enumerate(zip(E['members'], dumps)) if (i == 0 or ts(m).hour % 6) and os.path.exists(p)]
+        if len(syn) >= 2: r['ensemble_synoptic'] = ensemble_scores(syn)
+        if len(hrl) >= 2: r['ensemble_hourly'] = ensemble_scores(hrl)
         rows['ensembles'][k] = r
     for d in sorted(glob.glob(os.path.join(ENS_DIR, '*'))):
         if os.path.exists(os.path.join(d, 'summary.json')) and '_m' not in os.path.basename(d):
