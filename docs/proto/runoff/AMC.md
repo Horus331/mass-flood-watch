@@ -1,4 +1,4 @@
-# T4: antecedent moisture in the curve-number loss (in progress)
+# T4: antecedent moisture in the curve-number loss (closed 23 Oct 2026: no variant adopted, defaults unchanged)
 
 ## 0. Pre-registration (written 23 Oct 2026, before any OOS-7 closure score of any variant below was looked at)
 
@@ -50,27 +50,67 @@ P5/P10 = box-mean MRMS MultiSensor QPE 24H Pass2 over the 5 / 10 days before t0.
 
 The verdict follows in §2 once the runs are in.
 
-## 1. Results so far (interim, 23 Oct 2026)
+## 1. Results (final, 23 Oct 2026)
 
-These numbers come from `proto/runoff/amc_compare.py`. Gauge MAE pools all 16 gauge rises on the 9 primary runs. The closure check is
-`score_v2.compare` on OOS-7 at α = 0.05/4. Full detail is in `amc.json` and `infil1.json`; in those files the candidate arm's key is `auto`.
+**Scoring note (deviation from §0, procedural only).** The label set changed after §0 was written. aug2021 gained 1 site and aug2026 gained 3
+news-sourced sites, and the catalogue runs for aug2021, aug2026 and `worcester_aug2021_48h` were rerun with identical settings and identical
+hydraulics to rebuild their matches (`docs/proto/scoring/BASELINE_v2_expanded.md`). The candidate runs still carried the old matches files, so
+`score_v2.compare` refused them ("site lists differ"). `amc_compare.py` now scores **both arms against the current labels**. The baseline is the
+catalogue as it now stands. Each candidate run takes its label→segment matches from its catalogue counterpart (`load_current`, remapped by
+segment id). The matching is pure geometry on the same box and resolution, so it is the same for every arm. OOS-7 therefore has **32 sites**
+(was 29) and the baseline hits **6/32** (was 5/29). A and B1 were rescored the same way, so all four variants share identical site lists. Both
+scripts now use an explicit list of the pre-registered runs (`T4_RUNS` / `T4_PRIMARY`), so the 16 label-expansion storms later added to
+`docs/proto/parity/catalog/` cannot enter the T4 verdict. Nothing else in §0 changed.
 
-| variant | gauge MAE all (m) | bias (m) | Elsa+Ida MAE (3 gauges) | other 7 storms MAE | OOS-7 recall @3 % | Δ | FSS300 Δ | rule lift (OOS-7) | adopt |
-|---|---|---|---|---|---|---|---|---|---|
-| default (parity catalogue) | 0.445 | −0.42 | 1.11 | 0.29 | 0.172 (5/29) | – | – | 4.7 | – |
-| A `LF_CN_AMC=auto` | 0.554 | −0.50 | 1.24 | 0.40 | 0.207 (6/29) | +0.034 (lower bound 0.0) | −0.002 | 6.4 | **no** (fails gain, CI, FSS) |
-| B1 `LF_INFIL_MMH=1` | 0.417 | −0.35 | 1.02 | 0.28 | 0.172 (5/29) | 0.0 | −0.001 | 6.6 | **no** (fails gain, CI, FSS) |
-| B0 `LF_INFIL_MMH=0` | pending | | | | | | | | |
-| C NWM-wetness CN scale, LOSO on gauges | pending (grid runs 0.94/1.06 done, 1.00/1.12 running, then 9 LOSO runs) | | | | | | | | |
+Made by `proto/runoff/amc_compare.py` (closures and pooled gauges) and `proto/runoff/cn_loso.py` (C fit). Gauge columns pool all 16 USGS rises
+on the 9 primary runs. "storm-mean" is the §0 objective, the mean over storms of each storm's mean |rise error|. The closure columns are
+`score_v2.compare` on OOS-7 at the top 3 % flagged, with the condition-2 lower bound at α = 0.05/4. Detail is in `amc.json` (A), `infil1.json`
+(B1), `infil0.json` (B0), `loso.json` (C) and `cn_loso.json` (C fit). In those files the candidate arm's key is `auto`.
+
+| variant | gauge MAE all (m) | bias (m) | storm-mean MAE | Elsa+Ida MAE (3) | other 7 MAE | OOS-7 hits @3 % (recall) | Δ recall [lower, α=.0125] | FSS300 Δ | rule hits OOS-7 / lift | conditions failed | adopt |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| default (parity catalogue) | 0.445 | −0.42 | 0.464 | 1.11 | 0.29 | 6/32 (0.188) | – | – | 4/32 / 5.4 | – | – |
+| A `LF_CN_AMC=auto` | 0.554 | −0.50 | 0.558 | 1.24 | 0.40 | 7/32 (0.219) | +0.031 [0.000] | −0.002 | 4/32 / 6.3 | gain, CI, FSS | **no** |
+| B1 `LF_INFIL_MMH=1` | 0.417 | −0.35 | 0.436 | 1.02 | 0.28 | 6/32 (0.188) | 0.000 [0.000] | −0.001 | 6/32 / 6.9 | gain, CI, FSS | **no** |
+| B0 `LF_INFIL_MMH=0` | **0.394** | −0.27 | **0.404** | **0.91** | **0.28** | 7/32 (0.219) | +0.031 [0.000] | +0.001 | 6/32 / 5.8 | gain, CI | **no** |
+| C NWM-wetness CN scale, LOSO on gauges | 0.457 | −0.13 | 0.454 | 0.92 | 0.35 | **9/32 (0.281)** | **+0.094** [0.000] | **+0.006** | 7/32 / 5.5 | CI | **no** |
+| C0 (b = 0, LOSO global scale; gauges only, interpolated) | – | – | 0.453 (interp.; base 0.465, C 0.455) | – | – | not run (§0) | | | | | – |
+
+No storm loses a site under any variant (worst per-storm change 0), and the rule lift stays at ≥ 0.8 × baseline under all four. The dev storms are
+in-sample and never pooled into the decision: sep2023 stays at 30/79 under every variant, and aug2021 goes 3 → 4 (B0) and 3 → 6 (C).
 
 **A: auto-AMC. Do not adopt.** Elsa has P5 = 29.7 mm and Ida 8.6 mm. Both fall in AMC I, so the standard NEH-4 rule makes them drier. Elsa's
 Millbury gauge goes from −1.32 to −1.36 m, and Ida's goes from −1.24 to −1.58 m. sep2023 (P5 32.8 mm, AMC I) breaks its calibration: gauge MAE
-rises from 0.23 to 0.71 m and rule hits fall from 29 to 26. Only aug2026 (AMC III, P5 98 mm) improves, from 0.29 to 0.23 m. The OOS-7 +1 site is
-jul2021 at 3 % share, which is ranking noise: rule hits are unchanged. 5-day rain does not capture why Elsa and Ida were wet. Elsa's wetness is
-10-day rain (P10 129 mm). Ida's is the river baseflow left by Henri, 9 days before.
+rises from 0.23 to 0.71 m and rule hits fall from 29 to 26. The OOS-7 +1 is jul2021 at 3 % share, which is ranking noise: rule hits are
+unchanged. 5-day rain does not capture why Elsa and Ida were wet. Elsa's wetness is 10-day rain (P10 129 mm). Ida's is the river baseflow left
+by Henri, 9 days before.
 
-**B1: 1 mm/h. Not adopted on closures, but the gauges improve on every arm.** Elsa+Ida MAE −8 %, all-gauge −6 %. aug2021 gains 1 site (dev),
-and the rule catches +2 sites on OOS-7 (aug2026, sep2021). Rule lift rises from 4.7 to 6.6. Recall at 3 % is unchanged, so the PROTOCOL gain
-condition fails.
+**B1: 1 mm/h. Do not adopt.** The gauges improve (all −6 %, Elsa+Ida −8 %) and the rule catches +2 OOS-7 sites (aug2026, sep2021). Recall at
+3 % is unchanged, and FSS drops by 0.0006.
 
-The T4 target was Elsa/Ida MAE −30 to −50 %. Neither A nor B gets close. C and B0 are still pending.
+**B0: no constant infiltration. Do not adopt. It is the best gauge variant.** All-gauge MAE −11 % (0.445 → 0.394 m), storm-mean −13 %,
+Elsa+Ida −18 % (1.11 → 0.91 m), bias −0.42 → −0.27 m. It has no free parameter. The other 7 storms also improve (0.29 → 0.28), but some gauges
+now over-predict (sep2023 01094400 +0.31 m, aug2021 01110500 +0.43 m). Closures: +1 OOS-7 site (jul2021), +2 rule hits, FSS +0.001. The gain
+condition fails (+0.031 < 0.05) and so does the CI (lower bound 0).
+
+**C: wetness-scaled CN. Do not adopt. It is the best closure variant, but only condition 2 fails, and it is worse on gauges.** All-9 fit:
+a = 1.035, b = +1.75 per unit θ. The fold slopes are all positive (wetter soil, higher CN, as expected), but 4 of 9 folds sit on the b = +2 edge
+of the search grid. The held-out scales range from 0.88 (sep2022, θ 0.54) to 1.12 (jul2023, sep2023). OOS-7 recall goes from 6/32 to 9/32
+(jul2021 +2, jul2023 +1), which passes the 0.05 gain bar, and FSS +0.006. The paired two-stage bootstrap lower bound is 0.000. It is still 0.000
+at α = 0.05 and 0.10, because all 3 gained sites come from 2 small storms. Gauges: Elsa+Ida −17 %, and the bias almost vanishes (−0.13 m), but
+all-gauge MAE gets worse (0.445 → 0.457). sep2023 goes from 0.23 to 0.61 m at scale 1.12, and its rule share doubles (2.2 % → 4.3 %, lift 10.0 →
+5.6). So the deployed rule's calibration would have to be revisited if C were adopted. LOSO on the gauges themselves is a near-tie: C 0.455, C0
+0.453, base 0.465 (storm-mean, interpolated). The θ slope adds nothing over a single recalibrated global scale on the gauge objective. C's
+closure gain therefore cannot be told apart from "CN a bit higher everywhere".
+
+## 2. Verdict (PROTOCOL.md §5, k = 4, α = 0.05/4)
+
+**No T4 variant is adopted. Defaults stay as they are (`LF_CN_AMC` II, `LF_INFIL_MMH=2`, `LF_CN_SCALE` per the catalogue).** None of the four
+has a paired-bootstrap lower bound above 0 on OOS-7. C is the only one that passes the gain condition. The T4 target was Elsa/Ida rise MAE −30
+to −50 %. The best result is −18 % (B0) or −17 % (C). That is a real but partial fix: antecedent wetness explains part of the Elsa/Ida
+under-prediction, not most of it. The rest is plausibly baseflow and channel initial conditions, which a CN loss cannot represent.
+Recommendations carried forward: (i) B0 (`LF_INFIL_MMH=0`) is the zero-parameter gauge improvement. Re-test it under PROTOCOL v2 on the
+held-out 23 rather than adopting it here. (ii) C's signal (positive θ slope, +3 OOS-7 sites) is worth one pre-registered retest on the larger
+pool, with the b grid widened and the rule recalibrated jointly. (iii) Elsa/Ida need a baseflow / initial-stage term (T-next), not a loss
+tweak.
+
