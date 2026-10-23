@@ -70,6 +70,7 @@ jobs:
         run: |
           set -o pipefail
           if [ "${{ matrix.c.init }}" != "mrms" ]; then export LF_RAIN=hrrr LF_HRRR_INIT=${{ matrix.c.init }}; fi
+          if [ -n "${{ matrix.c.env }}" ]; then export ${{ matrix.c.env }}; fi      # optional extra env per case, e.g. LF_HRRR_NBHD=20,90
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: closures + scores
         run: |

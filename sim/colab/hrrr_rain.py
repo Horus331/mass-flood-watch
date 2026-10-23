@@ -128,13 +128,31 @@ class LccGrid:
         wi = np.clip(FI - i0, 0, 1).astype(np.float32); wj = np.clip(FJ - j0, 0, 1).astype(np.float32)
         r0, r1, c0, c1 = int(i0.min()), int(i0.max()) + 2, int(j0.min()), int(j0.max()) + 2
         li, lj = (i0 - r0), (j0 - c0); W = (r1 - r0, c1 - c0)
+        nb = neighbourhood()
 
         def sample(msg):
-            v = values(msg)[r0:r1, c0:c1]
+            v = values(msg)
+            if nb: v = nb(v, r0, r1, c0, c1)
+            else: v = v[r0:r1, c0:c1]
             out = (v[li, lj] * (1 - wi) * (1 - wj) + v[li + 1, lj] * wi * (1 - wj) + v[li, lj + 1] * (1 - wi) * wj + v[li + 1, lj + 1] * wi * wj)
             return np.maximum(out, 0).reshape(shp).astype(np.float32)
-        sample.window = dict(rows=[r0, r1], cols=[c0, c1], shape=W)
+        sample.window = dict(rows=[r0, r1], cols=[c0, c1], shape=W, neighbourhood=os.environ.get('LF_HRRR_NBHD') or None)
         return sample
+
+
+def neighbourhood(spec=None, dx_km=3.0):
+    """LF_HRRR_NBHD='R,P': replace each HRRR value by the P-th percentile of the values within R km, every hour, before interpolation
+    (the neighbourhood treatment of convection-allowing forecasts, Schwartz & Sobash 2017; refresh/hrrr_replay.py uses 20 km / 90th).
+    It spreads a well-forecast but displaced rain core over the area it could plausibly hit.  None when unset."""
+    spec = spec if spec is not None else os.environ.get('LF_HRRR_NBHD')
+    if not spec: return None
+    from scipy import ndimage
+    R, P = (float(v) for v in spec.split(',')); k = int(round(R / dx_km)); yy, xx = np.mgrid[-k:k + 1, -k:k + 1]; fp = (yy ** 2 + xx ** 2) <= k * k
+    def f(v, r0, r1, c0, c1):
+        a0, a1, b0, b1 = max(r0 - k, 0), min(r1 + k, v.shape[0]), max(c0 - k, 0), min(c1 + k, v.shape[1])
+        w = ndimage.percentile_filter(v[a0:a1, b0:b1], P, footprint=fp, mode='nearest')
+        return w[r0 - a0:r0 - a0 + (r1 - r0), c0 - b0:c0 - b0 + (c1 - c0)]
+    return f
 
 
 def hourly(init, hours, sample=None, workers=12, log=print):
