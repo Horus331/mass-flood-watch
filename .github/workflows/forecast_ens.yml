@@ -49,6 +49,7 @@ jobs:
       cases: ${{ steps.m.outputs.cases }}
     steps:
       - uses: actions/checkout@v4
+      - run: pip install -q pandas
       - id: m
         env: {CASES: '${{ inputs.cases }}'}
         run: |
