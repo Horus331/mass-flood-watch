@@ -1,0 +1,87 @@
+{
+ "run": "aug2023b_loss_aug2023b_millbury_20m",
+ "title": "Aug 18, 2023 flash floods, Millbury-Grafton \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  165000.0,
+  874000.0,
+  185000.0,
+  894000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-08-18T05:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 145
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "auto",
+   "LF_CN_AMC_RESOLVED": "I (P5 24.8 mm)",
+   "LF_CN_SCALE": "0.88",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 4.29,
+   "excess_out_mean_mm": 3.25,
+   "kept_share": 0.758,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 64,
+ "rain_total_mean_mm": 39,
+ "rain_missing_hours": [],
+ "runtime_s": 1260,
+ "total_s": 1608,
+ "peak_wet_km2": 1.7,
+ "peak_snapshot_wet_km2": 1.0,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      14949600.0000 1491549.3737  0.000       0.000      10.006           -0.0000      -0.0000 1299995.2665",
+  "64800.000    1.0000     1.0000     64800      14914800.0000 1488562.4057  0.000       0.000      9.921             0.0000       0.0000 1299995.2665"
+ ],
+ "git_sha": "0508b595",
+ "forecast": null
+}
