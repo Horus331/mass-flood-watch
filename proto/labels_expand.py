@@ -50,7 +50,7 @@ FILES = {'may2018': 'labels_may2018_shrewsbury.csv', 'aug2018b': 'labels_aug2018
          'jul2023b': 'labels_jul2023b_worcester.csv', 'jul2023c': 'labels_jul2023c_fitchburg.csv', 'jul2023d': 'labels_jul2023d_hubbardston.csv',
          # existing storms: news-sourced additions appended with N-numbered ids
          'jul2018': 'labels_jul2018_worcester.csv', 'aug2020': 'labels_aug2020_worcester.csv', 'aug2021': 'labels_aug2021_worcester.csv',
-         'aug2026': 'labels_aug2026_leominster.csv'}
+         'aug2026': 'labels_aug2026_leominster.csv', 'sep2018m': 'labels_sep2018m_milford.csv'}
 
 # (storm, town, road, name, type, t_utc | date, quote, url, source, geocode)
 #   t_utc 'YYYY-MM-DDTHH:MMZ' -> time_quality report;  'YYYY-MM-DD' -> day
@@ -75,7 +75,7 @@ S = [
   'At 6:03 PM EST, Crescent Street was flooded and impassable.', SE(780608), 'StormEvents', dict(g='near', a='Crescent Street', near=(-71.7908, 42.3745))),
  ('aug2018b', 'Lancaster', 'Main Street', 'Main Street at the railroad underpass: flooded', 'flooded', '2018-08-12T00:27Z',
   'FLOODING ON MAIN STREET IN THE AREA OF THE UNDERPASS AT THE MAIN STREET BRIDGE. WATER DEPTH IS 2 AND A HALF FEET', LSR('2018-08-12T00:27Z'), 'LSR',
-  dict(g='pair', a='Main Street|ref:MA 70', b='rail', near=(-71.67, 42.45))),
+  dict(g='pair', a='Main Street|ref:MA 70', b='rail', near=(-71.67, 42.45), q='approx')),     # two Main St rail crossings in Lancaster
  # ---- sep2018: 18 Sep 2018, remnants of Florence, north Worcester County ----
  ('sep2018', 'Gardner', 'Walnut Street', 'Walnut Street: flooded', 'flooded', '2018-09-18T13:58Z',
   'At 8:58 AM EST, Walnut Street in Gardner was flooded.', SE(783711), 'StormEvents', dict(g='near', a='Walnut Street', near=(-71.9864, 42.5779))),
@@ -114,9 +114,9 @@ S = [
   dict(g='pair', a='Risley Street', b='John Street', near=(-71.9962, 42.564))),
  ('sep2018b', 'Gardner', 'Leo Drive', 'Leo Drive: impassable', 'impassable', '2018-09-27T02:05Z',
   'At 9:05 PM EST, Leo Drive in Gardner was flooded and impassable.', SE(786831), 'StormEvents', dict(g='near', a='Leo Drive', near=(-72.016, 42.596))),
- ('sep2018b', 'Westminster', 'South Avenue', 'South Avenue at Oakmont Avenue: flooded', 'flooded', '2018-09-27T02:06Z',
+ ('sep2018b', 'Westminster', 'Oakmont Avenue', 'South Avenue at Oakmont Avenue: flooded', 'flooded', '2018-09-27T02:06Z',
   'SIGNIFICANT FLOODING AT THE INTERSECTION OF SOUTH AVE AND OAKMOUNT AVE', LSR('2018-09-27T02:06Z'), 'LSR',
-  dict(g='pair', a='South Avenue|South Street', b='Oakmont Avenue|Oakmount Avenue', towns=['Westminster', 'Fitchburg', 'Gardner'], near=(-71.90, 42.55))),
+  dict(g='near', a='Oakmont Avenue', towns=['Westminster'], near=(-71.90, 42.55), osm=False)),    # OSM has no South Avenue there (it matched South Street)
  ('sep2018b', 'Templeton', 'Boulder Drive', 'Boulder Drive: flooded (manhole covers lifting)', 'flooded', '2018-09-27T02:12Z',
   'MANHOLE COVERS STARTING TO COME OFF THE GROUND FROM FLOODING ON BOULDER DRIVE', LSR('2018-09-27T02:12Z'), 'LSR', dict(g='cent', a='Boulder Drive', near=(-72.07, 42.55))),
  # ---- jul2019: 6 Jul 2019 thunderstorms, Spencer / Worcester / Oxford ----
@@ -252,6 +252,15 @@ S = [
   "Monday morning's heavy rain led to flash flooding on Route 2 in Fitchburg.", CBS_AUG26, 'news', dict(g='cent', a='ref:MA 2', towns=['Fitchburg'], near=(-71.80, 42.55))),
  ('aug2026', 'Leominster', 'Granite Street', 'Granite Street: pavement buckled, road shut', 'other_damage', '2026-08-03',
   'Parts of Granite and Helena streets buckled, shutting down the road.', CBS_AUG26, 'news', dict(g='pair', a='Granite Street', b='Helena Street', near=(-71.76, 42.52), q='approx')),
+ # ---- sep2018m: Florence 18 Sep 2018, third cluster (Milford / Bellingham / Uxbridge); appended last so earlier geocode keys stay stable ----
+ ('sep2018m', 'Uxbridge', 'Route 122', 'Route 122 at Hazel Street: flooded', 'flooded', '2018-09-18T15:40Z',
+  'ROUTE 122 AT HAZEL STREET FLOODED', LSR('2018-09-18T15:40Z'), 'LSR', dict(g='pair', a='ref:MA 122', b='Hazel Street', near=(-71.60, 42.08))),
+ ('sep2018m', 'Bellingham', 'Monique Drive', 'Monique Drive: impassable', 'impassable', '2018-09-18T15:44Z',
+  'At 10:44 AM EST, Monique Drive in Bellingham was reported flooded and impassable.', SE(786780), 'StormEvents', dict(g='near', a='Monique Drive', near=(-71.4804, 42.112))),
+ ('sep2018m', 'Milford', 'North Bow Street', 'North Bow Street: impassable', 'impassable', '2018-09-18T15:44Z',
+  'At 10:44 AM EST, North Bow Street in Milford was reported flooded and impassable.', SE(786782), 'StormEvents', dict(g='near', a='North Bow Street', near=(-71.5164, 42.1429))),
+ ('sep2018m', 'Bellingham', 'Caroline Drive', 'Caroline Drive: impassable (water to car bumper)', 'impassable', '2018-09-18T16:35Z',
+  'At 11:35 AM EST, Caroline Drive in Bellingham was reported flooded and impassable.', SE(786787), 'StormEvents', dict(g='near', a='Caroline Drive', near=(-71.4797, 42.1014))),
 ]
 
 # Coordinate / name fixes to existing catalogue labels (item 4 of the expansion; changelog in LABELS_EXPANSION.md).
@@ -295,7 +304,7 @@ FIX = [
 
 PREFIX = {'may2018': 'MAY2018', 'aug2018b': 'AUG2018b', 'sep2018': 'SEP2018', 'sep2018w': 'SEP2018w', 'sep2018b': 'SEP2018b', 'jul2019': 'JUL2019',
           'aug2019': 'AUG2019', 'sep2019': 'SEP2019', 'jun2020': 'JUN2020', 'jun2020b': 'JUN2020b', 'aug2020b': 'AUG2020b', 'jul2021b': 'JUL2021b',
-          'jul2023b': 'JUL2023b', 'jul2023c': 'JUL2023c', 'jul2023d': 'JUL2023d', 'jul2018': 'JUL2018-N', 'aug2020': 'AUG2020-N', 'aug2021': 'W1', 'aug2026': 'AUG2026-N'}
+          'jul2023b': 'JUL2023b', 'jul2023c': 'JUL2023c', 'jul2023d': 'JUL2023d', 'jul2018': 'JUL2018-N', 'aug2020': 'AUG2020-N', 'aug2021': 'W1', 'aug2026': 'AUG2026-N', 'sep2018m': 'SEP2018m'}
 EXISTING = {'jul2018', 'aug2020', 'aug2021', 'aug2026'}
 
 
@@ -344,7 +353,7 @@ def _netnames(spec):
     return out
 
 
-def _netpts(G, T, spec, towns, near, rad=3000.0):
+def _netpts(G, T, spec, towns, near, rad=6000.0):
     names = set(_netnames(spec)); P = []
     idx = [i for i, r in enumerate(G['props']['road']) if r in names]
     inn = [i for i in idx if G['props']['town'][i] in towns]
@@ -375,10 +384,13 @@ def net_geocode(G, T, TI, s):
 
 def pick(s, R):
     """lon, lat, coord_quality, how  (R = OSM result for this site)."""
-    g = s[9]; near = g.get('near'); qmax = g.get('q')
+    g = s[9]; near = g.get('near'); qmax = g.get('q'); c = None
+    if g.get('osm') is False: return None
     if R and R.get('pair') and R['pair']['candidates']:
         C = R['pair']['candidates']
         c = min(C, key=lambda c: c.get('to_near_m', 0) + 2 * c['gap_m']) if near else C[0]
+        if c.get('to_near_m', 0) > 4000 or c['gap_m'] > 400: c = None          # implausibly far from the NWS point: fall through
+    if R and R.get('pair') and R['pair']['candidates'] and c is not None:
         q = 'exact' if c['gap_m'] <= 80 else 'approx'
         if qmax == 'approx': q = 'approx'
         return c['lonlat'][0], c['lonlat'][1], q, f"osm pair gap {c['gap_m']} m" + (f", {c.get('to_near_m')} m from NWS point" if near else '') + f", {len(C)} candidate(s)"
@@ -392,8 +404,17 @@ def pick(s, R):
     return None
 
 
+def load_osm():
+    import glob
+    R = {}
+    for f in [OSM_PATH] + sorted(glob.glob(OSM_PATH.replace('.json', '_*.json'))):
+        for k, v in json.load(open(f)).items():
+            if k not in R or (v.get('pair') or v.get('single') or v.get('addr')): R[k] = v
+    return R
+
+
 def build():
-    R = json.load(open(OSM_PATH)) if os.path.exists(OSM_PATH) else {}
+    R = load_osm()
     G, T, TI = _net(); rows = {}; audit = []
     for i, s in enumerate(S):
         storm, town, road, name, typ, t, quote, url, src, g = s
@@ -473,6 +494,7 @@ NEW = {  # id: (area, note)
  'aug2018b': ('holden', 'Thunderstorms 11 Aug 2018: Holden Main St, Spencer Donnelly Rd, West Boylston Crescent St (evening cell). Small.'),
  'sep2018': ('fitchburg', 'Remnants of Florence 18 Sep 2018, north Worcester County: Gardner, Fitchburg/Westminster railroad underpasses, Hubbardston, Ashburnham.'),
  'sep2018w': ('shrewsbury', 'Remnants of Florence 18 Sep 2018, Worcester/Shrewsbury: Route 20 at the Route 122 overpass, Maple Ave at Route 9, Floral St. Small.'),
+ 'sep2018m': ('milford', 'Remnants of Florence 18 Sep 2018, third cluster: Uxbridge Route 122 at Hazel St, Milford North Bow St, Bellingham Monique Dr and Caroline Dr.'),
  'sep2018b': ('gardner', 'Evening downpours 26 Sep 2018 (27 Sep UTC): Gardner, Templeton, Westminster.'),
  'jul2019': ('spencer', 'Thunderstorms 6 Jul 2019: Spencer, South Worcester, Route 20/122A, Oxford.'),
  'aug2019': ('oxford', 'Evening storms 7 Aug 2019 (8 Aug UTC): I-395 exit 4B in Oxford and the I-290 EB ramp to Southbridge St in Worcester. Small.'),
@@ -512,7 +534,6 @@ def catalog():
                 sc = (len(inb), -cen)
                 if best is None or sc > best[0]: best = (sc, x0 * 1000, y0 * 1000, inb)
         _, bx, by, inb = best; box = [bx, by, bx + 20000, by + 20000]
-        rep = sorted(r for r in L if r['time_quality'] == 'report')
         tt = sorted(dt.datetime.strptime(r['time_local'], '%Y-%m-%dT%H:%M') + dt.timedelta(hours=4) for r in inb if r['time_quality'] == 'report')
         first, last = tt[0], tt[-1]
         t0 = (first - dt.timedelta(hours=7)).replace(minute=0); hours = max(18, int(np.ceil(((last - t0).total_seconds() / 3600 + 5))))
@@ -556,6 +577,34 @@ def catalog():
     json.dump(C, open(CP, 'w'), indent=1)
 
 
+def report():
+    """Markdown tables for LABELS_EXPANSION.md (per-storm counts from catalog.json and the label files)."""
+    from collections import Counter
+    C = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))['events']}
+    print('| id | date (local) | era | box EPSG:26986 | t0 UTC / h | label rows | in box | exact / approx / town (in box) | types (in box) | sources (all rows) |')
+    print('|---|---|---|---|---|---|---|---|---|---|')
+    tot = Counter()
+    for sid in NEW:
+        e = C[sid]; L = list(csv.DictReader(open(os.path.join(HERE, 'data', FILES[sid])))); bx = e['box_26986']
+        from pyproj import Transformer
+        T = Transformer.from_crs(4326, 26986, always_xy=True)
+        inb = [r for r in L if (lambda p: bx[0] <= p[0] < bx[2] and bx[1] <= p[1] < bx[3])(T.transform(float(r['lon']), float(r['lat'])))]
+        q = Counter(r['coord_quality'] for r in inb); ty = Counter(r['type'] for r in inb); so = Counter(r['source'] for r in L)
+        tot['rows'] += len(L); tot['inb'] += len(inb); tot['inb_road'] += sum(1 for r in inb if r['coord_quality'] != 'town')
+        tot['aws_inb'] += len(inb) if e['era'] == 'aws' else 0
+        print(f"| {sid} | {e['date_local']} | {e['era']} | {','.join(map(str, bx))} | {e['t0']} / {e['hours']} | {len(L)} | {len(inb)} | "
+              f"{q['exact']} / {q['approx']} / {q['town']} | {', '.join(f'{k} {v}' for k, v in ty.most_common())} | {', '.join(f'{k} {v}' for k, v in so.most_common())} |")
+    print(dict(tot))
+    print()
+    print('| existing storm | rows added | added rows inside the catalogue box | exact / approx / town |')
+    print('|---|---|---|---|')
+    for sid in sorted(EXISTING):
+        e = C[sid]; bx = e['box_26986']; L = [r for r in csv.DictReader(open(os.path.join(HERE, 'data', FILES[sid]))) if r['id'].startswith(PREFIX[sid])]
+        inb = [r for r in L if (lambda p: bx[0] <= p[0] < bx[2] and bx[1] <= p[1] < bx[3])(T.transform(float(r['lon']), float(r['lat'])))]
+        q = Counter(r['coord_quality'] for r in inb)
+        print(f"| {sid} | {len(L)} ({', '.join(r['road'] for r in L)}) | {len(inb)} | {q['exact']} / {q['approx']} / {q['town']} |")
+
+
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['queries', 'build', 'catalog']); a = ap.parse_args()
-    dict(queries=queries, build=build, catalog=catalog)[a.cmd]()
+    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['queries', 'build', 'catalog', 'report']); a = ap.parse_args()
+    dict(queries=queries, build=build, catalog=catalog, report=report)[a.cmd]()
