@@ -7,6 +7,7 @@ env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multipl
      LF_LOSS none|fc|cn|cn_dcia (default none; cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
      LF_INFIL_MMH (constant infiltration mm/h, default 4) + LF_INFIL_MODE solver|rain (default solver = the solver's keyword, CPU only;
      rain = out of the hourly rain excess, identical on CPU and GPU; docs/proto/parity/PARITY.md),
+     LF_INIT_TSTEP (s, default 10; the CUDA build also caps every step at it), LF_CUDA_T0_FROM_START 1|0 (CUDA: t = 0 snapshot = start file, default 1),
      LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
      LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s),
      LF_DOMAIN basin + LF_DOMAIN_FILE (watershed-shaped domain, sim/colab/lf_domain.py; default box), LF_EXE / LF_EXE_CUDA (prebuilt LISFLOOD-FP),
@@ -1058,13 +1059,20 @@ def main():
         if abs(pr_['volume_ratio'] - 1) > 0.05: raise SystemExit(f'LF_DRAINS: this LISFLOOD-FP build ignores the infilfile sink (probe {pr_}); rebuild it (patch_source applies the mfw-drains patch)')
         write_asc(f'{wd}/drains.asc', sink_, x0, y0, RES, fmt='%.2f'); extra.append('infilfile drains.asc')
         DRAINS = dict(drep_, probe=pr_, cells_m2=RES * RES, note='aggregate only; the per-cell raster is deleted after the run (pipe data shared for research only)')
+    INIT_TSTEP = float(os.environ.get('LF_INIT_TSTEP', '10'))     # s; on CUDA also the cap on every step (max_dt), and the whole first step (docs/proto/parity/PARITY.md)
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
-                    infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra)
+                    infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra, initial_tstep=INIT_TSTEP)
     log('par:', ' | '.join(par))
     # 4. run
     try: run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
     finally:
         if DRAINS is not None and os.path.exists(f'{wd}/drains.asc'): os.remove(f'{wd}/drains.asc')    # derived from private pipe data: never kept
+    T0_SNAP = 'solver'
+    if is_cuda and start and os.path.exists(f'{wd}/results/res-0000.wd') and os.environ.get('LF_CUDA_T0_FROM_START', '1') == '1':
+        # the CUDA build's t = 0 snapshot is not the initial state the CPU build writes (the start file, channels a third full); put the
+        # start file there so frames, the gauge start level (proto/score.py) and start-up checks read the same t = 0 on both solvers
+        shutil.copy(f'{wd}/{start}', f'{wd}/results/res-0000.wd'); T0_SNAP = 'start file (CUDA t = 0 snapshot replaced)'
+        log('CUDA: t = 0 snapshot replaced by the start file (the initial state), as the CPU build writes it')
     hmax, hsrc = max_depth(wd, 'res'); hmax = np.nan_to_num(hmax, nan=0.0)
     if DOM and hmax.shape == MSK.shape: hmax = np.where(MSK, hmax, 0.0)
     if hmax.shape != (ny, nx): raise SystemExit(f'output shape {hmax.shape} != grid {(ny, nx)}')
@@ -1163,7 +1171,7 @@ def main():
                             rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS MultiSensor QPE 01H Pass2') + ' -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
                             env={k: ('set (private file; path not recorded)' if k == 'LF_DRAINS' else os.environ[k]) for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)},
-                            drains=DRAINS or 'none', infiltration=INFIL),
+                            drains=DRAINS or 'none', infiltration=INFIL, initial_tstep_s=INIT_TSTEP, t0_snapshot=T0_SNAP),
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
