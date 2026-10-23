@@ -121,6 +121,7 @@ def acis_daily(bb, d0, d1):
         if not ll: continue
         rows = []
         for d, v in zip(days, s.get('data', [])):
+            if isinstance(v, list) and len(v) == 1 and isinstance(v[0], list): v = v[0]      # one element per day: [[value, obs hour]]
             val, hr = (v[0] if isinstance(v, list) else v), (v[1] if isinstance(v, list) and len(v) > 1 else None)
             if val in ('M', '', None, 'S'): mm = None
             elif val == 'T': mm = 0.0
@@ -141,7 +142,7 @@ def main():
     bb = ev['bbox_lonlat']; t0 = pd.Timestamp(ev['t0']).tz_localize(None); H = ev['hours']; t1 = t0 + pd.Timedelta(hours=H)
     D = f'{a.out}/{a.storm}'; os.makedirs(D, exist_ok=True)
     days = list(pd.date_range(t0.normalize() - pd.Timedelta(days=1), t1.normalize() + pd.Timedelta(days=1), freq='D'))
-    print('products ...'); json.dump(products(days), open(f'{D}/products.json', 'w'), indent=1)
+    if not a.skip_mrms: print('products ...'); json.dump(products(days), open(f'{D}/products.json', 'w'), indent=1)
     # gauges
     G = dict(storm=a.storm, box_lonlat=bb, buffer_deg=BUF, t0=f'{t0:%Y-%m-%dT%H:%MZ}', hours=H, asos=[], usgs=[], acis=[])
     w0, w1 = t0 - pd.Timedelta(hours=6), t1 + pd.Timedelta(hours=6)

@@ -14,6 +14,10 @@ on:
         description: 'mode=fetch: JSON list of storm ids'
         required: false
         default: '["jul2023"]'
+      fetch_args:
+        description: 'mode=fetch: extra rain_fetch.py arguments (e.g. --skip-mrms)'
+        required: false
+        default: ''
       cases:
         description: 'mode=sim: JSON list of {name, storm, box, hours, env}'
         required: false
@@ -32,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q numpy scipy pandas requests pygrib
-      - run: python proto/rain/rain_fetch.py --storm ${{ matrix.storm }} 2>&1 | tail -80
+      - run: python proto/rain/rain_fetch.py --storm ${{ matrix.storm }} ${{ inputs.fetch_args }} 2>&1 | tail -80
       - name: commit
         if: always()
         run: |
