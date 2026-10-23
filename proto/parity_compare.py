@@ -6,7 +6,9 @@ Runs (all 20 m, catalogue box and hours, LF_LOSS=cn LF_CN_SCALE=0.91 LF_INFIL_MM
   gpu       published Turing CUDA run, docs/proto/turing/<id>_<area>_20m (the CUDA solver drops the infiltration keyword)
   cpu_cn    CPU control of the loss test, docs/proto/urban/dcia/<id>_cn
   solver / rain / infil0   .github/workflows/parity_test.yml, docs/proto/parity/<id>_<variant>:
-            solver = CPU solver infiltration (as cpu_cn), rain = LF_INFIL_MODE=rain, infil0 = LF_INFIL_MMH=0 (the GPU's physics on the CPU)
+            solver = CPU solver infiltration (as cpu_cn), rain = LF_INFIL_MODE=rain, infil0 = LF_INFIL_MMH=0 (the GPU's physics on the CPU),
+            rain_dt1 = rain with LF_INIT_TSTEP=1 (time-step cap; the CPU's sensitivity to it)
+  gpu_rain / gpu_rain_dt1   Turing confirmation runs docs/proto/turing/parity_<id>_gpu_rain[_dt1] (PARITY.md section 5)
 Summary metrics as proto/dcia_compare.py; cell by cell from hmax_cm.npz; volumes from the .mass file.
 """
 import json, os, sys, glob
@@ -17,8 +19,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dcia_compare import read  # noqa: E402
 
 STORMS = [('jul2023', 'worcester'), ('aug2023b', 'millbury'), ('sep2023', 'leominster')]
-VARIANTS = ['solver', 'rain', 'infil0']
-PAIRS = [('rain', 'solver'), ('infil0', 'solver'), ('rain', 'infil0')]
+VARIANTS = ['solver', 'rain', 'infil0', 'rain_dt1']
+PAIRS = [('rain', 'solver'), ('infil0', 'solver'), ('rain', 'infil0'), ('rain_dt1', 'rain')]
 # parity tolerance between two runs of the same storm (what the catalogue reports): same labels caught, flagged share within
 # 0.1 percentage point or 10 % of it, every gauge rise within 0.10 m, land area >= 0.3 m within 10 % or 0.05 km2
 TOL = dict(flag_pts=0.10, flag_rel=0.10, rise_m=0.10, wet03_rel=0.10, wet03_abs_km2=0.05)
@@ -94,8 +96,12 @@ def main():
             mp = f'{d}/flood_meta.json'
             if os.path.exists(mp): r['infiltration'] = json.load(open(mp)).get('inputs', {}).get('infiltration')
             e[v] = r; H[v] = hmax(d)
+        for v, nm in (('gpu_rain', f'parity_{sid}_gpu_rain'), ('gpu_rain_dt1', f'parity_{sid}_gpu_rain_dt1')):     # Turing confirmation runs (PARITY.md section 5)
+            d = f'{ROOT}/docs/proto/turing/{nm}'; r = read(d)
+            if r is None: continue
+            r['mass'] = mass(d); r['segments'] = seg_diag(d); e[v] = r; H[v] = hmax(d)
         e['pairs'] = {}
-        for a, b in PAIRS + [('infil0', 'gpu'), ('solver', 'gpu'), ('rain', 'gpu')]:
+        for a, b in PAIRS + [('infil0', 'gpu'), ('solver', 'gpu'), ('rain', 'gpu'), ('gpu_rain', 'rain'), ('gpu_rain_dt1', 'rain_dt1'), ('gpu_rain_dt1', 'rain')]:
             if e.get(a) and e.get(b):
                 p = within(e[a], e[b])
                 if H.get(a) is not None and H.get(b) is not None: p['cells'] = cellwise(H[a], H[b])
@@ -104,7 +110,7 @@ def main():
             if isinstance(r, dict): r.pop('sites', None)
         out[sid] = e
     json.dump(out, open(f'{ROOT}/docs/proto/parity/parity.json', 'w'), indent=1)
-    cols = ['gpu', 'cpu_cn'] + VARIANTS
+    cols = ['gpu', 'cpu_cn'] + VARIANTS + ['gpu_rain', 'gpu_rain_dt1']
     def cell(r):
         if not r: return '–'
         g = ' / '.join(f"{x['model']:.2f}" for x in r.get('gauges', []))
