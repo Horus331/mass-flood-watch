@@ -37,6 +37,31 @@ ENSEMBLES = {
                                  '2021-08-19T06Z', '2021-08-19T00Z', '2021-08-18T18Z']),
 }
 
+# out-of-sample storms (rules fixed in advance, ENSEMBLE.md section 4): long lead = the newest 00/06/12/18z cycle issued >= 8 h before the first
+# report, short lead = the next one (6 h later); members = that cycle, the 3 synoptic cycles before it and the 4 hourly cycles before it.
+OOS_STORMS = ['jul2021', 'sep2021', 'sep2022', 'jul2023', 'aug2023', 'aug2023b', 'aug2026']
+BOXES = {'sep2023': '168000,908000,188000,928000', 'aug2021': '168000,875000,188000,895000'}     # the HINDCAST.md boxes; others: catalogue box
+
+
+def _oos():
+    import pandas as pd
+    C = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))['events']}
+    out = {}
+    for sid in OOS_STORMS:
+        e = C[sid]; f = pd.Timestamp(e['first_report_utc']).tz_convert(None); end = pd.Timestamp(e['t0']).tz_convert(None) + pd.Timedelta(hours=e['hours'])
+        BOXES[sid] = ','.join(str(int(v)) for v in e['box_26986'])
+        TL = (f - pd.Timedelta(hours=8)).floor('6h')
+        for lead, T in (('long', TL), ('short', TL + pd.Timedelta(hours=6))):
+            mem = [T] + [T - pd.Timedelta(hours=h) for h in (1, 2, 3, 4)] + [T - pd.Timedelta(hours=h) for h in (6, 12, 18)]
+            out[f'{sid}_{lead}'] = dict(storm=sid, issue=f'{T:%Y-%m-%dT%H}Z', first_report=f'{f:%Y-%m-%dT%H:%M}Z', end=f'{end:%Y-%m-%dT%H:%M}Z',
+                                        members=[f'{m:%Y-%m-%dT%H}Z' for m in mem], oos=True, lead=lead,
+                                        mrms=dict(t0=e['t0'], hours=e['hours']))
+    return out
+
+
+for _k, _v in (('sep2023_12z', 'long'), ('aug2021_06z', 'long'), ('sep2023_18z', 'short'), ('aug2021_12z', 'short')): ENSEMBLES[_k]['lead'] = _v
+ENSEMBLES.update(_oos())
+
 
 def log(*a): print(*a, flush=True)
 
@@ -52,8 +77,7 @@ def member_name(ens, init, tag='nb'):
 def matrix(which='members', ens=None):
     """GitHub Actions matrix JSON for the member runs (each: storm, box, init, hours, env, name)."""
     import pandas as pd
-    BOX = {'sep2023': '168000,908000,188000,928000', 'aug2021': '168000,875000,188000,895000'}
-    out = []
+    BOX = BOXES; out = []
     for k, E in ENSEMBLES.items():
         if ens and k not in ens.split(','): continue
         end = ts(E['end'])
@@ -61,6 +85,8 @@ def matrix(which='members', ens=None):
             if any(o['name'] == member_name(k, m) for o in out): continue
             hrs = int((end - ts(m)).total_seconds() // 3600)
             out.append(dict(name=member_name(k, m), storm=E['storm'], box=BOX[E['storm']], init=m, hours=str(hrs), env='LF_HRRR_NBHD=20,90'))
+        if which == 'all' and E.get('mrms') and not any(o['name'] == f"{E['storm']}_mrms" for o in out):
+            out.append(dict(name=f"{E['storm']}_mrms", storm=E['storm'], box=BOX[E['storm']], init='mrms', hours=str(E['mrms']['hours']), env=''))
     return out
 
 
@@ -258,12 +284,12 @@ if __name__ == '__main__':
     p = sp.add_parser('proto'); p.add_argument('--run-dir', required=True); p.add_argument('--out', required=True); p.add_argument('--storm', required=True); p.add_argument('--dump', required=True)
     p = sp.add_parser('qmfit'); p.add_argument('--out', required=True); p.add_argument('--only'); p.add_argument('--margin-km', type=float, default=20.0)
     p = sp.add_parser('refit'); p.add_argument('--qmap', default=os.path.join(OUT, 'qmap.json'))
-    p = sp.add_parser('matrix'); p.add_argument('--ens')
+    p = sp.add_parser('matrix'); p.add_argument('--ens'); p.add_argument('--which', default='members'); p.add_argument('--skip-existing', action='store_true')
     sp.add_parser('report'); sp.add_parser('selftest')
     a = ap.parse_args()
     if a.cmd == 'proto': cmd_proto(a)
     elif a.cmd == 'qmfit': cmd_qmfit(a)
     elif a.cmd == 'refit': Q = json.load(open(a.qmap)); Q['maps'] = fit_maps(Q); json.dump(Q, open(a.qmap, 'w'))
-    elif a.cmd == 'matrix': print(json.dumps(matrix(ens=a.ens)))
+    elif a.cmd == 'matrix': print(json.dumps([c for c in matrix(a.which, a.ens) if not (a.skip_existing and os.path.exists(os.path.join(ENS_DIR, c['name'], 'summary.json')))]))
     elif a.cmd == 'report': cmd_report(a)
     else: selftest()
