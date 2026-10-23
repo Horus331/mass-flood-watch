@@ -1,6 +1,7 @@
 """Antecedent wetness per catalogue storm (ROADMAP_research.md T4; docs/proto/runoff/AMC.md).
 
-    python proto/runoff/antecedent.py [--storms jul2021,sep2021] [--skip-nwm]   -> docs/proto/runoff/antecedent.json + antecedent.csv
+    python proto/runoff/antecedent.py [--storms jul2021,sep2021] [--skip-nwm] [--skip-mrms] [--all-eras] [--out antecedent]
+        -> docs/proto/runoff/<out>.json + <out>.csv  (--all-eras: include the IEM-era catalogue storms, e.g. for the NEW16 OOS check)
 
 Per storm (docs/proto/obs/catalog.json, the AWS-era events, catalogue box and t0):
   * P5 / P10: box-mean MRMS MultiSensor QPE 24H Pass2 rain over the 5 and 10 days before t0 (sim/colab/lf_antecedent.py, the same
@@ -67,9 +68,11 @@ def nwm_land(t0, box_xy):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--storms', default=''); ap.add_argument('--skip-nwm', action='store_true'); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument('--storms', default=''); ap.add_argument('--skip-nwm', action='store_true')
+    ap.add_argument('--skip-mrms', action='store_true'); ap.add_argument('--all-eras', action='store_true')
+    ap.add_argument('--out', default='antecedent', help='output basename in docs/proto/runoff/ (default antecedent; e.g. antecedent_new16)'); a = ap.parse_args()
     cat = json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))
-    ev = [e for e in cat['events'] if e.get('era') == 'aws' and e.get('selected')]
+    ev = [e for e in cat['events'] if (a.all_eras or e.get('era') == 'aws') and e.get('selected')]
     if a.storms: ev = [e for e in ev if e['id'] in a.storms.split(',')]
     rows = []
     for e in ev:
@@ -77,6 +80,7 @@ def main():
         lat_r, lon_r, bxy = box_lonlat(e['box_26986'])
         r = dict(storm=e['id'], t0=e['t0'], box=e['box_26986'], month=int(e['t0'][5:7]))
         try:
+            if a.skip_mrms: raise RuntimeError('skipped (--skip-mrms)')
             p10 = lf_antecedent.antecedent(e['t0'], lat_r, lon_r, days=10)
             r.update(p5_mm=round(sum(p10['per_day_mm'][:5]), 1), p10_mm=round(p10['p_mm'], 1), per_day_mm=[round(v, 1) for v in p10['per_day_mm']],
                      sources=p10['sources'], n_pixels=p10['n_pixels'])
@@ -94,14 +98,14 @@ def main():
                source='NEH-4 growing season, 1.4 / 2.1 in. 5-day antecedent rain'),
                p_source='MRMS MultiSensor QPE 24H Pass2 (AWS noaa-mrms-pds), 24 h grids valid at t0 - 24 k h, box mean of native 0.01 deg pixels',
                nwm_source='NWM operational analysis_assim land tm00 at t0 (national-water-model GCS / noaa-nwm-pds); box mean of 1 km cells', storms=rows)
-    json.dump(res, open(os.path.join(OUT, 'antecedent.json'), 'w'), indent=1)
-    with open(os.path.join(OUT, 'antecedent.csv'), 'w') as f:
+    json.dump(res, open(os.path.join(OUT, a.out + '.json'), 'w'), indent=1)
+    with open(os.path.join(OUT, a.out + '.csv'), 'w') as f:
         f.write('storm,t0,p5_mm,p10_mm,p5_min_mm,p5_max_mm,amc,nwm_soilsat_top,nwm_soil_m_layer1\n')
         for r in rows:
             n = r.get('nwm') or {}; sm = n.get('SOIL_M'); sm1 = sm[0] if isinstance(sm, list) else sm
             f.write(f"{r['storm']},{r['t0']},{r.get('p5_mm', '')},{r.get('p10_mm', '')},{r.get('p5_min_mm', '')},{r.get('p5_max_mm', '')},{r.get('amc', '')},"
                     f"{n.get('SOILSAT_TOP', '')},{'' if sm1 is None else sm1}\n")
-    print(open(os.path.join(OUT, 'antecedent.csv')).read())
+    print(open(os.path.join(OUT, a.out + '.csv')).read())
 
 
 if __name__ == '__main__':
