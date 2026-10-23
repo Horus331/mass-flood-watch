@@ -199,6 +199,7 @@ def build(hour_ends, dt_min, lat_c, lon_c, src=None, cache=None, workers=None, l
     """hour_ends: list of pd.Timestamp (naive UTC), hour h of the run = (hour_ends[h] - 1 h, hour_ends[h]].
     pass2: optional (H, ny, nx) hourly Pass2 on the model grid, only for the report (radar/Pass2 ratio)."""
     import pandas as pd
+    hour_ends = [pd.Timestamp(t).tz_convert(None) if pd.Timestamp(t).tzinfo else pd.Timestamp(t) for t in hour_ends]
     if 60 % dt_min: raise SystemExit(f'LF_RAIN_DT={dt_min}: must divide 60 (2, 3, 4, 5, 6, 10, 12, 15, 20, 30)')
     src = src or ('qpe15m' if dt_min >= 15 and dt_min % 15 == 0 and os.environ.get('LF_RAIN_SUB') == 'qpe15m' else os.environ.get('LF_RAIN_SUB', 'preciprate'))
     if src not in ('preciprate', 'qpe15m'): raise SystemExit(f'LF_RAIN_SUB must be preciprate or qpe15m, not {src!r}')

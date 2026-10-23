@@ -877,6 +877,10 @@ def build_inputs(BOX, RES, S, TOK):
     RAIN = np.stack(RAIN)
     if os.environ.get('LF_RAIN_SCALE'):     # ensemble hook (proto/ensemble.py): storm-wide multiplicative radar-rain error; unset = MRMS as is
         RAIN = (RAIN * float(os.environ['LF_RAIN_SCALE'])).astype(np.float32); log(f"LF_RAIN_SCALE {os.environ['LF_RAIN_SCALE']}: MRMS rain multiplied")
+    SUB = None
+    if int(os.environ.get('LF_RAIN_DT', '60') or 60) < 60 and S.get('rain_src') != 'hrrr':    # opt-in: radar timing inside each Pass2 hour (sim/colab/lf_subhourly.py, docs/proto/rain/RAIN.md)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_subhourly
+        SUB = lf_subhourly.build(hours, int(os.environ['LF_RAIN_DT']), lat_c, lon_c, cache=os.environ.get('LF_MRMS_DIR'), log=log, pass2=RAIN)
     tot = RAIN.sum(0); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h; missing {MISSING}')
     if tot.max() <= 0 and os.environ.get('LF_ALLOW_DRY') != '1': raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
@@ -892,7 +896,7 @@ def build_inputs(BOX, RES, S, TOK):
         log(f"effective rain (CN+DCIA) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%); "
             f"mean impervious {100 * dst_['tia_mean']:.1f}%, connected {100 * dst_['dcia_mean']:.1f}%, mean pervious CN {dst_['cnp_mean']:.1f}")
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
-                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM)
+                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM, SUB=SUB)
 
 
 # ======================================================================================================================
@@ -996,8 +1000,18 @@ def main():
         log(f'WARNING: LF_INFIL_MMH={infil_mmh:g} with LF_INFIL_MODE=solver on the CUDA build: the GPU solver has no infiltration, so this run '
             'is NOT comparable with CPU runs (docs/proto/parity/PARITY.md). Set LF_INFIL_MODE=rain on both solvers for parity.')
     else: INFIL['applied_by'] = 'solver (CPU FPInfiltration: every cell deeper than 1 mm, whole run)'
-    rec, th = rain_records(RAIN_LF / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
-    write_rain_nc(f'{wd}/rain.nc', rec, x0, y0, RES, th, flip_y=P['flip_y'], flip_x=P['flip_x'])
+    SUBR = None
+    if I.get('SUB') is not None:     # LF_RAIN_DT: the same hourly excess, split into LF_RAIN_DT-minute records by the radar's timing (lf_subhourly)
+        import lf_subhourly
+        PS = lf_subhourly.probe_subhourly(sys.modules[__name__], exe, is_cuda, I['SUB'].dt)
+        if PS['units'] is None or P['convention'] != 'forward':
+            raise SystemExit(f"LF_RAIN_DT: this LISFLOOD-FP build does not read {I['SUB'].dt}-min rain records as expected (probe {PS}, hourly convention {P['convention']})")
+        st_ = lf_subhourly.write_rain_nc_sub(f'{wd}/rain.nc', RAIN_LF, I['SUB'], x0, y0, RES, unit=PS['units'], divide=(scale if abs(scale - 1) > 0.2 else 1.0),
+                                             flip_y=P['flip_y'], flip_x=P['flip_x'])
+        SUBR = dict(I['SUB'].report, probe=PS, file=st_); log(f'LF_RAIN_DT={I["SUB"].dt}: rain file {st_}')
+    else:
+        rec, th = rain_records(RAIN_LF / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
+        write_rain_nc(f'{wd}/rain.nc', rec, x0, y0, RES, th, flip_y=P['flip_y'], flip_x=P['flip_x'])
     write_bci(f'{wd}/run.bci', x0, y0, x1, y1)
     if DOM: open(f'{wd}/run.bci', 'w').write('\n'.join(DOM['bci']) + '\n')     # FREE only where the outlet corridors reach the box edge; other edges closed
     start = None
@@ -1179,6 +1193,7 @@ def main():
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
                 forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours']) if S.get('rain_src') == 'hrrr' else None)
+    if SUBR: meta['inputs']['rain_subhourly'] = SUBR
     if I.get('DAMS'):
         try: meta['dams'] = lf_dams_report(I['DAMS'], I['Z'], FR, FT)
         except Exception as e: log('dam report failed:', repr(e)[:200])
@@ -1353,6 +1368,7 @@ def selftest():
     ok.append('LF_INFIL_MODE=rain: max(R - mmh, 0) per cell and hour, kept share')
     ok.append('LF_LOSS=cn reproduces FINDINGS table; cn_dcia: connected pavement = IMP (P - 2 mm), CN on pervious only, event-cumulative, water = rain')
     shutil.rmtree(d)
+    import lf_subhourly; ok += ['lf_subhourly: ' + o for o in lf_subhourly.selftest(sys.modules[__name__])]
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')
 
