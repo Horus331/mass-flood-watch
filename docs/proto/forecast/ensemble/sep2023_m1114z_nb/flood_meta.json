@@ -1,0 +1,80 @@
+{
+ "run": "sep2023_ens_sep2023_m1114z_nb",
+ "title": "Sept 11, 2023 flash floods \u00b7 NOAA HRRR forecast issued Sep 11 14z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  908000.0,
+  188000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-09-11T14:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 144
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2023-09-11T14:00Z, forecast hours 1-18 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2023-09-11T14Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 47,
+ "rain_total_mean_mm": 25,
+ "rain_missing_hours": [],
+ "runtime_s": 338,
+ "total_s": 566,
+ "peak_wet_km2": 0.5,
+ "peak_snapshot_wet_km2": 0.3,
+ "mass_tail": [
+  "136504.311   4.6529     3.1983     29590      1428800.0000  275612.4443  0.000       0.000      1.171            -0.0000      -0.0021  -44039.5507",
+  "136802.115   4.6534     3.1983     29654      1426400.0000  274966.8642  0.000       0.000      1.164            -0.0000      -0.0021  -44337.5225"
+ ],
+ "git_sha": "9ef4a489",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2023-09-11T14:00Z",
+  "forecast_hours": 18,
+  "run_hours": 38
+ }
+}
