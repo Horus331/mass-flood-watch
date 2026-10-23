@@ -1010,8 +1010,10 @@ def main():
         PS = lf_subhourly.probe_subhourly(sys.modules[__name__], exe, is_cuda, I['SUB'].dt)
         if PS['units'] is None or P['convention'] != 'forward':
             raise SystemExit(f"LF_RAIN_DT: this LISFLOOD-FP build does not read {I['SUB'].dt}-min rain records as expected (probe {PS}, hourly convention {P['convention']})")
-        st_ = lf_subhourly.write_rain_nc_sub(f'{wd}/rain.nc', RAIN_LF, I['SUB'], x0, y0, RES, unit=PS['units'], divide=(scale if abs(scale - 1) > 0.2 else 1.0),
-                                             flip_y=P['flip_y'], flip_x=P['flip_x'])
+        sub_inf = os.environ.get('LF_RAIN_DT_INFIL', 'hour') == 'sub' and INFIL_MODE == 'rain' and INFIL['mmh'] > 0   # opt-in: the rain-mode loss per record, not per hour
+        st_ = lf_subhourly.write_rain_nc_sub(f'{wd}/rain.nc', I['RAIN'] if sub_inf else RAIN_LF, I['SUB'], x0, y0, RES, unit=PS['units'], divide=(scale if abs(scale - 1) > 0.2 else 1.0),
+                                             flip_y=P['flip_y'], flip_x=P['flip_x'], infil_mmh=INFIL['mmh'] if sub_inf else 0.0)
+        if sub_inf: INFIL['applied_by'] = f"rain excess, per {I['SUB'].dt}-min record, before the solver (both solvers; LF_RAIN_DT_INFIL=sub)"
         SUBR = dict(I['SUB'].report, probe=PS, file=st_); log(f'LF_RAIN_DT={I["SUB"].dt}: rain file {st_}')
     else:
         rec, th = rain_records(RAIN_LF / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
