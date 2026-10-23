@@ -1,0 +1,80 @@
+{
+ "run": "sep2023_ens_sep2023_12z_raw_qmraw",
+ "title": "Sept 11, 2023 flash floods \u00b7 NOAA HRRR forecast issued Sep 11 12z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  908000.0,
+  188000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-09-11T12:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 155
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2023-09-11T12:00Z, forecast hours 1-40 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2023-09-11T12Z",
+   "LF_HRRR_QMAP": "/home/runner/work/mass-flood-watch/mass-flood-watch/docs/proto/forecast/qmap.json#loso_sep2023/raw",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 129,
+ "rain_total_mean_mm": 26,
+ "rain_missing_hours": [],
+ "runtime_s": 444,
+ "total_s": 700,
+ "peak_wet_km2": 1.7,
+ "peak_snapshot_wet_km2": 0.6,
+ "mass_tail": [
+  "143703.965   4.6520     3.1983     31202      2277200.0000  353872.6278  0.000       0.000      1.636            -0.0000      -0.0041  174435.0964",
+  "144001.710   4.6525     3.1983     31266      2255600.0000  352851.8668  0.000       0.000      1.626            -0.0000      -0.0041  173899.9517"
+ ],
+ "git_sha": "a8db6b2c",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2023-09-11T12:00Z",
+  "forecast_hours": 40,
+  "run_hours": 40
+ }
+}
