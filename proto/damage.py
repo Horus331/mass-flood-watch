@@ -145,6 +145,7 @@ def extract(run_dir, out, storm=None, channels=True):
     hds = {c['id']: c for c in PR.culvert_probability(rows_hds, xq, {}, meta, True)}
     tr = Transformer.from_crs(4326, 26986, always_xy=True); kc = int(math.ceil(CHAN_R_M / res)); kr = int(math.ceil(RING_M / res)); out_rows = []
     for g in XG:
+        if not all(k in g for k in ('r', 'c', 'r0', 'r1', 'c0', 'c1', 'zcrest')): continue      # older xings.json without the notch block
         row = byid.get(g['id'], {}); r, c = int(g['r']), int(g['c'])
         if not (0 <= r < ny and 0 <= c < nx): continue
         x, y = (tr.transform(row['lon'], row['lat']) if row.get('lon') is not None else (x0 + (c + 0.5) * res, y1 - (r + 0.5) * res))
@@ -264,6 +265,20 @@ def write_geojson(path, recs):
     json.dump(dict(type='FeatureCollection', name='crossing_damage', features=F), open(path, 'w'))
 
 
+
+def run_layer(run_dir, out, model=None):
+    """prototype.py hook (PROTO_DAMAGE=1): crossing table from the run dir -> <out>/damage.geojson (+ damage_crossings.csv); summary dict."""
+    if not os.path.exists(os.path.join(run_dir, 'xings.json')): return dict(error='no xings.json in the run dir (needs w9 with LF_QOUT=1)')
+    rows = extract(run_dir, os.path.join(out, 'damage_crossings.csv'), channels=os.environ.get('PROTO_DAMAGE_CHANNELS', '1') == '1')
+    rows = [{k: ('' if v is None else v) for k, v in r.items()} for r in rows]
+    if model is None:
+        mp = os.path.join(ROOT, 'docs', 'proto', 'damage', 'damage_model.json')
+        model = json.load(open(mp)).get('model') if os.path.exists(mp) else None
+    recs = layer(rows, model); write_geojson(os.path.join(out, 'damage.geojson'), recs)
+    return dict(crossings=len(recs), damage_p_ge_50=sum(r['damage_p'] >= 0.5 for r in recs), expected_repair_usd=round(sum(r['expected_cost_usd'] for r in recs), -3),
+                model='fitted' if model else 'prior: P = 1 / (1 + (omega / 300 W/m2)^-1.5)', layer='damage.geojson (separate from p_close)')
+
+
 def load_damage_labels(storm, box):
     from pyproj import Transformer
     tr = Transformer.from_crs(4326, 26986, always_xy=True); L = []
@@ -297,7 +312,7 @@ def match(rows, labels, tolerant=False):
     """Sites with their candidate crossings.  strict: exact-coordinate labels, crossings within MATCH_M.  tolerant (context only): approximate
     labels, crossings on the same normalised road name within 1.5 km."""
     import prototype as PR
-    xy = np.array([[fnum(r['x']), fnum(r['y'])] for r in rows]) if rows else np.zeros((0, 2)); roads = [PR.norm_road(r.get('road')) for r in rows]
+    xy = np.array([[fnum(r['x']), fnum(r['y'])] for r in rows]) if rows else np.zeros((0, 2)); roads = [PR.norm_road(r.get('road') if isinstance(r.get('road'), str) else '') for r in rows]
     L = [l for l in labels if (l['q'] == 'exact') != tolerant and l['q'] != 'town']
     out = []
     for s in sites(L):
@@ -305,7 +320,7 @@ def match(rows, labels, tolerant=False):
         for i in s:
             d = np.hypot(xy[:, 0] - L[i]['x'], xy[:, 1] - L[i]['y'])
             if tolerant:
-                rn = PR.norm_road(L[i]['road'])
+                rn = PR.norm_road(L[i]['road'] or '')
                 cand |= set(np.where((d <= 1500.0) & np.array([rn != '' and (rn in r_ or r_ in rn) and r_ != '' for r_ in roads]))[0].tolist())
             else: cand |= set(np.where(d <= MATCH_M)[0].tolist())
         out.append(dict(labels=[L[i]['id'] for i in s], types=sorted({L[i]['type'] for i in s}), src=sorted({L[i]['src'] for i in s}), cand=sorted(cand)))
