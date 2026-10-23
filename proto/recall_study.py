@@ -363,8 +363,69 @@ def summarise_tiers(per, reps):
     return out
 
 
+# ------------------------------------------------------------------------------------------------ 4. bridge approaches (PROTO_BRIDGE_APPROACH)
+def bridges():
+    """Approximate effect of matching labels against all road points (decks included) and scoring deck-only segments from their approaches,
+    from published outputs.  Matching is exact (the new rule rebuilds the same points from docs/graph_segments.json); the deck-only segments'
+    depth needs point depths the published outputs do not hold, so it is bracketed: low = deck segment never flagged (matching fix only),
+    high = deck segment takes the highest p_depth of the segments it links to (whole segments, so an upper bound on 50 m approaches)."""
+    import impacts as IM
+    import prototype as P
+    GS = json.load(open(os.path.join(ROOT, 'docs', 'graph_segments.json'))); n = GS['n']; res = {}
+    runs = [('leominster_sep2023_gpu (headline)', GPU, os.path.join(TUR, 'leominster_sep2023_dams', 'features_sep2023.csv'), [LAB], 'gpu'),
+            ('leominster_sep2023_gpu DPW', GPU, os.path.join(TUR, 'leominster_sep2023_dams', 'features_sep2023.csv'), [DPW], 'gpu')]
+    import closure_loso as CL
+    for st in CL.STORMS:
+        d = os.path.join(TUR, f'{st}_{CL.AREA[st]}_20m'); M = json.load(open(os.path.join(d, f'matches_{st}.json')))
+        runs.append((st, d, os.path.join(d, f'features_{st}.csv'), [os.path.join(ROOT, x) for x in M['labels']], 'feat'))
+    for name, d, fcsv, labs, kind in runs:
+        meta = json.load(open(os.path.join(d, 'flood_meta.json'))); rows = list(csv.DictReader(open(fcsv)))
+        inbox_old = np.zeros(n, bool); inbox_old[[int(r['segment']) for r in rows]] = True
+        pd_ = np.zeros(n)
+        if kind == 'gpu':
+            for f in json.load(open(os.path.join(d, 'segments.geojson')))['features']: pd_[f['properties']['segment']] = f['properties']['p_depth']
+            summ = json.load(open(os.path.join(d, 'summary.json'))); pub = {x['id']: 'depth' in x['hit'] for x in summ['checks']['labels_segments']['sites']}
+        else:
+            for r in rows: pd_[int(r['segment'])] = F(r['p_depth'], 0.0)
+            Mj = json.load(open(os.path.join(d, os.path.basename(fcsv).replace('features_', 'matches_').replace('.csv', '.json'))))['matches']
+            idx = set(np.nonzero(inbox_old)[0].tolist())
+            pub = {k: bool(any(pd_[g] >= 0.5 for g in m['segs'] if g in idx)) for k, m in Mj.items()}
+        Pall = IM.road_points(GS, meta); ue = ~Pall['end'] | (np.bincount(Pall['seg'][~Pall['end']], minlength=n)[Pall['seg']] == 0)
+        Qm = {k: v[ue] for k, v in Pall.items()}
+        has = np.bincount(Pall['seg'], minlength=n) > 0; deck = np.nonzero(has & ~inbox_old)[0]
+        adj = {}
+        for a_, b_ in GS['links']: adj.setdefault(a_, []).append(b_); adj.setdefault(b_, []).append(a_)
+        isdeck = np.zeros(n, bool); isdeck[deck] = True; hi = pd_.copy()
+        for s_ in deck:
+            seen, stack, nb = {int(s_)}, [int(s_)], []
+            while stack:
+                for t in adj.get(stack.pop(), []):
+                    if t in seen: continue
+                    seen.add(t); (stack if isdeck[t] else nb).append(t)
+            hi[s_] = max([pd_[t] for t in nb if inbox_old[t]] + [0.0])
+        inbox_new = inbox_old | isdeck
+        L = []
+        for lp in labs: L += [dict(x, _f=os.path.basename(lp)) for x in P.load_labels(lp)]
+        new = P.label_segments(L, Qm, GS['props'], meta, strict=True)
+        def score(matches, p, ib):
+            fl = (p >= 0.5) & ib; f = fl[ib].mean(); hit = np.array([fl[s].any() for _, s in matches]); ex = np.array([1 - (1 - f) ** len(s) for _, s in matches])
+            return dict(sites=len(matches), hits=int(hit.sum()), recall=round(float(hit.mean()), 3), flagged_share=round(float(f), 4), lift=round(float(hit.mean() / ex.mean()), 2))
+        if 'DPW' in name: pub = {}          # the published GPU run did not score the DPW points
+        old_hits = sum(pub.values())
+        o = dict(segments_in_box_old=int(inbox_old.sum()), deck_only_segments=int(len(deck)), deck_only_hi_flagged=int((hi[deck] >= 0.5).sum()),
+                 old=dict(sites=len(pub), hits=int(old_hits), recall=round(old_hits / len(pub), 3) if pub else None, flagged_share=round(float(((pd_ >= 0.5) & inbox_old)[inbox_old].mean()), 4)),
+                 new_low=score(new, pd_, inbox_new), new_high=score(new, hi, inbox_new),
+                 new_sites_on_deck_only=int(sum(isdeck[s].any() for _, s in new)))
+        if kind == 'gpu':
+            oldid = set(pub) if pub else set(); o['newly_matched'] = sorted(m[0]['id'] for m in new if m[0]['id'] not in oldid)
+            o['lost'] = sorted(i for i in oldid if pub if i not in {m[0]['id'] for m in new})
+        res[name] = o; print(name, json.dumps(o))
+    json.dump(res, open(os.path.join(OUT, 'bridges.json'), 'w'), indent=1); return res
+
+
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if cmd in ('anatomy', 'all'): anatomy()
     if cmd in ('curves', 'all'): curves()
     if cmd in ('tiers', 'all'): tiers()
+    if cmd in ('bridges', 'all'): bridges()

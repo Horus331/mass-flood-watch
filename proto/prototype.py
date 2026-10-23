@@ -110,6 +110,13 @@ GAMMA_W = 9810.0
 DECK_GAP_M = 2.0       # the road's own lidar crest drops >= 2 m below the road on both sides: the ground under a removed deck, not the road
 DECK_RADIUS_M = 150.0  # ... within 150 m along the road each way (a deck or viaduct span seen from its approaches)
 DECK_NBI_M = 100.0     # ... and an NBI bridge carrying the same route number (item 5D) within 100 m
+# BRIDGE APPROACHES (default on; PROTO_BRIDGE_APPROACH=0 for the old behaviour).  Road points on decks / over water / near NBI bridges are
+# dropped for depth sampling (water under a bridge is not water on the road), which left deck-only segments with no points at all: out of the
+# box, never flagged, and invisible to label matching (14 Leominster Sept 2023 labels at bridges had no 30 m match).  Now (1) documented
+# sites are matched against ALL road points (decks included) and (2) a segment with no kept points reads its depth from the kept road points
+# within APPROACH_M of its dropped points on the segments it connects to (links, through further deck-only segments): approach flooding /
+# overtopping is what closes a bridge.  Segments that keep any point of their own are unchanged.
+APPROACH_M = 50.0
 # ---- SAG / UNDERPASS layer (candidate, never in p_close; shown as an optional map layer) ----
 # A sag of the road profile (a low point >= 0.30 m below the road on both sides within 150 m along it) that is also a closed depression of the
 # bare-earth lidar (>= 0.30 m deep before spilling) holds water that only storm drains remove.  Not counted at road-stream crossings (a
@@ -486,6 +493,34 @@ def label_segments_lines(labels, Q, meta, radius=30.0, share=0.5):
     return out
 
 
+def bridge_approaches(n, Pall, Q, links, radius=APPROACH_M):
+    """Segments with road points in the box (Pall, nothing dropped) but none kept for depth sampling (Q): bridge decks / water crossings.
+    Returns (deck_only segment ids, {segment: indices into Q of its approach points}): kept points within `radius` of the segment's own
+    points, on segments reached through links (passing through other deck-only segments)."""
+    from scipy.spatial import cKDTree
+    has_all = np.bincount(Pall['seg'], minlength=n) > 0; has_q = np.bincount(Q['seg'], minlength=n) > 0
+    deck = np.nonzero(has_all & ~has_q)[0]
+    if not len(deck) or not len(Q['x']): return deck, {}
+    adj = {}
+    for a, b in links: adj.setdefault(int(a), []).append(int(b)); adj.setdefault(int(b), []).append(int(a))
+    isdeck = np.zeros(n, bool); isdeck[deck] = True; tq = cKDTree(np.column_stack([Q['x'], Q['y']])); out = {}
+    order = np.argsort(Pall['seg'], kind='stable'); sg_sorted = Pall['seg'][order]
+    for s in deck:
+        nb, seen, stack = set(), {int(s)}, [int(s)]
+        while stack:
+            for t in adj.get(stack.pop(), []):
+                if t in seen: continue
+                seen.add(t)
+                if isdeck[t]: stack.append(t)
+                else: nb.add(t)
+        if not nb: continue
+        lo, hi = np.searchsorted(sg_sorted, s), np.searchsorted(sg_sorted, s, side='right'); ii = order[lo:hi]
+        cand = np.unique(np.concatenate([np.asarray(v, int) for v in tq.query_ball_point(np.column_stack([Pall['x'][ii], Pall['y'][ii]]), radius)] + [np.zeros(0, int)]))
+        cand = cand[np.isin(Q['seg'][cand], list(nb))]
+        if len(cand): out[int(s)] = cand
+    return deck, out
+
+
 def label_recall(matches, P, inbox, thr=0.5):
     """Segment-level recall of documented sites at P >= thr, the share of all in-box segments flagged, and two lifts: recall / flagged share
     (naive) and recall / the recall random flagging of the same share would get given how many segments each site matches (chance-corrected)."""
@@ -623,6 +658,25 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     else:
         tot = p1 = p3 = np.zeros(n, np.float32)
     flash = np.where(tot > 0, 100.0 * p1 / np.maximum(tot, 1e-6), 0.0)
+    # BRIDGE APPROACHES: all road points for label matching; deck-only segments read their approaches (see APPROACH_M)
+    approach_on = os.environ.get('PROTO_BRIDGE_APPROACH', '1') == '1'
+    Qm = Q; deck_only = np.zeros(0, int); apx = {}
+    if approach_on and len(Q['x']):
+        Pall = _orig_rp(S, meta)
+        if len(Pall['x']):
+            ue_ = ~Pall['end'] | (np.bincount(Pall['seg'][~Pall['end']], minlength=n)[Pall['seg']] == 0)      # same end-point trim as Q
+            Qm = {k: v[ue_] for k, v in Pall.items()}; deck_only, apx = bridge_approaches(n, Pall, Q, S.get('links') or [], APPROACH_M)
+            for sg_, ix_ in apx.items():
+                d_ = dq[ix_]; mx[sg_] = np.sort(d_)[-2] if len(d_) >= 2 else d_.max()
+                if T:
+                    hrs30[sg_] = np.max(np.where(d_ >= 0.30, T['tover30'][Q['r'][ix_], Q['c'][ix_]], 0)); hrs15[sg_] = np.max(np.where(d_ >= 0.15, T['tover15'][Q['r'][ix_], Q['c'][ix_]], 0))
+                    a_ = np.where(d_ >= 0.30, T['tarr30'][Q['r'][ix_], Q['c'][ix_]], np.nan); arr30[sg_] = np.nanmin(a_) if np.isfinite(a_).any() else np.nan
+                if RS:
+                    tot[sg_] = RS['total'][Q['r'][ix_], Q['c'][ix_]].max(); p1[sg_] = RS['peak1h'][Q['r'][ix_], Q['c'][ix_]].max(); p3[sg_] = RS['peak3h'][Q['r'][ix_], Q['c'][ix_]].max()
+            inbox = inbox.copy(); inbox[deck_only] = True
+            flash = np.where(tot > 0, 100.0 * p1 / np.maximum(tot, 1e-6), 0.0)
+    geo['approach'] = dict(rule='on' if approach_on else 'off (PROTO_BRIDGE_APPROACH=0)', approach_m=APPROACH_M, deck_only_segments=int(len(deck_only)),
+                           with_approach_points=len(apx))
 
     # time series: depth on every segment at every 30-min snapshot (for the animated map)
     FRM = load_npz(os.path.join(run_dir, 'frames_cm.npz')); seg_t = None; frame_hours = []
@@ -795,7 +849,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     tiers_on = os.environ.get('PROTO_TIERS', '0') == '1'      # two-tier alerts (needs the learned model, so it implies the PROTO_ML hook)
     if os.environ.get('PROTO_ML', '0') == '1' or tiers_on:     # optional learned closure model (proto/closure_ml.py): adds p_close_ml; p_close unchanged
         import closure_ml as _ML
-        try: _ML.on_rows(rows, run_dir, Q, meta, props)
+        try: _ML.on_rows(rows, run_dir, Q, meta, props); _ML.CAPTURE is not None and _ML.CAPTURE.update(Qm=Qm)     # label matching points (decks included) for extract()
         except Exception as e_:
             if not tiers_on or os.environ.get('PROTO_ML', '0') == '1': raise
             print('learned model failed, watch tier empty:', repr(e_)[:300]); rules['tiers_error'] = repr(e_)[:300]
@@ -825,9 +879,9 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
             checks['massdot_repeat_sites']['flagged_p05_with_culverts'] = sum(h['max_p_with_culverts'] >= 0.5 for h in hits)
     # documented road flood / closure / damage sites (proto/data/labels_*): segment-level recall vs flagged share, depth rule and with culverts
     if labels_csv and labels_csv.endswith('.geojson') and os.path.exists(labels_csv):     # closed stretches (lines): strict 30 m, loose 100 m
-        LB = load_line_labels(labels_csv); LM = label_segments_lines(LB, Q, meta, 30.0); LL = label_segments_lines(LB, Q, meta, 100.0)
+        LB = load_line_labels(labels_csv); LM = label_segments_lines(LB, Qm, meta, 30.0); LL = label_segments_lines(LB, Qm, meta, 100.0)
     else:
-        LB = load_labels(labels_csv); LM = label_segments(LB, Q, props, meta, strict=True); LL = label_segments(LB, Q, props, meta, strict=False)
+        LB = load_labels(labels_csv); LM = label_segments(LB, Qm, props, meta, strict=True); LL = label_segments(LB, Qm, props, meta, strict=False)
     if LM or LL:
         checks['labels_segments'] = dict(note='recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the '
                                               'same share of segments; lift = recall / random_recall; lift_naive = recall / flagged share. strict: segments within 30 m '
@@ -1226,6 +1280,12 @@ def selftest():
     assert abs(qq_[0] - 1.0) < 1e-6 and pp_[0] > 0.9 and pp_[2] == 0 and dd_[210] >= PLUV_DENS, (qq_[0], pp_[0], dd_[210])     # high ground (HAND 3 m): 0
     pp_, _, _ = pluvial_probability(np.full(nP, 5.0), ar_, hd_, cx_, cy_, np.ones(nP, bool)); assert pp_[0] < 0.1                   # 5 mm hour: 0.25 m3/s
     pp_, _, _ = pluvial_probability(np.full(1, 20.0), ar_[:1], hd_[:1], cx_[:1], cy_[:1], np.ones(1, bool)); assert pp_[0] == 0      # lone road: not urban
+    # bridge approaches: 3 segments in a row along x (0-100, 100-200 deck-only, 200-300), plus an unlinked road 20 m off the deck
+    xb_ = np.r_[np.arange(0, 101, 10.0), np.arange(100, 201, 10.0), np.arange(200, 301, 10.0), np.arange(120, 181, 10.0)]
+    sb_ = np.r_[np.zeros(11, int), np.ones(11, int), np.full(11, 2), np.full(7, 3)]; yb_ = np.where(sb_ == 3, 20.0, 0.0)
+    Pb_ = dict(x=xb_, y=yb_, seg=sb_); kb_ = sb_ != 1; Qb_ = dict(x=xb_[kb_], y=yb_[kb_], seg=sb_[kb_])
+    dk_, ap_ = bridge_approaches(4, Pb_, Qb_, [[0, 1], [1, 2]], 50.0)
+    assert list(dk_) == [1] and set(Qb_['seg'][ap_[1]]) == {0, 2} and Qb_['x'][ap_[1]].min() >= 50 and Qb_['x'][ap_[1]].max() <= 250, (dk_, ap_)
     print('selftest ok:', out)
 
 

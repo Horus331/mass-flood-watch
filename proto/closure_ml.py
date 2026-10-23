@@ -167,7 +167,7 @@ def extract(run_dir, storm, labels, out_dir=OUT_DIR, tmp=None):
     y = {r['segment']: 0 for r in rows}; src = {r['segment']: '' for r in rows}; matches = {}
     for path in labels:
         L = PT.load_line_labels(path) if path.endswith('.geojson') else PT.load_labels(path)
-        M = PT.label_segments_lines(L, C['Q'], C['meta'], 30.0) if path.endswith('.geojson') else PT.label_segments(L, C['Q'], C['props'], C['meta'], strict=True)
+        M = PT.label_segments_lines(L, C.get('Qm', C['Q']), C['meta'], 30.0) if path.endswith('.geojson') else PT.label_segments(L, C.get('Qm', C['Q']), C['props'], C['meta'], strict=True)
         for lab, segs in M:
             segs = [int(s) for s in segs if int(s) in y]
             if not segs: continue

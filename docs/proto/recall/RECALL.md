@@ -23,6 +23,7 @@ Reproduce with `python proto/recall_study.py all` (about 2 minutes, published da
   - **The price is precision.** Lift (recall divided by flagged share) falls from about 16 to about 7.6, so each flagged segment is worth about half as much as it is now.
 - **Tolerant matching (100 m / same road name) is not a fix, only context.** It lifts Leominster to 0.64 at 2 % flagged and 0.84 at 5 %. But chance recall rises with it: the chance-corrected lift drops from about 11 to about 2–3.
 - **Implemented:** `PROTO_TIERS=1` in `proto/prototype.py`, off by default. It adds a `tier` field ("likely closed" / "watch") to every segment. The default output is unchanged.
+- **Bridge matching fixed (new default, section 4).** Documented sites are now matched against all road points, bridge decks included. A segment that is entirely deck reads its depth from its approaches, the 50 m of road either side. Estimated from published data, the Leominster headline goes from 28 of 78 (36 %) to 35–36 of 89 (39–40 %) at 2.6–3.0 % flagged. The 9-storm pool goes from 57 of 168 to 67–68 of 186 (0.34 to 0.36). Almost all of the gain comes from matching, not from the deck depths. A Turing reprocess will confirm the exact numbers.
 
 ## 1. Miss anatomy, Leominster 11–12 Sept 2023
 
@@ -78,6 +79,7 @@ The 50 misses by mechanism group:
   - Whitney Field mall lot: 1.47 m
 
   These labels are excluded from the denominator, so this cuts both ways.
+  Fixed in section 4: 11 of the 14 now match, and 7 more sites are caught.
 - Clustering inflates both the hit counts and the miss counts. For example, the 49 DPW sites in the 20 m run map to only 22 distinct segment sets.
 
 **What is fixable where (news/agency misses):**
@@ -172,6 +174,75 @@ For comparison, the default (tier 1 alone) catches 57/168 = 0.34 [0.14, 0.40] at
   - `segments_watch` and `km_watch` are added to `summary.json`.
   - If the learned model fails, the watch tier is left empty, with the error in `checks.rules.tiers_error`.
   - With the final all-storm model, t = 0.02 flags 2.7–10.6 % per storm (in sample). Leominster: 10.6 %.
+
+## 4. Bridge decks and label matching (`PROTO_BRIDGE_APPROACH`, default on)
+
+**The gap.** `prototype.run` drops some road points before sampling depth: points on lidar-removed bridge decks, points over water-mask cells, and points within 30 m of an NBI bridge. That is right for depth, since water under a bridge is not water on the road. But the same bridge-free point set was also used for label matching. So a segment that is entirely deck had no points at all. It was:
+- outside the box,
+- never flagged, and
+- invisible to matching.
+
+Labels at bridges either matched nothing, or matched only the approach segments. In Leominster, 14 labels in the box had no 30 m match.
+
+**The change** (in `proto/prototype.py`, on by default; `PROTO_BRIDGE_APPROACH=0` restores the old behaviour):
+1. **Matching uses all road points.** `label_segments` and `label_segments_lines` match against all road points (`Qm`), with the same end-point trim as before. Deck, water and NBI points are no longer dropped for matching. `closure_ml.extract` uses the same points, so the learned model's labels follow.
+2. **Deck-only segments read their approaches** (`bridge_approaches`). A deck-only segment is one with road points in the box but none kept. Its depth is the second-highest depth on the kept road points within `APPROACH_M` = 50 m of its own points. Only points on segments it connects to through `links` count, walking through further deck-only segments if needed. From that depth come its p_close, its hours over 30 / 15 cm, its arrival time and its rain.
+3. **Deck-only segments now count as in the box.** They enter the flagged-share denominator and the outputs.
+
+**What does not change.** A segment that keeps any point of its own gets the same p_close as before, so the default p_close of non-bridge segments is unchanged. That is why this is a default-on correction, not a flag. The network impacts (`impacts.analyse`) are untouched.
+
+**Diagnostics.** `checks.rules.bridges.approach` reports the number of deck-only segments and how many of them have approach points.
+
+**Effect, estimated from published outputs** (`python proto/recall_study.py bridges`, written to `bridges.json`):
+- **Matching is exact.** The new rule rebuilds the same points from `docs/graph_segments.json`.
+- **Deck-only depths are bracketed,** because the published outputs hold no point depths:
+  - **low:** deck segments are never flagged.
+  - **high:** a deck segment takes the highest p_depth of the whole segments it links to. That is an upper bound on what 50 m approaches give.
+
+| run | deck-only segments | before: hits / sites, flagged | after (low) | after (high) |
+|---|---|---|---|---|
+| Leominster GPU, news/agency labels (headline) | 87 | 28/78 = 0.36, 2.6 %, lift 9.45 | 35/89 = 0.39, 2.6 %, lift 9.8 | 36/89 = 0.40, 3.0 %, lift 8.7 |
+| Leominster GPU, DPW points (not scored before) | 87 | - | 21/54 = 0.39, 2.6 %, lift 12.4 | 21/54 = 0.39, 3.0 %, lift 10.7 |
+| aug2021 | 213 | 5/12, 2.2 % | 5/12, 2.2 %, lift 9.0 | 5/12, 2.5 % |
+| aug2023 | 92 | 1/4, 3.6 % | 1/5, 3.5 % | 1/5, 3.7 % |
+| aug2023b | 207 | 0/2, 0.5 % | 0/2 | 0/2 |
+| aug2026 | 80 | 1/4, 2.2 % | 1/4, 2.2 % | 1/4, 2.6 % |
+| jul2021 | 192 | 1/5, 1.2 % | 1/5, 1.2 % | 1/5, 1.4 % |
+| jul2023 | 170 | 0/5, 0.7 % | 0/5 | 0/5 |
+| sep2021 | 189 | 2/5, 4.1 % | 3/6, 4.0 % | 3/6, 4.3 % |
+| sep2022 | 64 | 0/4, 1.9 % | 0/4 | 0/4 |
+| sep2023 (20 m, news + DPW) | 80 | 47/127 = 0.37, 2.8 % | 56/143 = 0.39, 2.8 % | 57/143 = 0.40, 3.2 % |
+| **pooled, 9 storms** | 1287 | **57/168 = 0.34** | **67/186 = 0.36** | 68/186 = 0.37 |
+
+**Leominster detail:**
+- 11 of the 14 previously unmatched news labels now match: L006, L010, L011, L013, L028, L030, L031, L059, L067, L081, L088. The other three have town-level coordinates (L002, L057) or no road within 30 m (L037).
+- No previously matched label is lost.
+- The 7 extra hits:
+  - 4 are newly matched labels: L011 Adams St, L013 Whitney Field lot, L081 Pleasant St Culvert 2, L088 Water St retaining wall.
+  - 3 were matched before and now also reach the flagged segment across the bridge: L038 Mechanic & Water St, L044 Mechanic St Bridge, L045 Mechanic St sinkhole.
+- L028 Central St now matches but is not caught: its matched segments read under 0.30 m without the deck.
+- Only 3 Leominster sites sit on a deck-only segment. So the approach depth moves recall by at most 1 site, while adding up to 0.4 % to the flagged share.
+
+**The chance-corrected lift moves less than the recall.** Sites now match slightly more segments each (Leominster 1.35 to 1.44 per site; aug2021 1.17 to 2.17, around Worcester's river crossings). That raises chance recall. The naive lift (recall divided by share) for Leominster rises from 13.7 to 15.2.
+
+**To confirm on Turing.** Run these from `~/mass-flood-watch` after `git pull`. They re-score the existing flood outputs only, with no flood-model rerun.
+
+```bash
+# headline run (GPU, Leominster Sept 2023)
+NAME=leominster_sep2023_gpu STORM=sep2023 PUBLISH=1 sbatch --export=ALL proto/turing/reprocess.slurm
+# the 9 catalogue storms at 20 m (prototype + closure_ml extract -> features_*.csv / matches_*.json), then publish
+bash proto/turing/reprocess_catalog.sh 20
+```
+
+Once they have published, refresh the downstream analyses locally. `closure_loso.py` matters because the labels changed.
+
+```bash
+python proto/closure_loso.py && python proto/recall_study.py all
+```
+
+Compare `docs/proto/turing/leominster_sep2023_gpu/summary.json` with the "after" columns above: `checks.labels_segments.depth_rule.all` and `checks.rules.bridges.approach`. With `PROTO_BRIDGE_APPROACH=0`, the old numbers must come back unchanged.
+
+The sections above (anatomy, curves, tiers) still use the old matching. They should be re-run after the reprocess. The direction is clear: recall goes up 2–3 points everywhere, with essentially the same flagged share.
 
 ## Caveats
 
