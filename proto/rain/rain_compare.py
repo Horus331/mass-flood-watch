@@ -15,6 +15,17 @@ sys.path.insert(0, os.path.join(ROOT, 'proto'))
 from dcia_compare import read  # noqa: E402
 
 RUNS = f'{ROOT}/docs/proto/rain/runs'
+VERDICT = dict(
+    subhourly_default=False,
+    subhourly='keep opt-in (LF_RAIN_DT=5). It works as intended: totals kept exactly, the radar timing matches ASOS 1-min gauges better than an even split, and the '
+              'peak 15-min forcing rate rises 1.3-2.6x (median, Pass2 >= 5 mm/h). But on 20 m LISFLOOD-FP it moves peak depths by ~1 cm on average, catches no '
+              'additional labelled site on any of the 7 storms, raises the flagged share slightly (lift down) and does not improve gauge rise or peak timing.',
+    gauge_default=False,
+    gauge='keep opt-in (LF_RAIN_GAUGE=idw), hindcast only. Daily CoCoRaHS/COOP gauges are dense enough (12-33 per storm within the box + 0.1 deg) and show '
+          'Pass2 under-catch on aug2021 (gauge/Pass2 1.32) and jul2021 (1.22); adjusting catches 3 more sites on aug2021 and 1 on jul2021 and fixes the Millbury '
+          'rise, but over-shoots Northbridge, lowers lift on the 3 storms that already caught sites (aug2023, sep2023, aug2021), and the daily reports arrive the next morning, so it cannot be used live. '
+          'Hourly gauges (ASOS 1-min, USGS) are too sparse (0-2 in a box) for a local hourly adjustment; they agree with Pass2 to 0.97 overall '
+          'but Pass2 under-reads the >= 25 mm/h hours (0.76, n 12).')
 STORMS = [('jul2023', 'flash'), ('aug2023b', 'flash'), ('sep2022', 'flash'), ('aug2023', 'flash'), ('sep2023', 'good'), ('aug2021', 'good'), ('jul2021', 'good')]
 
 
@@ -68,6 +79,21 @@ def main():
             print(f'{grp} {v}: ' + ', '.join(f'{k} {x}' for k, x in AGG[grp][v].items()))
     out['_aggregate'] = AGG
     json.dump(out, open(f'{ROOT}/docs/proto/rain/runs.json', 'w'), indent=1)
+    # docs/proto/rain/rain.json: the headline numbers of RAIN.md (gauge check + runs), the verdict is in VERDICT
+    gj = json.load(open(f'{ROOT}/docs/proto/rain/gauges.json')) if os.path.exists(f'{ROOT}/docs/proto/rain/gauges.json') else {}
+    fac = json.load(open(f'{ROOT}/docs/proto/rain/gauge_factors.json')) if os.path.exists(f'{ROOT}/docs/proto/rain/gauge_factors.json') else {}
+    G = {sid: dict(hourly_gauges=g.get('hourly', {}).get('n_gauges'), hourly_in_box=g.get('hourly', {}).get('n_in_box'), hourly_mrms_over_gauge=g.get('hourly', {}).get('all', {}).get('ratio'),
+                   daily_gauges=g.get('daily', {}).get('n_gauges'), daily_in_box=g.get('daily', {}).get('n_in_box'), daily_mrms_over_gauge=g.get('daily', {}).get('all', {}).get('ratio'),
+                   daily_mrms_over_gauge_in_box=g.get('daily', {}).get('in_box', {}).get('ratio'), radar_only_over_pass2=g.get('radar_vs_pass2', {}).get('ratio'),
+                   box_max_rate_mmh=g.get('intensity', {}).get('box_max_rate_mmh'), peak_factor_15min_median=g.get('intensity', {}).get('peak_factor_15min_median'),
+                   asos_timing=[dict(id=t['id'], peak15_mmh=t['peak15_mmh'], share_mae=t.get('share_mae')) for t in g.get('timing_asos', [])],
+                   gauge_factor_mfb=(fac.get(sid) or {}).get('mfb'), gauge_factor_n=(fac.get(sid) or {}).get('n'))
+         for sid, g in gj.items() if not sid.startswith('_')}
+    runs = {sid: {v: (dict(caught=r['caught'], labels=r['n'], flagged_share=r['flagged_share'], lift=r['lift'], abs_rise_err_m=r.get('abs_rise_err_m'),
+                           peak_timing_abs_h=r.get('peak_timing_abs_h'), gauges=r.get('gauges'), reports_hit30=r.get('reports_hit30')) if r else None)
+                  for v, r in e.items() if v != 'kind'} for sid, e in out.items() if not sid.startswith('_')}
+    json.dump(dict(about='docs/proto/rain/RAIN.md; runs: docs/proto/rain/runs/<storm>_<variant>/ (20 m, LF_PARITY=1, CN x 0.91); gauge check: proto/rain/rain_gauges.py',
+                   verdict=VERDICT, pooled_hourly_gauge=gj.get('_pooled'), gauges=G, runs=runs, aggregate=AGG), open(f'{ROOT}/docs/proto/rain/rain.json', 'w'), indent=1)
 
 
 if __name__ == '__main__':
