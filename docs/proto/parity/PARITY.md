@@ -100,16 +100,16 @@ sep2023, `rain` mode, CPU, at the default step (≤ 10 s, CFL 0.7: 1.2–1.7 s i
 
 | | default | ≤ 1 s | ≤ 0.5 s |
 |---|---|---|---|
-| boundary outflow at 18 / 24 / 30 / 36 h (m³/s) | 139 / 102 / 62 / 87 | 79 / 38 / 21 / 13 | DT05_Q |
-| Fitchburg rise (obs 1.00), peak time (obs 01:15Z) | 1.63, 10:30Z (second rise) | 1.10, 01:30Z | DT05_F |
-| Leominster rise (obs 2.92) | 2.35 | 2.58 | DT05_L |
-| mean abs gauge rise error | 0.60 m | 0.22 m | DT05_E |
-| flagged share, labels | 2.42 %, 35/89 | 2.33 %, 35/89 | DT05_S |
-| flagged segments Jaccard with default | | 0.96 | |
-| land ≥ 0.3 m | 3.94 km² | 3.81 km² | DT05_W |
-| CPU runtime | 18 min | 35 min | DT05_T |
+| boundary outflow at 18 / 24 / 30 / 36 h (m³/s) | 139 / 102 / 62 / 87 | 79 / 38 / 21 / 13 | 79 / 38 / 21 / 13 |
+| Fitchburg rise (obs 1.00), peak time (obs 01:15Z) | 1.63, 10:30Z (second rise) | 1.10, 01:30Z | 1.10, 01:30Z |
+| Leominster rise (obs 2.92) | 2.35 | 2.58 | 2.58 |
+| mean abs gauge rise error | 0.60 m | 0.22 m | 0.22 m |
+| flagged share, labels | 2.42 %, 35/89 | 2.33 %, 35/89 | 2.33 %, 35/89 |
+| flagged-segment Jaccard | (reference) | 0.96 with default | 1.00 with ≤ 1 s |
+| land ≥ 0.3 m | 3.94 km² | 3.81 km² | 3.81 km² |
+| CPU runtime | 18 min | 35 min | 103 min |
 
-At the default step the recession oscillates: outflow does not decay, and Fitchburg rises a second time with no rain. Flags and flooded area hardly change (Jaccard 0.96), but the gauges do. jul2023 is insensitive: 7 → 5 flagged segments, gauge 0.03 → 0.06 m. DT05_VERDICT
+At the default step the recession oscillates: outflow does not decay, and Fitchburg rises a second time with no rain. Flags and flooded area hardly change (Jaccard 0.96), but the gauges do. jul2023 is insensitive: 7 → 5 flagged segments, gauge 0.03 → 0.06 m. **≤ 1 s is converged:** ≤ 0.5 s gives the same result (mean |Δ hmax| 0.000 m on wet cells, every metric identical), so 1 s is the parity setting. aug2023b moves the same way: the Millbury rise goes from 0.13 to 0.28 m (observed 1.68 m), and flags are unchanged.
 
 ## 3. The fix
 
