@@ -1,0 +1,80 @@
+{
+ "run": "aug2023b_ens_aug2023b_m1805z_nb",
+ "title": "Aug 18, 2023 flash floods, Millbury-Grafton \u00b7 NOAA HRRR forecast issued Aug 18 05z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  165000.0,
+  874000.0,
+  185000.0,
+  894000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-08-18T05:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 140
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2023-08-18T05:00Z, forecast hours 1-18 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2023-08-18T05Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 38,
+ "rain_total_mean_mm": 31,
+ "rain_missing_hours": [],
+ "runtime_s": 590,
+ "total_s": 785,
+ "peak_wet_km2": 0.8,
+ "peak_snapshot_wet_km2": 0.5,
+ "mass_tail": [
+  "64500.894    1.9425     1.9335     33168      10601200.0000 1151174.6750  0.000       0.000      5.377            -0.0001      -0.0157  634951.3122",
+  "64800.026    1.9423     1.9335     33322      10769200.0000 1157519.1405  0.000       0.000      5.393            -0.0001      -0.0190  642879.3947"
+ ],
+ "git_sha": "e11dbf9e",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2023-08-18T05:00Z",
+  "forecast_hours": 18,
+  "run_hours": 18
+ }
+}
