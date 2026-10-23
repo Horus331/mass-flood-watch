@@ -1,0 +1,189 @@
+{
+ "run": "jul2021_rain_jul2021_dt5",
+ "title": "July 9, 2021 flash floods (Elsa), Worcester \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  159000.0,
+  872000.0,
+  179000.0,
+  892000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-07-09T08:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 199
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN_DT": "5",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 10.65,
+   "excess_out_mean_mm": 5.81,
+   "kept_share": 0.546,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_subhourly": {
+   "dt_min": 5,
+   "source": "MRMS PrecipRate_00.00 (AWS noaa-mrms-pds), radar timing inside each hour; hourly totals = MRMS MultiSensor QPE 01H Pass2",
+   "files": 541,
+   "hours": 18,
+   "hours_uniform": 0,
+   "hour_cover": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.97,
+    1.0,
+    0.97
+   ],
+   "uniform_pixel_share_per_hour": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.125,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.953
+   ],
+   "mean_max_weight": 0.153,
+   "note": "weights = radar sub-interval accumulation / radar hour accumulation per 0.01 deg pixel (uniform where the radar hour < 0.1 mm or less than half the hour is covered by files), bilinear to the model grid, applied to the hourly rain excess",
+   "radar_vs_pass2": [
+    {
+     "hour_end": "2021-07-09T12:00Z",
+     "pass2_box_mm": 1.5,
+     "radar_box_mm": 2.0
+    },
+    {
+     "hour_end": "2021-07-09T13:00Z",
+     "pass2_box_mm": 6.4,
+     "radar_box_mm": 7.6
+    },
+    {
+     "hour_end": "2021-07-09T14:00Z",
+     "pass2_box_mm": 8.4,
+     "radar_box_mm": 8.2
+    },
+    {
+     "hour_end": "2021-07-09T15:00Z",
+     "pass2_box_mm": 9.2,
+     "radar_box_mm": 7.6
+    },
+    {
+     "hour_end": "2021-07-09T16:00Z",
+     "pass2_box_mm": 13.5,
+     "radar_box_mm": 10.4
+    },
+    {
+     "hour_end": "2021-07-09T17:00Z",
+     "pass2_box_mm": 9.1,
+     "radar_box_mm": 9.0
+    },
+    {
+     "hour_end": "2021-07-09T18:00Z",
+     "pass2_box_mm": 1.6,
+     "radar_box_mm": 1.7
+    }
+   ],
+   "probe": {
+    "dt_min": 5,
+    "value": 360.0,
+    "depth_m": 0.36,
+    "ratio_to_rate": 12.0,
+    "ratio_to_depth": 1.0,
+    "units": "depth"
+   },
+   "file": {
+    "records": 217,
+    "unit": "depth",
+    "total_excess_mean_mm": 5.808,
+    "hourly_excess_mean_mm": 5.808,
+    "peak_excess_rate_box_max_mmh": 37.4,
+    "peak_excess_hourly_box_max_mmh": 17.5,
+    "peak_rate_over_hourly_mean_where_wet": 1.64
+   }
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 61,
+ "rain_total_mean_mm": 51,
+ "rain_missing_hours": [],
+ "runtime_s": 1457,
+ "total_s": 1982,
+ "peak_wet_km2": 2.9,
+ "peak_snapshot_wet_km2": 1.9,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      23647200.0000 2346761.5509  0.000       0.000      9.802             0.0000       0.0000 2323354.5261",
+  "64800.000    1.0000     1.0000     64800      23588000.0000 2343825.9516  0.000       0.000      9.760            -0.0000      -0.0000 2323354.5261"
+ ],
+ "git_sha": "25ea917b",
+ "forecast": null
+}
