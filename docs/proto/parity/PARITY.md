@@ -109,7 +109,7 @@ sep2023, `rain` mode, CPU, at the default step (≤ 10 s, CFL 0.7: 1.2–1.7 s i
 | land ≥ 0.3 m | 3.94 km² | 3.81 km² | 3.81 km² |
 | CPU runtime | 18 min | 35 min | 103 min |
 
-At the default step the recession oscillates: outflow does not decay, and Fitchburg rises a second time with no rain. Flags and flooded area hardly change (Jaccard 0.96), but the gauges do. jul2023 is insensitive: 7 → 5 flagged segments, gauge 0.03 → 0.06 m. **≤ 1 s is converged:** ≤ 0.5 s gives the same result (mean |Δ hmax| 0.000 m on wet cells, every metric identical), so 1 s is the parity setting. aug2023b moves the same way: the Millbury rise goes from 0.13 to 0.28 m (observed 1.68 m), and flags are unchanged.
+At the default step the recession oscillates: outflow does not decay, and Fitchburg rises a second time with no rain. Flags and flooded area hardly change (Jaccard 0.96), but the gauges do. jul2023 is insensitive: 7 → 5 flagged segments, gauge 0.03 → 0.06 m. **≤ 1 s is converged:** ≤ 0.5 s gives the same result (mean |Δ hmax| 0.000 m on wet cells, every metric identical), so 1 s is the parity setting. aug2023b moves the same way: the Millbury rise goes from 0.13 to 0.28 m (observed 0.93 m), and flagged segments go from 11 to 9.
 
 ## 3. The fix
 
