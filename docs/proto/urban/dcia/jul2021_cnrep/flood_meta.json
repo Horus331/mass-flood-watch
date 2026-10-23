@@ -1,0 +1,72 @@
+{
+ "run": "jul2021_loss_jul2021_cnrep",
+ "title": "July 9, 2021 flash floods (Elsa), Worcester \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  159000.0,
+  872000.0,
+  179000.0,
+  892000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-07-09T08:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 176
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 61,
+ "rain_total_mean_mm": 51,
+ "rain_missing_hours": [],
+ "runtime_s": 588,
+ "total_s": 880,
+ "peak_wet_km2": 3.0,
+ "peak_snapshot_wet_km2": 2.2,
+ "mass_tail": [
+  "64501.749    1.9455     1.9340     33183      17723200.0000 2032288.0028  0.000       0.000      7.726            -0.0000      -0.0000 1981420.8860",
+  "64801.351    1.9454     1.9340     33337      17643600.0000 2025808.4059  0.000       0.000      7.670            -0.0000      -0.0001 1977247.8143"
+ ],
+ "git_sha": "2cd1ec63",
+ "forecast": null
+}
