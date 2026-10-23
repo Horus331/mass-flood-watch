@@ -68,6 +68,12 @@ def seg_diag(d):
                 snapshot_confirmed=sum(1 for q, v in D if v and max(v) >= 30))
 
 
+def flagged_ids(d):
+    p = f'{d}/segments.geojson' if d else None
+    if not p or not os.path.exists(p): return None
+    return {f['properties']['segment'] for f in json.load(open(p))['features'] if (f['properties'].get('p_close') or 0) >= 0.5}
+
+
 def within(a, b):
     """Parity verdict for two runs of one storm (summary level)."""
     why = []
@@ -86,28 +92,31 @@ def main():
     out = dict(tolerance=TOL)
     for sid, area in STORMS:
         e = dict(gpu=read(f'{ROOT}/docs/proto/turing/{sid}_{area}_20m'), cpu_cn=read(f'{ROOT}/docs/proto/urban/dcia/{sid}_cn'))
+        e['gpu']['_dir'] = f'{ROOT}/docs/proto/turing/{sid}_{area}_20m'
         e['gpu_segments'] = seg_diag(f'{ROOT}/docs/proto/turing/{sid}_{area}_20m')
         e['gpu_mass_tail'] = (json.load(open(f'{ROOT}/docs/proto/turing/{sid}_{area}_20m/flood_meta.json')).get('mass_tail') or [None])[-1]
         H = {}
         for v in VARIANTS:
             d = f'{ROOT}/docs/proto/parity/{sid}_{v}'; r = read(d)
             if r is None: continue
-            r['mass'] = mass(d); r['segments'] = seg_diag(d)
+            r['mass'] = mass(d); r['segments'] = seg_diag(d); r['_dir'] = d
             mp = f'{d}/flood_meta.json'
             if os.path.exists(mp): r['infiltration'] = json.load(open(mp)).get('inputs', {}).get('infiltration')
             e[v] = r; H[v] = hmax(d)
         for v, nm in (('gpu_rain', f'parity_{sid}_gpu_rain'), ('gpu_rain_dt1', f'parity_{sid}_gpu_rain_dt1')):     # Turing confirmation runs (PARITY.md section 5)
             d = f'{ROOT}/docs/proto/turing/{nm}'; r = read(d)
             if r is None: continue
-            r['mass'] = mass(d); r['segments'] = seg_diag(d); e[v] = r; H[v] = hmax(d)
+            r['mass'] = mass(d); r['segments'] = seg_diag(d); r['_dir'] = d; e[v] = r; H[v] = hmax(d)
         e['pairs'] = {}
         for a, b in PAIRS + [('infil0', 'gpu'), ('solver', 'gpu'), ('rain', 'gpu'), ('gpu_rain', 'rain'), ('gpu_rain_dt1', 'rain_dt1'), ('gpu_rain_dt1', 'rain')]:
             if e.get(a) and e.get(b):
                 p = within(e[a], e[b])
                 if H.get(a) is not None and H.get(b) is not None: p['cells'] = cellwise(H[a], H[b])
+                sa, sb = flagged_ids(e[a].get('_dir')), flagged_ids(e[b].get('_dir'))
+                if sa is not None and sb is not None: p['flagged_segments_jaccard'] = round(len(sa & sb) / max(len(sa | sb), 1), 3)
                 e['pairs'][f'{a}_vs_{b}'] = p
         for r in e.values():
-            if isinstance(r, dict): r.pop('sites', None)
+            if isinstance(r, dict): r.pop('sites', None); r.pop('_dir', None)
         out[sid] = e
     json.dump(out, open(f'{ROOT}/docs/proto/parity/parity.json', 'w'), indent=1)
     cols = ['gpu', 'cpu_cn'] + VARIANTS + ['gpu_rain', 'gpu_rain_dt1']
@@ -120,7 +129,7 @@ def main():
     print()
     for sid, _ in STORMS:
         for k, p in out[sid]['pairs'].items():
-            print(f"{sid} {k}: {'MATCH' if p['match'] else 'differ: ' + '; '.join(p['why'])}" + (f" | cells {p['cells']}" if 'cells' in p else ''))
+            print(f"{sid} {k}: {'MATCH' if p['match'] else 'differ: ' + '; '.join(p['why'])}" + (f" | segments J {p['flagged_segments_jaccard']}" if 'flagged_segments_jaccard' in p else '') + (f" | cells {p['cells']}" if 'cells' in p else ''))
         for v in VARIANTS:
             if out[sid].get(v): print(f"{sid} {v} mass {out[sid][v].get('mass')} infil {out[sid][v].get('infiltration')}")
         print(f"{sid} gpu mass tail {out[sid]['gpu_mass_tail']}")
