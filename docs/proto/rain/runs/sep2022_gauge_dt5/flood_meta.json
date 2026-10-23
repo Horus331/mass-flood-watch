@@ -1,0 +1,193 @@
+{
+ "run": "sep2022_rain_sep2022_gauge_dt5",
+ "title": "Sept 5, 2022 flash floods, Webster-Southbridge \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  151000.0,
+  855000.0,
+  171000.0,
+  875000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2022-09-05T06:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 206
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN_DT": "5",
+   "LF_RAIN_GAUGE": "idw",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 11.21,
+   "excess_out_mean_mm": 7.71,
+   "kept_share": 0.687,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_subhourly": {
+   "dt_min": 5,
+   "source": "MRMS PrecipRate_00.00 (AWS noaa-mrms-pds), radar timing inside each hour; hourly totals = MRMS MultiSensor QPE 01H Pass2",
+   "files": 543,
+   "hours": 18,
+   "hours_uniform": 0,
+   "hour_cover": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "uniform_pixel_share_per_hour": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.971,
+    0.265,
+    0.109,
+    0.0,
+    0.009,
+    0.63,
+    0.834,
+    0.757,
+    0.491,
+    0.072,
+    0.06,
+    0.0,
+    0.0
+   ],
+   "mean_max_weight": 0.182,
+   "note": "weights = radar sub-interval accumulation / radar hour accumulation per 0.01 deg pixel (uniform where the radar hour < 0.1 mm or less than half the hour is covered by files), bilinear to the model grid, applied to the hourly rain excess",
+   "radar_vs_pass2": [
+    {
+     "hour_end": "2022-09-05T14:00Z",
+     "pass2_box_mm": 15.4,
+     "radar_box_mm": 18.2
+    },
+    {
+     "hour_end": "2022-09-05T15:00Z",
+     "pass2_box_mm": 27.7,
+     "radar_box_mm": 29.3
+    },
+    {
+     "hour_end": "2022-09-05T16:00Z",
+     "pass2_box_mm": 5.7,
+     "radar_box_mm": 8.5
+    },
+    {
+     "hour_end": "2022-09-05T23:00Z",
+     "pass2_box_mm": 1.2,
+     "radar_box_mm": 1.1
+    },
+    {
+     "hour_end": "2022-09-06T00:00Z",
+     "pass2_box_mm": 1.3,
+     "radar_box_mm": 0.8
+    }
+   ],
+   "probe": {
+    "dt_min": 5,
+    "value": 360.0,
+    "depth_m": 0.36,
+    "ratio_to_rate": 12.0,
+    "ratio_to_depth": 1.0,
+    "units": "depth"
+   },
+   "file": {
+    "records": 217,
+    "unit": "depth",
+    "total_excess_mean_mm": 7.707,
+    "hourly_excess_mean_mm": 7.707,
+    "peak_excess_rate_box_max_mmh": 143.7,
+    "peak_excess_hourly_box_max_mmh": 80.3,
+    "peak_rate_over_hourly_mean_where_wet": 2.43
+   }
+  },
+  "rain_gauge_adjust": {
+   "mode": "idw",
+   "mfb": 1.031,
+   "gauges": 12,
+   "cap": [
+    0.67,
+    1.5
+   ],
+   "factor_min": 0.921,
+   "factor_mean": 1.019,
+   "factor_max": 1.183,
+   "source": "docs/proto/rain/gauge_factors.json"
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 105,
+ "rain_total_mean_mm": 54,
+ "rain_missing_hours": [],
+ "runtime_s": 1402,
+ "total_s": 1976,
+ "peak_wet_km2": 5.9,
+ "peak_snapshot_wet_km2": 2.9,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      20892800.0000 3020973.8250  0.000       0.000      27.593           -0.0000      -0.0000 3082627.2479",
+  "64800.000    1.0000     1.0000     64800      20814800.0000 3012731.9092  0.000       0.000      27.350           -0.0000      -0.0000 3082628.3888"
+ ],
+ "git_sha": "5b4d8405",
+ "forecast": null
+}
