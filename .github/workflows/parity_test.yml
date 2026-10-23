@@ -9,6 +9,10 @@ on:
       cases:
         description: 'JSON list of {name, storm, box, hours, env}'
         required: true
+      dest:
+        description: 'output folder (default docs/proto/parity); e.g. docs/proto/parity/catalog or docs/proto/parity/calib'
+        required: false
+        default: 'docs/proto/parity'
 permissions:
   contents: write
 jobs:
@@ -22,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
-      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
       - name: flood depth (LISFLOOD-FP 8.2, CPU)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -48,7 +52,7 @@ jobs:
         if: always()
         run: |
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
-          P=${{ runner.temp }}/proto; D=docs/proto/parity/${{ matrix.c.name }}; mkdir -p $D
+          P=${{ runner.temp }}/proto; D=${{ inputs.dest || 'docs/proto/parity' }}/${{ matrix.c.name }}; mkdir -p $D
           echo '${{ toJSON(matrix.c) }}' > $D/config.json
           tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
           [ -n "$OUTDIR" ] || exit 0
@@ -58,9 +62,14 @@ jobs:
           cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
           python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
           python proto/parity_pack.py $OUTDIR $D
+          # segments.geojson over ~3 MB is kept gzipped only
+          if [ -f $D/segments.geojson ] && [ $(stat -c %s $D/segments.geojson) -gt 3200000 ]; then gzip -9 $D/segments.geojson; fi
+          # per-segment features for the learned closure model (as proto/turing/run_storm.slurm)
+          LBL=$( (ls proto/data/labels_${S}_*.csv proto/data/labels_${S}_*.geojson 2>/dev/null || true) | paste -sd, -)
+          if [ -n "$LBL" ]; then python proto/closure_ml.py extract --run-dir $OUTDIR --storm $S --labels "$LBL" | tail -2 && cp docs/proto/ml/features_${S}.csv docs/proto/ml/matches_${S}.json $D/ 2>/dev/null; git checkout -q -- docs/proto/ml 2>/dev/null || true; git clean -fq docs/proto/ml 2>/dev/null || true; fi
       - name: commit
         if: always()
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add docs/proto/parity/${{ matrix.c.name }}; git commit -qm "parity test: ${{ matrix.c.name }}" || exit 0
+          git add ${{ inputs.dest || 'docs/proto/parity' }}/${{ matrix.c.name }}; git commit -qm "parity test: ${{ matrix.c.name }}" || exit 0
           for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
