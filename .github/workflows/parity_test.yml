@@ -54,15 +54,10 @@ jobs:
           [ -n "$OUTDIR" ] || exit 0
           python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S 2>&1 | tail -5
           SCORE_WINDOWS=$D/gauge_windows.npz python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
-          cp $OUTDIR/lisflood.mass $D/ 2>/dev/null || true
           python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
           cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
           python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
-          python - "$OUTDIR" "$D" <<'PY'
-          import sys, json, numpy as np
-          o, d = sys.argv[1], sys.argv[2]; h = np.load(f'{o}/hmax.npy'); w = np.load(f'{o}/watermask.npy') if __import__('os').path.exists(f'{o}/watermask.npy') else np.zeros(h.shape, bool)
-          land = ~w; np.savez_compressed(f'{d}/hmax_cm.npz', hmax_cm=np.clip(np.round(h * 100), 0, 65535).astype(np.uint16), watermask=w.astype(np.uint8)); json.dump(dict(wet_land_km2_0p1=float(((h >= 0.1) & land).sum() * 4e-4), wet_land_km2_0p3=float(((h >= 0.3) & land).sum() * 4e-4)), open(f'{d}/hmax_stats.json', 'w'))
-          PY
+          python proto/parity_pack.py $OUTDIR $D
       - name: commit
         if: always()
         run: |
