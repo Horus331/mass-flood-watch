@@ -54,16 +54,14 @@ def filt(spec):
 
 
 def fetch(spec, towns, near):
-    """Ways matching spec inside the towns (MA admin_level 8), else within 3 km of near."""
-    F = filt(spec); body = ''
+    """Ways matching spec within 4 km of the NWS point (fast), else inside the towns (MA admin_level 8)."""
+    F = filt(spec)
+    if near:
+        J = overpass('[out:json][timeout:90];(%s);out geom;' % ''.join('way(around:4000,%f,%f)%s;' % (near[1], near[0], f) for f in F))
+        if J and J.get('elements'): return J['elements']
     if towns:
         tq = ''.join('rel(area.ma)["boundary"="administrative"]["admin_level"="8"]["name"="%s"];' % t for t in towns)
-        body = 'area["ISO3166-2"="US-MA"]->.ma;(%s)->.r;.r map_to_area->.t;(%s);out geom;' % (tq, ''.join('way(area.t)%s;' % f for f in F))
-        J = overpass('[out:json][timeout:120];' + body)
-        if J and J.get('elements'): return J['elements']
-    if near:
-        body = '(%s);out geom;' % ''.join('way(around:3000,%f,%f)%s;' % (near[1], near[0], f) for f in F)
-        J = overpass('[out:json][timeout:120];' + body)
+        J = overpass('[out:json][timeout:120];area["ISO3166-2"="US-MA"]->.ma;(%s)->.r;.r map_to_area->.t;(%s);out geom;' % (tq, ''.join('way(area.t)%s;' % f for f in F)))
         if J: return J['elements']
     return []
 
