@@ -8,13 +8,16 @@ interpolated linearly in the scale between the grid runs (0.88 = the parity cata
 Objective = mean over training storms of the storm's mean |rise error| (m). Grid a 0.88-1.12 step 0.005, b -2..2 step 0.05; ties: smaller
 |b|, then a closest to 0.88. C0 = the same with b = 0. No labels are read.
 """
-import os, sys, json, glob
+import os, sys, json
 import numpy as np
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 SCALES = [0.88, 0.94, 1.00, 1.06, 1.12]
 THETA_BAR = 0.69
 LO, HI = 0.88, 1.12
+# The pre-registered 9 primary runs (AMC.md §0), explicit: the 16 label-expansion storms later added to the catalogue are not part of T4.
+T4_PRIMARY = ('aug2021_worcester_20m', 'aug2023_metrowest_20m', 'aug2023b_millbury_20m', 'aug2026_leominster_20m', 'jul2021_worcester_20m',
+              'jul2023_worcester_20m', 'sep2021_worcester_20m', 'sep2022_webster_20m', 'sep2023_leominster_20m')
 
 
 def run_dir(name, s):
@@ -23,7 +26,7 @@ def run_dir(name, s):
 
 def load():
     ante = {r['storm']: r for r in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'runoff', 'antecedent.json')))['storms']}
-    names = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob(os.path.join(ROOT, 'docs', 'proto', 'parity', 'catalog', '*_20m', 'config.json')))
+    names = list(T4_PRIMARY)
     D = {}
     for n in names:
         cfg = json.load(open(os.path.join(run_dir(n, 0.88), 'config.json'))); s = cfg['storm']; G = {}

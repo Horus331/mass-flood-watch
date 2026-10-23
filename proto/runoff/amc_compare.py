@@ -8,7 +8,7 @@ reused, not rerun.  Auto arm = the same cases with LF_CN_AMC=auto added (parity_
 Gauges: proto/score.py (score.json of each run).  Closures: proto/score_v2.py score_run on each run and --compare logic (PROTOCOL.md §5,
 OOS-7 held-out storms, primary run per storm = <storm>_<area>_20m; worcester_aug2021_48h is reported but is not part of any pool).
 """
-import os, sys, json, glob
+import os, sys, json
 import numpy as np
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -19,6 +19,23 @@ BASE = os.path.join(ROOT, 'docs', 'proto', 'parity', 'catalog')
 CAND = os.path.join(ROOT, 'docs', 'proto', 'runoff', 'runs')
 OUT = os.path.join(ROOT, 'docs', 'proto', 'runoff', 'amc.json')
 FOCUS = ('jul2021', 'sep2021')        # Elsa, Ida: the under-predicted gauge rises T4 targets
+# The pre-registered T4 set (AMC.md §0): the 9 primary catalogue runs + the Worcester aug2021 48 h box. Explicit, so the 16 label-expansion
+# storms added to docs/proto/parity/catalog/ later (BASELINE_v2_expanded.md) do not enter the T4 verdict.
+T4_RUNS = ('aug2021_worcester_20m', 'aug2023_metrowest_20m', 'aug2023b_millbury_20m', 'aug2026_leominster_20m', 'jul2021_worcester_20m',
+           'jul2023_worcester_20m', 'sep2021_worcester_20m', 'sep2022_webster_20m', 'sep2023_leominster_20m', 'worcester_aug2021_48h')
+
+
+def load_current(run_dir, storm, ref_dir):
+    """Load a run and score it against the CURRENT labels: the label->segment matches are taken from the reference (catalogue) run's
+    matches_<storm>.json, which was rebuilt against the current labels (aug2021/aug2026 reruns, BASELINE_v2_expanded.md).  Matching is
+    pure geometry (label point vs the road points of the same box at the same resolution), so it is the same for every arm on that box;
+    candidate runs made before the label update carry stale matches files, and this replaces them."""
+    R = V.load_run(run_dir, storm); Rf = V.load_run(ref_dir, storm)
+    if set(R['seg'].tolist()) != set(Rf['seg'].tolist()): raise SystemExit(f'{run_dir}: segment universe differs from {ref_dir}')
+    pos = {int(s): i for i, s in enumerate(R['seg'])}          # matches are indices into the run's own segment order: remap by segment id
+    R['matches'] = {k: sorted(pos[int(Rf['seg'][i])] for i in v) for k, v in Rf['matches'].items()}
+    R['labels'], R['match_src'] = Rf['labels'], 'current labels (' + os.path.relpath(ref_dir, ROOT) + ')'
+    return R
 
 
 def amc_of(d):
@@ -46,18 +63,18 @@ def closure(r):
 def main():
     global CAND, OUT
     if len(sys.argv) == 3: CAND, OUT = os.path.join(ROOT, sys.argv[1]), os.path.join(ROOT, sys.argv[2])
-    names = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob(os.path.join(BASE, '*', 'config.json')))
+    names = list(T4_RUNS)
     rows, base_runs, cand_runs = [], [], []
     for n in names:
         db, dc = os.path.join(BASE, n), os.path.join(CAND, n)
-        if not os.path.exists(os.path.join(dc, 'flood_meta.json')): print('missing auto run', n); continue
+        if not os.path.exists(os.path.join(dc, 'flood_meta.json')): raise SystemExit(f'missing candidate run {dc}')
         s = json.load(open(os.path.join(db, 'config.json')))['storm']; prim = n == f'{s}_' + n.split('_')[1] + '_20m'
         row = dict(name=n, storm=s, primary=prim, role=('dev' if s in V.DEV else 'heldout'), amc=amc_of(dc), gauges_base=gauges(db), gauges_auto=gauges(dc))
         try:
             mb = json.load(open(os.path.join(db, 'flood_meta.json'))); mc = json.load(open(os.path.join(dc, 'flood_meta.json')))
             row['git'] = dict(base=mb.get('git_sha'), auto=mc.get('git_sha'))
         except Exception: pass
-        rb = V.score_run(V.load_run(db, s)); rc = V.score_run(V.load_run(dc, s))
+        rb = V.score_run(V.load_run(db, s)); rc = V.score_run(load_current(dc, s, db))
         rb['primary'] = rc['primary'] = prim; row['closure_base'] = closure(rb); row['closure_auto'] = closure(rc)
         if prim: base_runs.append(rb); cand_runs.append(rc)
         rows.append(row); print(n, row['amc'], row['closure_base']['hits3'], '->', row['closure_auto']['hits3'], flush=True)
