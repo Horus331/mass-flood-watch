@@ -1,0 +1,71 @@
+name: CPU/GPU parity test (LF_INFIL_MODE solver vs rain vs no infiltration, catalogue storms, CPU)
+# Each case = one catalogue storm on its catalogue box at 20 m, the Turing catalogue settings (LF_LOSS=cn LF_CN_SCALE=0.91
+# LF_INFIL_MMH=2 LF_QOUT=1 LF_VOUT=1), then the case's env on top (LF_INFIL_MODE=rain, or LF_INFIL_MMH=0 = what the CUDA solver
+# does). Scored like loss_test.yml; committed to docs/proto/parity/<name>/ with hmax (cm, npz), the .mass file and the gauge windows
+# so runs can be compared cell by cell (proto/parity_compare.py, docs/proto/parity/PARITY.md).
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: 'JSON list of {name, storm, box, hours, env}'
+        required: true
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(inputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.storm }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.storm }}_loss_${{ matrix.c.name }}
+          LF_LOSS: cn
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          LF_VOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          if [ -n "${{ matrix.c.env }}" ]; then export ${{ matrix.c.env }}; fi
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures + scores
+        if: always()
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
+          P=${{ runner.temp }}/proto; D=docs/proto/parity/${{ matrix.c.name }}; mkdir -p $D
+          echo '${{ toJSON(matrix.c) }}' > $D/config.json
+          tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
+          [ -n "$OUTDIR" ] || exit 0
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S 2>&1 | tail -5
+          SCORE_WINDOWS=$D/gauge_windows.npz python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
+          cp $OUTDIR/lisflood.mass $D/ 2>/dev/null || true
+          python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
+          cp $P/summary.json $P/REPORT.md $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          python - "$OUTDIR" "$D" <<'PY'
+          import sys, json, numpy as np
+          o, d = sys.argv[1], sys.argv[2]; h = np.load(f'{o}/hmax.npy'); w = np.load(f'{o}/watermask.npy') if __import__('os').path.exists(f'{o}/watermask.npy') else np.zeros(h.shape, bool)
+          land = ~w; np.savez_compressed(f'{d}/hmax_cm.npz', hmax_cm=np.clip(np.round(h * 100), 0, 65535).astype(np.uint16), watermask=w.astype(np.uint8)); json.dump(dict(wet_land_km2_0p1=float(((h >= 0.1) & land).sum() * 4e-4), wet_land_km2_0p3=float(((h >= 0.3) & land).sum() * 4e-4)), open(f'{d}/hmax_stats.json', 'w'))
+          PY
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/parity/${{ matrix.c.name }}; git commit -qm "parity test: ${{ matrix.c.name }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done

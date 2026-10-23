@@ -5,6 +5,8 @@
 
 env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multiple of 10), STORM (default sep2023), T0, HOURS,
      LF_LOSS none|fc|cn|cn_dcia (default none; cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
+     LF_INFIL_MMH (constant infiltration mm/h, default 4) + LF_INFIL_MODE solver|rain (default solver = the solver's keyword, CPU only;
+     rain = out of the hourly rain excess, identical on CPU and GPU; docs/proto/parity/PARITY.md),
      LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
      LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s),
      LF_DOMAIN basin + LF_DOMAIN_FILE (watershed-shaped domain, sim/colab/lf_domain.py; default box), LF_EXE / LF_EXE_CUDA (prebuilt LISFLOOD-FP),
@@ -188,6 +190,18 @@ def cn_dcia_excess(RAIN, imp, cnp, water=None, scale=1.0, amc='II', ia_imp=2.0, 
     Q = dc * Qi + pv * Qp + np.where(pv > 1e-6, 0.0, ua * Qi)       # fully paved cell: unconnected part has nowhere to go -> runs off
     if water is not None: Q = np.where(water, P, Q)
     return np.diff(np.concatenate([np.zeros_like(Q[:1]), Q]), axis=0).astype(np.float32), dict(dcia_mean=float(dc.mean()), tia_mean=float(tia.mean()), cnp_mean=float(cnp.mean()))
+
+
+def rain_minus_infil(RAIN, mmh):
+    """LF_INFIL_MODE=rain: the constant infiltration LF_INFIL_MMH taken out of the hourly rain excess before the solver,
+    max(R - mmh, 0) per cell and hour (a phi-index), so the CPU and the CUDA acceleration solvers get the same water.  The CPU
+    solver's own 'infiltration' (infevap.cpp FPInfiltration) instead drains every cell deeper than 1 mm at that rate for the
+    whole run, ponds and rivers included, and the CUDA acceleration solver (cuda/acc/cuda_acc_simulate.cu) has no infiltration
+    call at all (docs/proto/parity/PARITY.md).  Returns (rain, stats)."""
+    R = np.asarray(RAIN, np.float32); out = np.maximum(R - np.float32(mmh), 0).astype(np.float32)
+    tin, tout = float(R.sum()), float(out.sum())
+    return out, dict(excess_in_mean_mm=round(tin / max(R[0].size, 1), 2), excess_out_mean_mm=round(tout / max(R[0].size, 1), 2),
+                     kept_share=round(tout / tin, 3) if tin > 0 else None)
 
 
 def manning_map(water, chan, imp, lc=None):
@@ -960,12 +974,29 @@ def main():
     log(f"Manning n: channel/water {os.environ.get('LF_N_CHAN', '0.035')}, land mean {float(NM[~(I['water'] | I['chan'])].mean()):.3f}")
     if np.isfinite(I['NOV']).any(): NM = np.where(np.isfinite(I['NOV']), np.maximum(NM, np.nan_to_num(I['NOV'])), NM).astype(np.float32)   # sized culvert notches
     write_asc(f'{wd}/n.asc', NM, x0, y0, RES, fmt='%.3f')
-    rec, th = rain_records(I['RAIN'] / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
+    # constant infiltration LF_INFIL_MMH (mm/h): LF_INFIL_MODE solver (default) = the solver's 'infiltration' keyword (CPU only: the
+    # CUDA acceleration solver ignores it); rain = taken out of the hourly rain excess here, solver infiltration off, the same on both
+    # solvers (rain_minus_infil; docs/proto/parity/PARITY.md)
+    infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4')); INFIL_MODE = os.environ.get('LF_INFIL_MODE', 'solver').strip().lower()
+    if INFIL_MODE not in ('solver', 'rain'): raise SystemExit(f'LF_INFIL_MODE must be solver or rain, not {INFIL_MODE!r}')
+    RAIN_LF = I['RAIN']; INFIL = dict(mode=INFIL_MODE, mmh=infil_mmh)
+    if infil_mmh <= 0: INFIL['applied_by'] = 'none (LF_INFIL_MMH=0)'
+    elif INFIL_MODE == 'rain':
+        RAIN_LF, st_ = rain_minus_infil(I['RAIN'], infil_mmh); INFIL.update(st_, applied_by='rain excess, hourly, before the solver (both solvers)'); infil_mmh = 0.0
+        log(f"LF_INFIL_MODE=rain: {INFIL['mmh']:g} mm/h out of the hourly rain excess: mean {st_['excess_in_mean_mm']} -> {st_['excess_out_mean_mm']} mm "
+            f"({100 * (st_['kept_share'] or 0):.0f}% kept); solver infiltration off")
+    elif I['SGC']: INFIL['applied_by'] = 'sub-grid solver: evaporation term on wet cells (no infiltration call)'
+    elif is_cuda:
+        INFIL['applied_by'] = 'NONE: the CUDA acceleration solver ignores the infiltration keyword'
+        log(f'WARNING: LF_INFIL_MMH={infil_mmh:g} with LF_INFIL_MODE=solver on the CUDA build: the GPU solver has no infiltration, so this run '
+            'is NOT comparable with CPU runs (docs/proto/parity/PARITY.md). Set LF_INFIL_MODE=rain on both solvers for parity.')
+    else: INFIL['applied_by'] = 'solver (CPU FPInfiltration: every cell deeper than 1 mm, whole run)'
+    rec, th = rain_records(RAIN_LF / (scale if abs(scale - 1) > 0.2 else 1.0), P['convention'])
     write_rain_nc(f'{wd}/rain.nc', rec, x0, y0, RES, th, flip_y=P['flip_y'], flip_x=P['flip_x'])
     write_bci(f'{wd}/run.bci', x0, y0, x1, y1)
     if DOM: open(f'{wd}/run.bci', 'w').write('\n'.join(DOM['bci']) + '\n')     # FREE only where the outlet corridors reach the box edge; other edges closed
     start = None
-    extra = []; infil_mmh = float(os.environ.get('LF_INFIL_MMH', '4'))
+    extra = []
     INFLOW = None
     if os.environ.get('LF_INFLOW', 'none') == 'usgs':     # opt-in: upstream inflow point sources from USGS gauges (sim/colab/lf_inflow.py)
         try:
@@ -1131,7 +1162,7 @@ def main():
                             rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS MultiSensor QPE 01H Pass2') + ' -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
                             env={k: ('set (private file; path not recorded)' if k == 'LF_DRAINS' else os.environ[k]) for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)},
-                            drains=DRAINS or 'none'),
+                            drains=DRAINS or 'none', infiltration=INFIL),
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
@@ -1304,6 +1335,10 @@ def selftest():
     ew, _ = cn_dcia_excess(r3, np.array([0.5]), np.array([73.0]), np.array([True]), 0.91); assert np.allclose(ew[:, 0], r3[:, 0])
     m_ = cn_dcia_excess(np.array([[30.0]]), np.array([0.5]), np.array([73.0]), None, 0.91, 'II', 2.0, 'sutherland')[0][0, 0]
     assert 14.0 * 0.354 / 0.5 < m_ < 14.0 + 0.5 * 3.4, m_                 # 30 mm on a half-paved cell: between connected-only and all-connected
+    ri_, si_ = rain_minus_infil(np.array([[[5.0, 1.0]], [[0.5, 3.0]], [[2.0, 0.0]]], np.float32), 2.0)
+    assert np.allclose(ri_[:, 0, :], [[3.0, 0.0], [0.0, 1.0], [0.0, 0.0]]) and abs(si_['kept_share'] - 4.0 / 11.5) < 1e-3
+    assert rain_minus_infil(np.ones((2, 1, 1), np.float32), 0.0)[0].sum() == 2.0
+    ok.append('LF_INFIL_MODE=rain: max(R - mmh, 0) per cell and hour, kept share')
     ok.append('LF_LOSS=cn reproduces FINDINGS table; cn_dcia: connected pavement = IMP (P - 2 mm), CN on pervious only, event-cumulative, water = rain')
     shutil.rmtree(d)
     for o in ok: print('ok  ', o)
