@@ -132,6 +132,21 @@ I50_MM = 58.0
 SAG_C = 0.6
 SAG_SIGMA_LN = 0.5
 SAG_SEG_M = 30.0
+# ---- PLUVIAL / URBAN INFLOW layer (candidate; PROTO_PLUVIAL=1 adds it to p_close as max(p_close, P_pluv); default OFF) ----
+# Short convective storms (Jul 2023 Worcester, Aug 2023 Millbury, Sept 2022 Webster) flood streets the 20 m model leaves dry: the CN loss
+# (composite CN x 0.91) keeps almost all of a 20-40 mm burst, the model has no storm drains, and the sag layer needs a >= 0.30 m closed lidar
+# depression that 20 m street grids rarely resolve.  The layer instead asks whether the peak-hour rational inflow to a low-lying urban road
+# exceeds what its inlets / pipes can take: Q = C i A (C = PLUV_C, i = MRMS peak 1-h rain at the segment, A = upstream D8 area,
+# closure_ml.geo_features), P_pluv = Phi(ln(Q / PLUV_QCAP) / PLUV_SIGMA_LN) on segments with HAND <= PLUV_HAND_M (on the valley floor) and
+# >= PLUV_DENS road segments within PLUV_DENS_R_M (urban street grid; impervious share is not stored in the run dir).  PLUV_QCAP and
+# PLUV_DENS chosen leave-one-storm-out on the 9 published storms (the same values were picked in all 9 folds): docs/proto/urban/FINDINGS.md.
+# 0.5 m3/s is about 3-5 HEC-22 sag grate inlets or a 0.45-0.6 m (18-24 in) pipe at 1 % slope full.
+PLUV_C = 0.6
+PLUV_QCAP = 0.5
+PLUV_SIGMA_LN = 0.5
+PLUV_HAND_M = 0.5
+PLUV_DENS = 15
+PLUV_DENS_R_M = 300.0
 LABEL_GROUPS = {'all': None, 'flood_closure': ('flooded', 'closed', 'impassable'),
                 'culvert_washout': ('culvert_failure', 'washout', 'sinkhole', 'bridge_damage'), 'other_damage': ('other_damage',)}
 
@@ -159,6 +174,55 @@ def seg_top2(n, seg, vals):
     first = np.r_[True, sg[1:] != sg[:-1]]; idx = np.nonzero(first)[0]
     out = np.zeros(n, np.float32); top1 = v[idx]; has2 = np.r_[idx[1:], len(sg)] - idx >= 2
     sec = np.where(has2, v[np.minimum(idx + 1, len(v) - 1)], top1); out[sg[idx]] = sec; return out
+
+
+# ---- RESOLUTION-CONSISTENT depth (PROTO_RES_CONSISTENT=1; default OFF, docs/proto/res10m/FINDINGS.md) ----
+# The 10 m Leominster run flags 4x the 20 m share (10.8 % vs 2.6 %) because (1) LISFLOOD-FP's hmax (every solver step) holds single-step
+# spikes on fine grids: on 10 m flagged segments hmax is a median 11x the peak of the 30-min snapshots (1.0x at 20 m), 295 of 552 flags
+# never reach 30 cm in any snapshot; (2) water the 10 m run carries from its start-up (11.7 km2 wet land at the first snapshot, before the
+# rain, vs 0.8 km2 at 20 m) is read as storm water; (3) the second-highest road POINT is a different road length at each grid (points every
+# res / 2: 20 m of road at 20 m, 10 m at 10 m).  With the flag on: depth = min(hmax, snapshot peak + RC_TOL_M) less the depth already
+# there at the first snapshot >= RC_START_H h into the run, and the per-segment statistic is the k-th highest point with k = RC_MIN_LEN_M /
+# point spacing (k = 2 at 20 m: the default rule; 4 at 10 m), i.e. >= 0.30 m over at least RC_MIN_LEN_M of road at any resolution.
+RC_TOL_M = 0.10        # hmax may exceed the snapshot peak by a flash peak between snapshots up to this much (flags at 20 m unchanged)
+RC_START_H = 0.5       # the first saved snapshot at or after this time is the start-up state (runs start before the rain)
+RC_MIN_LEN_M = 20.0    # water >= the closure depth over at least this length of road (the 20 m default: 2 points 10 m apart)
+
+
+def res_consistent_on():
+    return os.environ.get('PROTO_RES_CONSISTENT', '0') == '1'
+
+
+def seg_topk(n, seg, vals, k):
+    """k-th highest value per segment (the lowest when it has fewer than k points); k = 2 is seg_top2."""
+    if k <= 2: return seg_top2(n, seg, vals)
+    o = np.lexsort((-vals, seg)); sg = seg[o]; v = vals[o]
+    first = np.r_[True, sg[1:] != sg[:-1]]; idx = np.nonzero(first)[0]; cnt = np.r_[idx[1:], len(sg)] - idx
+    out = np.zeros(n, np.float32); out[sg[idx]] = v[idx + np.minimum(cnt, k) - 1]; return out
+
+
+def res_consistent_depth(H, run_dir):
+    """Peak depth grid for PROTO_RES_CONSISTENT: min(hmax, snapshot peak + RC_TOL_M) less the start-up depth (first snapshot at or after
+    RC_START_H h).  Snapshots from hsnap.npy / frames_cm.npz (w9).  Returns (H', info); H unchanged where the run has no snapshots."""
+    info = dict(tol_m=RC_TOL_M, start_h=RC_START_H, min_len_m=RC_MIN_LEN_M)
+    FRM = load_npz(os.path.join(run_dir, 'frames_cm.npz')); hs = None; h0 = None
+    if FRM is not None and FRM['depth_cm'].shape[1:] == H.shape:
+        DC = FRM['depth_cm']; hrs = np.asarray(FRM['hours'], float)
+        hs = DC.max(axis=0).astype(np.float32) / 100.0; info['snapshots'] = int(len(DC))
+        j = np.nonzero(hrs >= RC_START_H - 1e-6)[0]
+        if len(j) and os.environ.get('PROTO_RC_STARTUP', '1') == '1':      # PROTO_RC_STARTUP=0: keep start-up water (spike cap and k only)
+            h0 = DC[j[0]].astype(np.float32) / 100.0; info['start_snapshot_h'] = round(float(hrs[j[0]]), 2)
+    hp = os.path.join(run_dir, 'hsnap.npy')
+    if os.path.exists(hp):
+        a = np.nan_to_num(np.load(hp).astype(np.float32))
+        if a.shape == H.shape: hs = a if hs is None else np.maximum(hs, a)
+    if hs is None:
+        info['applied'] = 'no snapshots in the run dir: hmax used as is'; return H, info
+    He = np.minimum(H, hs + RC_TOL_M); info['cells_capped'] = int((H > hs + RC_TOL_M).sum())
+    if h0 is not None:
+        He = np.maximum(He - h0, 0.0); info['cells_startup_wet_30cm'] = int((h0 >= 0.30).sum())
+    info['applied'] = 'min(hmax, snapshot peak + tol)' + (' - start-up depth' if h0 is not None else '')
+    return He.astype(np.float32), info
 
 
 def culvert_probability(Xrows, xq, imp_x, meta, blockage=True):
@@ -244,6 +308,21 @@ def sag_probability(PA, G, ZR, Z, H, peak1h, res, cls, bad, nbi_xy, xing_xy, dec
     return [dict(x=float(xy[j, 0]), y=float(xy[j, 1]), seg=int(PA['seg'][cand[j]]), depth_m=round(float(min(sd[j], (F - ZR)[r[j], c[j]])), 2), under=bool(under[j]),
                  design=50 if under[j] else 10, i_design_mm=float(ides[j]), i_peak_mm=round(float(ip[j]), 1), area_ha=round(float(area[L[j]]) / 1e4, 2),
                  v_need_m3=round(float(vneed[j])), v_excess_m3=round(float(vex[j])), p_rain=float(prain[j]), p_pond=float(ppond[j]), p=float(p[j])) for j in range(len(cand))]
+
+
+def pluvial_probability(peak1h_mm, area_km2, hand_m, cx, cy, ok):
+    """PLUVIAL layer (see the PLUV constants): per-segment P(peak-hour rational inflow C i A exceeds the inlet / pipe capacity) on low-lying
+    urban segments.  peak1h_mm, area_km2, hand_m, cx, cy: per-segment arrays; ok: segments counted (in the box, with road points).
+    Returns (P, Q m3/s, road-segment density within PLUV_DENS_R_M)."""
+    from scipy.spatial import cKDTree
+    n = len(peak1h_mm); dens = np.zeros(n)
+    ok = np.asarray(ok, bool) & np.isfinite(cx) & np.isfinite(cy)
+    if ok.any():
+        xy = np.column_stack([cx[ok], cy[ok]]); dens[ok] = [len(v) for v in cKDTree(xy).query_ball_point(xy, PLUV_DENS_R_M)]
+    q = PLUV_C * np.nan_to_num(peak1h_mm) / 1000.0 / 3600.0 * np.nan_to_num(area_km2) * 1e6
+    gate = ok & (np.nan_to_num(hand_m, nan=20.0) <= PLUV_HAND_M) & (dens >= PLUV_DENS)
+    p = np.where(gate, phi(np.log(np.maximum(q, 1e-9) / PLUV_QCAP) / PLUV_SIGMA_LN), 0.0)
+    return p.astype(np.float32), q, dens
 
 
 def p_freeboard(f):
@@ -427,6 +506,7 @@ def reason(r):
     if r.get('p_edge', 0) >= 0.1 and r.get('edge_speed_ms') is not None:
         bits.append(f"runoff beside / along the road at {r['edge_speed_ms']:.1f} m/s: shoulder / edge may wash out (gravel / loam erodes from ~1 m/s; P {r['p_edge']:.2f})")
     if r.get('p_sag', 0) >= 0.1 and r.get('sag_why'): bits.append(f"{r['sag_why']} (P {r['p_sag']:.2f})")
+    if r.get('p_pluvial', 0) >= 0.1: bits.append(f"low-lying urban street: peak-hour runoff from upstream ~{r['pluvial_q_m3s']:.2f} m3/s vs ~{PLUV_QCAP:.1f} m3/s the drains take (P {r['p_pluvial']:.2f})")
     if r.get('p_culvert', 0) >= 0.1 and r.get('culvert_why'): bits.append(r['culvert_why'])
     elif r['culvert_overtopped_nearby']: bits.append('a culvert within 100 m is overtopped')
     if r['adds_hospital_min'] and r['adds_hospital_min'] >= 5: bits.append(f"+{r['adds_hospital_min']:.0f} min to the nearest hospital")
@@ -438,6 +518,12 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
     t_start = time.time(); os.makedirs(out, exist_ok=True)
     R = IM.load_run(os.path.basename(run_dir.rstrip('/')), local=run_dir); meta = R['meta']; H = R['H']; res = meta['res_m']
     R['name'] = meta.get('run') or R['name']
+    RESC = res_consistent_on(); rc_info = None
+    if RESC:      # PROTO_RES_CONSISTENT=1: snapshot-confirmed storm depth everywhere (network, crossings and every rule read R['H'])
+        H, rc_info = res_consistent_depth(H, run_dir); R['H'] = H
+        rc_info['k_points'] = max(2, int(round(RC_MIN_LEN_M / (res / 2.0)))); rc_info['point_spacing_m'] = res / 2.0
+    _k = rc_info['k_points'] if RESC else 2
+    def seg_top2(n_, seg_, vals_): return seg_topk(n_, seg_, vals_, _k)      # k = 2 (default): the module rule
     T = load_npz(os.path.join(run_dir, 'timing.npz')); RS = load_npz(os.path.join(run_dir, 'rainstats.npz'))
     S = json.load(open(segments)); n = S['n']; props = S['props']
     Xrows, xsrc = IM.load_crossings(crossings)
@@ -647,14 +733,30 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                             from_rain=sum(1 for g_ in sags if g_['p_rain'] >= 0.5), from_model_ponding=sum(1 for g_ in sags if g_['p_pond'] >= 0.5),
                             min_depth_m=SAG_MIN_M, radius_m=SAG_RADIUS_M, i10_mm=I10_MM, i50_mm=I50_MM, runoff_c=SAG_C, sigma_ln=SAG_SIGMA_LN,
                             note='candidate layer, not in p_close; variant sag = max(p_depth, p_sag) (the ponding half re-reads the model water the depth rule reads)')
+    # PLUVIAL / URBAN INFLOW layer (PROTO_PLUVIAL=1: computed, scored as variant 'pluvial' and added to p_close as max(p_close, P_pluv))
+    pluv_on = os.environ.get('PROTO_PLUVIAL', '0') == '1'
+    ppluv = np.zeros(n, np.float32); qpluv = np.zeros(n)
+    if pluv_on and len(Q['x']):
+        try:
+            import closure_ml as _CM
+            GF = _CM.geo_features(run_dir, Q, n, res)
+            ppluv, qpluv, _dens = pluvial_probability(p1, GF['area_km2'], GF['hand_m'], GF['cx'], GF['cy'], inbox & (np.bincount(Q['seg'], minlength=n) > 0))
+            ppluv = np.where(inbox, ppluv, 0.0).astype(np.float32)
+            rules['pluvial'] = dict(c=PLUV_C, q_cap_m3s=PLUV_QCAP, sigma_ln=PLUV_SIGMA_LN, hand_max_m=PLUV_HAND_M, min_road_segments=PLUV_DENS, radius_m=PLUV_DENS_R_M,
+                                    segments_p_ge_50=int((ppluv >= 0.5).sum()), note='PROTO_PLUVIAL=1: p_close = max(rule, P_pluv); see docs/proto/urban/FINDINGS.md')
+        except Exception as e_:                                  # optional layer: never stops the closure outputs
+            print('pluvial layer failed:', repr(e_)[:300]); rules['pluvial_error'] = repr(e_)[:300]; ppluv = np.zeros(n, np.float32)
     rules['bridges'] = geo
+    rules['res_consistent'] = dict(rc_info, rule='on (PROTO_RES_CONSISTENT=1)') if RESC else 'off (PROTO_RES_CONSISTENT=0)'
     VAR = {'depth': p_depth, 'overtop': combine(p_depth, pot), 'freeboard': combine(p_depth, pfb), 'fastwater': combine(p_depth, pfw), 'both': combine(p_depth, pfb, pfw),
            'sag': np.maximum(p_depth, psag), 'depth+edge': combine(p_depth, pedge), 'overtop+edge': combine(p_depth, pot, pedge)}
+    if pluv_on: VAR['pluvial'] = np.maximum(p_depth, ppluv)
     for k_ in list(VAR): VAR[k_ + '+culvert'] = combine(VAR[k_], pcul)
     VAR = {k_: np.where(inbox, v_, 0.0).astype(np.float32) for k_, v_ in VAR.items()}
     vkey = ('both' if freeboard and fastwater else 'freeboard' if freeboard else 'fastwater' if fastwater else 'depth') + ('+culvert' if culvert_rule else '')
     pclose = VAR[vkey]
     if edge: pclose = np.where(inbox, combine(pclose, pedge), 0.0).astype(np.float32); vkey += '+edge'
+    if pluv_on: pclose = np.where(inbox, np.maximum(pclose, ppluv), 0.0).astype(np.float32); vkey += '+pluvial'
     pmay = np.where(inbox, combine(pclose, pot), 0.0).astype(np.float32)        # 'may close' layer: main rule OR overtopping
     over = [x for x in xs if x['status'] in ('overtopped', 'surcharged')]
     near_culv = np.zeros(n, bool)
@@ -673,6 +775,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
                  peak3h_mm=round(float(p3[i]), 1), flashness_pct=round(float(flash[i]), 1), culvert_overtopped_nearby=bool(near_culv[i]),
                  p_depth=round(float(p_depth[i]), 3), p_culvert=round(float(pcul[i]), 3), culvert_why=cwhy.get(int(i)),
                  p_overtop=round(float(pot[i]), 3), p_may_close=round(float(pmay[i]), 3), p_sag=round(float(psag[i]), 3), sag_why=sag_why.get(int(i)),
+                 p_pluvial=round(float(ppluv[i]), 3), pluvial_q_m3s=round(float(qpluv[i]), 3),
                  p_edge=round(float(pedge[i]), 3), edge_speed_ms=None if np.isnan(evs[i]) else round(float(evs[i]), 2),
                  p_freeboard=round(float(pfb[i]), 3), freeboard_m=None if np.isnan(fbm[i]) else round(float(fbm[i]), 2),
                  p_fastwater=round(float(pfw[i]), 3), p_dv=round(float(pdv_s[i]), 3), p_washout=round(float(pws_s[i]), 3),
@@ -932,6 +1035,12 @@ document.querySelector('[data-l=depth]').onchange=e=>m.setLayoutProperty('depth'
 def selftest():
     """Synthetic storm on a fake grid and three fake segments: checks probabilities, timing, flashness, outputs."""
     import tempfile
+    # PROTO_RES_CONSISTENT helpers: k-th highest per segment; spike cap and start-up water removal from the snapshots
+    sg_ = np.array([0, 0, 0, 0, 1, 1, 2]); v_ = np.array([0.9, 0.1, 0.5, 0.4, 0.2, 0.7, 0.6], np.float32)
+    assert np.allclose(seg_topk(3, sg_, v_, 2), seg_top2(3, sg_, v_)) and np.allclose(seg_topk(3, sg_, v_, 4), [0.1, 0.2, 0.6])
+    dr_ = tempfile.mkdtemp(); Hs_ = np.array([[2.0, 0.5, 0.4]], np.float32)       # cell 0: an hmax spike; cell 1: start-up pond; cell 2: storm water
+    np.savez(f'{dr_}/frames_cm.npz', depth_cm=np.array([[[0, 0, 0]], [[10, 40, 0]], [[20, 45, 38]]], np.uint16), hours=np.array([0, 0.5, 1.0], np.float32))
+    He_, inf_ = res_consistent_depth(Hs_, dr_); assert np.allclose(He_, [[0.20, 0.10, 0.40]], atol=1e-5) and inf_['start_snapshot_h'] == 0.5, (He_, inf_)
     d = tempfile.mkdtemp(); rd = os.path.join(d, 'sep2023_test'); os.makedirs(rd); out = os.path.join(d, 'out')
     box = [150000, 905000, 152000, 907000]; res = 20; ny = nx = 100
     H = np.zeros((ny, nx), np.float32); H[40:60, :] = 0.6; H[70:75, :] = 0.2
@@ -1085,6 +1194,13 @@ def selftest():
     sx9 = sag_probability(P9, G9, Z9, Z9, H9 * 0, None, 20.0, np.array([0]), np.zeros(len(P9['x']), bool), np.zeros((0, 2)), xy9, [], [])
     assert all(math.hypot(g_['x'] - xy9[0, 0], g_['y'] - xy9[0, 1]) > SAG_XING_M for g_ in sx9), sx9               # near a stream crossing: culvert's case
     assert sag_probability(P9, G9, Z9, Z9, H9 * 0, np.full((20, 20), 50.0, np.float32), 20.0, np.array([0]), np.zeros(len(P9['x']), bool), xy9 + 30, np.zeros((0, 2)), [], [])[0]['design'] == 50
+    # pluvial layer: 20 x 20 street grid 50 m apart (dense), one low-lying segment with 0.3 km2 upstream; 20 mm hour -> Q 1.0 m3/s > 0.5
+    gx_, gy_ = np.meshgrid(np.arange(20) * 50.0, np.arange(20) * 50.0); cx_, cy_ = gx_.ravel(), gy_.ravel(); nP = len(cx_)
+    ar_ = np.full(nP, 0.01); ar_[0] = 0.3; hd_ = np.full(nP, 3.0); hd_[:2] = 0.0; ar_[1] = 0.3
+    pp_, qq_, dd_ = pluvial_probability(np.full(nP, 20.0), ar_, hd_, cx_, cy_, np.ones(nP, bool))
+    assert abs(qq_[0] - 1.0) < 1e-6 and pp_[0] > 0.9 and pp_[2] == 0 and dd_[210] >= PLUV_DENS, (qq_[0], pp_[0], dd_[210])     # high ground (HAND 3 m): 0
+    pp_, _, _ = pluvial_probability(np.full(nP, 5.0), ar_, hd_, cx_, cy_, np.ones(nP, bool)); assert pp_[0] < 0.1                   # 5 mm hour: 0.25 m3/s
+    pp_, _, _ = pluvial_probability(np.full(1, 20.0), ar_[:1], hd_[:1], cx_[:1], cy_[:1], np.ones(1, bool)); assert pp_[0] == 0      # lone road: not urban
     print('selftest ok:', out)
 
 
