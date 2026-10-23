@@ -1,0 +1,110 @@
+{
+ "run": "sep2022_loss_sep2022_webster_20m",
+ "title": "Sept 5, 2022 flash floods, Webster-Southbridge \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  151000.0,
+  855000.0,
+  171000.0,
+  875000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2022-09-05T06:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 149
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS AWS MultiSensor_QPE_01H_Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.88",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 10.33,
+   "excess_out_mean_mm": 7.17,
+   "kept_share": 0.694,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_products": {
+   "hours": {
+    "AWS MultiSensor_QPE_01H_Pass2": 18
+   },
+   "by_hour": {
+    "2022-09-05T07:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T08:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T09:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T10:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T11:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T12:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T13:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T14:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T15:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T16:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T17:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T18:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T22:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-05T23:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2022-09-06T00:00Z": "AWS MultiSensor_QPE_01H_Pass2"
+   }
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 110,
+ "rain_total_mean_mm": 53,
+ "rain_missing_hours": [],
+ "runtime_s": 1357,
+ "total_s": 1663,
+ "peak_wet_km2": 5.2,
+ "peak_snapshot_wet_km2": 2.6,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      20354800.0000 2861820.4594  0.000       0.000      25.836            0.0000       0.0000 2867684.7762",
+  "64800.000    1.0000     1.0000     64800      20286400.0000 2854102.4259  0.000       0.000      25.607            0.0000       0.0000 2867684.7762"
+ ],
+ "git_sha": "79956af6",
+ "forecast": null
+}
