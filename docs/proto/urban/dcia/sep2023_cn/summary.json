@@ -1,0 +1,3833 @@
+{
+ "run": "sep2023_loss_sep2023_cn",
+ "model": "LISFLOOD-FP 8.2",
+ "storm_start": "2023-09-11T16:00Z",
+ "box_epsg26986": [
+  162000.0,
+  908000.0,
+  182000.0,
+  928000.0
+ ],
+ "resolution_m": 20.0,
+ "segments_in_box": 4462,
+ "closures_expected": 139.6,
+ "segments_p_ge_50": 110,
+ "segments_p_ge_90": 62,
+ "segments_may_close": 151,
+ "km_may_close": 94.9,
+ "may_close_rule": "water beside the road reaches the road crest: Phi((0 - f) / 0.15), f = lidar crest - peak water surface within 30 m; candidate, not in p_close until confirmed on a second storm",
+ "segments_sag": 19,
+ "sag_rule": "optional layer: road sag / underpass in a closed lidar depression whose drains (HEC-22 10-yr, 50-yr at underpasses) are exceeded by the peak-hour rain on its catchment, or where the model ponds 0.30 m; not in p_close or p_may_close",
+ "segments_edge": 178,
+ "edge_rule": "optional layer: fast shallow runoff beside / along the road above the permissible speed (Fortier & Scobey; ~1.0 m/s) AND shear (HEC-15 Table 2.3 gravel, 11 Pa) of a gravel / loam shoulder; in p_close only with --edge",
+ "segments_p_ge_50_depth_rule": 110,
+ "segments_p_ge_50_with_culverts": 122,
+ "km_p_ge_50": 79.0,
+ "culverts_overtopped": 143,
+ "culverts_surcharged": 4,
+ "crossings_assessed": 616,
+ "cut_off_from_hospitals": 708,
+ "worst_added_minutes": 24.4,
+ "rain_max_total_mm": 198,
+ "rain_peak1h_max_mm": 89.3,
+ "flood_model_runtime_s": 2025,
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "checks": {
+  "reports": {
+   "storm_days": [
+    "2023-09-11",
+    "2023-09-12",
+    "2023-09-13"
+   ],
+   "n_storm_day": 10,
+   "point_hit_rate": 0.9,
+   "point_any_day_rate": 0.682,
+   "n_storm_day_near_road": 10,
+   "segment_hit_rate": 0.2,
+   "segment_wet10_rate": 0.2,
+   "flagged_segments": 298,
+   "flagged_with_report_200m": 0.054,
+   "all_segments_with_report_200m": 0.019,
+   "lift": 2.89
+  },
+  "massdot_repeat_sites": {
+   "in_box": 4,
+   "flagged_p05": 3,
+   "share_of_all_segments_flagged": 0.025,
+   "sites": [
+    {
+     "site": "Leominster, Rt 12 SB",
+     "max_p_close": 1.0,
+     "max_depth_m": 0.94,
+     "max_p_with_culverts": 1.0
+    },
+    {
+     "site": "Leominster, Pleasant St., Adams St.",
+     "max_p_close": 0.988,
+     "max_depth_m": 0.53,
+     "max_p_with_culverts": 0.988
+    },
+    {
+     "site": "Leominster, Commercial Dr.",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.02,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Westminster, Rte 140",
+     "max_p_close": 0.536,
+     "max_depth_m": 0.31,
+     "max_p_with_culverts": 0.536
+    }
+   ],
+   "flagged_p05_with_culverts": 3
+  },
+  "labels_segments": {
+   "note": "recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the same share of segments; lift = recall / random_recall; lift_naive = recall / flagged share. strict: segments within 30 m of the site; loose: 100 m (exact) / 300 m + same-name segments within 1.5 km (approx). Line labels (.geojson): segments with >= 50 % of their points within 30 m (loose 100 m) of the closed stretch, or holding >= 50 % of it",
+   "labels": "labels_sep2023_leominster.csv",
+   "labels_in_file": 93,
+   "sites_matched": 78,
+   "depth_rule": {
+    "flagged_share": 0.0247,
+    "n_flagged": 110,
+    "all": {
+     "n": 78,
+     "recall": 0.359,
+     "random_recall": 0.036,
+     "lift_naive": 14.56,
+     "lift": 10.07
+    },
+    "flood_closure": {
+     "n": 24,
+     "recall": 0.417,
+     "random_recall": 0.04,
+     "lift_naive": 16.9,
+     "lift": 10.54
+    },
+    "culvert_washout": {
+     "n": 38,
+     "recall": 0.368,
+     "random_recall": 0.032,
+     "lift_naive": 14.94,
+     "lift": 11.68
+    },
+    "other_damage": {
+     "n": 16,
+     "recall": 0.25,
+     "random_recall": 0.04,
+     "lift_naive": 10.14,
+     "lift": 6.32
+    }
+   },
+   "with_culverts": {
+    "flagged_share": 0.0273,
+    "n_flagged": 122,
+    "all": {
+     "n": 78,
+     "recall": 0.359,
+     "random_recall": 0.039,
+     "lift_naive": 13.13,
+     "lift": 9.09
+    },
+    "flood_closure": {
+     "n": 24,
+     "recall": 0.417,
+     "random_recall": 0.044,
+     "lift_naive": 15.24,
+     "lift": 9.52
+    },
+    "culvert_washout": {
+     "n": 38,
+     "recall": 0.368,
+     "random_recall": 0.035,
+     "lift_naive": 13.47,
+     "lift": 10.54
+    },
+    "other_damage": {
+     "n": 16,
+     "recall": 0.25,
+     "random_recall": 0.044,
+     "lift_naive": 9.14,
+     "lift": 5.71
+    }
+   },
+   "loose": {
+    "sites_matched": 90,
+    "depth_rule": {
+     "flagged_share": 0.0247,
+     "n_flagged": 110,
+     "all": {
+      "n": 90,
+      "recall": 0.667,
+      "random_recall": 0.247,
+      "lift_naive": 27.04,
+      "lift": 2.7
+     },
+     "flood_closure": {
+      "n": 31,
+      "recall": 0.613,
+      "random_recall": 0.275,
+      "lift_naive": 24.86,
+      "lift": 2.23
+     },
+     "culvert_washout": {
+      "n": 42,
+      "recall": 0.762,
+      "random_recall": 0.223,
+      "lift_naive": 30.91,
+      "lift": 3.42
+     },
+     "other_damage": {
+      "n": 17,
+      "recall": 0.529,
+      "random_recall": 0.256,
+      "lift_naive": 21.47,
+      "lift": 2.07
+     }
+    },
+    "with_culverts": {
+     "flagged_share": 0.0273,
+     "n_flagged": 122,
+     "all": {
+      "n": 90,
+      "recall": 0.678,
+      "random_recall": 0.268,
+      "lift_naive": 24.79,
+      "lift": 2.53
+     },
+     "flood_closure": {
+      "n": 31,
+      "recall": 0.613,
+      "random_recall": 0.297,
+      "lift_naive": 22.42,
+      "lift": 2.07
+     },
+     "culvert_washout": {
+      "n": 42,
+      "recall": 0.786,
+      "random_recall": 0.243,
+      "lift_naive": 28.74,
+      "lift": 3.24
+     },
+     "other_damage": {
+      "n": 17,
+      "recall": 0.529,
+      "random_recall": 0.279,
+      "lift_naive": 19.36,
+      "lift": 1.9
+     }
+    }
+   },
+   "variants": {
+    "depth": {
+     "strict": {
+      "flagged_share": 0.0247,
+      "n_flagged": 110,
+      "all": {
+       "n": 78,
+       "recall": 0.359,
+       "random_recall": 0.036,
+       "lift_naive": 14.56,
+       "lift": 10.07
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.417,
+       "random_recall": 0.04,
+       "lift_naive": 16.9,
+       "lift": 10.54
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.368,
+       "random_recall": 0.032,
+       "lift_naive": 14.94,
+       "lift": 11.68
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.25,
+       "random_recall": 0.04,
+       "lift_naive": 10.14,
+       "lift": 6.32
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0247,
+      "n_flagged": 110,
+      "all": {
+       "n": 90,
+       "recall": 0.667,
+       "random_recall": 0.247,
+       "lift_naive": 27.04,
+       "lift": 2.7
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.613,
+       "random_recall": 0.275,
+       "lift_naive": 24.86,
+       "lift": 2.23
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.762,
+       "random_recall": 0.223,
+       "lift_naive": 30.91,
+       "lift": 3.42
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.529,
+       "random_recall": 0.256,
+       "lift_naive": 21.47,
+       "lift": 2.07
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.385,
+       "lift": 11.16
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.333,
+       "lift": 9.05
+      }
+     }
+    },
+    "overtop": {
+     "strict": {
+      "flagged_share": 0.0585,
+      "n_flagged": 261,
+      "all": {
+       "n": 78,
+       "recall": 0.513,
+       "random_recall": 0.083,
+       "lift_naive": 8.77,
+       "lift": 6.15
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.708,
+       "random_recall": 0.092,
+       "lift_naive": 12.11,
+       "lift": 7.69
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.447,
+       "random_recall": 0.074,
+       "lift_naive": 7.65,
+       "lift": 6.04
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.375,
+       "random_recall": 0.092,
+       "lift_naive": 6.41,
+       "lift": 4.07
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0585,
+      "n_flagged": 261,
+      "all": {
+       "n": 90,
+       "recall": 0.889,
+       "random_recall": 0.458,
+       "lift_naive": 15.2,
+       "lift": 1.94
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.903,
+       "random_recall": 0.482,
+       "lift_naive": 15.44,
+       "lift": 1.87
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.429,
+       "lift_naive": 16.28,
+       "lift": 2.22
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.706,
+       "random_recall": 0.487,
+       "lift_naive": 12.07,
+       "lift": 1.45
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.564,
+       "lift": 6.99
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.462,
+       "lift": 5.37
+      }
+     }
+    },
+    "freeboard": {
+     "strict": {
+      "flagged_share": 0.0789,
+      "n_flagged": 352,
+      "all": {
+       "n": 78,
+       "recall": 0.59,
+       "random_recall": 0.111,
+       "lift_naive": 7.48,
+       "lift": 5.29
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.75,
+       "random_recall": 0.123,
+       "lift_naive": 9.51,
+       "lift": 6.1
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.5,
+       "random_recall": 0.099,
+       "lift_naive": 6.34,
+       "lift": 5.03
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.562,
+       "random_recall": 0.123,
+       "lift_naive": 7.13,
+       "lift": 4.58
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0789,
+      "n_flagged": 352,
+      "all": {
+       "n": 90,
+       "recall": 0.933,
+       "random_recall": 0.545,
+       "lift_naive": 11.83,
+       "lift": 1.71
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.968,
+       "random_recall": 0.561,
+       "lift_naive": 12.27,
+       "lift": 1.73
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.518,
+       "lift_naive": 12.07,
+       "lift": 1.84
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.824,
+       "random_recall": 0.582,
+       "lift_naive": 10.44,
+       "lift": 1.42
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.641,
+       "lift": 5.93
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.538,
+       "lift": 4.69
+      }
+     }
+    },
+    "fastwater": {
+     "strict": {
+      "flagged_share": 0.0278,
+      "n_flagged": 124,
+      "all": {
+       "n": 78,
+       "recall": 0.359,
+       "random_recall": 0.04,
+       "lift_naive": 12.92,
+       "lift": 8.95
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.417,
+       "random_recall": 0.044,
+       "lift_naive": 14.99,
+       "lift": 9.37
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.368,
+       "random_recall": 0.036,
+       "lift_naive": 13.26,
+       "lift": 10.37
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.25,
+       "random_recall": 0.044,
+       "lift_naive": 9.0,
+       "lift": 5.62
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0278,
+      "n_flagged": 124,
+      "all": {
+       "n": 90,
+       "recall": 0.689,
+       "random_recall": 0.272,
+       "lift_naive": 24.79,
+       "lift": 2.54
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.613,
+       "random_recall": 0.3,
+       "lift_naive": 22.05,
+       "lift": 2.04
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.81,
+       "random_recall": 0.246,
+       "lift_naive": 29.13,
+       "lift": 3.29
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.529,
+       "random_recall": 0.282,
+       "lift_naive": 19.05,
+       "lift": 1.87
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.385,
+       "lift": 9.91
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.333,
+       "lift": 8.04
+      }
+     }
+    },
+    "both": {
+     "strict": {
+      "flagged_share": 0.0816,
+      "n_flagged": 364,
+      "all": {
+       "n": 78,
+       "recall": 0.59,
+       "random_recall": 0.115,
+       "lift_naive": 7.23,
+       "lift": 5.12
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.75,
+       "random_recall": 0.127,
+       "lift_naive": 9.19,
+       "lift": 5.91
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.5,
+       "random_recall": 0.103,
+       "lift_naive": 6.13,
+       "lift": 4.87
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.562,
+       "random_recall": 0.127,
+       "lift_naive": 6.9,
+       "lift": 4.43
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0816,
+      "n_flagged": 364,
+      "all": {
+       "n": 90,
+       "recall": 0.933,
+       "random_recall": 0.554,
+       "lift_naive": 11.44,
+       "lift": 1.68
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.968,
+       "random_recall": 0.569,
+       "lift_naive": 11.86,
+       "lift": 1.7
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.528,
+       "lift_naive": 11.67,
+       "lift": 1.8
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.824,
+       "random_recall": 0.592,
+       "lift_naive": 10.1,
+       "lift": 1.39
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.641,
+       "lift": 5.74
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.538,
+       "lift": 4.55
+      }
+     }
+    },
+    "sag": {
+     "strict": {
+      "flagged_share": 0.0289,
+      "n_flagged": 129,
+      "all": {
+       "n": 78,
+       "recall": 0.359,
+       "random_recall": 0.042,
+       "lift_naive": 12.42,
+       "lift": 8.6
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.417,
+       "random_recall": 0.046,
+       "lift_naive": 14.41,
+       "lift": 9.01
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.368,
+       "random_recall": 0.037,
+       "lift_naive": 12.74,
+       "lift": 9.97
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.25,
+       "random_recall": 0.046,
+       "lift_naive": 8.65,
+       "lift": 5.4
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0289,
+      "n_flagged": 129,
+      "all": {
+       "n": 90,
+       "recall": 0.678,
+       "random_recall": 0.28,
+       "lift_naive": 23.44,
+       "lift": 2.42
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.613,
+       "random_recall": 0.309,
+       "lift_naive": 21.2,
+       "lift": 1.99
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.762,
+       "random_recall": 0.254,
+       "lift_naive": 26.35,
+       "lift": 3.0
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.588,
+       "random_recall": 0.292,
+       "lift_naive": 20.35,
+       "lift": 2.02
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.385,
+       "lift": 9.53
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.333,
+       "lift": 7.73
+      }
+     }
+    },
+    "depth+edge": {
+     "strict": {
+      "flagged_share": 0.0688,
+      "n_flagged": 307,
+      "all": {
+       "n": 78,
+       "recall": 0.564,
+       "random_recall": 0.098,
+       "lift_naive": 8.2,
+       "lift": 5.78
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.667,
+       "random_recall": 0.108,
+       "lift_naive": 9.69,
+       "lift": 6.19
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.553,
+       "random_recall": 0.087,
+       "lift_naive": 8.03,
+       "lift": 6.36
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.438,
+       "random_recall": 0.108,
+       "lift_naive": 6.36,
+       "lift": 4.06
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0688,
+      "n_flagged": 307,
+      "all": {
+       "n": 90,
+       "recall": 0.867,
+       "random_recall": 0.505,
+       "lift_naive": 12.6,
+       "lift": 1.72
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.871,
+       "random_recall": 0.525,
+       "lift_naive": 12.66,
+       "lift": 1.66
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.905,
+       "random_recall": 0.477,
+       "lift_naive": 13.15,
+       "lift": 1.9
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.765,
+       "random_recall": 0.538,
+       "lift_naive": 11.11,
+       "lift": 1.42
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.59,
+       "lift": 6.23
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.538,
+       "lift": 5.36
+      }
+     }
+    },
+    "overtop+edge": {
+     "strict": {
+      "flagged_share": 0.0887,
+      "n_flagged": 396,
+      "all": {
+       "n": 78,
+       "recall": 0.603,
+       "random_recall": 0.125,
+       "lift_naive": 6.79,
+       "lift": 4.83
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.708,
+       "random_recall": 0.138,
+       "lift_naive": 7.98,
+       "lift": 5.15
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.579,
+       "random_recall": 0.111,
+       "lift_naive": 6.52,
+       "lift": 5.2
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.5,
+       "random_recall": 0.138,
+       "lift_naive": 5.63,
+       "lift": 3.64
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0887,
+      "n_flagged": 396,
+      "all": {
+       "n": 90,
+       "recall": 0.911,
+       "random_recall": 0.579,
+       "lift_naive": 10.27,
+       "lift": 1.57
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.935,
+       "random_recall": 0.591,
+       "lift_naive": 10.54,
+       "lift": 1.58
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.553,
+       "lift_naive": 10.73,
+       "lift": 1.72
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.765,
+       "random_recall": 0.619,
+       "lift_naive": 8.62,
+       "lift": 1.23
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.641,
+       "lift": 5.29
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.564,
+       "lift": 4.39
+      }
+     }
+    },
+    "depth+culvert": {
+     "strict": {
+      "flagged_share": 0.0273,
+      "n_flagged": 122,
+      "all": {
+       "n": 78,
+       "recall": 0.359,
+       "random_recall": 0.039,
+       "lift_naive": 13.13,
+       "lift": 9.09
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.417,
+       "random_recall": 0.044,
+       "lift_naive": 15.24,
+       "lift": 9.52
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.368,
+       "random_recall": 0.035,
+       "lift_naive": 13.47,
+       "lift": 10.54
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.25,
+       "random_recall": 0.044,
+       "lift_naive": 9.14,
+       "lift": 5.71
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0273,
+      "n_flagged": 122,
+      "all": {
+       "n": 90,
+       "recall": 0.678,
+       "random_recall": 0.268,
+       "lift_naive": 24.79,
+       "lift": 2.53
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.613,
+       "random_recall": 0.297,
+       "lift_naive": 22.42,
+       "lift": 2.07
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.786,
+       "random_recall": 0.243,
+       "lift_naive": 28.74,
+       "lift": 3.24
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.529,
+       "random_recall": 0.279,
+       "lift_naive": 19.36,
+       "lift": 1.9
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.385,
+       "lift": 10.07
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.333,
+       "lift": 8.17
+      }
+     }
+    },
+    "overtop+culvert": {
+     "strict": {
+      "flagged_share": 0.0612,
+      "n_flagged": 273,
+      "all": {
+       "n": 78,
+       "recall": 0.513,
+       "random_recall": 0.087,
+       "lift_naive": 8.38,
+       "lift": 5.89
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.708,
+       "random_recall": 0.096,
+       "lift_naive": 11.58,
+       "lift": 7.36
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.447,
+       "random_recall": 0.077,
+       "lift_naive": 7.31,
+       "lift": 5.78
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.375,
+       "random_recall": 0.096,
+       "lift_naive": 6.13,
+       "lift": 3.9
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0612,
+      "n_flagged": 273,
+      "all": {
+       "n": 90,
+       "recall": 0.889,
+       "random_recall": 0.471,
+       "lift_naive": 14.53,
+       "lift": 1.89
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.903,
+       "random_recall": 0.494,
+       "lift_naive": 14.76,
+       "lift": 1.83
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.442,
+       "lift_naive": 15.57,
+       "lift": 2.15
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.706,
+       "random_recall": 0.501,
+       "lift_naive": 11.54,
+       "lift": 1.41
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.564,
+       "lift": 6.68
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.462,
+       "lift": 5.14
+      }
+     }
+    },
+    "freeboard+culvert": {
+     "strict": {
+      "flagged_share": 0.0814,
+      "n_flagged": 363,
+      "all": {
+       "n": 78,
+       "recall": 0.59,
+       "random_recall": 0.115,
+       "lift_naive": 7.25,
+       "lift": 5.14
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.75,
+       "random_recall": 0.127,
+       "lift_naive": 9.22,
+       "lift": 5.93
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.5,
+       "random_recall": 0.102,
+       "lift_naive": 6.15,
+       "lift": 4.88
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.562,
+       "random_recall": 0.127,
+       "lift_naive": 6.91,
+       "lift": 4.45
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0814,
+      "n_flagged": 363,
+      "all": {
+       "n": 90,
+       "recall": 0.933,
+       "random_recall": 0.554,
+       "lift_naive": 11.47,
+       "lift": 1.69
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.968,
+       "random_recall": 0.569,
+       "lift_naive": 11.9,
+       "lift": 1.7
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.527,
+       "lift_naive": 11.71,
+       "lift": 1.81
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.824,
+       "random_recall": 0.592,
+       "lift_naive": 10.12,
+       "lift": 1.39
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.641,
+       "lift": 5.75
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.538,
+       "lift": 4.56
+      }
+     }
+    },
+    "fastwater+culvert": {
+     "strict": {
+      "flagged_share": 0.0305,
+      "n_flagged": 136,
+      "all": {
+       "n": 78,
+       "recall": 0.359,
+       "random_recall": 0.044,
+       "lift_naive": 11.78,
+       "lift": 8.17
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.417,
+       "random_recall": 0.049,
+       "lift_naive": 13.67,
+       "lift": 8.55
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.368,
+       "random_recall": 0.039,
+       "lift_naive": 12.09,
+       "lift": 9.46
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.25,
+       "random_recall": 0.049,
+       "lift_naive": 8.2,
+       "lift": 5.13
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0305,
+      "n_flagged": 136,
+      "all": {
+       "n": 90,
+       "recall": 0.7,
+       "random_recall": 0.292,
+       "lift_naive": 22.97,
+       "lift": 2.4
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.613,
+       "random_recall": 0.321,
+       "lift_naive": 20.11,
+       "lift": 1.91
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.833,
+       "random_recall": 0.265,
+       "lift_naive": 27.34,
+       "lift": 3.14
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.529,
+       "random_recall": 0.304,
+       "lift_naive": 17.37,
+       "lift": 1.74
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.385,
+       "lift": 9.05
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.333,
+       "lift": 7.34
+      }
+     }
+    },
+    "both+culvert": {
+     "strict": {
+      "flagged_share": 0.084,
+      "n_flagged": 375,
+      "all": {
+       "n": 78,
+       "recall": 0.59,
+       "random_recall": 0.118,
+       "lift_naive": 7.02,
+       "lift": 4.98
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.75,
+       "random_recall": 0.131,
+       "lift_naive": 8.92,
+       "lift": 5.74
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.5,
+       "random_recall": 0.106,
+       "lift_naive": 5.95,
+       "lift": 4.73
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.562,
+       "random_recall": 0.131,
+       "lift_naive": 6.69,
+       "lift": 4.31
+      }
+     },
+     "loose": {
+      "flagged_share": 0.084,
+      "n_flagged": 375,
+      "all": {
+       "n": 90,
+       "recall": 0.933,
+       "random_recall": 0.563,
+       "lift_naive": 11.11,
+       "lift": 1.66
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.968,
+       "random_recall": 0.577,
+       "lift_naive": 11.51,
+       "lift": 1.68
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.537,
+       "lift_naive": 11.33,
+       "lift": 1.77
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.824,
+       "random_recall": 0.602,
+       "lift_naive": 9.8,
+       "lift": 1.37
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.641,
+       "lift": 5.58
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.538,
+       "lift": 4.42
+      }
+     }
+    },
+    "sag+culvert": {
+     "strict": {
+      "flagged_share": 0.0316,
+      "n_flagged": 141,
+      "all": {
+       "n": 78,
+       "recall": 0.359,
+       "random_recall": 0.046,
+       "lift_naive": 11.36,
+       "lift": 7.88
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.417,
+       "random_recall": 0.05,
+       "lift_naive": 13.19,
+       "lift": 8.25
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.368,
+       "random_recall": 0.04,
+       "lift_naive": 11.66,
+       "lift": 9.13
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.25,
+       "random_recall": 0.05,
+       "lift_naive": 7.91,
+       "lift": 4.95
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0316,
+      "n_flagged": 141,
+      "all": {
+       "n": 90,
+       "recall": 0.689,
+       "random_recall": 0.3,
+       "lift_naive": 21.8,
+       "lift": 2.3
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.613,
+       "random_recall": 0.329,
+       "lift_naive": 19.4,
+       "lift": 1.86
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.786,
+       "random_recall": 0.273,
+       "lift_naive": 24.86,
+       "lift": 2.88
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.588,
+       "random_recall": 0.313,
+       "lift_naive": 18.61,
+       "lift": 1.88
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.385,
+       "lift": 8.73
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.333,
+       "lift": 7.09
+      }
+     }
+    },
+    "depth+edge+culvert": {
+     "strict": {
+      "flagged_share": 0.0715,
+      "n_flagged": 319,
+      "all": {
+       "n": 78,
+       "recall": 0.564,
+       "random_recall": 0.101,
+       "lift_naive": 7.89,
+       "lift": 5.57
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.667,
+       "random_recall": 0.112,
+       "lift_naive": 9.32,
+       "lift": 5.96
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.553,
+       "random_recall": 0.09,
+       "lift_naive": 7.73,
+       "lift": 6.13
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.438,
+       "random_recall": 0.112,
+       "lift_naive": 6.12,
+       "lift": 3.91
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0715,
+      "n_flagged": 319,
+      "all": {
+       "n": 90,
+       "recall": 0.878,
+       "random_recall": 0.516,
+       "lift_naive": 12.28,
+       "lift": 1.7
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.871,
+       "random_recall": 0.535,
+       "lift_naive": 12.18,
+       "lift": 1.63
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.929,
+       "random_recall": 0.488,
+       "lift_naive": 12.99,
+       "lift": 1.9
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.765,
+       "random_recall": 0.55,
+       "lift_naive": 10.7,
+       "lift": 1.39
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.59,
+       "lift": 6.0
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.538,
+       "lift": 5.16
+      }
+     }
+    },
+    "overtop+edge+culvert": {
+     "strict": {
+      "flagged_share": 0.0914,
+      "n_flagged": 408,
+      "all": {
+       "n": 78,
+       "recall": 0.603,
+       "random_recall": 0.128,
+       "lift_naive": 6.59,
+       "lift": 4.69
+      },
+      "flood_closure": {
+       "n": 24,
+       "recall": 0.708,
+       "random_recall": 0.141,
+       "lift_naive": 7.75,
+       "lift": 5.01
+      },
+      "culvert_washout": {
+       "n": 38,
+       "recall": 0.579,
+       "random_recall": 0.115,
+       "lift_naive": 6.33,
+       "lift": 5.05
+      },
+      "other_damage": {
+       "n": 16,
+       "recall": 0.5,
+       "random_recall": 0.141,
+       "lift_naive": 5.47,
+       "lift": 3.53
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0914,
+      "n_flagged": 408,
+      "all": {
+       "n": 90,
+       "recall": 0.911,
+       "random_recall": 0.588,
+       "lift_naive": 9.96,
+       "lift": 1.55
+      },
+      "flood_closure": {
+       "n": 31,
+       "recall": 0.935,
+       "random_recall": 0.599,
+       "lift_naive": 10.23,
+       "lift": 1.56
+      },
+      "culvert_washout": {
+       "n": 42,
+       "recall": 0.952,
+       "random_recall": 0.563,
+       "lift_naive": 10.42,
+       "lift": 1.69
+      },
+      "other_damage": {
+       "n": 17,
+       "recall": 0.765,
+       "random_recall": 0.629,
+       "lift_naive": 8.36,
+       "lift": 1.22
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 39,
+       "recall": 0.641,
+       "lift": 5.14
+      },
+      "even": {
+       "n": 39,
+       "recall": 0.564,
+       "lift": 4.27
+      }
+     }
+    }
+   },
+   "applied": "depth",
+   "sites": [
+    {
+     "id": "L001",
+     "type": "flooded",
+     "name": "Exchange St (66-72 Exchange St) flooding",
+     "road": "Exchange Street",
+     "n_segments": 2,
+     "depth_m": 1.36,
+     "freeboard_m": -0.98,
+     "dv_m2s": 0.91,
+     "peak_speed_ms": 15.63,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.999,
+     "p_culvert": 0.949,
+     "p_sag": 0.0,
+     "p_edge": 1.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L003",
+     "type": "flooded",
+     "name": "Merriam Ave after Blossom St",
+     "road": "Merriam Avenue",
+     "n_segments": 2,
+     "depth_m": 0.17,
+     "freeboard_m": -0.25,
+     "dv_m2s": 0.05,
+     "peak_speed_ms": 4.66,
+     "p_depth": 0.092,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.13,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L004",
+     "type": "impassable",
+     "name": "Graham St flooded and impassable",
+     "road": "Graham Street",
+     "n_segments": 2,
+     "depth_m": 0.84,
+     "freeboard_m": -0.17,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 4.8,
+     "p_depth": 1.0,
+     "p_freeboard": 0.999,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.042,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L005",
+     "type": "flooded",
+     "name": "Route 2 eastbound in Fitchburg flooded headlight deep",
+     "road": "Route 2",
+     "n_segments": 1,
+     "depth_m": 0.01,
+     "freeboard_m": 1.83,
+     "dv_m2s": 0.0,
+     "peak_speed_ms": 4.33,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "L007",
+     "type": "flooded",
+     "name": "JC Penney parking lot off Sack Blvd",
+     "road": "Sack Boulevard",
+     "n_segments": 1,
+     "depth_m": 0.4,
+     "freeboard_m": -0.33,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 1.65,
+     "p_depth": 0.831,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.599,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L008",
+     "type": "impassable",
+     "name": "West St between Washington St and Blossom St",
+     "road": "West Street",
+     "n_segments": 1,
+     "depth_m": 0.19,
+     "freeboard_m": -0.36,
+     "dv_m2s": 0.13,
+     "peak_speed_ms": 4.72,
+     "p_depth": 0.127,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.01,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.891,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L009",
+     "type": "impassable",
+     "name": "Route 2 eastbound at Exit 99 (Route 12 interchange)",
+     "road": "Route 2",
+     "n_segments": 1,
+     "depth_m": 0.35,
+     "freeboard_m": -0.11,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 0.36,
+     "p_depth": 0.677,
+     "p_freeboard": 0.997,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.421,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L014",
+     "type": "flooded",
+     "name": "Spruce St (40 Spruce St) flooding, evacuations",
+     "road": "Spruce Street",
+     "n_segments": 1,
+     "depth_m": 0.07,
+     "freeboard_m": 1.99,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.13,
+     "p_depth": 0.012,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.005,
+     "hit": []
+    },
+    {
+     "id": "L015",
+     "type": "culvert_failure",
+     "name": "Pleasant St culvert at Colburn St washout",
+     "road": "Pleasant Street",
+     "n_segments": 1,
+     "depth_m": 0.81,
+     "freeboard_m": 1.15,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 9.15,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.011,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L016",
+     "type": "closed",
+     "name": "Downtown Leominster access shut down",
+     "road": "Route 12 (Main St/Central St)",
+     "n_segments": 4,
+     "depth_m": 0.2,
+     "freeboard_m": -0.36,
+     "dv_m2s": 0.13,
+     "peak_speed_ms": 4.72,
+     "p_depth": 0.156,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.01,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.891,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L017",
+     "type": "impassable",
+     "name": "Nashua St at Main St (Route 13)",
+     "road": "Nashua Street",
+     "n_segments": 2,
+     "depth_m": 0.14,
+     "freeboard_m": -0.68,
+     "dv_m2s": 0.09,
+     "peak_speed_ms": 12.99,
+     "p_depth": 0.055,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.963,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L018",
+     "type": "closed",
+     "name": "Route 2 near Route 12 and rail trail closed",
+     "road": "Route 2",
+     "n_segments": 1,
+     "depth_m": 0.35,
+     "freeboard_m": -0.11,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 0.36,
+     "p_depth": 0.677,
+     "p_freeboard": 0.997,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.421,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L019",
+     "type": "washout",
+     "name": "Pleasant St at Pond St sinkhole/road washout",
+     "road": "Pleasant Street",
+     "n_segments": 2,
+     "depth_m": 0.82,
+     "freeboard_m": 1.15,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 9.33,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.011,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L020",
+     "type": "other_damage",
+     "name": "Brooks Pond Dam collapse (west of Route 12)",
+     "road": "Brooks Pond Road",
+     "n_segments": 3,
+     "depth_m": 0.07,
+     "freeboard_m": 0.05,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 3.92,
+     "p_depth": 0.01,
+     "p_freeboard": 0.954,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.312,
+     "hit": [
+      "freeboard",
+      "both",
+      "freeboard+culvert",
+      "both+culvert"
+     ]
+    },
+    {
+     "id": "L021",
+     "type": "other_damage",
+     "name": "Route 117 (Lancaster St) road buckled near Fall Brook",
+     "road": "Route 117",
+     "n_segments": 1,
+     "depth_m": 1.1,
+     "freeboard_m": 0.09,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 4.72,
+     "p_depth": 1.0,
+     "p_freeboard": 0.922,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.82,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L022",
+     "type": "washout",
+     "name": "East Princeton Road washout",
+     "road": "East Princeton Road",
+     "n_segments": 3,
+     "depth_m": 0.01,
+     "freeboard_m": 3.69,
+     "dv_m2s": 0.0,
+     "peak_speed_ms": 1.88,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.001,
+     "hit": []
+    },
+    {
+     "id": "L023",
+     "type": "impassable",
+     "name": "Boyle Place boat rescues",
+     "road": "Boyle Place",
+     "n_segments": 3,
+     "depth_m": 0.38,
+     "freeboard_m": -0.64,
+     "dv_m2s": 0.22,
+     "peak_speed_ms": 3.11,
+     "p_depth": 0.802,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.179,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.677,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L024",
+     "type": "washout",
+     "name": "Route 31 in East Princeton washed out",
+     "road": "Route 31",
+     "n_segments": 4,
+     "depth_m": 0.01,
+     "freeboard_m": null,
+     "dv_m2s": 0.0,
+     "peak_speed_ms": 1.55,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.001,
+     "hit": []
+    },
+    {
+     "id": "L025",
+     "type": "flooded",
+     "name": "Elliott Road flooded at culvert",
+     "road": "Elliott Road",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": null,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 7.82,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "L026",
+     "type": "flooded",
+     "name": "Beaman Road (72 Beaman Rd) car stuck in flood",
+     "road": "Beaman Road",
+     "n_segments": 1,
+     "depth_m": 0.07,
+     "freeboard_m": 0.52,
+     "dv_m2s": 0.05,
+     "peak_speed_ms": 5.98,
+     "p_depth": 0.012,
+     "p_freeboard": 0.074,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.42,
+     "hit": []
+    },
+    {
+     "id": "L027",
+     "type": "flooded",
+     "name": "Main St and Pleasant St flooding with rescues",
+     "road": "Route 12 (Main St)",
+     "n_segments": 3,
+     "depth_m": 0.38,
+     "freeboard_m": -0.64,
+     "dv_m2s": 0.22,
+     "peak_speed_ms": 3.11,
+     "p_depth": 0.802,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.179,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.639,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L029",
+     "type": "flooded",
+     "name": "Lancaster St (Route 117) flooded during storm",
+     "road": "Lancaster Street (Route 117)",
+     "n_segments": 1,
+     "depth_m": 1.1,
+     "freeboard_m": 0.09,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 4.72,
+     "p_depth": 1.0,
+     "p_freeboard": 0.922,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.82,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L032",
+     "type": "impassable",
+     "name": "Hamilton St blocked by railroad-embankment debris",
+     "road": "Hamilton Street",
+     "n_segments": 1,
+     "depth_m": 0.14,
+     "freeboard_m": -0.68,
+     "dv_m2s": 0.09,
+     "peak_speed_ms": 12.99,
+     "p_depth": 0.055,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.963,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L033",
+     "type": "closed",
+     "name": "Main St & Hamilton St closed",
+     "road": "Route 13 (Main Street)",
+     "n_segments": 1,
+     "depth_m": 0.14,
+     "freeboard_m": -0.68,
+     "dv_m2s": 0.09,
+     "peak_speed_ms": 12.99,
+     "p_depth": 0.055,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.963,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L034",
+     "type": "sinkhole",
+     "name": "McKay St & Washington St sinkhole",
+     "road": "McKay Street",
+     "n_segments": 2,
+     "depth_m": 0.36,
+     "freeboard_m": -1.22,
+     "dv_m2s": 0.35,
+     "peak_speed_ms": 5.58,
+     "p_depth": 0.719,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.684,
+     "p_culvert": 0.0,
+     "p_sag": 0.045,
+     "p_edge": 0.781,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L035",
+     "type": "other_damage",
+     "name": "Arlington St & Notre Dame St down to one lane",
+     "road": "Arlington Street",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": -0.29,
+     "dv_m2s": 0.05,
+     "peak_speed_ms": 7.26,
+     "p_depth": 0.017,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.994,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L036",
+     "type": "closed",
+     "name": "Exchange St & Colonial Dr closed",
+     "road": "Exchange Street",
+     "n_segments": 1,
+     "depth_m": 1.36,
+     "freeboard_m": -0.98,
+     "dv_m2s": 0.91,
+     "peak_speed_ms": 7.63,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.999,
+     "p_culvert": 0.949,
+     "p_sag": 0.0,
+     "p_edge": 1.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L038",
+     "type": "closed",
+     "name": "Mechanic St & Water St closed",
+     "road": "Mechanic Street",
+     "n_segments": 1,
+     "depth_m": 0.07,
+     "freeboard_m": 1.99,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.13,
+     "p_depth": 0.012,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.005,
+     "hit": []
+    },
+    {
+     "id": "L039",
+     "type": "closed",
+     "name": "North Main St (Route 12) & Priest St closed",
+     "road": "Route 12 (North Main Street)",
+     "n_segments": 2,
+     "depth_m": 0.08,
+     "freeboard_m": 0.08,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 6.41,
+     "p_depth": 0.012,
+     "p_freeboard": 0.932,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.047,
+     "hit": [
+      "freeboard",
+      "both",
+      "freeboard+culvert",
+      "both+culvert"
+     ]
+    },
+    {
+     "id": "L040",
+     "type": "closed",
+     "name": "Pleasant St & Pond St closed",
+     "road": "Pleasant Street",
+     "n_segments": 2,
+     "depth_m": 0.82,
+     "freeboard_m": 1.15,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 9.33,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.011,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L041",
+     "type": "closed",
+     "name": "Wachusett St & Elm St closed",
+     "road": "Wachusett Street",
+     "n_segments": 3,
+     "depth_m": 0.23,
+     "freeboard_m": -0.37,
+     "dv_m2s": 0.16,
+     "peak_speed_ms": 6.81,
+     "p_depth": 0.258,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.03,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.649,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L042",
+     "type": "closed",
+     "name": "Marguerite Ave & Central St (Route 12) closed",
+     "road": "Marguerite Avenue",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": 0.38,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 2.09,
+     "p_depth": 0.007,
+     "p_freeboard": 0.295,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.098,
+     "hit": []
+    },
+    {
+     "id": "L043",
+     "type": "washout",
+     "name": "Lancaster St (Route 117) washout, Malburn St to Sage Ave (CDBG-DR: Lancaster St., Malburn St. to Sage Ave)",
+     "road": "Lancaster Street (Route 117)",
+     "n_segments": 1,
+     "depth_m": 1.1,
+     "freeboard_m": 0.09,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 4.72,
+     "p_depth": 1.0,
+     "p_freeboard": 0.922,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.82,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L044",
+     "type": "bridge_damage",
+     "name": "Mechanic Street Bridge: sidewalk slab and wingwall failed (Monoosnoc Brook)",
+     "road": "Mechanic Street",
+     "n_segments": 1,
+     "depth_m": 0.07,
+     "freeboard_m": 1.99,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.13,
+     "p_depth": 0.012,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.005,
+     "hit": []
+    },
+    {
+     "id": "L045",
+     "type": "sinkhole",
+     "name": "Mechanic St sinkhole outside Brady's Restaurant",
+     "road": "Mechanic Street",
+     "n_segments": 1,
+     "depth_m": 0.07,
+     "freeboard_m": 1.99,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.13,
+     "p_depth": 0.012,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.005,
+     "hit": []
+    },
+    {
+     "id": "L046",
+     "type": "bridge_damage",
+     "name": "Exchange St bridge to three homes washed away (183 Exchange St)",
+     "road": "Exchange Street",
+     "n_segments": 1,
+     "depth_m": 1.36,
+     "freeboard_m": -0.98,
+     "dv_m2s": 0.91,
+     "peak_speed_ms": 7.63,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.999,
+     "p_culvert": 0.949,
+     "p_sag": 0.0,
+     "p_edge": 1.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L047",
+     "type": "washout",
+     "name": "Chestnut St section swept away / sinkhole",
+     "road": "Chestnut Street",
+     "n_segments": 1,
+     "depth_m": 0.15,
+     "freeboard_m": 0.88,
+     "dv_m2s": 0.13,
+     "peak_speed_ms": 6.17,
+     "p_depth": 0.062,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.007,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.897,
+     "hit": [
+      "depth+edge",
+      "overtop+edge",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L048",
+     "type": "other_damage",
+     "name": "509-525 Main Street Drainage",
+     "road": "Main Street",
+     "n_segments": 3,
+     "depth_m": 0.03,
+     "freeboard_m": 1.18,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.06,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.116,
+     "hit": []
+    },
+    {
+     "id": "L049",
+     "type": "culvert_failure",
+     "name": "Anthony Road Culvert",
+     "road": "Anthony Road",
+     "n_segments": 2,
+     "depth_m": 0.06,
+     "freeboard_m": 1.51,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 5.55,
+     "p_depth": 0.008,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.29,
+     "hit": []
+    },
+    {
+     "id": "L050",
+     "type": "culvert_failure",
+     "name": "Arlington Street Culvert",
+     "road": "Arlington Street",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": -0.29,
+     "dv_m2s": 0.05,
+     "peak_speed_ms": 7.26,
+     "p_depth": 0.017,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.994,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L051",
+     "type": "culvert_failure",
+     "name": "Ash Street Culvert",
+     "road": "Ash Street",
+     "n_segments": 1,
+     "depth_m": 0.08,
+     "freeboard_m": null,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 3.83,
+     "p_depth": 0.013,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.008,
+     "hit": []
+    },
+    {
+     "id": "L052",
+     "type": "other_damage",
+     "name": "Barrett Park Dam",
+     "road": "Colburn Street",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": 0.16,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 3.43,
+     "p_depth": 0.017,
+     "p_freeboard": 0.825,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.654,
+     "hit": [
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L053",
+     "type": "culvert_failure",
+     "name": "Birch Street Culvert",
+     "road": "Birch Street",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": -1.42,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 5.44,
+     "p_depth": 0.02,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.816,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L054",
+     "type": "culvert_failure",
+     "name": "Birchcroft St Culvert",
+     "road": "Birchcroft Road",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": null,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.4,
+     "p_depth": 0.006,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.001,
+     "hit": []
+    },
+    {
+     "id": "L055",
+     "type": "other_damage",
+     "name": "Colburn St Drain",
+     "road": "Colburn Street",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": 0.16,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 3.43,
+     "p_depth": 0.017,
+     "p_freeboard": 0.825,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.654,
+     "hit": [
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L056",
+     "type": "culvert_failure",
+     "name": "Decicco Drive Culvert",
+     "road": "Decicco Drive",
+     "n_segments": 1,
+     "depth_m": 0.95,
+     "freeboard_m": -0.16,
+     "dv_m2s": 0.05,
+     "peak_speed_ms": 2.05,
+     "p_depth": 1.0,
+     "p_freeboard": 0.999,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.674,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L058",
+     "type": "other_damage",
+     "name": "Elm St Haynes Brook",
+     "road": "Elm Street",
+     "n_segments": 1,
+     "depth_m": 0.59,
+     "freeboard_m": -1.07,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 10.16,
+     "p_depth": 0.998,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.859,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L060",
+     "type": "other_damage",
+     "name": "Elm St Diversion Basin",
+     "road": "Elm Street",
+     "n_segments": 1,
+     "depth_m": 0.59,
+     "freeboard_m": -1.07,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 10.16,
+     "p_depth": 0.998,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.859,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L061",
+     "type": "washout",
+     "name": "Elm St Shoulder Washout",
+     "road": "Elm Street",
+     "n_segments": 1,
+     "depth_m": 0.59,
+     "freeboard_m": -1.07,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 10.16,
+     "p_depth": 0.998,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.859,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L062",
+     "type": "culvert_failure",
+     "name": "Exchange St Culvert at Colonial Drive",
+     "road": "Exchange Street",
+     "n_segments": 1,
+     "depth_m": 1.36,
+     "freeboard_m": -0.98,
+     "dv_m2s": 0.91,
+     "peak_speed_ms": 7.63,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.999,
+     "p_culvert": 0.949,
+     "p_sag": 0.0,
+     "p_edge": 1.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L063",
+     "type": "culvert_failure",
+     "name": "Granite Street Culvert (249 Granite)",
+     "road": "Granite Street",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": 1.74,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.29,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.369,
+     "hit": []
+    },
+    {
+     "id": "L064",
+     "type": "culvert_failure",
+     "name": "Granite Street Culvert 2 (270 Granite)",
+     "road": "Granite Street",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": 1.74,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.29,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.369,
+     "hit": []
+    },
+    {
+     "id": "L065",
+     "type": "culvert_failure",
+     "name": "Granite Street Twin Culverts (66 Granite St a.k.a Garden Spot)",
+     "road": "Granite Street",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": 1.74,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.29,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.369,
+     "hit": []
+    },
+    {
+     "id": "L066",
+     "type": "other_damage",
+     "name": "43 Granite Street",
+     "road": "Granite Street",
+     "n_segments": 2,
+     "depth_m": 0.65,
+     "freeboard_m": 0.0,
+     "dv_m2s": 0.19,
+     "peak_speed_ms": 7.63,
+     "p_depth": 1.0,
+     "p_freeboard": 0.977,
+     "p_fastwater": 0.99,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.602,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L068",
+     "type": "other_damage",
+     "name": "Hamilton St Catch basin",
+     "road": "Hamilton Street",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 0.62,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 12.04,
+     "p_depth": 0.003,
+     "p_freeboard": 0.016,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.061,
+     "hit": []
+    },
+    {
+     "id": "L069",
+     "type": "culvert_failure",
+     "name": "Hardy Drive Culvert",
+     "road": "Hardy Drive",
+     "n_segments": 1,
+     "depth_m": 0.5,
+     "freeboard_m": 4.53,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.55,
+     "p_depth": 0.978,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.999,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L070",
+     "type": "other_damage",
+     "name": "Imperial Drive Drainage System",
+     "road": "Imperial Drive",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": null,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 4.45,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "L071",
+     "type": "culvert_failure",
+     "name": "Judy Drive Culvert",
+     "road": "Judy Drive",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": -0.78,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 5.05,
+     "p_depth": 0.019,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.488,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L072",
+     "type": "bridge_damage",
+     "name": "Lawrence St at Railroad Bridge",
+     "road": "Lawrence Street",
+     "n_segments": 1,
+     "depth_m": 0.03,
+     "freeboard_m": 1.07,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 7.76,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.236,
+     "hit": []
+    },
+    {
+     "id": "L073",
+     "type": "other_damage",
+     "name": "Liberty Street Drainage System",
+     "road": "Liberty Street",
+     "n_segments": 3,
+     "depth_m": 0.0,
+     "freeboard_m": null,
+     "dv_m2s": 0.0,
+     "peak_speed_ms": 5.3,
+     "p_depth": 0.001,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "L074",
+     "type": "culvert_failure",
+     "name": "Litchfield St Culvert at Railroad",
+     "road": "Litchfield Street",
+     "n_segments": 2,
+     "depth_m": 1.72,
+     "freeboard_m": 0.1,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 4.74,
+     "p_depth": 1.0,
+     "p_freeboard": 0.91,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.402,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L075",
+     "type": "culvert_failure",
+     "name": "Litchfield St at Wilder Brook",
+     "road": "Litchfield Street",
+     "n_segments": 2,
+     "depth_m": 1.72,
+     "freeboard_m": 0.1,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 4.74,
+     "p_depth": 1.0,
+     "p_freeboard": 0.91,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.402,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L076",
+     "type": "culvert_failure",
+     "name": "Marguerite Ave Culvert",
+     "road": "Marguerite Avenue",
+     "n_segments": 2,
+     "depth_m": 0.69,
+     "freeboard_m": 1.07,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 14.24,
+     "p_depth": 1.0,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.474,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L077",
+     "type": "other_damage",
+     "name": "Nelson Street Drainage System",
+     "road": "Nelson Street",
+     "n_segments": 2,
+     "depth_m": 0.03,
+     "freeboard_m": null,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 9.29,
+     "p_depth": 0.003,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.001,
+     "hit": []
+    },
+    {
+     "id": "L078",
+     "type": "culvert_failure",
+     "name": "North Street Culvert by 135 North Street",
+     "road": "North Street",
+     "n_segments": 1,
+     "depth_m": 0.19,
+     "freeboard_m": 1.63,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 8.4,
+     "p_depth": 0.142,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.001,
+     "hit": []
+    },
+    {
+     "id": "L079",
+     "type": "other_damage",
+     "name": "Old Farm Road",
+     "road": "Old Farm Road",
+     "n_segments": 1,
+     "depth_m": 0.01,
+     "freeboard_m": null,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 9.67,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "L080",
+     "type": "culvert_failure",
+     "name": "Pleasant St Culvert (at Wilder Brook)",
+     "road": "Pleasant Street",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": 0.43,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 9.11,
+     "p_depth": 0.006,
+     "p_freeboard": 0.196,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.897,
+     "hit": [
+      "depth+edge",
+      "overtop+edge",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L082",
+     "type": "other_damage",
+     "name": "Prospect Street - Road Damage",
+     "road": "Prospect Street",
+     "n_segments": 1,
+     "depth_m": 0.05,
+     "freeboard_m": -0.04,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 5.91,
+     "p_depth": 0.007,
+     "p_freeboard": 0.988,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.364,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L083",
+     "type": "culvert_failure",
+     "name": "Scenic Drive Culvert",
+     "road": "Scenic Drive",
+     "n_segments": 1,
+     "depth_m": 0.09,
+     "freeboard_m": 1.61,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 4.75,
+     "p_depth": 0.018,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.449,
+     "hit": []
+    },
+    {
+     "id": "L084",
+     "type": "culvert_failure",
+     "name": "Slack Brook Road Culvert",
+     "road": "Slack Brook Road",
+     "n_segments": 1,
+     "depth_m": 0.1,
+     "freeboard_m": 0.8,
+     "dv_m2s": 0.08,
+     "peak_speed_ms": 7.16,
+     "p_depth": 0.024,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.972,
+     "hit": [
+      "depth+edge",
+      "overtop+edge",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L085",
+     "type": "culvert_failure",
+     "name": "Sylvan Avenue Culvert",
+     "road": "Sylvan Avenue",
+     "n_segments": 1,
+     "depth_m": 0.07,
+     "freeboard_m": 6.42,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 12.29,
+     "p_depth": 0.011,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.163,
+     "hit": []
+    },
+    {
+     "id": "L086",
+     "type": "culvert_failure",
+     "name": "Tisdale Street Culvert",
+     "road": "Tisdale Street",
+     "n_segments": 1,
+     "depth_m": 0.22,
+     "freeboard_m": 2.23,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 7.15,
+     "p_depth": 0.209,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.074,
+     "hit": []
+    },
+    {
+     "id": "L087",
+     "type": "washout",
+     "name": "Wachusett St Shoulder Washout",
+     "road": "Wachusett Street",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 7.31,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.778,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L089",
+     "type": "culvert_failure",
+     "name": "Wachusett Street Culvert",
+     "road": "Wachusett Street",
+     "n_segments": 1,
+     "depth_m": 0.49,
+     "freeboard_m": -0.49,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 7.31,
+     "p_depth": 0.971,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 1.0,
+     "p_sag": 0.0,
+     "p_edge": 0.778,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L090",
+     "type": "culvert_failure",
+     "name": "Willard Street Culvert by Jamestown Road",
+     "road": "Willard Street",
+     "n_segments": 1,
+     "depth_m": 0.27,
+     "freeboard_m": 0.15,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 7.3,
+     "p_depth": 0.378,
+     "p_freeboard": 0.847,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.381,
+     "hit": [
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L091",
+     "type": "culvert_failure",
+     "name": "Willard Street Culvert by 334 Willard Street",
+     "road": "Willard Street",
+     "n_segments": 1,
+     "depth_m": 0.27,
+     "freeboard_m": 0.15,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 7.3,
+     "p_depth": 0.378,
+     "p_freeboard": 0.847,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.381,
+     "hit": [
+      "freeboard",
+      "both",
+      "depth+edge",
+      "overtop+edge",
+      "freeboard+culvert",
+      "both+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "L092",
+     "type": "other_damage",
+     "name": "Whitney St. @ intersection of Mill St. and Bishop St.",
+     "road": "Whitney Street",
+     "n_segments": 3,
+     "depth_m": 0.08,
+     "freeboard_m": 0.56,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 9.43,
+     "p_depth": 0.015,
+     "p_freeboard": 0.04,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.163,
+     "hit": []
+    },
+    {
+     "id": "L093",
+     "type": "culvert_failure",
+     "name": "Union St Culvert (at 135 Union St)",
+     "road": "Union Street",
+     "n_segments": 1,
+     "depth_m": 0.01,
+     "freeboard_m": null,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 7.4,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    }
+   ]
+  },
+  "rules": {
+   "freeboard": {
+    "margin_m": 0.3,
+    "sigma_m": 0.15,
+    "radius_m": 30.0,
+    "wet_m": 0.1,
+    "crest": "z_raw_max10",
+    "road_points_with_water_near": 9547,
+    "road_points": 130186,
+    "edited_cells": 44160
+   },
+   "fastwater": {
+    "dv0_m2s": 0.3,
+    "dv_sigma_ln": 0.35,
+    "v_erode_ms": 1.5,
+    "v_sigma_ln": 0.3,
+    "erode_min_h_m": 0.1,
+    "road_points_near_crossing": 110,
+    "velocity_source": "maxVc (every time step)",
+    "dv_source": "max(snapshot h x speed, maxVc x maxVcd)"
+   },
+   "edge": {
+    "v_ms": 1.0,
+    "v_sigma_ln": 0.46,
+    "tau_pa": 11.0,
+    "tau_sigma_ln": 0.61,
+    "v_cap_ms": 5.0,
+    "radius_m": 30.0,
+    "percentile": 90,
+    "min_h_m": 0.03,
+    "speed_source": "maxVc (every time step)",
+    "duration": "peak only (no per-snapshot counts: w9 LF_VDUR)",
+    "cells_p_ge_50": 22949,
+    "road_points_p_ge_50": 1651,
+    "note": "candidate layer, not in p_close unless --edge; variants depth+edge, overtop+edge = 1 - prod(1 - P)"
+   },
+   "sag": {
+    "sags": 112,
+    "underpasses": 6,
+    "sags_p_ge_50": 25,
+    "from_rain": 19,
+    "from_model_ponding": 18,
+    "min_depth_m": 0.3,
+    "radius_m": 150.0,
+    "i10_mm": 43.0,
+    "i50_mm": 58.0,
+    "runoff_c": 0.6,
+    "sigma_ln": 0.5,
+    "note": "candidate layer, not in p_close; variant sag = max(p_depth, p_sag) (the ponding half re-reads the model water the depth rule reads)"
+   },
+   "bridges": {
+    "rule": "on",
+    "deck_gap_m": 2.0,
+    "deck_radius_m": 150.0,
+    "deck_nbi_m": 100.0,
+    "snap_crest": false,
+    "deck_points_dropped": 20,
+    "deck_segments": 6
+   },
+   "res_consistent": "off (PROTO_RES_CONSISTENT=0)",
+   "applied": "depth",
+   "segments_p_ge_50": {
+    "depth": 110,
+    "overtop": 261,
+    "freeboard": 352,
+    "fastwater": 124,
+    "both": 364,
+    "sag": 129,
+    "depth+edge": 307,
+    "overtop+edge": 396,
+    "depth+culvert": 122,
+    "overtop+culvert": 273,
+    "freeboard+culvert": 363,
+    "fastwater+culvert": 136,
+    "both+culvert": 375,
+    "sag+culvert": 141,
+    "depth+edge+culvert": 319,
+    "overtop+edge+culvert": 408
+   }
+  },
+  "culverts": {
+   "surveyed_in_box": 127,
+   "with_model_flow": 127,
+   "p_ge_50": 52,
+   "segments_raised_to_p_ge_50": 12,
+   "rule_applied_to_p_close": false,
+   "blockage_factors": {
+    "Poor": 0.25,
+    "Critical": 0.5
+   },
+   "probability": "Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)"
+  }
+ },
+ "method": {
+  "closure_depth_m": 0.3,
+  "sigma_m": 0.1,
+  "variant": "depth",
+  "probability": "Phi((peak depth - 0.30) / 0.10), physics prior v0",
+  "network": "segments >= 15 cm removed; Dijkstra to nearest hospital (sim/infra/impacts.py)",
+  "culverts": "FHWA HDS-5 (sim/infra/culvert.py)"
+ },
+ "frame_hours": [
+  0.0,
+  0.5,
+  1.0,
+  1.5,
+  2.0,
+  2.5,
+  3.0,
+  3.5,
+  4.0,
+  4.5,
+  5.0,
+  5.5,
+  6.0,
+  6.5,
+  7.0,
+  7.5,
+  8.0,
+  8.5,
+  9.0,
+  9.5,
+  10.0,
+  10.5,
+  11.0,
+  11.5,
+  12.0,
+  12.5,
+  13.0,
+  13.5,
+  14.0,
+  14.5,
+  15.0,
+  15.5,
+  16.0,
+  16.5,
+  17.0,
+  17.5,
+  18.0,
+  18.5,
+  19.0,
+  19.5,
+  20.0,
+  20.5,
+  21.0,
+  21.5,
+  22.0,
+  22.5,
+  23.0,
+  23.5,
+  24.0,
+  24.5,
+  25.0,
+  25.5,
+  26.0,
+  26.5,
+  27.0,
+  27.5,
+  28.0,
+  28.5,
+  29.0,
+  29.5,
+  30.0,
+  30.5,
+  31.0,
+  31.5,
+  32.0,
+  32.5,
+  33.0,
+  33.5,
+  34.0,
+  34.5,
+  35.0,
+  35.5,
+  36.0
+ ],
+ "closed_per_frame": [
+  0,
+  1,
+  1,
+  1,
+  0,
+  0,
+  1,
+  1,
+  1,
+  1,
+  0,
+  19,
+  38,
+  51,
+  70,
+  73,
+  70,
+  71,
+  66,
+  55,
+  50,
+  45,
+  38,
+  34,
+  30,
+  29,
+  25,
+  24,
+  25,
+  24,
+  24,
+  22,
+  22,
+  20,
+  18,
+  17,
+  17,
+  16,
+  15,
+  14,
+  14,
+  14,
+  14,
+  13,
+  13,
+  12,
+  12,
+  12,
+  12,
+  12,
+  11,
+  11,
+  12,
+  12,
+  10,
+  9,
+  11,
+  8,
+  8,
+  8,
+  6,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7,
+  7
+ ],
+ "rain_hourly_mean_mm": [
+  0.6,
+  1.6,
+  1.2,
+  2.1,
+  15.5,
+  30.8,
+  20.8,
+  15.7,
+  9.4,
+  2.4,
+  0.4,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.2,
+  0.2,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "made": "2026-10-23 08:25",
+ "prototype_runtime_s": 64.3
+}
