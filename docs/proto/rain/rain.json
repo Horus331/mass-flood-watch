@@ -1,0 +1,1346 @@
+{
+ "about": "docs/proto/rain/RAIN.md; runs: docs/proto/rain/runs/<storm>_<variant>/ (20 m, LF_PARITY=1, CN x 0.91); gauge check: proto/rain/rain_gauges.py",
+ "verdict": {
+  "subhourly_default": false,
+  "subhourly": "keep opt-in (LF_RAIN_DT=5). It works as intended: totals kept exactly, the radar timing matches ASOS 1-min gauges better than an even split, and the peak 15-min forcing rate rises 1.3-2.6x (median, Pass2 >= 5 mm/h). But on 20 m LISFLOOD-FP it moves peak depths by ~1 cm on average, catches no additional labelled site on any of the 7 storms, raises the flagged share slightly (lift down) and does not improve gauge rise or peak timing.",
+  "gauge_default": false,
+  "gauge": "keep opt-in (LF_RAIN_GAUGE=idw), hindcast only. Daily CoCoRaHS/COOP gauges are dense enough (12-33 per storm within the box + 0.1 deg) and show Pass2 under-catch on aug2021 (gauge/Pass2 1.32) and jul2021 (1.22); adjusting catches 3 more sites on aug2021 and 1 on jul2021 and fixes the Millbury rise, but over-shoots Northbridge, lowers lift on the 3 storms that already caught sites (aug2023, sep2023, aug2021), and the daily reports arrive the next morning, so it cannot be used live. Hourly gauges (ASOS 1-min, USGS) are too sparse (0-2 in a box) for a local hourly adjustment; they agree with Pass2 to 0.97 overall but Pass2 under-reads the >= 25 mm/h hours (0.76, n 12)."
+ },
+ "pooled_hourly_gauge": {
+  "hourly_all": {
+   "n": 514,
+   "gauge_sum": 2348.2,
+   "mrms_sum": 2266.3,
+   "ratio": 0.97,
+   "median_pair_ratio": 0.96
+  },
+  "hourly_by_class": [
+   {
+    "gauge_mm": "0.25-2.5",
+    "n": 246,
+    "gauge_sum": 209.4,
+    "mrms_sum": 205.3,
+    "ratio": 0.98,
+    "mean_diff_mm": -0.02
+   },
+   {
+    "gauge_mm": "2.5-10",
+    "n": 151,
+    "gauge_sum": 749.1,
+    "mrms_sum": 788.7,
+    "ratio": 1.05,
+    "mean_diff_mm": 0.26
+   },
+   {
+    "gauge_mm": "10-25",
+    "n": 62,
+    "gauge_sum": 933.1,
+    "mrms_sum": 878.6,
+    "ratio": 0.94,
+    "mean_diff_mm": -0.88
+   },
+   {
+    "gauge_mm": ">=25",
+    "n": 12,
+    "gauge_sum": 456.7,
+    "mrms_sum": 347.4,
+    "ratio": 0.76,
+    "mean_diff_mm": -9.11
+   }
+  ]
+ },
+ "gauges": {
+  "jul2023": {
+   "hourly_gauges": 7,
+   "hourly_in_box": 2,
+   "hourly_mrms_over_gauge": 1.06,
+   "daily_gauges": 72,
+   "daily_in_box": 7,
+   "daily_mrms_over_gauge": 0.95,
+   "daily_mrms_over_gauge_in_box": 0.88,
+   "radar_only_over_pass2": 1.16,
+   "box_max_rate_mmh": {
+    "hourly": 33.7,
+    "split_15min": 95.8,
+    "split_5min": 125.5
+   },
+   "peak_factor_15min_median": 2.55,
+   "asos_timing": [
+    {
+     "id": "ORH",
+     "peak15_mmh": {
+      "gauge": 5.1,
+      "hourly_flat": 3.0,
+      "radar_split": 6.1
+     },
+     "share_mae": {
+      "hourly_flat": 0.125,
+      "radar_split": 0.072
+     }
+    }
+   ],
+   "gauge_factor_mfb": 1.113,
+   "gauge_factor_n": 16
+  },
+  "aug2023b": {
+   "hourly_gauges": 6,
+   "hourly_in_box": 1,
+   "hourly_mrms_over_gauge": 1.01,
+   "daily_gauges": 112,
+   "daily_in_box": 11,
+   "daily_mrms_over_gauge": 1.01,
+   "daily_mrms_over_gauge_in_box": 0.97,
+   "radar_only_over_pass2": 0.97,
+   "box_max_rate_mmh": {
+    "hourly": 47.2,
+    "split_15min": 105.9,
+    "split_5min": 138.0
+   },
+   "peak_factor_15min_median": 2.02,
+   "asos_timing": [
+    {
+     "id": "ORH",
+     "peak15_mmh": {
+      "gauge": 40.6,
+      "hourly_flat": 21.7,
+      "radar_split": 34.9
+     },
+     "share_mae": {
+      "hourly_flat": 0.218,
+      "radar_split": 0.123
+     }
+    }
+   ],
+   "gauge_factor_mfb": 1.158,
+   "gauge_factor_n": 17
+  },
+  "sep2022": {
+   "hourly_gauges": 8,
+   "hourly_in_box": 0,
+   "hourly_mrms_over_gauge": 0.96,
+   "daily_gauges": 98,
+   "daily_in_box": 5,
+   "daily_mrms_over_gauge": 0.97,
+   "daily_mrms_over_gauge_in_box": 1.0,
+   "radar_only_over_pass2": 1.17,
+   "box_max_rate_mmh": {
+    "hourly": 85.7,
+    "split_15min": 139.7,
+    "split_5min": 168.3
+   },
+   "peak_factor_15min_median": 1.96,
+   "asos_timing": [],
+   "gauge_factor_mfb": 1.031,
+   "gauge_factor_n": 12
+  },
+  "aug2023": {
+   "hourly_gauges": 14,
+   "hourly_in_box": 0,
+   "hourly_mrms_over_gauge": 0.96,
+   "daily_gauges": 155,
+   "daily_in_box": 11,
+   "daily_mrms_over_gauge": 0.92,
+   "daily_mrms_over_gauge_in_box": 0.91,
+   "radar_only_over_pass2": 1.13,
+   "box_max_rate_mmh": {
+    "hourly": 69.7,
+    "split_15min": 110.8,
+    "split_5min": 184.7
+   },
+   "peak_factor_15min_median": 2.18,
+   "asos_timing": [],
+   "gauge_factor_mfb": 1.157,
+   "gauge_factor_n": 33
+  },
+  "sep2023": {
+   "hourly_gauges": 9,
+   "hourly_in_box": 1,
+   "hourly_mrms_over_gauge": 1.01,
+   "daily_gauges": 96,
+   "daily_in_box": 5,
+   "daily_mrms_over_gauge": 0.98,
+   "daily_mrms_over_gauge_in_box": 1.2,
+   "radar_only_over_pass2": 0.93,
+   "box_max_rate_mmh": {
+    "hourly": 89.3,
+    "split_15min": 133.2,
+    "split_5min": 145.6
+   },
+   "peak_factor_15min_median": 1.63,
+   "asos_timing": [
+    {
+     "id": "FIT",
+     "peak15_mmh": {
+      "gauge": 78.2,
+      "hourly_flat": 67.4,
+      "radar_split": 78.2
+     },
+     "share_mae": {
+      "hourly_flat": 0.126,
+      "radar_split": 0.053
+     }
+    }
+   ],
+   "gauge_factor_mfb": 0.984,
+   "gauge_factor_n": 23
+  },
+  "aug2021": {
+   "hourly_gauges": 10,
+   "hourly_in_box": 1,
+   "hourly_mrms_over_gauge": 0.83,
+   "daily_gauges": 114,
+   "daily_in_box": 10,
+   "daily_mrms_over_gauge": 0.81,
+   "daily_mrms_over_gauge_in_box": 0.81,
+   "radar_only_over_pass2": 1.1,
+   "box_max_rate_mmh": {
+    "hourly": 93.7,
+    "split_15min": 146.5,
+    "split_5min": 157.7
+   },
+   "peak_factor_15min_median": 1.72,
+   "asos_timing": [
+    {
+     "id": "ORH",
+     "peak15_mmh": {
+      "gauge": 78.2,
+      "hourly_flat": 31.2,
+      "radar_split": 51.5
+     },
+     "share_mae": {
+      "hourly_flat": 0.127,
+      "radar_split": 0.068
+     }
+    }
+   ],
+   "gauge_factor_mfb": 1.315,
+   "gauge_factor_n": 24
+  },
+  "jul2021": {
+   "hourly_gauges": 11,
+   "hourly_in_box": 1,
+   "hourly_mrms_over_gauge": 1.04,
+   "daily_gauges": 116,
+   "daily_in_box": 9,
+   "daily_mrms_over_gauge": 0.88,
+   "daily_mrms_over_gauge_in_box": 0.79,
+   "radar_only_over_pass2": 0.91,
+   "box_max_rate_mmh": {
+    "hourly": 19.5,
+    "split_15min": 36.8,
+    "split_5min": 73.3
+   },
+   "peak_factor_15min_median": 1.34,
+   "asos_timing": [
+    {
+     "id": "ORH",
+     "peak15_mmh": {
+      "gauge": 25.4,
+      "hourly_flat": 18.9,
+      "radar_split": 25.9
+     },
+     "share_mae": {
+      "hourly_flat": 0.079,
+      "radar_split": 0.04
+     }
+    }
+   ],
+   "gauge_factor_mfb": 1.219,
+   "gauge_factor_n": 24
+  }
+ },
+ "runs": {
+  "jul2023": {
+   "dt5": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0007,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.18,
+    "peak_timing_abs_h": 3.8,
+    "gauges": [
+     {
+      "site": "01175670",
+      "obs": 0.24,
+      "model": 0.06,
+      "peak_err_h": -3.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.02
+    }
+   },
+   "dt5i": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0007,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.17,
+    "peak_timing_abs_h": 3.8,
+    "gauges": [
+     {
+      "site": "01175670",
+      "obs": 0.24,
+      "model": 0.07,
+      "peak_err_h": -3.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.02
+    }
+   },
+   "gauge": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0007,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.18,
+    "peak_timing_abs_h": 3.2,
+    "gauges": [
+     {
+      "site": "01175670",
+      "obs": 0.24,
+      "model": 0.06,
+      "peak_err_h": -3.25
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.022
+    }
+   },
+   "gauge_dt5": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0007,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.17,
+    "peak_timing_abs_h": 3.8,
+    "gauges": [
+     {
+      "site": "01175670",
+      "obs": 0.24,
+      "model": 0.07,
+      "peak_err_h": -3.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.022
+    }
+   },
+   "hourly": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0007,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.18,
+    "peak_timing_abs_h": 3.2,
+    "gauges": [
+     {
+      "site": "01175670",
+      "obs": 0.24,
+      "model": 0.06,
+      "peak_err_h": -3.25
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.02
+    }
+   }
+  },
+  "aug2023b": {
+   "dt5": {
+    "caught": 0,
+    "labels": 2,
+    "flagged_share": 0.0011,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.43,
+    "peak_timing_abs_h": 8.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 0.93,
+      "model": 0.28,
+      "peak_err_h": -0.25
+     },
+     {
+      "site": "01110000",
+      "obs": 0.21,
+      "model": 0.0,
+      "peak_err_h": -16.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.031
+    }
+   },
+   "dt5i": {
+    "caught": 0,
+    "labels": 2,
+    "flagged_share": 0.0012,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.42,
+    "peak_timing_abs_h": 8.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 0.93,
+      "model": 0.3,
+      "peak_err_h": -0.25
+     },
+     {
+      "site": "01110000",
+      "obs": 0.21,
+      "model": 0.0,
+      "peak_err_h": -16.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.033
+    }
+   },
+   "gauge": {
+    "caught": 0,
+    "labels": 2,
+    "flagged_share": 0.0014,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.4,
+    "peak_timing_abs_h": 8.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 0.93,
+      "model": 0.33,
+      "peak_err_h": -0.25
+     },
+     {
+      "site": "01110000",
+      "obs": 0.21,
+      "model": 0.0,
+      "peak_err_h": -16.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.041
+    }
+   },
+   "gauge_dt5": {
+    "caught": 0,
+    "labels": 2,
+    "flagged_share": 0.0014,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.4,
+    "peak_timing_abs_h": 8.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 0.93,
+      "model": 0.33,
+      "peak_err_h": -0.25
+     },
+     {
+      "site": "01110000",
+      "obs": 0.21,
+      "model": 0.0,
+      "peak_err_h": -16.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.041
+    }
+   },
+   "hourly": {
+    "caught": 0,
+    "labels": 2,
+    "flagged_share": 0.0011,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.43,
+    "peak_timing_abs_h": 8.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 0.93,
+      "model": 0.28,
+      "peak_err_h": 0.25
+     },
+     {
+      "site": "01110000",
+      "obs": 0.21,
+      "model": 0.0,
+      "peak_err_h": -16.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.0,
+     "all": 0.0,
+     "random_road_points": 0.031
+    }
+   }
+  },
+  "sep2022": {
+   "dt5": {
+    "caught": 0,
+    "labels": 4,
+    "flagged_share": 0.0081,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 14.5,
+    "gauges": [
+     {
+      "site": "01123600",
+      "obs": 0.14,
+      "model": 0.0,
+      "peak_err_h": -14.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.0,
+     "all": 0.5,
+     "random_road_points": 0.112
+    }
+   },
+   "dt5i": {
+    "caught": 0,
+    "labels": 4,
+    "flagged_share": 0.0097,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 14.5,
+    "gauges": [
+     {
+      "site": "01123600",
+      "obs": 0.14,
+      "model": 0.0,
+      "peak_err_h": -14.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.0,
+     "all": 0.5,
+     "random_road_points": 0.114
+    }
+   },
+   "gauge": {
+    "caught": 0,
+    "labels": 4,
+    "flagged_share": 0.0069,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 14.5,
+    "gauges": [
+     {
+      "site": "01123600",
+      "obs": 0.14,
+      "model": 0.0,
+      "peak_err_h": -14.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.0,
+     "all": 0.5,
+     "random_road_points": 0.102
+    }
+   },
+   "gauge_dt5": {
+    "caught": 0,
+    "labels": 4,
+    "flagged_share": 0.0081,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 14.5,
+    "gauges": [
+     {
+      "site": "01123600",
+      "obs": 0.14,
+      "model": 0.0,
+      "peak_err_h": -14.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.0,
+     "all": 0.5,
+     "random_road_points": 0.105
+    }
+   },
+   "hourly": {
+    "caught": 0,
+    "labels": 4,
+    "flagged_share": 0.0077,
+    "lift": 0.0,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 14.5,
+    "gauges": [
+     {
+      "site": "01123600",
+      "obs": 0.14,
+      "model": 0.0,
+      "peak_err_h": -14.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.0,
+     "all": 0.5,
+     "random_road_points": 0.103
+    }
+   }
+  },
+  "aug2023": {
+   "dt5": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0174,
+    "lift": 11.52,
+    "abs_rise_err_m": 0.16,
+    "peak_timing_abs_h": 6.0,
+    "gauges": [
+     {
+      "site": "01098500",
+      "obs": 0.27,
+      "model": 0.08,
+      "peak_err_h": -10.5
+     },
+     {
+      "site": "01098530",
+      "obs": 1.1,
+      "model": 0.97,
+      "peak_err_h": 1.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.2,
+     "all": 0.143,
+     "random_road_points": 0.09
+    }
+   },
+   "dt5i": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0184,
+    "lift": 10.86,
+    "abs_rise_err_m": 0.12,
+    "peak_timing_abs_h": 6.2,
+    "gauges": [
+     {
+      "site": "01098500",
+      "obs": 0.27,
+      "model": 0.09,
+      "peak_err_h": -10.5
+     },
+     {
+      "site": "01098530",
+      "obs": 1.1,
+      "model": 1.04,
+      "peak_err_h": 2.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.2,
+     "labels": 0.2,
+     "all": 0.214,
+     "random_road_points": 0.099
+    }
+   },
+   "gauge": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0201,
+    "lift": 9.97,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 6.2,
+    "gauges": [
+     {
+      "site": "01098500",
+      "obs": 0.27,
+      "model": 0.09,
+      "peak_err_h": -10.0
+     },
+     {
+      "site": "01098530",
+      "obs": 1.1,
+      "model": 1.21,
+      "peak_err_h": 2.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.2,
+     "labels": 0.2,
+     "all": 0.214,
+     "random_road_points": 0.122
+    }
+   },
+   "gauge_dt5": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0207,
+    "lift": 9.68,
+    "abs_rise_err_m": 0.14,
+    "peak_timing_abs_h": 6.8,
+    "gauges": [
+     {
+      "site": "01098500",
+      "obs": 0.27,
+      "model": 0.09,
+      "peak_err_h": -10.5
+     },
+     {
+      "site": "01098530",
+      "obs": 1.1,
+      "model": 1.21,
+      "peak_err_h": 3.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.2,
+     "labels": 0.2,
+     "all": 0.214,
+     "random_road_points": 0.137
+    }
+   },
+   "hourly": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0174,
+    "lift": 11.52,
+    "abs_rise_err_m": 0.16,
+    "peak_timing_abs_h": 5.8,
+    "gauges": [
+     {
+      "site": "01098500",
+      "obs": 0.27,
+      "model": 0.08,
+      "peak_err_h": -10.0
+     },
+     {
+      "site": "01098530",
+      "obs": 1.1,
+      "model": 0.97,
+      "peak_err_h": 1.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.2,
+     "all": 0.143,
+     "random_road_points": 0.088
+    }
+   }
+  },
+  "sep2023": {
+   "dt5": {
+    "caught": 35,
+    "labels": 89,
+    "flagged_share": 0.0244,
+    "lift": 16.09,
+    "abs_rise_err_m": 0.22,
+    "peak_timing_abs_h": 0.1,
+    "gauges": [
+     {
+      "site": "01094400",
+      "obs": 1.0,
+      "model": 1.1,
+      "peak_err_h": 0.25
+     },
+     {
+      "site": "01094500",
+      "obs": 2.92,
+      "model": 2.58,
+      "peak_err_h": 0.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.846,
+     "labels": 0.813,
+     "all": 0.8,
+     "random_road_points": 0.365
+    }
+   },
+   "dt5i": {
+    "caught": 35,
+    "labels": 89,
+    "flagged_share": 0.0247,
+    "lift": 15.95,
+    "abs_rise_err_m": 0.21,
+    "peak_timing_abs_h": 0.1,
+    "gauges": [
+     {
+      "site": "01094400",
+      "obs": 1.0,
+      "model": 1.11,
+      "peak_err_h": 0.25
+     },
+     {
+      "site": "01094500",
+      "obs": 2.92,
+      "model": 2.6,
+      "peak_err_h": 0.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.846,
+     "labels": 0.824,
+     "all": 0.809,
+     "random_road_points": 0.369
+    }
+   },
+   "gauge": {
+    "caught": 35,
+    "labels": 89,
+    "flagged_share": 0.0242,
+    "lift": 16.24,
+    "abs_rise_err_m": 0.22,
+    "peak_timing_abs_h": 0.1,
+    "gauges": [
+     {
+      "site": "01094400",
+      "obs": 1.0,
+      "model": 1.09,
+      "peak_err_h": 0.25
+     },
+     {
+      "site": "01094500",
+      "obs": 2.92,
+      "model": 2.58,
+      "peak_err_h": 0.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.846,
+     "labels": 0.78,
+     "all": 0.774,
+     "random_road_points": 0.351
+    }
+   },
+   "gauge_dt5": {
+    "caught": 35,
+    "labels": 89,
+    "flagged_share": 0.0249,
+    "lift": 15.81,
+    "abs_rise_err_m": 0.21,
+    "peak_timing_abs_h": 0.1,
+    "gauges": [
+     {
+      "site": "01094400",
+      "obs": 1.0,
+      "model": 1.09,
+      "peak_err_h": 0.25
+     },
+     {
+      "site": "01094500",
+      "obs": 2.92,
+      "model": 2.59,
+      "peak_err_h": 0.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.846,
+     "labels": 0.791,
+     "all": 0.783,
+     "random_road_points": 0.359
+    }
+   },
+   "hourly": {
+    "caught": 35,
+    "labels": 89,
+    "flagged_share": 0.0233,
+    "lift": 16.85,
+    "abs_rise_err_m": 0.22,
+    "peak_timing_abs_h": 0.1,
+    "gauges": [
+     {
+      "site": "01094400",
+      "obs": 1.0,
+      "model": 1.1,
+      "peak_err_h": 0.25
+     },
+     {
+      "site": "01094500",
+      "obs": 2.92,
+      "model": 2.58,
+      "peak_err_h": 0.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.846,
+     "labels": 0.791,
+     "all": 0.783,
+     "random_road_points": 0.358
+    }
+   }
+  },
+  "aug2021": {
+   "dt5": {
+    "caught": 4,
+    "labels": 12,
+    "flagged_share": 0.0174,
+    "lift": 19.16,
+    "abs_rise_err_m": 0.39,
+    "peak_timing_abs_h": 5.0,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.64,
+      "model": 1.13,
+      "peak_err_h": -1.75
+     },
+     {
+      "site": "01110000",
+      "obs": 0.36,
+      "model": 0.03,
+      "peak_err_h": -10.5
+     },
+     {
+      "site": "01110500",
+      "obs": 1.42,
+      "model": 1.75,
+      "peak_err_h": -2.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.538,
+     "all": 0.625,
+     "random_road_points": 0.242
+    }
+   },
+   "dt5i": {
+    "caught": 4,
+    "labels": 12,
+    "flagged_share": 0.0188,
+    "lift": 17.73,
+    "abs_rise_err_m": 0.39,
+    "peak_timing_abs_h": 5.0,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.64,
+      "model": 1.16,
+      "peak_err_h": -1.75
+     },
+     {
+      "site": "01110000",
+      "obs": 0.36,
+      "model": 0.03,
+      "peak_err_h": -10.5
+     },
+     {
+      "site": "01110500",
+      "obs": 1.42,
+      "model": 1.79,
+      "peak_err_h": -2.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.538,
+     "all": 0.625,
+     "random_road_points": 0.259
+    }
+   },
+   "gauge": {
+    "caught": 7,
+    "labels": 12,
+    "flagged_share": 0.0287,
+    "lift": 20.31,
+    "abs_rise_err_m": 0.42,
+    "peak_timing_abs_h": 5.3,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.64,
+      "model": 1.66,
+      "peak_err_h": -1.75
+     },
+     {
+      "site": "01110000",
+      "obs": 0.36,
+      "model": 0.08,
+      "peak_err_h": -11.0
+     },
+     {
+      "site": "01110500",
+      "obs": 1.42,
+      "model": 2.37,
+      "peak_err_h": -3.25
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.615,
+     "all": 0.688,
+     "random_road_points": 0.364
+    }
+   },
+   "gauge_dt5": {
+    "caught": 7,
+    "labels": 12,
+    "flagged_share": 0.033,
+    "lift": 17.66,
+    "abs_rise_err_m": 0.43,
+    "peak_timing_abs_h": 5.7,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.64,
+      "model": 1.7,
+      "peak_err_h": -2.25
+     },
+     {
+      "site": "01110000",
+      "obs": 0.36,
+      "model": 0.1,
+      "peak_err_h": -11.0
+     },
+     {
+      "site": "01110500",
+      "obs": 1.42,
+      "model": 2.4,
+      "peak_err_h": -3.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.615,
+     "all": 0.688,
+     "random_road_points": 0.384
+    }
+   },
+   "hourly": {
+    "caught": 4,
+    "labels": 12,
+    "flagged_share": 0.0149,
+    "lift": 22.31,
+    "abs_rise_err_m": 0.4,
+    "peak_timing_abs_h": 5.0,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.64,
+      "model": 1.09,
+      "peak_err_h": -1.75
+     },
+     {
+      "site": "01110000",
+      "obs": 0.36,
+      "model": 0.03,
+      "peak_err_h": -10.5
+     },
+     {
+      "site": "01110500",
+      "obs": 1.42,
+      "model": 1.73,
+      "peak_err_h": -2.75
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 1.0,
+     "labels": 0.538,
+     "all": 0.562,
+     "random_road_points": 0.222
+    }
+   }
+  },
+  "jul2021": {
+   "dt5": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0025,
+    "lift": 0.0,
+    "abs_rise_err_m": 1.29,
+    "peak_timing_abs_h": 1.0,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.68,
+      "model": 0.39,
+      "peak_err_h": -1.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.4,
+     "all": 0.2,
+     "random_road_points": 0.046
+    }
+   },
+   "dt5i": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0029,
+    "lift": 0.0,
+    "abs_rise_err_m": 1.28,
+    "peak_timing_abs_h": 1.0,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.68,
+      "model": 0.4,
+      "peak_err_h": -1.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.4,
+     "all": 0.2,
+     "random_road_points": 0.049
+    }
+   },
+   "gauge": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0081,
+    "lift": 24.61,
+    "abs_rise_err_m": 1.0,
+    "peak_timing_abs_h": 0.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.68,
+      "model": 0.68,
+      "peak_err_h": -0.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.857,
+     "labels": 0.8,
+     "all": 0.8,
+     "random_road_points": 0.126
+    }
+   },
+   "gauge_dt5": {
+    "caught": 1,
+    "labels": 5,
+    "flagged_share": 0.0083,
+    "lift": 24.13,
+    "abs_rise_err_m": 1.0,
+    "peak_timing_abs_h": 0.5,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.68,
+      "model": 0.68,
+      "peak_err_h": -0.5
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.857,
+     "labels": 0.8,
+     "all": 0.8,
+     "random_road_points": 0.13
+    }
+   },
+   "hourly": {
+    "caught": 0,
+    "labels": 5,
+    "flagged_share": 0.0025,
+    "lift": 0.0,
+    "abs_rise_err_m": 1.29,
+    "peak_timing_abs_h": 1.0,
+    "gauges": [
+     {
+      "site": "01109730",
+      "obs": 1.68,
+      "model": 0.39,
+      "peak_err_h": -1.0
+     }
+    ],
+    "reports_hit30": {
+     "LSR": 0.0,
+     "labels": 0.4,
+     "all": 0.2,
+     "random_road_points": 0.046
+    }
+   }
+  }
+ },
+ "aggregate": {
+  "flash": {
+   "dt5": {
+    "storms": 4,
+    "caught": 1,
+    "labels": 16,
+    "n_flagged": 150,
+    "mean_flagged_share": 0.0068,
+    "pooled_lift": 10.19,
+    "mean_abs_rise_err_m": 0.228,
+    "mean_abs_peak_timing_h": 8.2
+   },
+   "dt5i": {
+    "storms": 4,
+    "caught": 1,
+    "labels": 16,
+    "n_flagged": 162,
+    "mean_flagged_share": 0.0075,
+    "pooled_lift": 9.5,
+    "mean_abs_rise_err_m": 0.212,
+    "mean_abs_peak_timing_h": 8.25
+   },
+   "gauge": {
+    "storms": 4,
+    "caught": 1,
+    "labels": 16,
+    "n_flagged": 167,
+    "mean_flagged_share": 0.0073,
+    "pooled_lift": 9.03,
+    "mean_abs_rise_err_m": 0.215,
+    "mean_abs_peak_timing_h": 8.1
+   },
+   "gauge_dt5": {
+    "storms": 4,
+    "caught": 1,
+    "labels": 16,
+    "n_flagged": 174,
+    "mean_flagged_share": 0.0077,
+    "pooled_lift": 8.67,
+    "mean_abs_rise_err_m": 0.213,
+    "mean_abs_peak_timing_h": 8.4
+   },
+   "hourly": {
+    "storms": 4,
+    "caught": 1,
+    "labels": 16,
+    "n_flagged": 149,
+    "mean_flagged_share": 0.0067,
+    "pooled_lift": 10.26,
+    "mean_abs_rise_err_m": 0.228,
+    "mean_abs_peak_timing_h": 8.0
+   }
+  },
+  "good": {
+   "dt5": {
+    "storms": 3,
+    "caught": 39,
+    "labels": 106,
+    "n_flagged": 276,
+    "mean_flagged_share": 0.0148,
+    "pooled_lift": 26.01,
+    "mean_abs_rise_err_m": 0.633,
+    "mean_abs_peak_timing_h": 2.03
+   },
+   "dt5i": {
+    "storms": 3,
+    "caught": 39,
+    "labels": 106,
+    "n_flagged": 291,
+    "mean_flagged_share": 0.0155,
+    "pooled_lift": 24.41,
+    "mean_abs_rise_err_m": 0.627,
+    "mean_abs_peak_timing_h": 2.03
+   },
+   "gauge": {
+    "storms": 3,
+    "caught": 43,
+    "labels": 106,
+    "n_flagged": 407,
+    "mean_flagged_share": 0.0203,
+    "pooled_lift": 19.35,
+    "mean_abs_rise_err_m": 0.547,
+    "mean_abs_peak_timing_h": 1.97
+   },
+   "gauge_dt5": {
+    "storms": 3,
+    "caught": 43,
+    "labels": 106,
+    "n_flagged": 448,
+    "mean_flagged_share": 0.0221,
+    "pooled_lift": 17.55,
+    "mean_abs_rise_err_m": 0.547,
+    "mean_abs_peak_timing_h": 2.1
+   },
+   "hourly": {
+    "storms": 3,
+    "caught": 39,
+    "labels": 106,
+    "n_flagged": 250,
+    "mean_flagged_share": 0.0136,
+    "pooled_lift": 28.76,
+    "mean_abs_rise_err_m": 0.637,
+    "mean_abs_peak_timing_h": 2.03
+   }
+  },
+  "all": {
+   "dt5": {
+    "storms": 7,
+    "caught": 40,
+    "labels": 122,
+    "n_flagged": 426,
+    "mean_flagged_share": 0.0102,
+    "pooled_lift": 33.84,
+    "mean_abs_rise_err_m": 0.401,
+    "mean_abs_peak_timing_h": 5.56
+   },
+   "dt5i": {
+    "storms": 7,
+    "caught": 40,
+    "labels": 122,
+    "n_flagged": 453,
+    "mean_flagged_share": 0.0109,
+    "pooled_lift": 31.8,
+    "mean_abs_rise_err_m": 0.39,
+    "mean_abs_peak_timing_h": 5.59
+   },
+   "gauge": {
+    "storms": 7,
+    "caught": 44,
+    "labels": 122,
+    "n_flagged": 574,
+    "mean_flagged_share": 0.0129,
+    "pooled_lift": 27.36,
+    "mean_abs_rise_err_m": 0.357,
+    "mean_abs_peak_timing_h": 5.47
+   },
+   "gauge_dt5": {
+    "storms": 7,
+    "caught": 44,
+    "labels": 122,
+    "n_flagged": 622,
+    "mean_flagged_share": 0.0139,
+    "pooled_lift": 25.23,
+    "mean_abs_rise_err_m": 0.356,
+    "mean_abs_peak_timing_h": 5.7
+   },
+   "hourly": {
+    "storms": 7,
+    "caught": 40,
+    "labels": 122,
+    "n_flagged": 399,
+    "mean_flagged_share": 0.0097,
+    "pooled_lift": 36.16,
+    "mean_abs_rise_err_m": 0.403,
+    "mean_abs_peak_timing_h": 5.44
+   }
+  }
+ }
+}
