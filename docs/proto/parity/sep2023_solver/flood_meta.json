@@ -1,0 +1,77 @@
+{
+ "run": "sep2023_loss_sep2023_solver",
+ "title": "Sept 11, 2023 flash floods \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  162000.0,
+  908000.0,
+  182000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-09-11T16:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 376
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "solver",
+   "mmh": 2.0,
+   "applied_by": "solver (CPU FPInfiltration: every cell deeper than 1 mm, whole run)"
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 198,
+ "rain_total_mean_mm": 101,
+ "rain_missing_hours": [],
+ "runtime_s": 1976,
+ "total_s": 2680,
+ "peak_wet_km2": 21.1,
+ "peak_snapshot_wet_km2": 15.6,
+ "mass_tail": [
+  "129301.078   1.1840     1.0619     82438      8641600.0000 2465784.4065  0.000       0.000      66.446          -53.3348  -16000.4423 9659968.1406",
+  "129600.091   1.5266     1.0619     82657      8546800.0000 2466182.5789  0.000       0.000      65.835          -73.5246  -22057.3799 9658094.9155"
+ ],
+ "git_sha": "62beffdd",
+ "forecast": null
+}
