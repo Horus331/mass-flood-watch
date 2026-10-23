@@ -279,11 +279,12 @@ def probe_subhourly(W9, exe, cuda, dt_min):
     out = analyse_probe_sub(float(np.nanmean(h)), dt_min); W9.log('sub-hourly rain probe:', out); return out
 
 
-def write_rain_nc_sub(path, excess_hourly, sub, x0, y0, res, unit='rate', divide=1.0, flip_y=False, flip_x=False, source=''):
+def write_rain_nc_sub(path, excess_hourly, sub, x0, y0, res, unit='rate', divide=1.0, flip_y=False, flip_x=False, source='', infil_mmh=0.0):
     """Stream the sub-hourly records to the TUFLOW NetCDF dynamicrainfile, in the layout of w9 write_rain_nc (variables time, y, x
     first and in that order; y descending; x ascending; 'rainfall_depth' (time, y, x)). excess_hourly (H, ny, nx) mm per hour.
     unit 'rate': records in mm/h (mm per record x 60/dt); 'depth': mm per record. Forward stamps k*dt/60 h plus a closing zero
-    record at H h. Returns stats."""
+    record at H h. infil_mmh > 0 (LF_RAIN_DT_INFIL=sub): the constant loss is taken out of each record, max(r - infil_mmh x dt/60, 0),
+    instead of out of the hour (pass the excess BEFORE rain_minus_infil); a burst then keeps more of its water. Returns stats."""
     import netCDF4
     H, ny, nx = excess_hourly.shape; n = sub.nsub; dt = sub.dt; fac = (60.0 / dt if unit == 'rate' else 1.0) / divide
     f = netCDF4.Dataset(path, 'w', format='NETCDF3_64BIT_OFFSET')
@@ -301,7 +302,9 @@ def write_rain_nc_sub(path, excess_hourly, sub, x0, y0, res, unit='rate', divide
     for h in range(H):
         w = sub.model_weights(h); e = np.asarray(excess_hourly[h], np.float32)
         for k in range(n):
-            rec = e * w[k]; total += rec; peak_rate = np.maximum(peak_rate, rec * (60.0 / dt))
+            rec = e * w[k]
+            if infil_mmh > 0: rec = np.maximum(rec - np.float32(infil_mmh * dt / 60.0), 0)
+            total += rec; peak_rate = np.maximum(peak_rate, rec * (60.0 / dt))
             out = rec * fac
             if flip_y: out = out[::-1, :]
             if flip_x: out = out[:, ::-1]
@@ -367,7 +370,10 @@ def selftest(W9=None):
         a = netcdf_file(f'{d}/r.nc', 'r', mmap=False); v = a.variables['rainfall_depth'][:]
         assert v.shape == (9, ny, nx) and np.allclose(v[0, 0, :], 8.0) and np.allclose(v[4:8, 1, 2], 4.0) and v[8].sum() == 0
         assert np.allclose(a.variables['time'][:], np.arange(9) * 0.25) and np.allclose(a.variables['total_rainfall_depth'][:][0], 8.0)
-        a.close(); ok.append('streaming writer = w9 write_rain_nc layout (time, y, x first; y descending; forward stamps; closing zero); rate unit = mm/h')
+        a.close()
+        st2 = write_rain_nc_sub(f'{d}/i.nc', ex, uni, x0, y0, res, unit='depth', infil_mmh=2.0)
+        a = netcdf_file(f'{d}/i.nc', 'r', mmap=False); assert np.allclose(a.variables['rainfall_depth'][:][0, 0, :], 2.0 - 0.5); a.close()
+        ok.append('streaming writer = w9 write_rain_nc layout (time, y, x first; y descending; forward stamps; closing zero); rate unit = mm/h')
         st = write_rain_nc_sub(f'{d}/f.nc', ex, uni, x0, y0, res, unit='depth', flip_y=True)
         a = netcdf_file(f'{d}/f.nc', 'r', mmap=False); assert np.allclose(a.variables['rainfall_depth'][:][0, -1, :], 2.0); a.close()
         ok.append('flip_y honoured')
