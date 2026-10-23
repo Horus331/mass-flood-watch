@@ -77,3 +77,57 @@ number of variants scored on OOS-7.
   DCIA negative results were handled.
 - Nobody looks at OOS-7 numbers for a variant before the variant's settings are written down in the commit that produces it.
 - The locked set is never used in a `--compare` until it is opened (§2).
+
+---
+
+# PROTOCOL v2 (fixed 23 Oct 2026, before any candidate was scored with it)
+
+v1 above stays as written and still governs every candidate scored before this date (drains, DCIA, learned v2, pluvial). v2 applies to
+every candidate scored from now on. What changed and why: the label expansion (`obs/LABELS_EXPANSION.md`) and the 16 new parity runs
+(`scoring/BASELINE_v2_expanded.md`) grew the held-out pool from 7 storms / 32 sites to 23 storms / 90 sites. v1's +0.05 gain was sized for
+~27 sites; on 90 sites the same rule is both coarser per site and easier to clear by noise in one storm, so the decision set and the rule are
+re-sized together. §1 (unit and matching), §3 (baseline: the parity catalogue `docs/proto/parity/catalog/`, scored in
+`scoring/BASELINE_v2_expanded.json`, commit 1258b8ee) and §4 (metrics, bootstrap) are unchanged.
+
+## v2 §2. Storm roles
+
+| role | storms | use |
+|---|---|---|
+| development (in-sample) | sep2023, aug2021 | Unchanged from v1: may be used for tuning, reported separately, never pooled into the headline, never adopted on alone. |
+| **held-out decision set ("held-out 23")** | OOS-7 (aug2023, aug2023b, aug2026, jul2021, jul2023, sep2021, sep2022) + NEW16 (may2018, aug2018b, sep2018, sep2018w, sep2018m, sep2018b, jul2019, aug2019, sep2019, jun2020, jun2020b, aug2020b, jul2021b, jul2023b, jul2023c, jul2023d) — 90 sites | Decision set. No parameter may be chosen by looking at their scores. OOS-7 and NEW16 are still reported as sub-pools. |
+| locked test | aug2015, aug2018, aug2020, jul2018, oct2016 | **Unchanged and still locked.** Not run, not scored, not used in any fold. `score_v2.compare` refuses an input that contains one. |
+
+- **"Small" storms** (`catalog.json`: may2018, aug2018b, sep2018w, aug2019, sep2019, aug2020b, jul2023b) and every other storm with < 3 sites
+  **are included in all pooled metrics and in the bootstrap**. The per-storm loss rule (condition 4) applies only to storms with ≥ 3 sites,
+  because with 2 sites a one-site loss is half the storm and is noise.
+- **LOSO.** Anything fitted to labels is fitted inside the folds over **all 25 non-locked storms** (dev storms included): for held-out storm *t*
+  fit on the other 24; thresholds or tier sizes chosen inside a fold are chosen on that fold's training storms only (nested LOSO). Pooled
+  held-out scores are made from fold predictions only.
+
+## v2 §5. Adoption rule
+
+`python proto/score_v2.py --compare BASE.json CAND.json --protocol v2 --k K [--level share|rule]` (`score_v2.ADOPT_V2`).
+
+**§5a Ranking route** (default; every candidate). Adopted only if all five hold on held-out 23, box-wide:
+
+1. **Gain.** Pooled site recall at 3 % flagged improves by **≥ +0.04** (≈ 3.6 of 90 sites).
+2. **Significance.** The one-sided lower bound of that gain (paired two-stage bootstrap, 2000 replicates, the **α / k** percentile, α = 0.05,
+   *k* = number of variants scored on held-out 23 in the same pre-registration) is **> 0**.
+3. **Spatial skill.** Pooled FSS at 300 m at 3 % flagged does not drop (Δ ≥ 0).
+4. **No storm left behind.** No held-out storm **with ≥ 3 sites** loses more than 1 site at 3 %.
+5. **Calibration of the alert tier.** The pooled chance-corrected lift of the candidate's alert tier (its `p_close ≥ 0.5` set) is
+   **≥ 0.8 ×** the deployed depth rule's.
+
+**§5b Alert-tier route** (only for a candidate that changes the alert tier and not the ranking, e.g. a new threshold; `--level rule`).
+Conditions 1–5 are applied to the tier instead of the top 3 %: tier site recall gain ≥ +0.04 with lower bound > 0 at α / k, tier FSS@300 not
+lower, no ≥ 3-site storm loses > 1 tier site, tier lift ≥ 0.8 × the rule's — **plus**
+6. **Budget cap.** The candidate's mean held-out tier share is ≤ the deployed rule's mean share on the dev storms (where the 0.30 m rule was
+   calibrated; 1.65 % on the parity baseline). A tier that buys recall by flagging more than the rule does where it works is rejected.
+
+A §5b pass makes the candidate the alert tier; it says nothing about ranking skill.
+
+**Dev storms.** Unchanged: a drop of more than 2 sites at 3 % on sep2023 or aug2021 must be explained; it does not block adoption.
+
+**Process.** Unchanged from v1 (log every candidate with its `--compare` output; settings committed before any held-out-23 number; the locked
+set is never used in a `--compare`). The honest out-of-sample skill to quote is always the held-out-23 pooled number of whatever is deployed,
+with its CI.
