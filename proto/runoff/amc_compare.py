@@ -1,6 +1,7 @@
 """T4: default CN loss (AMC II) vs LF_CN_AMC=auto on the 9 catalogue storms (+ the Worcester aug2021 48 h box), docs/proto/runoff/AMC.md.
 
-    python proto/runoff/amc_compare.py      -> docs/proto/runoff/amc.json + markdown tables on stdout
+    python proto/runoff/amc_compare.py [CAND_DIR OUT_JSON]   -> docs/proto/runoff/amc.json (default: the auto-AMC runs) + markdown tables on stdout
+    e.g. python proto/runoff/amc_compare.py docs/proto/runoff/infil0 docs/proto/runoff/infil0.json
 
 Default arm = the T0 parity catalogue as published (docs/proto/parity/catalog/<name>, LF_PARITY=1 LF_CN_SCALE=0.88, CPU, git 37177775),
 reused, not rerun.  Auto arm = the same cases with LF_CN_AMC=auto added (parity_test.yml dest=docs/proto/runoff/runs/<name>), CPU.
@@ -43,6 +44,8 @@ def closure(r):
 
 
 def main():
+    global CAND, OUT
+    if len(sys.argv) == 3: CAND, OUT = os.path.join(ROOT, sys.argv[1]), os.path.join(ROOT, sys.argv[2])
     names = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob(os.path.join(BASE, '*', 'config.json')))
     rows, base_runs, cand_runs = [], [], []
     for n in names:
