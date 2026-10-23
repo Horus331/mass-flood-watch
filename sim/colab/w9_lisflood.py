@@ -877,6 +877,10 @@ def build_inputs(BOX, RES, S, TOK):
     RAIN = np.stack(RAIN)
     if os.environ.get('LF_RAIN_SCALE'):     # ensemble hook (proto/ensemble.py): storm-wide multiplicative radar-rain error; unset = MRMS as is
         RAIN = (RAIN * float(os.environ['LF_RAIN_SCALE'])).astype(np.float32); log(f"LF_RAIN_SCALE {os.environ['LF_RAIN_SCALE']}: MRMS rain multiplied")
+    GAUGE = None
+    if os.environ.get('LF_RAIN_GAUGE') and S.get('rain_src') != 'hrrr':     # opt-in: gauge-adjusted Pass2 (sim/colab/lf_raingauge.py, docs/proto/rain/RAIN.md)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_raingauge
+        RAIN, GAUGE = lf_raingauge.adjust(RAIN, os.environ.get('STORM', 'sep2023'), lat_c, lon_c, os.environ['LF_RAIN_GAUGE'], log=log)
     SUB = None
     if int(os.environ.get('LF_RAIN_DT', '60') or 60) < 60 and S.get('rain_src') != 'hrrr':    # opt-in: radar timing inside each Pass2 hour (sim/colab/lf_subhourly.py, docs/proto/rain/RAIN.md)
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_subhourly
@@ -896,7 +900,7 @@ def build_inputs(BOX, RES, S, TOK):
         log(f"effective rain (CN+DCIA) mean {RAIN.sum(0).mean():.0f} mm of {RAIN_OBS.sum(0).mean():.0f} mm ({100 * RAIN.sum() / max(RAIN_OBS.sum(), 1):.0f}%); "
             f"mean impervious {100 * dst_['tia_mean']:.1f}%, connected {100 * dst_['dcia_mean']:.1f}%, mean pervious CN {dst_['cnp_mean']:.1f}")
     return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
-                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM, SUB=SUB)
+                NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM, SUB=SUB, GAUGE=GAUGE)
 
 
 # ======================================================================================================================
@@ -1194,6 +1198,7 @@ def main():
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
                 forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours']) if S.get('rain_src') == 'hrrr' else None)
     if SUBR: meta['inputs']['rain_subhourly'] = SUBR
+    if I.get('GAUGE'): meta['inputs']['rain_gauge_adjust'] = I['GAUGE']
     if I.get('DAMS'):
         try: meta['dams'] = lf_dams_report(I['DAMS'], I['Z'], FR, FT)
         except Exception as e: log('dam report failed:', repr(e)[:200])
@@ -1369,6 +1374,7 @@ def selftest():
     ok.append('LF_LOSS=cn reproduces FINDINGS table; cn_dcia: connected pavement = IMP (P - 2 mm), CN on pervious only, event-cumulative, water = rain')
     shutil.rmtree(d)
     import lf_subhourly; ok += ['lf_subhourly: ' + o for o in lf_subhourly.selftest(sys.modules[__name__])]
+    import lf_raingauge; ok += lf_raingauge.selftest()
     for o in ok: print('ok  ', o)
     print(f'SELFTEST PASSED ({len(ok)} checks)')
 
