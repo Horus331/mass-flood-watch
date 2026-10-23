@@ -1,0 +1,90 @@
+name: forecast hindcast / gate calibration (HRRR forecast rain instead of MRMS)
+# hindcast: the catalogue storms re-run with the HRRR forecast issued before them (LF_RAIN=hrrr LF_HRRR_INIT) and, as the control, with MRMS
+#           (same code, same CPU solver), scored with proto/score.py, proto/validate_points.py and the prototype's label recall / lift.
+#           Only the small result files are committed: docs/proto/forecast/hindcast/<name>/ (summary, score, points, report, watchlist, meta).
+# calib:    HRRR (and MRMS) rain maxima for every catalogue storm -> docs/proto/forecast/gate_calibration.json
+# background: one 12z cycle a day over a season -> how often the gate fires -> docs/proto/forecast/gate_background_<start>.json
+on:
+  workflow_dispatch:
+    inputs:
+      what: {description: 'hindcast | calib | background', default: 'hindcast'}
+      cases: {description: 'hindcast cases JSON (name, storm, box, init or mrms, hours)', default: '[{"name":"sep2023_hrrr12z","storm":"sep2023","box":"168000,908000,188000,928000","init":"2023-09-11T12Z","hours":"40"},{"name":"sep2023_hrrr18z","storm":"sep2023","box":"168000,908000,188000,928000","init":"2023-09-11T18Z","hours":"34"},{"name":"sep2023_mrms","storm":"sep2023","box":"168000,908000,188000,928000","init":"mrms","hours":"36"},{"name":"aug2021_hrrr06z","storm":"aug2021","box":"168000,875000,188000,895000","init":"2021-08-19T06Z","hours":"21"},{"name":"aug2021_hrrr12z","storm":"aug2021","box":"168000,875000,188000,895000","init":"2021-08-19T12Z","hours":"15"},{"name":"aug2021_mrms","storm":"aug2021","box":"168000,875000,188000,895000","init":"mrms","hours":"18"}]'}
+      start: {description: 'background: first day', default: '2023-06-01'}
+      end: {description: 'background: last day', default: '2023-09-30'}
+      only: {description: 'calib: storm ids (comma separated, empty = all)', default: ''}
+permissions:
+  contents: write
+jobs:
+  calib:
+    if: inputs.what == 'calib' || inputs.what == 'background'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj matplotlib
+      - name: run
+        run: |
+          mkdir -p docs/proto/forecast
+          if [ "${{ inputs.what }}" = "calib" ]; then
+            python proto/forecast.py calib --out docs/proto/forecast/gate_calibration.json ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
+          else
+            python proto/forecast.py background --start ${{ inputs.start }} --end ${{ inputs.end }} --out docs/proto/forecast/gate_background_${{ inputs.start }}.json
+          fi
+      - name: commit
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/forecast; git commit -qm "forecast gate ${{ inputs.what }}" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
+  hindcast:
+    if: inputs.what == 'hindcast'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(inputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - name: flood depth (LISFLOOD-FP 8.2, CPU)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.storm }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.storm }}_fc_${{ matrix.c.name }}
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          if [ "${{ matrix.c.init }}" != "mrms" ]; then export LF_RAIN=hrrr LF_HRRR_INIT=${{ matrix.c.init }}; fi
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures + scores
+        run: |
+          set -o pipefail
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
+          P=${{ runner.temp }}/proto; D=docs/proto/forecast/hindcast/${{ matrix.c.name }}; mkdir -p $D
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S | tail -5
+          python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
+          python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
+          cp $P/summary.json $P/REPORT.md $P/watchlist.csv $D/; cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json,sys; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt
+          mkdir -p art && cp -r $P art/ && cp -r $D art/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'hindcast_${{ matrix.c.name }}', path: art, if-no-files-found: ignore}
+      - name: commit
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/forecast/hindcast/${{ matrix.c.name }}; git commit -qm "forecast hindcast: ${{ matrix.c.name }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done

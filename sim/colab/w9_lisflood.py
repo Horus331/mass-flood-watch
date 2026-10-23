@@ -38,7 +38,9 @@ STORMS = {'sep2023': dict(t0='2023-09-11T16:00Z', hours=36, frame_min=30, title=
           'jul2023': dict(t0='2023-07-14T08:00Z', hours=18, frame_min=30, title='July 14, 2023 flash floods, Worcester-Holden'),
           'aug2023': dict(t0='2023-08-08T07:00Z', hours=18, frame_min=30, title='Aug 8, 2023 flash floods, MetroWest'),
           'aug2023b': dict(t0='2023-08-18T05:00Z', hours=18, frame_min=30, title='Aug 18, 2023 flash floods, Millbury-Grafton'),
-          'aug2026': dict(t0='2026-08-03T04:00Z', hours=18, frame_min=30, title='Aug 3, 2026 flash floods, Leominster-Fitchburg')}
+          'aug2026': dict(t0='2026-08-03T04:00Z', hours=18, frame_min=30, title='Aug 3, 2026 flash floods, Leominster-Fitchburg'),
+          # live forecast (LF_RAIN=hrrr): t0 and hours come from the HRRR cycle (proto/forecast.py, .github/workflows/forecast.yml)
+          'forecast': dict(t0='2026-01-01T00:00Z', hours=54, frame_min=30, title='Forecast')}
 ZENODO_RECORDS = ['13121102', '4073010']        # LISFLOOD-FP v8.2 (DOI 10.5281/zenodo.13121102); 4073010 = concept record (latest)
 NODATA = -9999.0
 LOGP = None
@@ -789,17 +791,33 @@ def build_inputs(BOX, RES, S, TOK):
         LA, LO = np.meshgrid(lat_c, lon_c, indexing='ij'); return fi((LA, LO)).astype(np.float32)
     t0 = pd.Timestamp(S['t0']); hours = [t0 + pd.Timedelta(hours=h + 1) for h in range(S['hours'])]
     RAIN, MISSING = [], []
-    for ts in hours:
-        for kk in range(4):
-            try: RAIN.append(mrms_hour(ts)); break
-            except Exception as e:
-                if kk == 3: log('  no MRMS', ts, repr(e)[:80]); RAIN.append(np.zeros((ny, nx), np.float32)); MISSING.append(ts.strftime('%Y-%m-%dT%H:%MZ'))
-                else: time.sleep(5 + 10 * kk)
+    if S.get('rain_src') == 'hrrr':      # LF_RAIN=hrrr: NOAA HRRR forecast buckets; forecast hour fh = model hour fh - 1 (hrrr_rain.py), zero rain after the horizon (drain-down)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import hrrr_rain
+        init, H = pd.Timestamp(S['hrrr_init']), int(S['hrrr_hours']); nh = min(H, S['hours'])
+        m1 = None
+        for fh in range(1, nh + 1):
+            m1 = hrrr_rain.apcp(init, fh)
+            if m1 is not None: break
+        if m1 is None: raise SystemExit(f'no HRRR APCP on AWS for the {init:%Y-%m-%d %H}z cycle')
+        XX, YY = np.meshgrid(xc, yc); sampler = hrrr_rain.LccGrid(m1).bilinear(XX, YY); del XX, YY
+        F = hrrr_rain.hourly(init, nh, sampler, log=log)
+        for k_, v_ in enumerate(F):
+            if v_ is None: MISSING.append((init + pd.Timedelta(hours=k_ + 1)).strftime('%Y-%m-%dT%H:%MZ')); v_ = np.zeros((ny, nx), np.float32)
+            RAIN.append(v_)
+        RAIN += [np.zeros((ny, nx), np.float32)] * (S['hours'] - nh)
+        log(f'HRRR {init:%Y-%m-%d %H}z: forecast hours 1-{nh} (cycle horizon {H} h), {S["hours"] - nh} dry drain-down hours; window {sampler.window}')
+    else:
+        for ts in hours:
+            for kk in range(4):
+                try: RAIN.append(mrms_hour(ts)); break
+                except Exception as e:
+                    if kk == 3: log('  no MRMS', ts, repr(e)[:80]); RAIN.append(np.zeros((ny, nx), np.float32)); MISSING.append(ts.strftime('%Y-%m-%dT%H:%MZ'))
+                    else: time.sleep(5 + 10 * kk)
     RAIN = np.stack(RAIN)
     if os.environ.get('LF_RAIN_SCALE'):     # ensemble hook (proto/ensemble.py): storm-wide multiplicative radar-rain error; unset = MRMS as is
         RAIN = (RAIN * float(os.environ['LF_RAIN_SCALE'])).astype(np.float32); log(f"LF_RAIN_SCALE {os.environ['LF_RAIN_SCALE']}: MRMS rain multiplied")
     tot = RAIN.sum(0); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h; missing {MISSING}')
-    if tot.max() <= 0: raise SystemExit('no rain data at all; refusing to run a dry storm')
+    if tot.max() <= 0 and os.environ.get('LF_ALLOW_DRY') != '1': raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
     if loss is not None: RAIN = np.maximum(RAIN - loss[None], 0).astype(np.float32); log(f'effective rain mean {RAIN.sum(0).mean():.0f} mm')
     if CNG is not None:
@@ -829,7 +847,17 @@ def main():
     STORM = os.environ.get('STORM', 'sep2023'); S = dict(STORMS[STORM])
     if os.environ.get('T0'): S['t0'] = os.environ['T0']
     if os.environ.get('HOURS'): S['hours'] = int(os.environ['HOURS'])
-    RUN_DIR = os.environ.get('RUN_DIR', f'runs/{STORM}_lisflood_{RES:.0f}m'); TOK = os.environ.get('HF_TOKEN')
+    if os.environ.get('LF_RAIN', 'mrms') == 'hrrr':     # forecast rain: T0 = HRRR issue time, HOURS = horizon (or HOURS - drain-down) + LF_DRAIN_H dry hours
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import hrrr_rain
+        if os.environ.get('LF_HRRR_INIT'): init = hrrr_rain.parse_init(os.environ['LF_HRRR_INIT']); H = hrrr_rain.horizon(init)
+        else: init, H = hrrr_rain.latest_cycle()
+        if init is None: raise SystemExit('LF_RAIN=hrrr: no complete HRRR cycle found on AWS')
+        if os.environ.get('LF_HRRR_HOURS'): H = min(H, int(os.environ['LF_HRRR_HOURS']))       # use fewer forecast hours than the cycle has
+        drain = int(os.environ.get('LF_DRAIN_H', '6'))
+        if not os.environ.get('HOURS'): S['hours'] = H + drain
+        S.update(t0=f'{init:%Y-%m-%dT%H:00Z}', rain_src='hrrr', hrrr_init=f'{init:%Y-%m-%dT%H:00}', hrrr_hours=min(H, S['hours']),
+                 title=(S['title'] + ' · ' if STORM != 'forecast' else '') + f'NOAA HRRR forecast issued {init:%b %d %H}z')
+    RUN_DIR =os.environ.get('RUN_DIR', f'runs/{STORM}_lisflood_{RES:.0f}m'); TOK = os.environ.get('HF_TOKEN')
     run_name = RUN_DIR.rstrip('/').split('/')[-1]
     if not run_name.startswith(STORM + '_'): run_name = f'{STORM}_{run_name}'        # w6 takes the gauge storm id from run.split('_')[0]
     x0, y0, x1, y1 = BOX; SAVEINT = int(os.environ.get('LF_SAVEINT', '1800'))
@@ -1051,13 +1079,14 @@ def main():
                 crs='EPSG:26986', model=model, model_source=src_url, model_build=dict(cuda=bool(is_cuda), exe=os.path.basename(exe), build_s=round(build_s)),
                 solver='acceleration (local inertial, Bates et al. 2010)' + (' on GPU (cuda)' if is_cuda else ' on CPU (OpenMP)'),
                 inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning=f"{os.environ.get('LF_N_CHAN', '0.035')} water/channel, 0.10 dense urban, " + ('NLCD table (forest ' + os.environ.get('LF_N_FOREST', '0.12') + ')' if LC is not None else os.environ.get('LF_N_FP', '0.08') + ' other'),
-                            rain='MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
+                            rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS MultiSensor QPE 01H Pass2') + ' -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
                             env={k: ('set (private file; path not recorded)' if k == 'LF_DRAINS' else os.environ[k]) for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)},
                             drains=DRAINS or 'none'),
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
-                mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8])
+                mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
+                forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours']) if S.get('rain_src') == 'hrrr' else None)
     if I.get('DAMS'):
         try: meta['dams'] = lf_dams_report(I['DAMS'], I['Z'], FR, FT)
         except Exception as e: log('dam report failed:', repr(e)[:200])
