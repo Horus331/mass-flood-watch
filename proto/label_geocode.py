@@ -126,7 +126,15 @@ def nominatim(q):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--queries', required=True); ap.add_argument('--out', required=True)
     ap.add_argument('--addr-only', action='store_true', help='Nominatim only (no Overpass): queries need "addr"')
+    ap.add_argument('--shard', default='0/1', help='i/n: this job does queries i, i+n, ... (parallel Actions jobs, one output file each)')
+    ap.add_argument('--seed', default='', help='earlier output file: keys already resolved there are skipped')
     a = ap.parse_args(); Q = json.load(open(a.queries)); R = {}
+    i, n = (int(v) for v in a.shard.split('/')); Q = Q[i::n]
+    done = {}
+    for f in [a.seed, a.out]:
+        try: done.update({k: v for k, v in json.load(open(f)).items() if v.get('pair') or v.get('single') or v.get('addr')})
+        except Exception: pass
+    Q = [q for q in Q if q['key'] not in done]; print(len(Q), 'queries to do', flush=True)
     try: R = json.load(open(a.out))
     except Exception: pass
     for q in Q:

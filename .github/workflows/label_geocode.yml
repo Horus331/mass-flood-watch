@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
     inputs:
       queries: {default: 'docs/proto/obs/labels_geocode_queries.json'}
-      out: {default: 'docs/proto/obs/labels_geocode_osm.json'}
       args: {description: 'extra args, e.g. --addr-only', default: ''}
 permissions:
   contents: write
@@ -11,12 +10,15 @@ jobs:
   geocode:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: {shard: [0, 1, 2, 3, 4, 5]}
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q requests numpy scipy pyproj
-      - run: timeout 45m python -u proto/label_geocode.py --queries ${{ inputs.queries }} --out ${{ inputs.out }} ${{ inputs.args }} || echo stopped
+      - run: timeout 45m python -u proto/label_geocode.py --queries ${{ inputs.queries }} --shard ${{ matrix.shard }}/6 --seed docs/proto/obs/labels_geocode_osm.json --out docs/proto/obs/labels_geocode_osm_${{ matrix.shard }}.json ${{ inputs.args }} || echo stopped
       - if: always()
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add ${{ inputs.out }} && git commit -qm "label geocode: OSM points for flood-label sites" || echo nothing
-          git pull --rebase -q && git push
+          git add docs/proto/obs/labels_geocode_osm_${{ matrix.shard }}.json && git commit -qm "label geocode: OSM points, shard ${{ matrix.shard }}" || echo nothing
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
