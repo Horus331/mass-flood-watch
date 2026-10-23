@@ -11,7 +11,7 @@
 The scoring is prototype.py's own label_recall (strict 30 m and loose matches, chance-corrected lift), applied to the ensemble probability.
 Nothing here is used by the live forecast.
 """
-import os, sys, json, argparse, glob
+import os, sys, json, argparse, glob, re
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.normpath(os.path.join(HERE, '..'))
@@ -145,6 +145,54 @@ def ensemble_scores(dumps):
     return dict(members=N, by_threshold=rows, mean_p_depth=meanP, label_sites_by_level=lev, segments_by_level=seg_lev)
 
 
+# ------------------------------------------------------------------ fixed decision rules (set before the out-of-sample runs)
+RULES = {'single': 'the issue cycle alone (today\'s live setup), P_depth >= 0.5',
+         'any_of_4': 'closed in >= 1 of the 4 synoptic cycles (issue, -6, -12, -18 h)',
+         'two_of_4': 'closed in >= 2 of the 4 synoptic cycles',
+         'two_of_8': 'closed in >= 2 of the 8 members (4 synoptic + 4 hourly)'}
+
+
+def rule_flags(E, dumps):
+    """rule -> (flags over all segments, members used, members expected); None when the issue cycle itself is missing."""
+    if not os.path.exists(dumps[0]): return None
+    L = {m: load_dump(p) for m, p in zip(E['members'], dumps) if os.path.exists(p)}
+    syn = [m for m in E['members'] if ts(m).hour % 6 == 0]
+    def cnt(ms): return sum((L[m][1] >= 0.5).astype(int) for m in ms if m in L), sum(m in L for m in ms)
+    c4, n4 = cnt(syn); c8, n8 = cnt(E['members'])
+    return dict(single=(L[E['members'][0]][1] >= 0.5, 1, 1), any_of_4=(c4 >= 1, n4, len(syn)), two_of_4=(c4 >= 2, n4, len(syn)),
+                two_of_8=(c8 >= 2, n8, len(E['members']))), L[E['members'][0]]
+
+
+def rules(E, dumps):
+    got = rule_flags(E, dumps)
+    if got is None: return None
+    F, (D0, _, inb) = got; out = {}
+    for k, (fl, n, nexp) in F.items():
+        P = fl.astype(np.float32)
+        out[k] = dict(members=n, members_expected=nexp, strict=recall(D0['strict'], P, inb, 0.5), loose=recall(D0['loose'], P, inb, 0.5),
+                      hits=[m['id'] for m in D0['strict'] if fl[np.asarray(m['segs'])].any()])
+    return out
+
+
+def pooled(rows):
+    """Per lead (long / short) and sample (out-of-sample storms / all): site-weighted recall, mean flagged share, pooled lift = hits / random hits."""
+    res = {}
+    for sample in ('oos', 'all'):
+        for lead in ('long', 'short'):
+            ks = [k for k, E in ENSEMBLES.items() if E.get('lead') == lead and (sample == 'all' or E.get('oos')) and rows['ensembles'][k].get('rules')]
+            R = {}
+            for rule in RULES:
+                h = n = rr = 0.0; fs = []; storms_better = 0
+                for k in ks:
+                    x = rows['ensembles'][k]['rules'][rule]['strict']
+                    if not x.get('n'): continue
+                    h += x['recall'] * x['n']; n += x['n']; rr += x['random_recall'] * x['n']; fs.append(x['flagged_share'])
+                R[rule] = dict(storms=len(fs), sites=int(n), recall=round(h / n, 3) if n else None, mean_flagged_share=round(float(np.mean(fs)), 4) if fs else None,
+                               max_flagged_share=round(float(np.max(fs)), 4) if fs else None, lift=round(h / rr, 2) if rr else None)
+            res[f'{sample}_{lead}'] = dict(ensembles=ks, rules=R)
+    return res
+
+
 # ------------------------------------------------------------------ quantile-mapping fit
 EDGES = np.concatenate([[0.0, 0.05], np.geomspace(0.1, 400.0, 240), [1e6]])
 
@@ -255,12 +303,14 @@ def cmd_report(a):
         hrl = [p for i, (m, p) in enumerate(zip(E['members'], dumps)) if (i == 0 or ts(m).hour % 6) and os.path.exists(p)]
         if len(syn) >= 2: r['ensemble_synoptic'] = ensemble_scores(syn)
         if len(hrl) >= 2: r['ensemble_hourly'] = ensemble_scores(hrl)
+        r['rules'] = rules(E, dumps)
         rows['ensembles'][k] = r
     for d in sorted(glob.glob(os.path.join(ENS_DIR, '*'))):
-        if os.path.exists(os.path.join(d, 'summary.json')) and '_m' not in os.path.basename(d):
+        if os.path.exists(os.path.join(d, 'summary.json')) and not re.search(r'_m\d{4}z_', os.path.basename(d)):
             rows['runs'][os.path.basename(d)] = metrics(d)
+    rows['pooled'] = pooled(rows)
     json.dump(rows, open(os.path.join(OUT, 'ensemble.json'), 'w'), indent=1)
-    print(json.dumps(rows, indent=1)[:6000])
+    print(json.dumps(rows['pooled'], indent=1))
 
 
 def selftest():

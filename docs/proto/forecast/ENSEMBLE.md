@@ -11,7 +11,7 @@ same `label_recall` as a single run (`proto/forecast_ens.py`).
 
 Code: `proto/forecast_ens.py` (members, scoring, QM fit), `sim/colab/hrrr_ens.py` (lagged rain field and QM, used only when the env flags
 `LF_HRRR_LAG` / `LF_HRRR_QMAP` are set; a 2-line hook in `hrrr_rain.hourly`), `.github/workflows/forecast_ens.yml`. Numbers:
-`ensemble.json` (made with `python proto/forecast_ens.py report`), `qmap.json`. **The live forecast is unchanged.**
+`ensemble.json` (made with `python proto/forecast_ens.py report`), `qmap.json`. **The live forecast defaults are unchanged; the k-of-n layer (section 4) is in forecast.yml behind `FORECAST_KOFN`, off by default.**
 
 Reference rows (from `HINDCAST.md`):
 
@@ -122,25 +122,99 @@ Not used. The probe (`ensemble/href_probe.txt`, run from Actions) found no HREF,
 retrospective / sample folders. HREF exists only on NOMADS (`href/prod`), as a rolling window of about 2 days, so 2021 / 2023 hindcasts
 cannot be made. The NOMADS listing returned nothing to the runner. A live HREF member set would have to be validated going forward.
 
-## Verdict and what would go live
+## 4. Out-of-sample test on 7 more storms, with the rules fixed in advance
 
-- **Best option:** the time-lagged ensemble of separate flood runs. In its cheap form it uses the 4 synoptic cycles the live forecast already
-  makes, with P(close) = share of the last 4 cycles that close the segment.
-  - At 9 to 10 h lead it beats the current setup on both storms: recall 0.077 to 0.321 for Sept and 0 to 0.583 for Aug.
-  - At 3 to 4 h lead it is neutral: recall unchanged on both, flagged share +0 / +0.6 points for "any of 4", or -0.2 points for Aug at
-    ">= 2 of 4".
-- **Not switched on.** `forecast.yml` and the live defaults are unchanged, for three reasons:
-  1. The gain rests on single older members on just 2 storms.
-  2. The threshold (any of 4 vs >= 2 of 4) was chosen after seeing these results, and the two storms prefer different ones.
-  3. Doing it live needs each cycle's per-segment P kept and merged across cycles whose boxes may sit in different places. That changes how
-     the forecast status is written, which belongs to the site, so it is not a one-flag change.
-- **Recommended next step:** keep the per-segment P of every live cycle (a seg.json like the ones here) and publish "closed in k of the last 4
-  cycles" next to the current run. Before quoting general numbers, score the 4-cycle ensemble on Jul 2021, Sep 2021, Jul 2023, Aug 2023b and
-  Aug 2026 with `forecast_ens.yml`. Each storm costs 4 to 8 member jobs of about 25 min.
-- **Cheaper single-run alternative**, if per-cycle state is not kept: the lagged p90 rain field (`LF_HRRR_LAG=6,12,18 LF_HRRR_LAG_STAT=p90`
-  for synoptic only; it was tested here with 8 members). It gave 0.27 / 0.50 at 9 to 10 h lead for 3 to 4 % flagged, but cost some lift at
-  short lead and gives no probability.
-- **Dropped:** quantile mapping, and the lagged mean / max rain fields.
+Sections 1 to 3 used only Sept 2023 and Aug 2021, and the thresholds were picked after seeing them. This section tests the ensemble honestly
+on the other 7 AWS-era catalogue storms (`docs/proto/obs/catalog.json`). Everything below was fixed before any of these runs:
+
+- **Box:** the catalogue box (20 x 20 km, 20 m), with the same model and scoring as above.
+- **Lead:**
+  - long lead = the newest 00/06/12/18z cycle issued at least 8 h before the first report (8 to 14 h);
+  - short lead = the next synoptic cycle, 6 h later (2 to 8 h).
+- **Members:** the issue cycle, the 3 synoptic cycles before it (-6, -12, -18 h) and the 4 hourly cycles before it (-1 to -4 h).
+- **Rules:** a segment counts as closed by a rule when, at P_depth >= 0.5:
+  - **single cycle** = the issue cycle alone (today's live setup);
+  - **any of 4** = at least 1 of the 4 synoptic cycles closes it;
+  - **2 of 4** = at least 2 of the 4 synoptic cycles;
+  - **2 of 8** = at least 2 of all 8 members.
+
+The run took 98 matrix jobs: 91 members plus 7 MRMS controls (`proto/forecast_ens.py matrix --which all`). Numbers: `ensemble.json`
+(`ensembles.<storm>_<lead>.rules`, `pooled`).
+
+Strict label recall / share of segments flagged:
+
+| storm (sites) | lead | single cycle (today) | any of 4 | 2 of 4 | 2 of 8 | MRMS control |
+| --- | --- | --- | --- | --- | --- | --- |
+| jul2021 (5) | 09 06z, 9.8 h | 0.6 / 2.7 % | 0.8 / 5.6 % | 0.6 / 3.0 % | 0.6 / 3.4 % | 0.0 / 0.3 % |
+|  (5) | 09 12z, 3.8 h | 0.0 / 0.3 % | 0.6 / 3.0 % | 0.6 / 2.7 % | 0.6 / 3.2 % |  |
+| sep2021 (5) | 01 18z, 11.9 h | 0.4 / 4.7 % | 0.6 / 6.7 % | 0.4 / 5.4 % | 0.6 / 5.6 % | 0.6 / 3.7 % |
+|  (5) | 02 00z, 5.9 h | 0.4 / 4.7 % | 0.6 / 6.7 % | 0.4 / 5.6 % | 0.6 / 6.1 % |  |
+| sep2022 (4) | 05 00z, 13.9 h | 0.0 / 0.2 % | 0.0 / 2.7 % | 0.0 / 0.2 % | 0.0 / 0.4 % | 0.0 / 0.8 % |
+|  (4) | 05 06z, 7.9 h | 0.0 / 0.3 % | 0.0 / 2.7 % | 0.0 / 0.3 % | 0.0 / 0.3 % |  |
+| jul2023 (5) | 14 06z, 9.5 h | 0.0 / 0.1 % | 0.2 / 5.9 % | 0.0 / 1.6 % | 0.4 / 5.7 % | 0.0 / 0.1 % |
+|  (5) | 14 12z, 3.5 h | 0.0 / 0.1 % | 0.0 / 1.6 % | 0.0 / 0.1 % | 0.0 / 0.1 % |  |
+| aug2023 (4) | 08 06z, 8.1 h | 0.0 / 1.3 % | 0.25 / 3.6 % | 0.0 / 2.8 % | 0.25 / 3.3 % | 0.25 / 1.9 % |
+|  (4) | 08 12z, 2.1 h | 0.0 / 1.3 % | 0.25 / 3.6 % | 0.0 / 2.8 % | 0.25 / 3.4 % |  |
+| aug2023b (2) | 18 00z, 12.6 h | 0.0 / 0.1 % | 0.0 / 0.9 % | 0.0 / 0.5 % | 0.0 / 0.7 % | 0.0 / 0.1 % |
+|  (2) | 18 06z, 6.6 h | 0.0 / 0.1 % | 0.0 / 0.8 % | 0.0 / 0.2 % | 0.0 / 0.7 % |  |
+| aug2026 (4) | 03 00z, 11.8 h | 0.25 / 3.7 % | 0.25 / 3.8 % | 0.25 / 2.7 % | 0.25 / 2.7 % | 0.25 / 1.6 % |
+|  (4) | 03 06z, 5.8 h | 0.0 / 1.1 % | 0.25 / 3.7 % | 0.25 / 1.7 % | 0.25 / 2.2 % |  |
+| sep2023 (78), in-sample | 11 12z, 9.2 h | 0.077 / 0.3 % | 0.321 / 3.5 % | 0.128 / 0.8 % | 0.141 / 1.4 % | |
+|  | 11 18z, 3.2 h | 0.269 / 2.0 % | 0.269 / 2.0 % | 0.128 / 0.8 % | 0.244 / 1.7 % | |
+| aug2021 (12), in-sample | 19 06z, 9.6 h | 0.0 / 0.1 % | 0.583 / 4.6 % | 0.583 / 2.4 % | 0.583 / 2.4 % | |
+|  | 19 12z, 3.6 h | 0.583 / 2.4 % | 0.583 / 3.0 % | 0.583 / 2.2 % | 0.583 / 3.0 % | |
+
+| pooled (site-weighted recall / mean flagged share / max flagged share / lift) | single cycle | any of 4 | 2 of 4 | 2 of 8 |
+| --- | --- | --- | --- | --- |
+| 7 out-of-sample storms, long lead (29 sites) | 0.207 / 1.8 % / 4.7 % / 5.27 | 0.345 / 4.2 % / 6.7 % / 4.03 | 0.207 / 2.3 % / 5.4 % / 4.24 | 0.345 / 3.1 % / 5.7 % / 5.43 |
+| 7 out-of-sample storms, short lead (29 sites) | 0.069 / 1.1 % / 4.7 % / 2.71 | 0.276 / 3.2 % / 6.7 % / 4.21 | 0.207 / 1.9 % / 5.6 % / 4.96 | 0.276 / 2.3 % / 6.1 % / 5.7 |
+| all 9 storms, long lead (119 sites) | 0.101 / 1.5 % / 4.7 % / 7.79 | 0.353 / 4.1 % / 6.7 % / 5.92 | 0.193 / 2.2 % / 5.4 % / 8.55 | 0.235 / 2.8 % / 5.7 % / 7.49 |
+| all 9 storms, short lead (119 sites) | 0.252 / 1.4 % / 4.7 % / 9.02 | 0.302 / 3.0 % / 6.7 % / 7.85 | 0.193 / 1.8 % / 5.6 % / 9.35 | 0.286 / 2.3 % / 6.1 % / 9.21 |
+
+How to read it:
+
+- The label sets are small, 2 to 5 sites per storm and 29 in all, so one site moves a storm's recall by 0.2 to 0.5.
+- The out-of-sample pooled numbers are 6 vs 10 sites (long lead) and 2 vs 8 sites (short lead).
+- The MRMS radar control is not better than the forecast rules on these storms: 0 on Jul 2021 and Jul 2023, 0.6 on Sep 2021, 0.25 on Aug 2023
+  and Aug 2026. Several of these storms are labelled with approximate locations, and the 20 m model misses them even with observed rain.
+
+**Plain verdict.**
+
+1. **"2 of 8" is the one rule that clearly beats today's single-cycle setup out of sample.**
+   - On every one of the 14 storm-lead cases it is at least as good, and better in 7. It never loses a site the single cycle finds.
+   - Pooled recall rises from 0.21 to 0.34 at long lead and from 0.07 to 0.28 at short lead.
+   - Lift rises from 5.3 to 5.4 and from 2.7 to 5.7.
+   - The flagged share stays reasonable: mean 3.1 % / 2.3 % vs 1.8 % / 1.1 %, and at most 6.1 % (Sep 2021, where the single cycle already flags
+     4.7 %).
+   - The only case where it is slightly worse is the in-sample Sept 2023 18z (0.244 vs 0.269).
+   - **Cost:** it needs the 4 hourly cycles before each synoptic cycle, so 5 flood runs per box instead of 1 when the gate fires.
+2. **"Any of 4" (the cycles the live forecast already runs) finds as much as "2 of 8", but flags about 2 to 3 times as many segments.**
+   - Pooled recall 0.345 / 0.276, mean flagged 4.2 % / 3.2 % (max 6.7 %). Its lift is lower than the single cycle at long lead (4.0 vs 5.3).
+   - Read it as a **watch** layer: roads any recent forecast closed. It is not a warning.
+3. **"2 of 4" is not better than the single cycle.** It ties at long lead (0.207) and gains at short lead (0.21 vs 0.07). Lift is mixed and Sept
+   2023 drops.
+4. **At short lead the single newest cycle is weaker out of sample than on the two development storms.** Pooled 0.07, against 0.27 and 0.58 on
+   Sept 2023 and Aug 2021. On these storms the ensemble is what makes the 3 to 8 h forecast useful at all.
+
+## Verdict and what is live
+
+- **A live k-of-n layer is implemented and OFF by default.** It is enabled by the repository variable `FORECAST_KOFN=1` (forecast.yml, publish
+  job).
+  - **Every cycle:** `proto/forecast_kofn.py record` stores a small file in `docs/proto/forecast/live_cycles/<YYYYmmddHH>.json`. It holds the gate
+    decision, the boxes and the segments at P(close) >= 0.5 with their centres.
+  - **combine** counts, for each segment, k = how many of the last 4 synoptic cycles closed it and n = how many could have. A quiet cycle counts
+    as "no closure"; a cycle that ran counts only inside its boxes; a missing cycle or failed run is left out.
+  - **status** (`proto/forecast.py status --kofn`) writes this into `forecast_status.json`: `k_of_n` (cycles, counts k>=1..4, top 200 segments)
+    and `runs[].k_of_n` (segments in that run's box with k and n).
+  - `FORECAST_KOFN_HOURLY=4` also counts the hourly cycles 1 to 4 h before, if they were recorded. That gives the validated 2-of-8 rule, but
+    forecast.yml does not run hourly cycles, so this would need a separate schedule. It was not added.
+  - Live closures use the run's p_close. The hindcast scored p_depth; with the current defaults (no culvert or freeboard rule) they are the same.
+  - The site does not display the layer yet (`docs/site` not touched).
+- **Recommendation:**
+  1. Turn on `FORECAST_KOFN=1` and show "closed in k of the last 4 forecasts" as a watch layer next to the current run's closures.
+  2. If the extra compute is acceptable, add the 4 hourly cycles before each synoptic cycle on gate-fired days to get the validated 2-of-8 rule.
+- **Not recommended:** quantile mapping, and the lagged mean or maximum rain fields (sections 1b and 2). The lagged p90 rain field is a
+  cheaper fallback that was tested only on the two development storms.
 
 ## Runs
 
