@@ -15,7 +15,7 @@ R=results/$NAME; mkdir -p $R
 python proto/score.py --run-dir $OUT --storm $STORM --out $R/score.json | tail -3 || true
 python proto/validate_points.py --run-dir $OUT --storm $STORM --out $R/points.json | tail -3 || true
 python proto/prototype.py --run-dir $OUT --storm $STORM --out $R | tail -3
-python docs/site/build_data.py --run $SITE --src $R --run-dir $OUT --flow
+python docs/site/build_data.py --run $SITE --src $R --run-dir $OUT $([ "${FLOW:-1}" = 1 ] && echo --flow) ${POOL:+--pool $POOL}
 du -sh docs/site/data/$SITE
 git add docs/site/data/$SITE
 git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Site replay: $SITE from Turing run $NAME (5-min frames, flow)"
