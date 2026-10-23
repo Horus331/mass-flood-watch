@@ -1,0 +1,80 @@
+{
+ "run": "jul2021_ens_jul2021_m0900z_nb",
+ "title": "July 9, 2021 flash floods (Elsa), Worcester \u00b7 NOAA HRRR forecast issued Jul 09 00z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  159000.0,
+  872000.0,
+  179000.0,
+  892000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-07-09T00:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 308
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2021-07-09T00:00Z, forecast hours 1-26 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2021-07-09T00Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 73,
+ "rain_total_mean_mm": 54,
+ "rain_missing_hours": [],
+ "runtime_s": 932,
+ "total_s": 1304,
+ "peak_wet_km2": 2.6,
+ "peak_snapshot_wet_km2": 1.7,
+ "mass_tail": [
+  "93300.292    1.9454     1.9320     47994      15268000.0000 1831058.5909  0.000       0.000      6.075             0.0000       0.0000 1812395.9639",
+  "93601.839    1.9455     1.9320     48149      15157200.0000 1825513.4039  0.000       0.000      6.015             0.0000       0.0001 1808673.8910"
+ ],
+ "git_sha": "e11dbf9e",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2021-07-09T00:00Z",
+  "forecast_hours": 26,
+  "run_hours": 26
+ }
+}
