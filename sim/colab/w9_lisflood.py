@@ -7,6 +7,7 @@ env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multipl
      LF_LOSS none|fc|cn|cn_dcia (default none; cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
      LF_INFIL_MMH (constant infiltration mm/h, default 4) + LF_INFIL_MODE solver|rain (default solver = the solver's keyword, CPU only;
      rain = out of the hourly rain excess, identical on CPU and GPU; docs/proto/parity/PARITY.md),
+     LF_PARITY 1 (= LF_INFIL_MODE rain + LF_INIT_TSTEP 1: the same physics and time step on the CPU and CUDA builds),
      LF_INIT_TSTEP (s, default 10; the CUDA build also caps every step at it), LF_CUDA_T0_FROM_START 1|0 (CUDA: t = 0 snapshot = start file, default 1),
      LF_SAVEINT (s, default 1800), LF_QOUT 1 (face fluxes -> flow through crossings and gauges),
      LF_VOUT 1 ('hazard' in the .par -> vel_max.npz: peak cell speed m/s from .maxVc, peak depth x speed m2/s),
@@ -907,6 +908,8 @@ def main():
     global LOGP
     import pandas as pd
     t_all = time.time(); os.makedirs(WORK, exist_ok=True); LOGP = f'{WORK}/w9_log.txt'
+    if os.environ.get('LF_PARITY') == '1':     # CPU/GPU parity settings (docs/proto/parity/PARITY.md); an explicit LF_INFIL_MODE / LF_INIT_TSTEP still wins
+        os.environ.setdefault('LF_INFIL_MODE', 'rain'); os.environ.setdefault('LF_INIT_TSTEP', '1')
     BOX = tuple(float(v) for v in os.environ.get('BOX', '150000,905000,170000,925000').split(',')); RES = float(os.environ.get('RES', '20'))
     if os.environ.get('LF_DOMAIN', 'box') == 'basin': BOX = tuple(float(v) for v in json.load(open(os.environ['LF_DOMAIN_FILE']))['box'])   # the domain file sets the box
     STORM = os.environ.get('STORM', 'sep2023'); S = dict(STORMS[STORM])
