@@ -1,0 +1,110 @@
+{
+ "run": "sep2018m_loss_sep2018m_milford_20m",
+ "title": "2018-09-18 flash floods, Bellingham, Milford, Uxbridge (catalogue sep2018m) \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  188000.0,
+  863000.0,
+  208000.0,
+  883000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2018-09-18T08:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 190
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS IEM GaugeCorr_QPE_01H -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.90",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 10.64,
+   "excess_out_mean_mm": 7.11,
+   "kept_share": 0.668,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_products": {
+   "hours": {
+    "IEM GaugeCorr_QPE_01H": 18
+   },
+   "by_hour": {
+    "2018-09-18T09:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T10:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T11:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T12:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T13:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T14:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T15:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T16:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T17:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T18:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T19:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T20:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T21:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T22:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-18T23:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-19T00:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-19T01:00Z": "IEM GaugeCorr_QPE_01H",
+    "2018-09-19T02:00Z": "IEM GaugeCorr_QPE_01H"
+   }
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 109,
+ "rain_total_mean_mm": 56,
+ "rain_missing_hours": [],
+ "runtime_s": 1185,
+ "total_s": 1520,
+ "peak_wet_km2": 5.1,
+ "peak_snapshot_wet_km2": 3.1,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      18565600.0000 2325284.5347  0.000       0.000      37.038           -0.0000      -0.0000 2844298.4719",
+  "64800.000    1.0000     1.0000     64800      18496400.0000 2314192.2385  0.000       0.000      36.887           -0.0000      -0.0000 2844298.4719"
+ ],
+ "git_sha": "a6c41952",
+ "forecast": null
+}
