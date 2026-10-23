@@ -23,7 +23,8 @@ echo "== net check"; for u in https://huggingface.co https://noaa-mrms-pds.s3.am
 time python sim/colab/w9_lisflood.py
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 mkdir -p results/$NAME
-python proto/score.py --run-dir "$OUT" --storm $STORM --out results/$NAME/score.json | tail -30 || true
+SCORE_WINDOWS=results/$NAME/gauge_windows.npz python proto/score.py --run-dir "$OUT" --storm $STORM --out results/$NAME/score.json | tail -30 || true
+python proto/parity_pack.py "$OUT" results/$NAME || true     # hmax + snapshot peak (cm), .mass: CPU/GPU parity (docs/proto/parity/PARITY.md)
 python proto/validate_points.py --run-dir "$OUT" --storm $STORM --out results/$NAME/points.json | tail -12 || true
 python proto/prototype.py --run-dir "$OUT" --storm $STORM --out "results/$NAME" | tail -5
 cp $OUT/meta.json results/$NAME/flood_meta.json 2>/dev/null || true
