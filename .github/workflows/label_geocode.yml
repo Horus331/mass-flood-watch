@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q requests numpy scipy pyproj
-      - run: timeout 45m python -u proto/label_geocode.py --queries ${{ inputs.queries }} --shard ${{ matrix.shard }}/6 --seed docs/proto/obs/labels_geocode_osm.json --out docs/proto/obs/labels_geocode_osm_${{ matrix.shard }}.json ${{ inputs.args }} || echo stopped
+      - run: timeout 45m python -u proto/label_geocode.py --queries ${{ inputs.queries }} --shard ${{ matrix.shard }}/6 --seed docs/proto/obs/labels_geocode_osm.json --seed2 docs/proto/obs/labels_geocode_osm_all.json --out docs/proto/obs/labels_geocode_osm_${{ matrix.shard }}.json ${{ inputs.args }} || echo stopped
       - if: always()
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
