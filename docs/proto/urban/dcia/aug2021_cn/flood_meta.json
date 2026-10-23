@@ -1,0 +1,72 @@
+{
+ "run": "aug2021_loss_aug2021_cn",
+ "title": "Aug 19, 2021 flash floods (Fred) \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  875000.0,
+  188000.0,
+  895000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-08-19T09:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 233
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 121,
+ "rain_total_mean_mm": 68,
+ "rain_missing_hours": [],
+ "runtime_s": 825,
+ "total_s": 1205,
+ "peak_wet_km2": 13.5,
+ "peak_snapshot_wet_km2": 9.2,
+ "mass_tail": [
+  "64500.415    1.9451     1.9243     33204      18363600.0000 3328739.3928  0.000       0.000      32.109           -0.0000      -0.0001 4958752.2602",
+  "64801.921    1.9452     1.9243     33359      18287600.0000 3315009.7104  0.000       0.000      31.954            0.0000       0.0001 4954679.8141"
+ ],
+ "git_sha": "d4cc3d37",
+ "forecast": null
+}
