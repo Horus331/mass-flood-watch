@@ -1,0 +1,118 @@
+{
+ "run": "sep2023_proto_drains_sep2023_drains",
+ "title": "Sept 11, 2023 flash floods \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  908000.0,
+  188000.0,
+  928000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-09-11T16:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 167
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS MultiSensor QPE 01H Pass2 -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.91",
+   "LF_DRAINS": "set (private file; path not recorded)",
+   "LF_FORCE_CPU": "1",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "solver",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1"
+  },
+  "drains": {
+   "pipes": {
+    "read": 11914,
+    "in_box": 11911,
+    "size_default": 2832,
+    "excluded_large": 87,
+    "slope_invert": 1762,
+    "slope_ground": 5316,
+    "slope_floor": 4746,
+    "pipes": 11824,
+    "networks": 1359,
+    "q_full_sum_m3s": 3706.2,
+    "q_network_capped_m3s": 1072.2,
+    "q_in_box_m3s": 1072.2,
+    "q_after_inlet_cap_m3s": 440.4,
+    "cells": 13492,
+    "cell_rate_mmh_p50": 151.4,
+    "cell_rate_mmh_max": 900.0,
+    "inlet_cap_m3s": 0.1,
+    "eff": 1.0,
+    "pipe_q_m3s_p10_p50_p90": [
+     0.062,
+     0.129,
+     0.539
+    ],
+    "epsg": 2249
+   },
+   "total_q_m3s": 440.4,
+   "cells": 13492,
+   "probe": {
+    "volume_ratio": 1.0,
+    "west_minus_east_m": 0.0505,
+    "expect_west_m": 0.06,
+    "mass_last": "600.000      5.0000     5.0000     120         640000.0000   44800.0000  0.000       0.000      0.000            -0.0000      -0.0000  -19200.0000"
+   },
+   "cells_m2": 400.0,
+   "note": "aggregate only; the per-cell raster is deleted after the run (pipe data shared for research only)"
+  },
+  "infiltration": {
+   "mode": "solver",
+   "mmh": 2.0,
+   "applied_by": "solver (CPU FPInfiltration: every cell deeper than 1 mm, whole run)"
+  },
+  "initial_tstep_s": 10.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 207,
+ "rain_total_mean_mm": 107,
+ "rain_missing_hours": [],
+ "runtime_s": 1100,
+ "total_s": 1496,
+ "peak_wet_km2": 19.7,
+ "peak_snapshot_wet_km2": 13.5,
+ "mass_tail": [
+  "172501.173   1.7819     1.7814     85862      28452800.0000 1993542.0061  0.000       0.000      7.665            -0.0036      -1.0919 8791492.0243",
+  "172800.483   1.7813     1.7808     86030      30377200.0000 2073509.9337  0.000       0.000      7.917            -0.0058      -1.7491 8873794.7238"
+ ],
+ "git_sha": "706087a6",
+ "forecast": null
+}
