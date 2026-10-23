@@ -32,8 +32,10 @@ jobs:
       - id: g
         name: forecast rain over District 3 and the gate
         run: |
+          set -o pipefail
           python proto/forecast.py gate ${{ inputs.init && format('--init {0}', inputs.init) || '' }} ${{ inputs.hours && format('--hours {0}', inputs.hours) || '' }} \
-            ${{ inputs.force && '--force' || '' }} --out gate/gate.json --github-output $GITHUB_OUTPUT
+            ${{ inputs.force && '--force' || '' }} --out gate/gate.json --github-output $GITHUB_OUTPUT 2>&1 | tee gate.log
+          echo "::notice title=gate::$(cut -c1-300 gate.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
       - uses: actions/upload-artifact@v4
         with: {name: gate, path: gate}
   flood:
@@ -77,11 +79,16 @@ jobs:
           set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
           P=${{ runner.temp }}/proto_${{ matrix.b.id }}
-          python proto/prototype.py --run-dir $OUTDIR --out $P --storm forecast
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm forecast 2>&1 | tee -a w9_stdout.txt | tail -5
           python proto/resilience.py --out $P || true
           python proto/risk.py --out $P --run-dir $OUTDIR || true
           cp $OUTDIR/meta.json $P/flood_meta.json; tail -c 100000 w9_stdout.txt > $P/w9_stdout.txt
           mkdir -p art && cp -r $P art/
+      - name: diagnostics (annotation)
+        if: always()
+        run: |
+          f() { [ -f "$1" ] && { grep -E "$2" "$1" | tail -n ${3:-12}; echo ...; tail -n 15 "$1"; } | cut -c1-300 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
+          echo "::notice title=w9::$(f w9_stdout.txt 'rain:|HRRR|grid |LISFLOOD-FP run|peak wet|effective|Error|error|Traceback|Elapsed|Maximum resident')"
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: 'proto_${{ matrix.b.id }}', path: art, if-no-files-found: ignore}
