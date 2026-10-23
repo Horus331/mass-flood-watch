@@ -7,6 +7,7 @@ documented closure / damage sites, and scores it honestly (spatial block CV on t
     python proto/closure_ml.py train  --train sep2023 --towns Leominster  # final fit -> proto/ml/closure_lr.json, closure_gbm.txt, prior_platt.json
     python proto/closure_ml.py evaluate --train sep2023 --test aug2021    # -> docs/proto/ml/RESULTS.md + PNGs
     python proto/closure_ml.py map --run-dir RUN_DIR --out docs/proto/<run>  # -> <run>/ml_segments.json for the map (re-runs the prototype, ~1 min)
+                                       [--model M.json]   # default: all-storm fit docs/proto/ml/closure_lr_all.json (proto/closure_loso.py) if present
     python proto/closure_ml.py selftest                                   # offline, synthetic
 
 Target.  A road segment is positive for a storm when a documented site (proto/data/labels_*) matches it with the prototype's strict rule
@@ -59,6 +60,13 @@ ROW_KEYS = ['segment', 'road', 'town', 'road_class', 'length_m', 'aadt', 'p_clos
             'storm_total_mm', 'peak1h_mm', 'flashness_pct', 'p_depth', 'p_culvert', 'p_overtop', 'p_may_close', 'p_sag', 'p_edge', 'edge_speed_ms',
             'p_freeboard', 'freeboard_m', 'p_fastwater', 'p_dv', 'p_washout', 'peak_speed_ms', 'dv_m2s']
 CAPTURE = None            # extract() sets a dict here; on_rows() fills it
+MODEL_ALL = os.path.join(OUT_DIR, 'closure_lr_all.json')     # all-storm fit (proto/closure_loso.py, docs/proto/ml/LOSO.md)
+MODEL_ONE = os.path.join(ML_DIR, 'closure_lr.json')          # first fit: Sept 2023 Leominster only (train)
+
+
+def model_path():
+    """Logistic model used by on_rows / map: $PROTO_ML_MODEL, else the all-storm fit when present, else the Sept 2023 fit."""
+    return os.environ.get('PROTO_ML_MODEL') or (MODEL_ALL if os.path.exists(MODEL_ALL) else MODEL_ONE)
 
 
 # ---------------------------------------------------------------- geometry features
@@ -131,7 +139,7 @@ def on_rows(rows, run_dir, Q, meta, props):
     for r in rows:
         s = r['segment']
         for k in ('area_km2', 'hand_m', 'stream_dist_m', 'slope_pct', 'cx', 'cy'): r[k] = round(float(G[k][s]), 3)
-    lr = os.path.join(ML_DIR, 'closure_lr.json')
+    lr = model_path()
     if os.path.exists(lr) and rows:
         p = LR.load(lr).predict(design(rows))
         for r, v in zip(rows, p): r['p_close_ml'] = round(float(v), 4)
@@ -178,14 +186,15 @@ def extract(run_dir, storm, labels, out_dir=OUT_DIR, tmp=None):
     return fn
 
 
-def map_segments(run_dir, out, tmp=None):
+def map_segments(run_dir, out, tmp=None, model=None):
     """p_close_ml for every in-box segment of a run -> <out>/ml_segments.json (map layer 'Learned closure chance'; the map works without it).
     Re-runs the prototype on run_dir (PROTO_ML=1) into a temp dir; nothing else in <out> changes.  The model uses peak flow speed (log_speed):
     without vel_max.npz (w9 LF_VOUT=1) the speed feature is 0 and the file says velocity=false."""
     global CAPTURE
     import tempfile
     sys.path.insert(0, HERE); sys.modules.setdefault('closure_ml', sys.modules[__name__]); import prototype as PT
-    CAPTURE = {}; os.environ['PROTO_ML'] = '1'; td = tempfile.TemporaryDirectory(prefix='mlmap_')
+    if model: os.environ['PROTO_ML_MODEL'] = os.path.abspath(model)
+    mp = model_path(); CAPTURE = {}; os.environ['PROTO_ML'] = '1'; td = tempfile.TemporaryDirectory(prefix='mlmap_')
     try:
         PT.run(run_dir, tmp or td.name, os.path.join(ROOT, 'docs', 'graph_segments.json'),
                os.path.join(ROOT, 'docs', 'network', 'crossings_all.json'), os.path.join(ROOT, 'docs', 'prone', 'flood_reports.json'),
@@ -196,10 +205,11 @@ def map_segments(run_dir, out, tmp=None):
     gj = os.path.join(out, 'segments.geojson')                  # compact: only the segments drawn on the map, when the map exists
     if os.path.exists(gj):
         on_map = {int(f['properties']['segment']) for f in json.load(open(gj))['features']}; rows = [r for r in rows if r['segment'] in on_map]
-    vel = os.path.exists(os.path.join(run_dir, 'vel_max.npz')); M = json.load(open(os.path.join(ML_DIR, 'closure_lr.json')))
-    doc = dict(model='closure_lr (proto/ml/closure_lr.json), candidate', trained_on=M.get('trained_on'), domain_towns=M.get('domain_towns'),
+    vel = os.path.exists(os.path.join(run_dir, 'vel_max.npz')); M = json.load(open(mp)); allst = isinstance(M.get('trained_on'), list)
+    doc = dict(model=f'closure_lr ({os.path.relpath(mp, ROOT)}), candidate', trained_on=M.get('trained_on'), domain_towns=M.get('domain_towns'),
                run_dir=os.path.relpath(os.path.abspath(run_dir), ROOT), velocity=vel, pu_c_e1=round(float(M.get('pu_c_e1') or 0), 3),
-               note='P(documented closure / damage) at Leominster-city reporting completeness; see docs/proto/ml/RESULTS.md'
+               note=('P(documented closure / damage), all-storm fit (storm-balanced, reporting towns); ranks better than p_close overall but worse at the '
+                     'top 2 %: see docs/proto/ml/LOSO.md' if allst else 'P(documented closure / damage) at Leominster-city reporting completeness; see docs/proto/ml/RESULTS.md')
                     + ('' if vel else '; NO velocity in this run: speed feature set to 0 (rankings biased low where water is fast)'),
                segments={str(r['segment']): round(float(r['p_close_ml']), 3) for r in rows if 'p_close_ml' in r})
     os.makedirs(out, exist_ok=True); fn = os.path.join(out, 'ml_segments.json')
@@ -220,12 +230,12 @@ class LR:
     """Standardised L2 logistic regression on the named features with sign-constrained selection (a feature whose fitted sign contradicts SIGN
     is dropped and the model refitted); stored as plain JSON."""
     def __init__(self, C=0.5): self.C = C
-    def fit(self, X, y, feats=MAIN):
+    def fit(self, X, y, feats=MAIN, sample_weight=None):
         from sklearn.linear_model import LogisticRegression
         keep = [FEATURES.index(f) for f in feats]; self.dropped = []
         while True:
             mu = X[:, keep].mean(0); sd = X[:, keep].std(0) + 1e-9
-            m = LogisticRegression(C=self.C, max_iter=2000).fit((X[:, keep] - mu) / sd, y)
+            m = LogisticRegression(C=self.C, max_iter=2000).fit((X[:, keep] - mu) / sd, y, sample_weight=sample_weight)
             bad = [(abs(b), j) for j, b in zip(keep, m.coef_[0]) if SIGN[FEATURES[j]] * b < 0]
             if not bad: break
             j = max(bad)[1]; keep.remove(j); self.dropped.append(FEATURES[j])
@@ -493,12 +503,13 @@ def selftest():
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0]); ap.add_argument('cmd', choices=['extract', 'train', 'evaluate', 'map', 'selftest'])
     ap.add_argument('--out', help='map: run output folder (docs/proto/<run>)')
+    ap.add_argument('--model', help='map: logistic model JSON (default: docs/proto/ml/closure_lr_all.json if present, else proto/ml/closure_lr.json)')
     ap.add_argument('--run-dir'); ap.add_argument('--storm'); ap.add_argument('--labels', default='')
     ap.add_argument('--train', default='sep2023'); ap.add_argument('--test', default='aug2021')
     ap.add_argument('--towns', default=','.join(TRAIN_TOWNS), help='training domain: towns whose reporting is near-complete ("" = whole box)')
     a = ap.parse_args(); towns = tuple(t for t in a.towns.split(',') if t)
     if a.cmd == 'selftest': selftest()
     elif a.cmd == 'extract': extract(a.run_dir, a.storm, [p for p in a.labels.split(',') if p])
-    elif a.cmd == 'map': map_segments(a.run_dir, a.out)
+    elif a.cmd == 'map': map_segments(a.run_dir, a.out, model=a.model)
     elif a.cmd == 'train': print('pu_c', train(a.train, towns)[3])
     else: evaluate(a.train, [t for t in a.test.split(',') if t], towns)
