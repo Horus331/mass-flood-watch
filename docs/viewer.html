@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Storm Replay · Mass Flood Watch</title>
-<meta name="description" content="Replay of a modelled flash flood and the road segments it closes in MassDOT Highway District 3. PhD research prototype, Worcester Polytechnic Institute.">
+<meta name="description" content="Replay of a modelled flash flood and the road segments it closes in MassDOT Highway District 3. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<link rel="icon" href="wpi-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap" rel="stylesheet">
@@ -14,14 +15,18 @@
 if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');</script>
 </head>
 <body>
-<div id="map" aria-label="Map of modelled flood depth and road closures"></div>
+<div id="map" aria-label="Map of modelled rain, flood depth and road closures"></div>
 
 <section class="card" id="card" aria-labelledby="runTitle">
-  <a class="brand" href="./" title="Mass Flood Watch home"><img src="wpi-logo.svg" alt="WPI" width="62" height="20"><span>Mass Flood Watch</span></a>
+  <a class="brand" href="./" title="Mass Flood Watch home">
+    <img src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="62" height="20">
+    <span class="who"><b>Mohab Eldokla</b><span class="long">PhD dissertation research · Worcester Polytechnic Institute</span><span class="short">PhD dissertation research · WPI</span></span>
+  </a>
   <div class="runs" role="tablist" aria-label="Storm">
-    <a role="tab" data-run="leominster_sep2023" href="?run=leominster_sep2023">Leominster 2023</a>
-    <a role="tab" data-run="worcester_aug2021" href="?run=worcester_aug2021">Worcester 2021</a>
-    <a role="tab" data-run="d3_sep2023" href="?run=d3_sep2023">All of District 3</a>
+    <a role="tab" data-run="leominster_sep2023" href="?run=leominster_sep2023">Leominster</a>
+    <a role="tab" data-run="worcester_aug2021" href="?run=worcester_aug2021">Worcester</a>
+    <a role="tab" data-run="d3_sep2023" href="?run=d3_sep2023">District 3</a>
+    <a role="tab" data-run="forecast" href="?run=forecast">Forecast</a>
   </div>
   <h1 id="runTitle"></h1>
   <p class="kind" id="runKind"></p>
@@ -31,14 +36,38 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 <section class="legend" id="legend" aria-label="Map layers">
   <button class="legend-toggle" id="legendToggle" aria-expanded="true" aria-controls="legendBody">Layers</button>
   <div id="legendBody">
+    <div class="basemaps" role="group" aria-label="Background map" id="basemaps">
+      <button data-bm="streets">Streets</button><button data-bm="terrain">Terrain</button><button data-bm="satellite">Satellite</button><button data-bm="dark">Dark</button>
+    </div>
+
+    <h2>Model input</h2>
+    <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain" checked><span>Radar rain, NOAA MRMS</span></label>
+    <div class="ramp rain" id="rainRamp" hidden aria-hidden="true"></div>
+    <div class="ramp-labels" id="rainLabels" hidden aria-hidden="true"><span>1</span><span>10</span><span>25</span><span>50</span><span>100 mm/h</span></div>
+
+    <h2>Model output</h2>
     <label class="row"><input type="checkbox" id="lyDepth" checked><span>Flood depth</span></label>
-    <div class="ramp" aria-hidden="true"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></div>
+    <div class="ramp depth" aria-hidden="true"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></div>
     <div class="ramp-labels" aria-hidden="true"><span>5</span><span>15</span><span>30</span><span>100 cm</span></div>
-    <label class="row"><input type="checkbox" id="lyClosed" checked><span><i class="sw closed"></i>Closed now (30 cm or more on the road)</span></label>
+    <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow" checked><span>Water flow direction and speed</span></label>
+    <label class="row"><input type="checkbox" id="lyClosed" checked><span>Water on the road</span></label>
+    <div class="ramp road" aria-hidden="true"></div>
+    <div class="ramp-labels" aria-hidden="true"><span>a few cm</span><span>15</span><span>closed at 30 cm</span></div>
     <label class="row"><input type="checkbox" id="lyPeak" checked><span><i class="sw peak"></i>Closes at some point in the storm</span></label>
     <label class="row"><input type="checkbox" id="lyMay" checked><span><i class="sw may"></i>May close: stream reaches road level</span></label>
     <label class="row" id="riskRow" hidden><input type="checkbox" id="lyRisk"><span>Risk class</span></label>
     <div class="riskkey" id="riskKey" hidden><span><i class="sw rx"></i>Extreme</span><span><i class="sw rh"></i>High</span><span><i class="sw rm"></i>Medium</span><span><i class="sw rl"></i>Low</span></div>
+
+    <h2>Reference</h2>
+    <div class="refs" id="refs">
+      <label class="row" data-ref="gauges" hidden><input type="checkbox" data-ref="gauges" checked><span><i class="ico" data-ico="gauge"></i>USGS river gauges</span></label>
+      <label class="row" data-ref="reports" hidden><input type="checkbox" data-ref="reports"><span><i class="ico" data-ico="report"></i>Reported closures and damage</span></label>
+      <label class="row" data-ref="crossings" hidden><input type="checkbox" data-ref="crossings"><span><i class="ico" data-ico="culvert"></i>Culverts and stream crossings</span></label>
+      <label class="row" data-ref="bridges" hidden><input type="checkbox" data-ref="bridges"><span><i class="ico" data-ico="bridge"></i>Bridges</span></label>
+      <label class="row" data-ref="dams" hidden><input type="checkbox" data-ref="dams"><span><i class="ico" data-ico="dam"></i>Dams</span></label>
+      <label class="row" data-ref="facilities" hidden><input type="checkbox" data-ref="facilities"><span><i class="ico" data-ico="hospital"></i>Hospitals, fire and police</span></label>
+    </div>
+    <p class="soon" id="flowSoon" hidden><span class="tag-dev">In development</span> Water flow arrows, from the 5-minute GPU runs on WPI’s Turing cluster.</p>
   </div>
 </section>
 
@@ -46,17 +75,29 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   <div class="loading" id="loading" role="status" aria-live="polite"><div class="bar"><i id="loadBar"></i></div><span id="loadText">Loading storm…</span></div>
   <div class="controls">
     <button id="play" class="play" disabled aria-label="Play storm"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="playIcon" d="M5 3l12 7-12 7z"/></svg></button>
-    <div class="speeds" role="group" aria-label="Playback speed">
-      <button data-speed="1">1×</button><button data-speed="2" aria-pressed="true">2×</button><button data-speed="4">4×</button>
+    <div class="speeds" role="group" aria-label="Playback speed, storm hours per second">
+      <button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2" aria-pressed="true">2×</button><button data-speed="4">4×</button>
     </div>
     <div class="clock"><b id="clock">–</b><span id="since"></span></div>
-    <div class="now"><b id="nClosed">–</b><span>segments closed</span></div>
+    <div class="now"><b id="nClosed">–</b><span>roads closed</span></div>
   </div>
-  <div class="timeline">
+  <div class="views" id="views" role="group" aria-label="Map view"></div>
+  <div class="timeline" id="timeline">
+    <div class="band" data-band="rain"><span class="blabel"><b>Input</b> radar rain, NOAA MRMS (box mean, mm/h)</span></div>
+    <div class="band" data-band="closed"><span class="blabel"><b>Output</b> roads closed</span></div>
+    <div class="band" data-band="gauge" id="gaugeBand" hidden><span class="blabel"><b>Check</b> <span class="gl">river flow at </span><select id="gaugeSel" aria-label="River gauge"></select><i class="sw obs"></i><span class="gl">observed</span> <i class="sw mod" id="modKey"></i><span id="modLabel">modelled</span></span></div>
     <svg id="chart" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div class="cursor" id="cursor" aria-hidden="true"></div>
     <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="Storm time">
-    <div class="axis" aria-hidden="true"><span><i class="sw rain"></i>Rain, box average (mm/h)</span><span><i class="sw line"></i>Segments closed</span></div>
   </div>
+</section>
+
+<section class="soon-card" id="forecastCard" hidden aria-labelledby="fcTitle">
+  <span class="tag-dev">In development</span>
+  <h2 id="fcTitle">Live forecast</h2>
+  <p>The next 48 hours of road closures across MassDOT District 3, rerun every six hours from the NOAA HRRR rain forecast on WPI’s Turing GPU cluster. Each road will show when water is expected to reach it, how deep, and how sure the model is.</p>
+  <p class="muted">Until the first forecast is published, the storm replays show the same model on past storms.</p>
+  <a href="?run=leominster_sep2023">Open the Leominster 2023 replay</a>
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
