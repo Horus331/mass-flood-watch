@@ -429,6 +429,95 @@ def fix(R):
     for e in log: print('fix', e['id'], e['moved_m'], 'm', e['before']['coord_quality'], '->', e['after']['coord_quality'], '|', e['how'])
 
 
+# ---------------------------------------------------------------------------------------------------------------------------- catalogue
+NEW = {  # id: (area, note)
+ 'may2018': ('shrewsbury', 'Thunderstorms 15 May 2018: Route 9 / Lake St closed in Shrewsbury, I-290 at Route 146 flooded. LSR only (no Storm Events rows in the box). Small.'),
+ 'aug2018b': ('holden', 'Thunderstorms 11 Aug 2018: Holden Main St, Spencer Donnelly Rd, West Boylston Crescent St (evening cell). Small.'),
+ 'sep2018': ('fitchburg', 'Remnants of Florence 18 Sep 2018, north Worcester County: Gardner, Fitchburg/Westminster railroad underpasses, Hubbardston, Ashburnham.'),
+ 'sep2018w': ('shrewsbury', 'Remnants of Florence 18 Sep 2018, Worcester/Shrewsbury: Route 20 at the Route 122 overpass, Maple Ave at Route 9, Floral St. Small.'),
+ 'sep2018b': ('gardner', 'Evening downpours 26 Sep 2018 (27 Sep UTC): Gardner, Templeton, Westminster.'),
+ 'jul2019': ('spencer', 'Thunderstorms 6 Jul 2019: Spencer, South Worcester, Route 20/122A, Oxford.'),
+ 'aug2019': ('oxford', 'Evening storms 7 Aug 2019 (8 Aug UTC): I-395 exit 4B in Oxford and the I-290 EB ramp to Southbridge St in Worcester. Small.'),
+ 'sep2019': ('northbridge', 'Storms 2 Sep 2019: Sutton Ave closed in Oxford, Park St at Cottage St in Whitinsville. Small (Milford and Marlborough sites outside the box).'),
+ 'jun2020': ('northbridge', 'Flash flooding 28 Jun 2020, Blackstone Valley: Northbridge/Whitinsville, Hopedale, Uxbridge, Blackstone.'),
+ 'jun2020b': ('gardner', 'Same evening as jun2020 (28 Jun 2020), Gardner and the Princeton Road bridge in Fitchburg.'),
+ 'aug2020b': ('worcester', 'Thunderstorm 27 Aug 2020, south Worcester: Whipple St, College St, Route 20 rescues. Small.'),
+ 'jul2021b': ('worcester', 'Storms 17-18 Jul 2021: Worcester (Millbury St/McKeon Rd, Dale St, Dewey St/Parker St) and Leicester Route 56 next morning.'),
+ 'jul2023b': ('worcester', '10 Jul 2023 (day of the Vermont flood): Route 20 at 86 Southwest Cutoff (4 cars stuck), Rutland Route 56. Small.'),
+ 'jul2023c': ('fitchburg', 'Storm 16 Jul 2023, Fitchburg: Franklin Rd at Royalston St, Birch St pavement destroyed, John Fitch Hwy, Lunenburg St.'),
+ 'jul2023d': ('hubbardston', 'Storms 21 Jul 2023: Route 2 closed both ways in Leominster (MassDOT), Hubbardston Route 68 and Williamsville Rd.'),
+}
+D3_BOX = (128000.0, 856000.0, 206000.0, 946000.0)
+
+
+def catalog():
+    from pyproj import Transformer
+    T = Transformer.from_crs(4326, 26986, always_xy=True); TI = Transformer.from_crs(26986, 4326, always_xy=True)
+    CP = os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json'); C = json.load(open(CP))
+    lsr = list(csv.DictReader(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog', 'lsr_ma_flood_2014_2026.csv'))))
+    se = list(csv.DictReader(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog', 'stormevents_ma_flood_2014_2026.csv'))))
+    mrms = {}
+    try: mrms = json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog', 'mrms_check.json')))
+    except Exception: pass
+    have = {e['id'] for e in C['events']}; out = []
+    for sid, (area, note) in NEW.items():
+        L = list(csv.DictReader(open(os.path.join(HERE, 'data', FILES[sid]))))
+        P = [(T.transform(float(r['lon']), float(r['lat'])), r) for r in L if r['coord_quality'] != 'town']
+        best = None
+        for x0 in range(int(D3_BOX[0] / 1000) - 5, int(D3_BOX[2] / 1000) - 14):
+            for y0 in range(int(D3_BOX[1] / 1000) - 4, int(D3_BOX[3] / 1000) - 19):
+                inb = [r for (x, y), r in P if x0 * 1000 <= x < x0 * 1000 + 20000 and y0 * 1000 <= y < y0 * 1000 + 20000]
+                if not inb: continue
+                xs = [x for (x, y), r in P if x0 * 1000 <= x < x0 * 1000 + 20000 and y0 * 1000 <= y < y0 * 1000 + 20000]
+                ys = [y for (x, y), r in P if x0 * 1000 <= x < x0 * 1000 + 20000 and y0 * 1000 <= y < y0 * 1000 + 20000]
+                cen = abs(np.mean(xs) - (x0 * 1000 + 10000)) + abs(np.mean(ys) - (y0 * 1000 + 10000))      # centre the cluster in the box
+                sc = (len(inb), -cen)
+                if best is None or sc > best[0]: best = (sc, x0 * 1000, y0 * 1000, inb)
+        _, bx, by, inb = best; box = [bx, by, bx + 20000, by + 20000]
+        rep = sorted(r for r in L if r['time_quality'] == 'report')
+        tt = sorted(dt.datetime.strptime(r['time_local'], '%Y-%m-%dT%H:%M') + dt.timedelta(hours=4) for r in inb if r['time_quality'] == 'report')
+        first, last = tt[0], tt[-1]
+        t0 = (first - dt.timedelta(hours=7)).replace(minute=0); hours = max(18, int(np.ceil(((last - t0).total_seconds() / 3600 + 5))))
+        lo0, la0 = TI.transform(box[0], box[1]); lo1, la1 = TI.transform(box[2], box[3])
+        # raw NWS rows in the box and window (as in the catalogue counts)
+        def inbox(lon, lat): x, y = T.transform(lon, lat); return box[0] <= x < box[2] and box[1] <= y < box[3]
+        w0, w1 = t0, t0 + dt.timedelta(hours=hours)
+        nl = sum(1 for r in lsr if r['TYPETEXT'].upper() in ('FLOOD', 'FLASH FLOOD') and w0 <= dt.datetime.strptime(r['VALID'], '%Y%m%d%H%M') <= w1 and inbox(float(r['LON']), float(r['LAT'])))
+        ns = 0
+        for r in se:
+            if r['EVENT_TYPE'] not in ('Flood', 'Flash Flood') or not r['BEGIN_LAT']: continue
+            t = dt.datetime.strptime(r['BEGIN_DATE_TIME'], '%d-%b-%y %H:%M:%S') + dt.timedelta(hours=int(r['CZ_TIMEZONE'][-1]))
+            if w0 <= t <= w1 and inbox(float(r['BEGIN_LON']), float(r['BEGIN_LAT'])): ns += 1
+        era = 'aws' if t0 >= dt.datetime(2020, 10, 14) else 'iem'
+        q = {}
+        for r in inb: q[r['coord_quality']] = q.get(r['coord_quality'], 0) + 1
+        dl = (first - dt.timedelta(hours=4)).strftime('%Y-%m-%d')
+        e = dict(id=sid, area=area, date_local=dl, t0=t0.strftime('%Y-%m-%dT%H:00Z'), hours=hours, first_report_utc=first.strftime('%Y-%m-%dT%H:%MZ'),
+                 last_report_utc=last.strftime('%Y-%m-%dT%H:%MZ'), box_26986=box, bbox_lonlat=[round(lo0, 3), round(la0, 3), round(lo1, 3), round(la1, 3)],
+                 start=(first - dt.timedelta(days=1)).strftime('%Y-%m-%d'), end=(last + dt.timedelta(days=1)).strftime('%Y-%m-%d'),
+                 towns=sorted({r['town'] for r in inb}),
+                 counts=dict(lsr_flood=nl, stormevents_flood=ns, road_sites_named=len(inb), label_rows=len(L), label_rows_outside_box=len(L) - len(inb)),
+                 max_rain_lsr_in=None,
+                 mrms=('AWS noaa-mrms-pds MultiSensor_QPE_01H_Pass2 (w9 as is)' if era == 'aws' else
+                       'IEM mtarchive GaugeCorr_QPE_01H (MRMS v11, gauge-corrected; MultiSensor Pass2 does not exist before 14 Oct 2020); w9 needs an IEM reader'),
+                 era=era, existing=False, note=note, labels=f'proto/data/{FILES[sid]}',
+                 sources=sorted({dict(LSR='IEM LSR (NWS BOX)', StormEvents='NOAA Storm Events', news='news')[r['source']] for r in L}),
+                 label_coord_quality=q, selected=True, expansion='2026-10-23 LABELS_EXPANSION.md',
+                 group='A: MRMS Pass2 on AWS (w9 as is)' if era == 'aws' else 'B: before Oct 2020 (IEM MRMS only)')
+        if sid in mrms: e['mrms_check'] = {k: v for k, v in mrms[sid].items()}
+        gp = os.path.join(ROOT, 'docs', 'proto', 'obs', f'gauges_{sid}.json')
+        if os.path.exists(gp):
+            e['gauges'] = []
+            for g in json.load(open(gp))['gauges']:
+                if not inbox(g['lon'], g['lat']): continue
+                pq, ps = g.get('peak_q_cfs'), g.get('peak_stage_ft')
+                e['gauges'].append(dict(site=g['site'], name=g['name'], drain_mi2=g.get('drain_mi2'), peak_q_cfs=pq[1] if pq else None,
+                                        peak_q_time_local=pq[0] if pq else None, peak_stage_ft=ps[1] if ps else None))
+        out.append(e); print(sid, era, e['t0'], hours, box, len(inb), '/', len(L), q, e['towns'])
+    C['events'] = [x for x in C['events'] if x['id'] not in NEW] + out
+    json.dump(C, open(CP, 'w'), indent=1)
+
+
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['queries', 'build']); a = ap.parse_args()
-    queries() if a.cmd == 'queries' else build()
+    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['queries', 'build', 'catalog']); a = ap.parse_args()
+    dict(queries=queries, build=build, catalog=catalog)[a.cmd]()

@@ -45,7 +45,9 @@ def discover(y0, y1, out):
 
 def mrms_check(C, out):
     """Which MRMS archive holds each storm: AWS noaa-mrms-pds MultiSensor_QPE_01H_Pass2 (what w9 reads) vs the IEM mtarchive."""
-    S3 = 'https://noaa-mrms-pds.s3.amazonaws.com/'; P = 'CONUS/MultiSensor_QPE_01H_Pass2_00.00/'; R = {}
+    S3 = 'https://noaa-mrms-pds.s3.amazonaws.com/'; P = 'CONUS/MultiSensor_QPE_01H_Pass2_00.00/'
+    try: R = json.load(open(f'{out}/catalog/mrms_check.json'))      # keep the entries of storms not checked in this run (--only)
+    except Exception: R = {}
     r = OF.get(S3, dict({'list-type': '2', 'prefix': P, 'delimiter': '/', 'max-keys': '3'}))
     R['aws_first_days'] = re.findall(r'<Prefix>' + re.escape(P) + r'(\d{8})/</Prefix>', r.text) if r is not None else None
     for ev in C['events']:
@@ -59,8 +61,9 @@ def mrms_check(C, out):
     json.dump(R, open(f'{out}/catalog/mrms_check.json', 'w'), indent=1)
 
 
-def fetch(cat, out):
+def fetch(cat, out, only=None):
     C = json.load(open(cat))
+    if only: C['events'] = [e for e in C['events'] if e['id'] in only]
     try: mrms_check(C, out)
     except Exception as e: print('  mrms check failed', repr(e)[:200])
     for ev in C['events']:
@@ -85,7 +88,8 @@ def fetch(cat, out):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('mode', choices=['discover', 'fetch']); ap.add_argument('--years', default='2014-2026')
     ap.add_argument('--catalog', default='docs/proto/obs/catalog.json'); ap.add_argument('--out', default='docs/proto/obs')
+    ap.add_argument('--only', default='', help='fetch: comma-separated storm ids (default: every storm in the catalogue)')
     a = ap.parse_args()
     if a.mode == 'discover':
         y0, y1 = (int(v) for v in a.years.split('-')); discover(y0, y1, f'{a.out}/catalog')
-    else: fetch(a.catalog, a.out)
+    else: fetch(a.catalog, a.out, set(a.only.split(',')) - {''})

@@ -4,6 +4,7 @@ on:
     inputs:
       mode: {description: 'discover (all MA flood LSR + Storm Events rows) or fetch (obs for each storm in catalog.json)', default: 'discover'}
       years: {default: '2014-2026'}
+      only: {description: 'fetch: comma-separated storm ids (empty = all)', default: ''}
 permissions:
   contents: write
 jobs:
@@ -13,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q requests
-      - run: python proto/obs_catalog.py ${{ inputs.mode }} --years ${{ inputs.years }} 2>&1 | tail -150
+      - run: python proto/obs_catalog.py ${{ inputs.mode }} --years ${{ inputs.years }} --only '${{ inputs.only }}' 2>&1 | tail -150
       - run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add docs/proto/obs && git commit -qm "storm catalogue: ${{ inputs.mode }}" || echo nothing
