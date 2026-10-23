@@ -4,6 +4,8 @@
     python proto/recall_study.py curves      # operating curves (recall vs flagged share), Leominster + pooled held-out storms -> curves.json
     python proto/recall_study.py tiers       # two-tier alert scheme, thresholds chosen leave-one-storm-out, bootstrap CIs -> tiers.json
     python proto/recall_study.py all         # all three, then RECALL.md is written by hand from the json (numbers quoted there come from here)
+    python proto/recall_study.py all --runs docs/proto/parity/catalog --headline docs/proto/parity/calib/leo48_cn091
+                                             # other run set (env PROTO_RUNS / PROTO_HEADLINE); output then defaults to <runs>/recall (PROTO_RECALL_OUT / --out)
 
 Published data only: docs/proto/turing/leominster_sep2023_gpu (headline run) and docs/proto/turing/<storm>_<area>_20m/features_*.csv +
 matches_*.json (the 9 LOSO storms).  Site = a documented label with >= 1 strictly matched segment (30 m; prototype.label_segments).  Recall is
@@ -18,9 +20,20 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(ROOT, 'sim', 'infra'))
-OUT = os.path.join(ROOT, 'docs', 'proto', 'recall')
-TUR = os.path.join(ROOT, 'docs', 'proto', 'turing')
-GPU = os.path.join(TUR, 'leominster_sep2023_gpu')
+
+def _opt(flag, env):
+    """--flag value on the command line wins, then the env variable (set so closure_loso, imported later, reads the same run set)."""
+    if flag in sys.argv:
+        i = sys.argv.index(flag); v = sys.argv[i + 1]; del sys.argv[i:i + 2]; os.environ[env] = v
+    return os.path.abspath(os.path.join(ROOT, os.environ[env])) if os.environ.get(env) else None
+
+
+TUR_DEFAULT = os.path.join(ROOT, 'docs', 'proto', 'turing')
+TUR = _opt('--runs', 'PROTO_RUNS') or TUR_DEFAULT                     # folder of <storm>_<area>_20m runs (LOSO storms)
+GPU = _opt('--headline', 'PROTO_HEADLINE') or os.path.join(TUR_DEFAULT, 'leominster_sep2023_gpu')   # headline Leominster sep2023 run
+OUT = _opt('--out', 'PROTO_RECALL_OUT') or (os.path.join(TUR, 'recall') if TUR != TUR_DEFAULT else os.path.join(ROOT, 'docs', 'proto', 'recall'))
+# features of the headline box's segments (bridges): the published GPU run has none, the dams run on the same box does
+GPU_FEAT = os.path.join(GPU, 'features_sep2023.csv') if os.path.exists(os.path.join(GPU, 'features_sep2023.csv')) else os.path.join(TUR_DEFAULT, 'leominster_sep2023_dams', 'features_sep2023.csv')
 LAB = os.path.join(HERE, 'data', 'labels_sep2023_leominster.csv')
 DPW = os.path.join(HERE, 'data', 'labels_sep2023_leominster_dpw.csv')
 STANDING = ('flooded', 'closed', 'impassable')                     # standing water on the road: what the depth rule represents
@@ -372,8 +385,8 @@ def bridges():
     import impacts as IM
     import prototype as P
     GS = json.load(open(os.path.join(ROOT, 'docs', 'graph_segments.json'))); n = GS['n']; res = {}
-    runs = [('leominster_sep2023_gpu (headline)', GPU, os.path.join(TUR, 'leominster_sep2023_dams', 'features_sep2023.csv'), [LAB], 'gpu'),
-            ('leominster_sep2023_gpu DPW', GPU, os.path.join(TUR, 'leominster_sep2023_dams', 'features_sep2023.csv'), [DPW], 'gpu')]
+    hn = os.path.basename(GPU)
+    runs = [(f'{hn} (headline)', GPU, GPU_FEAT, [LAB], 'gpu'), (f'{hn} DPW', GPU, GPU_FEAT, [DPW], 'gpu')]
     import closure_loso as CL
     for st in CL.STORMS:
         d = os.path.join(TUR, f'{st}_{CL.AREA[st]}_20m'); M = json.load(open(os.path.join(d, f'matches_{st}.json')))
@@ -425,6 +438,7 @@ def bridges():
 
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'all'
+    os.makedirs(OUT, exist_ok=True); print(f'runs {TUR}\nheadline {GPU}\nout {OUT}')
     if cmd in ('anatomy', 'all'): anatomy()
     if cmd in ('curves', 'all'): curves()
     if cmd in ('tiers', 'all'): tiers()
