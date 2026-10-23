@@ -1,0 +1,80 @@
+{
+ "run": "aug2021_ens_aug2021_06z_raw_qmraw",
+ "title": "Aug 19, 2021 flash floods (Fred) \u00b7 NOAA HRRR forecast issued Aug 19 06z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  168000.0,
+  875000.0,
+  188000.0,
+  895000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-08-19T06:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 270
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2021-08-19T06:00Z, forecast hours 1-21 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.91",
+   "LF_HRRR_INIT": "2021-08-19T06Z",
+   "LF_HRRR_QMAP": "/home/runner/work/mass-flood-watch/mass-flood-watch/docs/proto/forecast/qmap.json#loso_aug2021/raw",
+   "LF_INFIL_MMH": "2",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 8,
+ "rain_total_mean_mm": 4,
+ "rain_missing_hours": [],
+ "runtime_s": 490,
+ "total_s": 822,
+ "peak_wet_km2": 0.5,
+ "peak_snapshot_wet_km2": 0.3,
+ "mass_tail": [
+  "75300.290    1.9458     1.9335     38703      2567200.0000  351438.1168  0.000       0.000      1.207             0.0000       0.0000 -275396.2855",
+  "75601.903    1.9458     1.9335     38858      2552800.0000  350509.5062  0.000       0.000      1.198             0.0000       0.0000 -275962.2624"
+ ],
+ "git_sha": "a8db6b2c",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2021-08-19T06:00Z",
+  "forecast_hours": 21,
+  "run_hours": 21
+ }
+}
