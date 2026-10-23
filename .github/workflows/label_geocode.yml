@@ -4,16 +4,17 @@ on:
     inputs:
       queries: {default: 'docs/proto/obs/labels_geocode_queries.json'}
       out: {default: 'docs/proto/obs/labels_geocode_osm.json'}
+      args: {description: 'extra args, e.g. --addr-only', default: ''}
 permissions:
   contents: write
 jobs:
   geocode:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q requests numpy scipy pyproj
-      - run: python proto/label_geocode.py --queries ${{ inputs.queries }} --out ${{ inputs.out }} 2>&1 | tail -200
+      - run: timeout 45m python -u proto/label_geocode.py --queries ${{ inputs.queries }} --out ${{ inputs.out }} ${{ inputs.args }} || echo stopped
       - if: always()
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
