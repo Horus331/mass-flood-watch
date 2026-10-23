@@ -66,6 +66,11 @@ DOMAIN_OVERRIDE = dict(sep2023=('Leominster',))
 COMPLETE = dict(sep2023=('Leominster',))                                                # domains with a complete inventory (DPW)
 # adoption rule (PROTOCOL.md §5) - fixed 23 Oct 2026 before any candidate was scored
 ADOPT = dict(share=0.03, min_gain=0.05, max_storm_site_loss=1, fss_radius=300, fss_tol=0.0, lift_frac=0.8, alpha=0.05)
+# adoption rule v2 (PROTOCOL.md "v2", fixed 23 Oct 2026 before any candidate was scored with it): decision set = held-out 23 (OOS-7 + NEW16,
+# 90 sites); the per-storm loss check applies only to storms with >= loss_min_sites sites; alpha is divided by k in the caller.
+# level='share' (ranking route, top 3 %) or 'rule' (alert-tier route: the p_close >= 0.5 tier; adds the budget cap of PROTOCOL v2 §5b).
+ADOPT_V2 = dict(share=0.03, min_gain=0.04, max_storm_site_loss=1, loss_min_sites=3, fss_radius=300, fss_tol=0.0, lift_frac=0.8, alpha=0.05,
+                storms='heldout23', level='share')
 
 
 # ------------------------------------------------------------------------------------------------ small helpers
@@ -370,14 +375,17 @@ def compare(base, cand, boot=NBOOT, seed=0, rule=ADOPT):
     """Paired two-stage bootstrap of candidate - baseline on the held-out storms, and the adoption verdict (PROTOCOL.md §5)."""
     sh = f"{rule['share']:g}"; dom = 'box'; R = str(rule['fss_radius'])
     B = {r['storm']: r for r in base['runs'] if r.get('primary')}; C = {r['storm']: r for r in cand['runs'] if r.get('primary')}
-    storms = [s for s in HELDOUT if s in B and s in C]
+    pool = HELDOUT + NEW16 if rule.get('storms') == 'heldout23' else HELDOUT
+    if any(s in LOCKED for s in list(B) + list(C)): raise SystemExit('locked storm in a --compare input (PROTOCOL.md §2)')
+    storms = [s for s in pool if s in B and s in C]
+    blk = (lambda X, s: X[s]['domains'][dom]['rule']) if rule.get('level') == 'rule' else (lambda X, s: X[s]['domains'][dom]['shares'][sh])
     hb, hc, per = [], [], {}
     for s in storms:
         sb = [x['id'] for x in B[s]['domains'][dom]['sites']]; sc = [x['id'] for x in C[s]['domains'][dom]['sites']]
         if sb != sc: raise SystemExit(f'{s}: site lists differ between baseline and candidate (labels or matching changed); re-score both')
-        hb.append(np.asarray(B[s]['domains'][dom]['shares'][sh]['_hits'])); hc.append(np.asarray(C[s]['domains'][dom]['shares'][sh]['_hits']))
+        hb.append(np.asarray(blk(B, s)['_hits'])); hc.append(np.asarray(blk(C, s)['_hits']))
         per[s] = dict(sites=len(sb), base_hits=float(hb[-1].sum()), cand_hits=float(hc[-1].sum()))
-    fb = [B[s]['domains'][dom]['shares'][sh]['fss'][R] for s in storms]; fc = [C[s]['domains'][dom]['shares'][sh]['fss'][R] for s in storms]
+    fb = [blk(B, s)['fss'][R] for s in storms]; fc = [blk(C, s)['fss'][R] for s in storms]
     fss = lambda L, idx: 1 - sum(L[i]['num'] for i in idx) / sum(L[i]['den'] for i in idx)
     N = sum(len(h) for h in hb); d0 = (sum(h.sum() for h in hc) - sum(h.sum() for h in hb)) / N
     rng = np.random.default_rng(seed); dd = []
@@ -390,11 +398,17 @@ def compare(base, cand, boot=NBOOT, seed=0, rule=ADOPT):
     lift_b = sum(B[s]['domains'][dom]['rule']['site_hits'] for s in storms) / max(1e-9, sum(sum(B[s]['domains'][dom]['rule']['_chance']) for s in storms))
     lift_c = sum(C[s]['domains'][dom]['rule']['site_hits'] for s in storms) / max(1e-9, sum(sum(C[s]['domains'][dom]['rule']['_chance']) for s in storms))
     dfss = fss(fc, range(len(storms))) - fss(fb, range(len(storms)))
-    worst = min(p['cand_hits'] - p['base_hits'] for p in per.values()) if per else 0
+    lossable = [p for p in per.values() if p['sites'] >= rule.get('loss_min_sites', 0)]
+    worst = min(p['cand_hits'] - p['base_hits'] for p in lossable) if lossable else 0
     checks = dict(gain=bool(d0 >= rule['min_gain']), ci_lower_gt_0=bool(lo > 0), fss_no_drop=bool(dfss >= -rule['fss_tol']),
                   no_storm_loses_gt_1=bool(worst >= -rule['max_storm_site_loss']), lift_ge_0p8=bool(lift_c >= rule['lift_frac'] * lift_b))
+    extra = {}
+    if rule.get('level') == 'rule':      # PROTOCOL v2 §5b budget cap: mean held-out tier share <= the deployed rule's mean share on the dev storms
+        cap = [B[s]['domains'][dom]['rule']['share'] for s in DEV if s in B]; cs = float(np.mean([C[s]['domains'][dom]['rule']['share'] for s in storms]))
+        extra = dict(tier_share_cand=cs, tier_share_cap=float(np.mean(cap)) if cap else None)
+        checks['budget_cap'] = bool(cap and cs <= np.mean(cap) + 1e-9)
     return dict(rule=rule, storms=storms, n_sites=int(N), delta_recall=float(d0), delta_recall_lower=lo, delta_fss=float(dfss), worst_storm_change=float(worst),
-                lift_rule=dict(base=float(lift_b), cand=float(lift_c)), per_storm=per, checks=checks, adopt=all(checks.values()))
+                lift_rule=dict(base=float(lift_b), cand=float(lift_c)), per_storm=per, checks=checks, adopt=all(checks.values()), **extra)
 
 
 # ------------------------------------------------------------------------------------------------ catalogue
@@ -574,12 +588,16 @@ def main():
     ap.add_argument('--run'); ap.add_argument('--storm'); ap.add_argument('--out'); ap.add_argument('--md')
     ap.add_argument('--catalog', action='store_true'); ap.add_argument('--compare', nargs=2, metavar=('BASE', 'CAND'))
     ap.add_argument('--boot', type=int, default=NBOOT); ap.add_argument('--selftest', action='store_true')
+    ap.add_argument('--protocol', choices=['v1', 'v2'], default='v1', help='--compare: adoption rule of PROTOCOL.md v1 (OOS-7) or v2 (held-out 23)')
+    ap.add_argument('--k', type=int, default=1, help='--compare: number of variants scored on the decision set (alpha / k)')
+    ap.add_argument('--level', choices=['share', 'rule'], default='share', help='--compare --protocol v2: ranking route (top 3 %%) or alert-tier route')
     a = ap.parse_args()
     if a.selftest: sys.exit(0 if selftest() else 1)
     if a.catalog:
         catalog(a.out or os.path.join(ROOT, 'docs', 'proto', 'scoring', 'catalog_v2.json'), a.md, a.boot); return
     if a.compare:
-        v = compare(json.load(open(a.compare[0])), json.load(open(a.compare[1])), a.boot); print(json.dumps(v, indent=1))
+        rule = dict(ADOPT_V2, level=a.level) if a.protocol == 'v2' else dict(ADOPT); rule['alpha'] = rule['alpha'] / a.k
+        v = compare(json.load(open(a.compare[0])), json.load(open(a.compare[1])), a.boot, rule=rule); print(json.dumps(v, indent=1))
         if a.out: json.dump(v, open(a.out, 'w'), indent=1)
         return
     if not a.run: ap.error('--run, --catalog, --compare or --selftest')
