@@ -1,6 +1,7 @@
 /* Mass Flood Watch storm replay.
    GPU layers (custom WebGL, one draw each per animation frame):
      depth  all frames decoded once into textures (9 frames per texture, depth class packed base 5 in RGB), interpolated in time
+            and, after decoding, bilinearly in space with a soft edge at the wet/dry cell boundary
      rain   MRMS radar rain, every frame in one atlas texture (3 frames per cell, log-scaled mm/h), filtered in space and time
      flow   (5-min runs only) moving water surface: a ripple texture advected along the modelled velocity field (flow-map),
             masked to wet cells and faded by depth and speed; frozen still when the replay is paused
@@ -133,10 +134,17 @@
       'void main(){vUv=aUv;gl_Position=uM*vec4(aPos,0.0,1.0);}';
     var FS = 'precision highp float;varying vec2 vUv;uniform sampler2D uA;uniform sampler2D uB;' +
       'uniform vec3 uMa;uniform vec3 uMb;uniform float uDa;uniform float uDb;uniform float uT;uniform vec4 uC[4];' +
-      'float code(sampler2D s,vec3 m,float d){float x=floor(dot(texture2D(s,vUv).rgb,m)*255.0+0.5);return mod(floor(x/d+0.001),5.0);}' +
-      'vec4 ramp(float L){if(L<=1.0)return vec4(uC[0].rgb,uC[0].a*L);if(L<=2.0)return mix(uC[0],uC[1],L-1.0);' +
+      'uniform vec2 uS;' +
+      // classes are decoded per cell first (base-5 digits cannot be filtered), then interpolated: bilinear between the
+      // four nearest cell centres. A wet cell next to a dry one reads 0.5 exactly on their shared edge, so the soft
+      // threshold at 0.5 keeps the water edge on the cell boundary (never more than half a cell onto dry ground)
+      'float code(sampler2D s,vec3 m,float d,vec2 uv){float x=floor(dot(texture2D(s,uv).rgb,m)*255.0+0.5);return mod(floor(x/d+0.001),5.0);}' +
+      'float cls(sampler2D s,vec3 m,float d){vec2 p=vUv*uS-0.5;vec2 i=floor(p);vec2 f=p-i;vec2 c=(i+0.5)/uS;vec2 dx=vec2(1.0/uS.x,0.0);vec2 dy=vec2(0.0,1.0/uS.y);' +
+      'return mix(mix(code(s,m,d,c),code(s,m,d,c+dx),f.x),mix(code(s,m,d,c+dy),code(s,m,d,c+dx+dy),f.x),f.y);}' +
+      'vec4 ramp(float L){if(L<=2.0)return mix(uC[0],uC[1],L-1.0);' +
       'if(L<=3.0)return mix(uC[1],uC[2],L-2.0);return mix(uC[2],uC[3],L-3.0);}' +
-      'void main(){float L=mix(code(uA,uMa,uDa),code(uB,uMb,uDb),uT);if(L<0.02)discard;vec4 c=ramp(L);gl_FragColor=vec4(c.rgb*c.a,c.a);}';
+      'void main(){float L=mix(cls(uA,uMa,uDa),cls(uB,uMb,uDb),uT);float e=smoothstep(0.38,0.62,L);if(e<0.004)discard;' +
+      'vec4 c=ramp(max(L,1.0));c.a*=e;gl_FragColor=vec4(c.rgb*c.a,c.a);}';
     function slot(f) {
       var k = f % 9, m = [0, 0, 0]; m[Math.floor(k / 3)] = 1;
       return { tex: tex[Math.floor(f / 9)], m: m, d: [1, 5, 25][k % 3] };
@@ -147,7 +155,7 @@
         onAdd: function (m, g) {
           gl = g; prog = program(gl, VS, FS);
           ['aPos', 'aUv'].forEach(function (k) { loc[k] = gl.getAttribLocation(prog, k); });
-          ['uM', 'uA', 'uB', 'uMa', 'uMb', 'uDa', 'uDb', 'uT', 'uC'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
+          ['uM', 'uA', 'uB', 'uMa', 'uMb', 'uDa', 'uDb', 'uT', 'uC', 'uS'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
           buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(meta.corners), gl.STATIC_DRAW);
         },
         render: function (g, matrix) {
@@ -159,7 +167,7 @@
           gl.uniformMatrix4fv(loc.uM, false, matrix);
           gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, A.tex); gl.uniform1i(loc.uA, 0);
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, B.tex); gl.uniform1i(loc.uB, 1);
-          gl.uniform3fv(loc.uMa, A.m); gl.uniform3fv(loc.uMb, B.m);
+          gl.uniform3fv(loc.uMa, A.m); gl.uniform3fv(loc.uMb, B.m); gl.uniform2f(loc.uS, meta.w, meta.h);
           gl.uniform1f(loc.uDa, A.d); gl.uniform1f(loc.uDb, B.d);
           gl.uniform1f(loc.uT, fb === fa ? 0 : t - fa);
           gl.uniform4fv(loc.uC, ramp);
@@ -286,11 +294,10 @@
       ' vec3 a=lay(x-v*(p0*uT),d,L);vec3 b=lay(x-v*(p1*uT)+vec2(53.0,91.0),d,L);',
       ' return (a*w0+b*w1)/sqrt(w0*w0+w1*w1);}',
       'void main(){',
-      // only where the depth layer itself draws water (its 20 m cells, >= 5 cm), faded towards the edges of the water
-      ' if(mix(code(uDa,uMa,uKa,vUv),code(uDb,uMb,uKb,vUv),uDt)<0.9)discard;',
-      ' float L=mix(depthAt(uDa,uMa,uKa,vUv),depthAt(uDb,uMb,uKb,vUv),uDt);',
+      // only inside the depth layer's water edge (>= 5 cm, same bilinear class field), faded towards the edge
+      ' float L=mix(depthAt(uDa,uMa,uKa,vUv),depthAt(uDb,uMb,uKb,vUv),uDt);if(L<0.5)discard;',
       ' vec2 u=mix(vel(uFa,vUv),vel(uFb,vUv),uFt);float sp=length(u);',
-      ' float amp=smoothstep(0.4,1.2,L)*mix(0.35,1.0,smoothstep(1.2,3.2,L))*smoothstep(0.03,0.25,sp)*mix(0.45,1.0,smoothstep(0.25,1.5,sp))*uOp;',
+      ' float amp=smoothstep(0.5,1.2,L)*mix(0.35,1.0,smoothstep(1.2,3.2,L))*smoothstep(0.03,0.25,sp)*mix(0.45,1.0,smoothstep(0.25,1.5,sp))*uOp;',
       ' if(amp<0.004)discard;',
       ' vec2 d=vec2(u.x,-u.y)/max(sp,1e-4);', // uv y runs south
       ' float vis=30.0*sp/(1.0+0.6*sp);', // screen px per s: 1 m/s ~ 19 px/s, compressive so floods in rivers do not smear
