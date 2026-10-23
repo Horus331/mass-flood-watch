@@ -1,0 +1,118 @@
+name: forecast (HRRR rain -> gate -> LISFLOOD-FP -> road closures, District 3)
+# Every 6 h, after the 00/06/12/18z HRRR 48 h run is on AWS (~1 h 45 min after issue): the gate reads the forecast rain over District 3 and
+# only when a town's 6 h / 24 h maximum reaches the thresholds (proto/forecast.py, docs/proto/forecast/GATE.md) runs the flood model on up to
+# four 20 x 20 km boxes around the heaviest rain (20 m, CPU, the validated prototype set-up), then proto/prototype.py and the viewer packs.
+# Publishes docs/site/data/forecast_status.json (always) and docs/site/data/forecast_latest[_bN]/ (only when the model ran; overwritten).
+on:
+  schedule:
+    - cron: '40 2,8,14,20 * * *'
+  workflow_dispatch:
+    inputs:
+      init: {description: 'HRRR cycle YYYY-MM-DDTHHZ (empty = latest 48 h cycle)', default: ''}
+      force: {description: 'run the flood model even when the gate is quiet', type: boolean, default: false}
+      hours: {description: 'forecast hours to use (empty = whole cycle)', default: ''}
+      publish: {description: 'commit the result to docs/site/data', type: boolean, default: true}
+permissions:
+  contents: write
+concurrency:
+  group: forecast
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      trigger: ${{ steps.g.outputs.trigger }}
+      boxes: ${{ steps.g.outputs.boxes }}
+      init: ${{ steps.g.outputs.init }}
+      hours: ${{ steps.g.outputs.hours }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj matplotlib
+      - id: g
+        name: forecast rain over District 3 and the gate
+        run: |
+          python proto/forecast.py gate ${{ inputs.init && format('--init {0}', inputs.init) || '' }} ${{ inputs.hours && format('--hours {0}', inputs.hours) || '' }} \
+            ${{ inputs.force && '--force' || '' }} --out gate/gate.json --github-output $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with: {name: gate, path: gate}
+  flood:
+    needs: gate
+    if: needs.gate.outputs.trigger == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        b: ${{ fromJSON(needs.gate.outputs.boxes) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - name: flood depth (LISFLOOD-FP 8.2, CPU, HRRR rain)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.b.box }}
+          RES: '20'
+          STORM: forecast
+          RUN_DIR: runs/forecast_${{ matrix.b.id }}
+          LF_RAIN: hrrr
+          LF_HRRR_INIT: ${{ needs.gate.outputs.init }}
+          LF_HRRR_HOURS: ${{ needs.gate.outputs.hours }}
+          LF_ALLOW_DRY: '1'
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: road closures
+        run: |
+          set -o pipefail
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
+          P=${{ runner.temp }}/proto_${{ matrix.b.id }}
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm forecast
+          python proto/resilience.py --out $P || true
+          python proto/risk.py --out $P --run-dir $OUTDIR || true
+          cp $OUTDIR/meta.json $P/flood_meta.json; tail -c 100000 w9_stdout.txt > $P/w9_stdout.txt
+          mkdir -p art && cp -r $P art/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'proto_${{ matrix.b.id }}', path: art, if-no-files-found: ignore}
+  publish:
+    needs: [gate, flood]
+    if: always() && needs.gate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy pandas pillow shapely scipy requests pygrib pyproj matplotlib
+      - uses: actions/download-artifact@v4
+        with: {path: arts}
+      - name: viewer packs + forecast_status.json
+        run: |
+          ls -R arts | head -40
+          rm -rf docs/site/data/forecast_latest docs/site/data/forecast_latest_b*
+          RUNS=""
+          for d in arts/proto_*/proto_*; do
+            [ -f "$d/summary.json" ] || continue
+            id=${d##*_}; key=forecast_latest; [ "$id" = "b1" ] || key=forecast_latest_$id
+            python docs/site/build_data.py --key $key --src $(realpath $d) && RUNS="$RUNS --run $key=$(realpath $d)"
+          done
+          python proto/forecast.py status --gate arts/gate/gate.json $RUNS --out docs/site/data/forecast_status.json
+          cat docs/site/data/forecast_status.json | head -c 1500; echo
+          du -sh docs/site/data/forecast_* || true
+      - name: commit
+        if: github.event_name == 'schedule' || inputs.publish
+        run: |
+          git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A docs/site/data
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -qm "Forecast $(python -c "import json;s=json.load(open('docs/site/data/forecast_status.json'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")"
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
