@@ -1,0 +1,20 @@
+name: label geocode (OSM Overpass / Nominatim for flood-label road sites)
+on:
+  workflow_dispatch:
+    inputs:
+      queries: {default: 'docs/proto/obs/labels_geocode_queries.json'}
+      out: {default: 'docs/proto/obs/labels_geocode_osm.json'}
+permissions:
+  contents: write
+jobs:
+  geocode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests numpy scipy pyproj
+      - run: python proto/label_geocode.py --queries ${{ inputs.queries }} --out ${{ inputs.out }} 2>&1 | tail -200
+      - run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add ${{ inputs.out }} && git commit -qm "label geocode: OSM points for flood-label sites" || echo nothing
+          git pull --rebase -q && git push
