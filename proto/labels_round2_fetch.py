@@ -29,6 +29,9 @@ def days(e):
 
 
 # ------------------------------------------------------------------------------------------------ WX1BOX
+LOG = []
+
+
 def wx1box():
     """Storm-report compilations are WordPress uploads named reports_<M>_<D>_<YY>.pdf.  Candidates come from the WP media REST listing
     (search 'reports') plus guessed upload paths (storm month and the next month); only files whose name date is a catalogue day are kept."""
@@ -39,8 +42,9 @@ def wx1box():
     for page in range(1, 40):
         try:
             r = requests.get('https://wx1box.org/wp-json/wp/v2/media', params=dict(search='reports', per_page=100, page=page), headers=UA, timeout=60)
-        except Exception as ex: print('media listing error', ex); break
-        if r.status_code != 200: print('media listing', page, r.status_code); break
+        except Exception as ex: LOG.append(f'media listing error {ex!r}'[:300]); break
+        LOG.append(f'media page {page}: HTTP {r.status_code}, {len(r.content)} bytes')
+        if r.status_code != 200: print('media listing', page, r.status_code, r.text[:200]); break
         J = r.json()
         if not J: break
         for m in J:
@@ -55,12 +59,14 @@ def wx1box():
         for y, m in {(d.year, d.month), ((d.replace(day=28) + dt.timedelta(days=5)).year, (d.replace(day=28) + dt.timedelta(days=5)).month)}:
             u = f'https://wx1box.org/wp-content/uploads/{y}/{m:02d}/{n}'
             try:
-                if requests.head(u, headers=UA, timeout=30, allow_redirects=True).status_code == 200: found[n] = u; break
-            except Exception: pass
+                sc = requests.head(u, headers=UA, timeout=30, allow_redirects=True).status_code; LOG.append(f'HEAD {u} {sc}')
+                if sc == 200: found[n] = u; break
+            except Exception as ex: LOG.append(f'HEAD {u} {ex!r}'[:300])
     D = os.path.join(OUT, 'wx1box'); os.makedirs(D, exist_ok=True); idx = []
     for n, u in sorted(found.items()):
         k = re.match(r'reports_(\d+_\d+_\d\d)', n).group(1); sid, d = want[k]
-        r = requests.get(u, headers=UA, timeout=120)
+        try: r = requests.get(u, headers=UA, timeout=120)
+        except Exception as ex: idx.append(dict(storm=sid, date=str(d), url=u, status=repr(ex)[:200])); continue
         if r.status_code != 200: idx.append(dict(storm=sid, date=str(d), url=u, status=r.status_code)); continue
         pdf = os.path.join('/tmp', n); open(pdf, 'wb').write(r.content)
         txt = os.path.join(D, n.replace('.pdf', '.txt'))
@@ -68,7 +74,7 @@ def wx1box():
         idx.append(dict(storm=sid, date=str(d), url=u, status=200, bytes=len(r.content), txt=os.path.relpath(txt, ROOT)))
     for k, (sid, d) in sorted(want.items(), key=lambda x: x[1][1]):
         if f'reports_{k}.pdf' not in found: idx.append(dict(storm=sid, date=str(d), url=None, status='not found'))
-    json.dump(idx, open(os.path.join(D, 'index.json'), 'w'), indent=1)
+    json.dump(dict(index=idx, log=LOG), open(os.path.join(D, 'index.json'), 'w'), indent=1)
     print(json.dumps(idx, indent=0))
 
 
@@ -85,16 +91,18 @@ def _j(u, **p):
 
 
 def crash():
-    svcs = []
-    for folder in ('', 'MassDOT'):
-        try: J = _j(f'{CRASH_BASE}/{folder}'.rstrip('/'))
+    svcs, allsv = [], []
+    root = _j(CRASH_BASE); folders = [''] + root.get('folders', [])
+    for folder in folders:
+        try: J = root if not folder else _j(f'{CRASH_BASE}/{folder}')
         except Exception as ex: print('list', folder, ex); continue
-        svcs += [s for s in J.get('services', []) if re.search(r'ODP', s['name'], re.I)]
-        if not folder: print('folders', J.get('folders'))
+        allsv += [s['name'] + ':' + s['type'] for s in J.get('services', [])]
+        svcs += [s for s in J.get('services', []) if re.search(r'ODP|CRASH', s['name'], re.I) and s['type'] in ('FeatureServer', 'MapServer')]
     print('ODP services', [(s['name'], s['type']) for s in svcs])
-    log = dict(services=[s['name'] for s in svcs], years={}); rows = []
+    log = dict(services=[s['name'] + ':' + s['type'] for s in svcs], all_services=allsv, years={}); rows = []
     for y in range(2018, 2027):
-        cand = [s for s in svcs if s['name'].endswith(str(y)) and 'OPEN' in s['name'].upper()] or [s for s in svcs if s['name'].endswith(str(y))]
+        cand = sorted([s for s in svcs if str(y) in s['name'] and 'OPEN' in s['name'].upper()], key=lambda s: s['type'] != 'FeatureServer') or \
+               sorted([s for s in svcs if str(y) in s['name']], key=lambda s: s['type'] != 'FeatureServer')
         if not cand: log['years'][y] = 'no service'; continue
         s = cand[0]; u = f"{CRASH_BASE}/{s['name']}/{s['type']}"
         try:
@@ -135,7 +143,7 @@ def s3_list(prefix, delim=None):
         p = {'list-type': '2', 'prefix': prefix}
         if delim: p['delimiter'] = delim
         if tok: p['continuation-token'] = tok
-        r = requests.get(S3 + '/', params=p, timeout=120); r.raise_for_status()
+        r = requests.get(S3 + '/', params=p, timeout=120); r.raise_for_status()   # noqa
         X = ET.fromstring(r.content); ns = {'s': X.tag.split('}')[0].strip('{')}
         out += [c.find('s:Key', ns).text for c in X.findall('s:Contents', ns)]
         pre += [c.find('s:Prefix', ns).text for c in X.findall('s:CommonPrefixes', ns)]
