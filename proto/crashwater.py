@@ -8,7 +8,8 @@ inside the storm box: type `water_crash`, time_quality `report` (crash time = wa
 These files are never named labels_*.csv, so score_v2.py ignores them unless SCORE_CRASHWATER=1.  Locked storms are skipped.
 
 Storm discovery: every local calendar day 2021-2026 with >= 3 water-surface crashes inside one 20 x 20 km window in District 3 is listed as a
-candidate storm day, independent of NWS reports (2018-2020 have no open-data service).
+candidate storm day, independent of NWS reports.  2021-2026: MASSDOT_ODP_OPEN_<year>; 2018-2020: StatewideCrashesDashboard layer 79
+(round2/crash_water_d3_2018_2020.csv).  Days of locked storms are dropped from the discovery list (not inspected).
 """
 import os, re, csv, json, datetime as dt
 from collections import defaultdict
@@ -68,9 +69,9 @@ def main():
             for i, r in enumerate(rows): r['id'] = f"CW-{e['id']}-{i + 1:02d}"
             with open(path, 'w', newline='') as f: w = csv.DictWriter(f, fieldnames=COLS); w.writeheader(); w.writerows(rows)
         elif os.path.exists(path): os.remove(path)
-        cover = e['t0'] >= '2021-01-01'
+        cover = e['t0'] >= '2018-01-01'
         summ[e['id']] = dict(window_local=[w0.strftime('%Y-%m-%dT%H:%M'), w1.strftime('%Y-%m-%dT%H:%M')], crash_data=cover, n=len(rows))
-        if rows or cover: print(e['id'], 'crash data' if cover else 'no crash data (pre-2021)', len(rows))
+        if rows or cover: print(e['id'], 'crash data' if cover else 'no crash data (pre-2018)', len(rows))
     # storm-day discovery: >= 3 water crashes in one 20 x 20 km window (1 km grid of window origins), District 3 box
     byday = defaultdict(list)
     for k in K:
@@ -86,12 +87,13 @@ def main():
             for y0 in range(int(D3[1] / 1000) - 10, int(D3[3] / 1000) - 10, 2):
                 n = [k for k in L if x0 * 1000 <= k['x'] < x0 * 1000 + 20000 and y0 * 1000 <= k['y'] < y0 * 1000 + 20000]
                 if best is None or len(n) > len(best[0]): best = (n, [x0 * 1000, y0 * 1000, x0 * 1000 + 20000, y0 * 1000 + 20000])
-        if len(best[0]) >= 2:
-            days.append(dict(date=str(d), n_box=len(best[0]), n_d3=len(L), box_26986=best[1], catalogue=cat_days.get(d, cat_days.get(d - dt.timedelta(days=1))),
+        cid = cat_days.get(d, cat_days.get(d - dt.timedelta(days=1)))
+        if len(best[0]) >= 2 and cid not in LOCKED:
+            days.append(dict(date=str(d), n_box=len(best[0]), n_d3=len(L), box_26986=best[1], catalogue=cid,
                              towns=sorted({(k['r'].get('CITY_TOWN_NAME') or '').title() for k in best[0]}),
                              times=sorted(k['t'].strftime('%H:%M') for k in best[0]),
                              weather=sorted({(k['r'].get('WEATH_COND_DESCR') or '').strip() for k in best[0]})))
-    # the locked storms' dates are reported only as 'catalogue: <id>' (no crash rows are read for them; none exist before 2021 anyway)
+    # locked storms: no crash rows are written and their days are left out of the discovery list
     json.dump(dict(storms=summ, candidate_days=days, rule='>= 3 (strong) or 2 (weak) water-surface crashes (code 6) in one 20 x 20 km window, District 3 +10 km, local day'),
               open(os.path.join(R2, 'crashwater_days.json'), 'w'), indent=1)
     for d in days: print('candidate day', d['date'], d['n_box'], d['towns'], d['catalogue'], d['weather'])
