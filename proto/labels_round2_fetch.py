@@ -70,7 +70,10 @@ def wx1box():
         if r.status_code != 200: idx.append(dict(storm=sid, date=str(d), url=u, status=r.status_code)); continue
         pdf = os.path.join('/tmp', n); open(pdf, 'wb').write(r.content)
         txt = os.path.join(D, n.replace('.pdf', '.txt'))
-        subprocess.run(['pdftotext', '-layout', pdf, txt], check=False)
+        try: subprocess.run(['pdftotext', '-layout', pdf, txt], check=True)
+        except Exception:
+            from pdfminer.high_level import extract_text
+            open(txt, 'w').write(extract_text(pdf))
         idx.append(dict(storm=sid, date=str(d), url=u, status=200, bytes=len(r.content), txt=os.path.relpath(txt, ROOT)))
     for k, (sid, d) in sorted(want.items(), key=lambda x: x[1][1]):
         if f'reports_{k}.pdf' not in found: idx.append(dict(storm=sid, date=str(d), url=None, status='not found'))

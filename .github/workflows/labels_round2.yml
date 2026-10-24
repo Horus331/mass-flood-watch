@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get install -y -q poppler-utils >/dev/null 2>&1 || true
-      - run: pip install -q requests
+      - run: pip install -q requests pdfminer.six
       - run: mkdir -p docs/proto/obs/round2/_logs; python -u proto/labels_round2_fetch.py ${{ matrix.mode }} > docs/proto/obs/round2/_logs/${{ matrix.mode }}.txt 2>&1; tail -c 20000 docs/proto/obs/round2/_logs/${{ matrix.mode }}.txt
       - if: always()
         run: |
