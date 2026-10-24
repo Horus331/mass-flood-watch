@@ -144,7 +144,8 @@ def load_storm(storm, base=PAR, S=None):
     X = np.column_stack([X0[:, [CM.FEATURES.index(f) for f in CM.MAIN]], G])
     return dict(storm=storm, run=run, rows=rows, seg=seg, y=y, town=town, depth=depth, pmay=pmay, X=X, X0=X0, off=offset_of(depth),
                 p_rule=np.nan_to_num(np.array([F(r['p_close'], 0) for r in rows])), rep_towns=rep, dom=np.isin(town, list(dom_towns)),
-                local=X0[:, CM.FEATURES.index('local_road')], aadt=np.array([F(r['aadt'], 0) for r in rows]))
+                local=X0[:, CM.FEATURES.index('local_road')], aadt=np.array([F(r['aadt'], 0) for r in rows]),
+                **({'flash': __import__('mrms_flash').load(storm, seg)} if os.environ.get('PROTO_FLASH') == '1' else {}))   # opt-in MRMS FLASH (proto/mrms_flash.py)
 
 
 def cols(feats):
