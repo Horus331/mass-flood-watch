@@ -1,0 +1,25 @@
+name: labels round 2 fetch (WX1BOX reports, MassDOT water-surface crashes, MRMS FLASH archive; proto/labels_round2_fetch.py)
+on:
+  workflow_dispatch:
+    inputs:
+      modes: {description: 'JSON list of modes: wx1box, crash, flash', default: '["wx1box","crash","flash"]'}
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ${{ fromJSON(inputs.modes) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -q poppler-utils >/dev/null 2>&1 || true
+      - run: pip install -q requests
+      - run: python -u proto/labels_round2_fetch.py ${{ matrix.mode }} 2>&1 | tail -200
+      - if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/obs/round2 && git commit -qm "labels round 2: ${{ matrix.mode }} fetch" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
