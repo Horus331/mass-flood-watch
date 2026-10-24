@@ -1,0 +1,25 @@
+name: MRMS FLASH per-segment storm-max features (proto/mrms_flash.py; opt-in learned-model input)
+on:
+  workflow_dispatch:
+    inputs:
+      storms: {description: 'JSON list of catalogue storm ids (AWS era)', default: '["jul2021","aug2021","sep2021","sep2022","jul2023","aug2023","aug2023b","sep2023","aug2026","jul2021b","jul2023b","jul2023c","jul2023d"]'}
+permissions:
+  contents: write
+jobs:
+  flash:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        storm: ${{ fromJSON(inputs.storms) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy requests pygrib pyproj
+      - run: python -u proto/mrms_flash.py extract --storm ${{ matrix.storm }} 2>&1 | tail -40
+      - if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/ml/flash && git commit -qm "MRMS FLASH features: ${{ matrix.storm }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
