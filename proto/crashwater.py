@@ -76,7 +76,7 @@ def main():
     for k in K:
         if D3[0] - 10000 <= k['x'] < D3[2] and D3[1] - 10000 <= k['y'] < D3[3]: byday[k['t'].date()].append(k)
     cat_days = {}
-    for e in C + [dict(id=s) for s in LOCKED]:
+    for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))['events']:      # dates only (locked storms: no labels read)
         if 't0' in e: cat_days[(dt.datetime.strptime(e['t0'], '%Y-%m-%dT%H:00Z') - dt.timedelta(hours=4)).date()] = e['id']
     days = []
     for d, L in sorted(byday.items()):
