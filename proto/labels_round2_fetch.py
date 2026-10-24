@@ -132,6 +132,31 @@ def crash():
     json.dump(log, open(os.path.join(OUT, 'crash_water_fetch.json'), 'w'), indent=1); print('rows', len(rows))
 
 
+def crash_old():
+    """2018-2020: no MASSDOT_ODP_OPEN_<year> service; try the StatewideCrashesDashboard CRASHES layer (MapServer/79), same field names."""
+    q = f'{CRASH_BASE}/MassDOT/StatewideCrashesDashboard/MapServer/79/query'; rows = []; log = {}
+    for y in ('2018', '2019', '2020'):
+        try:
+            off, got = 0, []
+            while True:
+                J = _j(q, where=f"YEAR = '{y}' AND ROAD_SURF_COND_DESCR LIKE 'Water%'", outFields='*', returnGeometry='false', resultOffset=off, resultRecordCount=1000)
+                if 'error' in J: raise RuntimeError(str(J['error'])[:300])
+                F = [f['attributes'] for f in J.get('features', [])]; got += F; off += len(F)
+                if not F or not J.get('exceededTransferLimit'): break
+            for a in got:
+                if not a.get('CRASH_DATE_TEXT') and a.get('CRASH_DATE'):
+                    a['CRASH_DATE_TEXT'] = dt.datetime.utcfromtimestamp(a['CRASH_DATE'] / 1000).strftime('%m %d %Y')
+                try: x, yy = float(a['X']), float(a['Y'])
+                except (TypeError, ValueError, KeyError): continue
+                if a.get('DISTRICT_NUM') in (3, '3') or (D3X[0] <= x < D3X[2] and D3X[1] <= yy < D3X[3]): rows.append(a)
+            log[y] = dict(statewide=len(got), fields=sorted(got[0].keys()) if got else [])
+        except Exception as ex: log[y] = f'error {ex!r}'[:400]
+        print(y, log[y] if isinstance(log[y], str) else log[y]['statewide'])
+    with open(os.path.join(OUT, 'crash_water_d3_2018_2020.csv'), 'w', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction='ignore'); w.writeheader(); w.writerows(rows)
+    json.dump(dict(layer=q, years=log, rows=len(rows)), open(os.path.join(OUT, 'crash_water_fetch_2018_2020.json'), 'w'), indent=1)
+
+
 # ------------------------------------------------------------------------------------------------ MRMS FLASH archive check
 S3 = 'https://noaa-mrms-pds.s3.amazonaws.com'
 
@@ -183,4 +208,4 @@ def flash():
 
 
 if __name__ == '__main__':
-    dict(wx1box=wx1box, crash=crash, flash=flash)[sys.argv[1]]()
+    dict(wx1box=wx1box, crash=crash, crash_old=crash_old, flash=flash)[sys.argv[1]]()
