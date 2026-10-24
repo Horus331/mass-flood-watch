@@ -18,7 +18,7 @@ Geocode modes (g):  pair  = closest approach of road a and feature b (intersecti
                     addr  = Nominatim street address, snapped to road a: approx
 Coordinates are never invented: a site the geocoders cannot place keeps coord_quality `town` at the NWS point.
 """
-import os, sys, csv, json, argparse, datetime as dt
+import os, re, sys, csv, json, argparse, datetime as dt
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
@@ -449,7 +449,8 @@ def build():
         else:
             hdr = COLS
             for k, r in enumerate(L): r['id'] = f'{PREFIX[storm]}-{k + 1:02d}'
-            out = L
+            keep = [o for o in csv.DictReader(open(path)) if re.search(r'-[SX]\d+$', o['id'])] if os.path.exists(path) else []
+            out = L + keep                                                     # rows added by proto/labels_round2.py (-S / -X ids) survive a rebuild
         write_csv(path, hdr, out)
         print(f'{storm:9s} {len(L):3d} rows -> {os.path.relpath(path, ROOT)}')
     json.dump(audit, open(AUDIT_PATH, 'w'), indent=1)

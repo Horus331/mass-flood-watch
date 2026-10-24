@@ -132,7 +132,11 @@ def graph():
 
 
 def label_files(storm):
-    return sorted(glob.glob(os.path.join(LABELS_DIR, f'labels_{storm}_*.csv')))
+    """Closure label files; SCORE_CRASHWATER=1 also adds the separate MassDOT water-surface crash source proto/data/crashwater_<storm>.csv
+    (docs/proto/obs/LABELS_ROUND2.md; default off so the decision set stays the closure labels)."""
+    F = sorted(glob.glob(os.path.join(LABELS_DIR, f'labels_{storm}_*.csv')))
+    if os.environ.get('SCORE_CRASHWATER') == '1': F += sorted(glob.glob(os.path.join(LABELS_DIR, f'crashwater_{storm}.csv')))
+    return F
 
 
 def load_labels(storm, box):
@@ -175,6 +179,11 @@ def load_run(run_dir, storm):
     if os.path.exists(mfile):
         M = json.load(open(mfile))['matches']; match_src = 'published'
         matches = {k: sorted({pos[s] for s in v['segs'] if s in pos}) for k, v in M.items()}
+        new = [lab for lab in L if lab['key'] not in M and lab['coord'] != 'town']     # label rows added after the run: same strict 30 m rule
+        if new:
+            from scipy.spatial import cKDTree
+            t = cKDTree(np.column_stack([px, py])); match_src = f'published + strict 30 m for {len(new)} newer label rows'
+            for lab in new: matches[lab['key']] = sorted(set(pidx[t.query_ball_point([lab['x'], lab['y']], MATCH_M)].tolist()))
     else:
         from scipy.spatial import cKDTree
         t = cKDTree(np.column_stack([px, py])); match_src = 'strict 30 m (own)'; matches = {}
