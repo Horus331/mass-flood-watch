@@ -1033,7 +1033,7 @@ def gauge_stats(score_json):
 
 def tier_pool(items):
     """Pooled site recall / chance / lift / share over (rule-block dicts)."""
-    H = sum(b['site_hits'] for b in items); C = sum(sum(b['_chance']) for b in items); N = sum(len(b['_hits']) for b in items)
+    H = sum(b.get('site_hits', b.get('hits')) for b in items); C = sum(sum(b['_chance']) for b in items); N = sum(len(b['_hits']) for b in items)
     return dict(sites=N, hits=H, recall=H / N if N else None, chance=C / N if N else None, lift=H / C if C else None,
                 mean_share=float(np.mean([b['share'] for b in items])) if items else None)
 
@@ -1042,7 +1042,8 @@ def score(run):
     import glob
     sys.path.insert(0, HERE); import score_v2 as SV
     RD = os.path.join(TD, run); out = {}
-    res = SV.d456(RD, os.path.join(RD, 'score_d456.json'), os.path.join(RD, 'score_d456_table.md'))
+    sp = os.path.join(RD, 'score_d456.json')
+    res = json.load(open(sp)) if os.environ.get('TRANSFER_REUSE') == '1' and os.path.exists(sp) else SV.d456(RD, sp, os.path.join(RD, 'score_d456_table.md'))
     per = {}
     for r in res['runs']:
         d = os.path.join(ROOT, r['run']); b = r['domains']['box']
@@ -1109,6 +1110,27 @@ def score(run):
     return out
 
 
+def breakdown(run):
+    """Descriptive splits of the pooled District 4-6 result (not part of the verdict): by district, by label source (sites whose labels are all
+    NWS vs those with a 311 / SeeClickFix label), by era (AWS Pass2 vs IEM GaugeCorr) -> dict of {name: {block: pooled hits/chance/recall/lift}}."""
+    R = json.load(open(os.path.join(TD, run, 'score_d456.json'))); C = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']}
+    src = {}
+    for e in C.values():
+        for r in csv.DictReader(open(os.path.join(ROOT, e['labels']))): src[r['id']] = r['source']
+    groups = {}
+    for r in R['runs']:
+        if not r.get('primary'): continue
+        b = r['domains']['box']; e = C[r['storm']]
+        for blk, B in (('rule', b['rule']), ('share3', b['shares']['0.03']), ('share10', b['shares']['0.1'])):
+            for i, site in enumerate(b['sites']):
+                ids = site['id'].split('+'); nws = all(src.get(x) in ('LSR', 'StormEvents') for x in ids)
+                for g in (f"district {e['district']}", 'NWS-only sites' if nws else 'sites with a 311 / SeeClickFix label', f"era {e['era']}", 'all'):
+                    d = groups.setdefault(g, {}).setdefault(blk, dict(hits=0.0, chance=0.0, sites=0)); d['hits'] += B['_hits'][i]; d['chance'] += B['_chance'][i]; d['sites'] += 1
+    for g in groups.values():
+        for d in g.values(): d['recall'] = d['hits'] / d['sites'] if d['sites'] else None; d['lift'] = d['hits'] / d['chance'] if d['chance'] else None
+    return groups
+
+
 def tables(run):
     """Markdown tables for TRANSFER.md from docs/proto/transfer/<run>/transfer_summary.json (the prose is written by hand)."""
     S = json.load(open(os.path.join(TD, run, 'transfer_summary.json'))); C = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']}
@@ -1138,4 +1160,4 @@ if __name__ == '__main__':
     elif a.cmd == 'osm-roads': osm_roads(a.pbf, cases_all(), a.out or os.path.join(TD, 'roads_osm'))
     elif a.cmd == 'gauges-fast': gauges_fast(a.out or os.path.join(TD, 'gauges'))
     elif a.cmd == 'extract': extract(a.run_dir, a.storm, a.segments, a.dest)
-    elif a.cmd == 'score': score(a.run); print(tables(a.run))
+    elif a.cmd == 'score': score(a.run); print(tables(a.run)); print(json.dumps(breakdown(a.run), indent=0))
