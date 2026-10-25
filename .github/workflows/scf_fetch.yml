@@ -1,0 +1,22 @@
+name: SeeClickFix flood issues, District 3 (proto/scf_fetch.py; label round 3)
+on:
+  workflow_dispatch:
+    inputs:
+      mode: {description: 'probe | types | windows | d3 | all', default: 'all'}
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: |
+          M="${{ inputs.mode }}"; [ -z "$M" ] && M=all
+          mkdir -p docs/proto/obs/round3/_logs; python -u proto/scf_fetch.py $M > docs/proto/obs/round3/_logs/scf_$M.txt 2>&1; tail -c 15000 docs/proto/obs/round3/_logs/scf_$M.txt
+      - if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/obs/round3 && git commit -qm "SeeClickFix fetch (label round 3)" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done

@@ -35,6 +35,7 @@ Training domain.  Leominster city only (TRAIN_TOWNS): its DPW damage inventory m
 the Sept 2023 labels are sparse news / NWS reports, so 'unlabeled' mostly means 'unreported' and the reporting footprint (which follows the
 rain core) would be learned instead of the hazard.
 
+Opt-in TIER_WEIGHTS=1: positives are sample-weighted by the label evidence ladder (proto/label_tiers.py; train / evaluate fits only; default off).
 Optional hook: prototype.run with PROTO_ML=1 calls on_rows() and adds p_close_ml (calibrated logistic) to every segment row.  Defaults unchanged.
 """
 import argparse
@@ -259,14 +260,14 @@ class GBM:
     P = dict(n_estimators=250, learning_rate=0.03, num_leaves=7, min_child_samples=30, subsample=0.8, subsample_freq=1, colsample_bytree=0.8,
              reg_lambda=2.0, verbose=-1, random_state=0)
     def __init__(self, feats=MAIN): self.feats = list(feats); self.idx = [FEATURES.index(f) for f in feats]
-    def _fit(self, X, y):
+    def _fit(self, X, y, w=None):
         import lightgbm as lgb
-        return lgb.LGBMClassifier(monotone_constraints=[SIGN[f] for f in self.feats], **self.P).fit(X[:, self.idx], y)
-    def fit(self, X, y, groups):
+        return lgb.LGBMClassifier(monotone_constraints=[SIGN[f] for f in self.feats], **self.P).fit(X[:, self.idx], y, sample_weight=w)
+    def fit(self, X, y, groups, sample_weight=None):
         from sklearn.model_selection import GroupKFold
-        oof = np.zeros(len(y))
-        for tr, te in GroupKFold(3).split(X, y, groups): oof[te] = self._fit(X[tr], y[tr]).predict_proba(X[te][:, self.idx])[:, 1]
-        self.platt = platt_fit(oof, y); self.m = self._fit(X, y); return self
+        oof = np.zeros(len(y)); w = sample_weight
+        for tr, te in GroupKFold(3).split(X, y, groups): oof[te] = self._fit(X[tr], y[tr], None if w is None else w[tr]).predict_proba(X[te][:, self.idx])[:, 1]
+        self.platt = platt_fit(oof, y); self.m = self._fit(X, y, w); return self
     def predict(self, X): return platt_apply(self.platt, self.m.predict_proba(X[:, self.idx])[:, 1])
     def shap(self, X): return self.m.booster_.predict(X[:, self.idx], pred_contrib=True)[:, :-1]
     def save(self, path):
@@ -328,6 +329,22 @@ def reliability(p, y):
 
 
 # ---------------------------------------------------------------- train / evaluate
+def tier_weights(rows, storm):
+    """Opt-in (TIER_WEIGHTS=1) sample weights from the label evidence ladder (proto/label_tiers.py, LABELS_ROUND3.md): a positive segment gets
+    the highest weight among its matched label ids (unknown id -> 1.0); unlabeled segments keep 1.0 - unreported is unknown, never negative."""
+    sys.path.insert(0, HERE); import label_tiers as LT
+    W = LT.weights_by_id(storm); w = np.ones(len(rows))
+    for i, r in enumerate(rows):
+        if str(r.get('y')) == '1':
+            ids = [x for x in str(r.get('label_ids') or '').replace(';', ',').replace('|', ',').split(',') if x.strip()]
+            w[i] = max([W.get(x.strip(), 1.0) for x in ids] or [1.0])
+    return w
+
+
+def sample_weights(rows, storm):
+    return tier_weights(rows, storm) if os.environ.get('TIER_WEIGHTS') == '1' else None
+
+
 def arrays(rows, block=BLOCK_M):
     X = design(rows); y = np.array([int(r['y']) for r in rows]); seg = [int(r['segment']) for r in rows]
     cx = np.nan_to_num(np.array([float(r['cx'] or 'nan') for r in rows])); cy = np.nan_to_num(np.array([float(r['cy'] or 'nan') for r in rows]))
@@ -343,9 +360,10 @@ def train(storm, towns=TRAIN_TOWNS, save=True):
     """Final fits on the training storm's reporting domain; returns the models, the prior's Platt map and the Elkan-Noto c (from spatial-CV OOF)."""
     from sklearn.model_selection import GroupKFold
     rows, M = load_table(storm); X, y, seg, g = arrays(rows); D = domain(rows, towns); X, y, g = X[D], y[D], g[D]; pr = prior(rows)[D]
-    lr = LR().fit(X, y); gb = GBM().fit(X, y, g); cal = platt_fit(pr, y)
+    sw = sample_weights(rows, storm); sw = None if sw is None else sw[D]      # TIER_WEIGHTS=1 only; default None = unchanged
+    lr = LR().fit(X, y, sample_weight=sw); gb = GBM().fit(X, y, g, sample_weight=sw); cal = platt_fit(pr, y)
     oof = np.zeros(len(y))
-    for tr, te in GroupKFold(5).split(X, y, g): oof[te] = LR().fit(X[tr], y[tr]).predict(X[te])
+    for tr, te in GroupKFold(5).split(X, y, g): oof[te] = LR().fit(X[tr], y[tr], sample_weight=None if sw is None else sw[tr]).predict(X[te])
     c = float(oof[y == 1].mean())
     if save:
         os.makedirs(ML_DIR, exist_ok=True)
@@ -362,9 +380,10 @@ def evaluate(train_storm, test_storms, towns=TRAIN_TOWNS, out_dir=OUT_DIR):
     X4, _, _, g4 = arrays(rows, 4000.0); D = domain(rows, towns); pr = prior(rows); pm = np.array([float(r['p_may_close']) for r in rows])
     # (A) spatial block CV inside the reporting domain: 2 km blocks, 5 folds
     Xd, yd, gd, prd = X[D], y[D], g[D], pr[D]; o = {k: np.zeros(len(yd)) for k in ('lr', 'lr_rain', 'gbm', 'prior_cal')}
+    sw = sample_weights(rows, train_storm); swd = None if sw is None else sw[D]; W = lambda tr: None if swd is None else swd[tr]   # TIER_WEIGHTS=1 only
     for tr, te in GroupKFold(5).split(Xd, yd, gd):
-        o['lr'][te] = LR().fit(Xd[tr], yd[tr]).predict(Xd[te]); o['lr_rain'][te] = LR().fit(Xd[tr], yd[tr], FEATURES).predict(Xd[te])
-        o['gbm'][te] = GBM().fit(Xd[tr], yd[tr], gd[tr]).predict(Xd[te]); o['prior_cal'][te] = platt_apply(platt_fit(prd[tr], yd[tr]), prd[te])
+        o['lr'][te] = LR().fit(Xd[tr], yd[tr], sample_weight=W(tr)).predict(Xd[te]); o['lr_rain'][te] = LR().fit(Xd[tr], yd[tr], FEATURES, sample_weight=W(tr)).predict(Xd[te])
+        o['gbm'][te] = GBM().fit(Xd[tr], yd[tr], gd[tr], sample_weight=W(tr)).predict(Xd[te]); o['prior_cal'][te] = platt_apply(platt_fit(prd[tr], yd[tr]), prd[te])
     # (v0) the first configuration: logistic with rain on the whole box, 4 km blocks
     v0 = np.zeros(len(y))
     for tr, te in GroupKFold(5).split(X, y, g4): v0[te] = LR().fit(X[tr], y[tr], FEATURES).predict(X[te])

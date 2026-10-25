@@ -2,6 +2,9 @@
 
     python proto/closure_expanded.py run [--boot 2000]     # nested LOSO over the 25 non-locked parity storms -> docs/proto/ml/expanded/,
                                                            #   docs/proto/ml/EXPANDED.json
+    python proto/closure_expanded.py run --tier-weights    # opt-in secondary analysis: sets TIER_WEIGHTS=1, so closure_v2.load_storm attaches the
+                                                           #   label-evidence weights (proto/label_tiers.py) and every fitted variant uses them as
+                                                           #   positive sample weights (unlabeled stay 1); writes *_tiered outputs, never the defaults
     python proto/closure_expanded.py selftest
 
 Write-up: docs/proto/ml/EXPANDED.md.  Everything between the PRE-REGISTERED lines was committed before any held-out-23 number of these
@@ -161,7 +164,9 @@ def selftest():
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0]); ap.add_argument('cmd', choices=['run', 'selftest'])
-    ap.add_argument('--boot', type=int, default=2000)
+    ap.add_argument('--boot', type=int, default=2000); ap.add_argument('--tier-weights', action='store_true')
     a = ap.parse_args()
+    if a.tier_weights:          # opt-in sample-weight path (LABELS_ROUND3.md); outputs go to *_tiered so the pre-registered results stay as written
+        os.environ['TIER_WEIGHTS'] = '1'; OUTD = OUTD + '_tiered'; OUTJ = OUTJ.replace('.json', '_tiered.json')
     if a.cmd == 'selftest': sys.exit(0 if selftest() else 1)
     cmd_run(a)
