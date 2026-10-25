@@ -92,11 +92,94 @@ every 30 min of model time.
 
 ## 2. Results: three storms
 
-_(filled in by the results commit)_
+Run with `python proto/cascade.py pack leominster_sep2023 worcester_aug2021 d3_sep2023`, about 20–50 s per run. Every window is 48 h
+(97 output frames).
+
+**Network effects**
+
+| run | in-box segments | peak closed (time) | segments ever closed / carrying detours / over capacity | spread ratio |
+|---|---|---|---|---|
+| leominster_sep2023 | 5,183 | 71 at 7.5 h | 101 / 282 / 69 | 3.6 |
+| worcester_aug2021 | 8,566 | 56 at 6.5 h | 97 / 285 / 84 | 3.9 |
+| d3_sep2023 | 45,099 | 112 at 9.0 h | 221 / 797 / 165 | 4.5 |
+
+**Delay and access**
+
+| run | peak delay, veh-h/h | vehicle-hours (detour / slow) and user cost | peak people losing a service (H / F / P) | peak isolated | person-hours lost on dry roads |
+|---|---|---|---|---|---|
+| leominster_sep2023 | 5,254 at 7.0 h | 59,108 (26,721 / 32,388); $1.8M | 30,271 (11,543 / 27,391 / 18,687) | 9,796 | 95 % |
+| worcester_aug2021 | 4,150 at 7.0 h | 62,580 (25,538 / 37,042); $1.9M | 25,194 (5,638 / 20,602 / 18,933) | 4,898 | 90 % |
+| d3_sep2023 | 6,614 at 8.5 h | 166,239 (85,586 / 80,653); $5.0M | 51,421 (16,982 / 38,189 / 31,846) | 11,077 | 94 % |
+
+**Culverts**
+
+| run | overtopped | replacement-cost exposure | stream links also overtopped |
+|---|---|---|---|
+| leominster_sep2023 | 113 | $13–61M | 248 of 752 (73 later) |
+| worcester_aug2021 | 120 | $5–60M | 80 of 604 (17 later) |
+| d3_sep2023 | 290 | $27–152M | 374 of 1,445 (103 later) |
+
+Column notes:
+- **Spread ratio**: segments ever affected (closed or carrying detour traffic) ÷ segments ever closed.
+- **H / F / P**: hospital, fire station, police.
+- **Person-hours lost on dry roads**: the share of person-hours of lost coverage borne by people whose own road is open.
+- **Stream links "later"**: the linked crossing overtopped after the first one. The median positive lag is 0.5 h, which is one output frame.
+
+**What the cascade view adds.**
+
+- **Spread.** Closures are a small, local set. Their consequences reach 3.6–4.5× as many segments.
+- **Most lost access is on dry roads.** At the peak, 90–95 % of the person-hours of lost emergency coverage fall on people whose own road
+  never closes; their routes to a station are cut. A closure map alone shows none of this.
+- **Timing.** The peak of delay and access loss arrives 6–8 h after the first closure, together with the peak closure count.
+  - Delay then decays more slowly than closures do. Ponded closures persist, and their detours keep loading the same corridors to the end
+    of the window. In Worcester, 19 segments are still over capacity at 48 h.
+- **Where the knock-on lands.**
+  - Leominster: the Route 2 / I-190 closures load the Leominster Connector and the I-190 ramps (peak V/C 2.9–4.2, about 42 h over
+    capacity).
+  - District 3: Route 2 closures in Harvard push through-traffic onto local streets in Ayer (Rogers / Mill / Shirley St, peak V/C ≈ 7,
+    27 h over capacity). This is the kind of "dry road, real consequence" result emergency managers ask for.
+  - Worcester: detours concentrate downtown (Front St, Washington Sq; V/C ≈ 3).
+- **Culverts.**
+  - 113–290 crossings are overtopped per run. The replacement-cost exposure is wide, $5–152M: crossing size is unknown for most of them,
+    so the cost range spans pipe to large box.
+  - Same-stream links mostly overtop in the same 30-min frame. Where a lag exists, it is one frame. At 30-min resolution the engine cannot
+    yet resolve upstream→downstream propagation timing, and drainage-area direction is missing for 99 % of crossings.
+
+**Check against `resilience.py`.** The `outdir` path on `docs/proto/worcester_aug2021` (the prototype output, every segment ≥ 5 cm)
+reproduces `resilience.json`:
+
+| metric | cascade.py (outdir) | resilience.json |
+|---|---|---|
+| vehicle-hours | 51,186 | 51,478 (the difference is the trapezoid end weights) |
+| peak people losing hospital / fire / police / any service | identical: 11,599 / 53,134 / 48,704 / 67,695 | same |
+| isolated | 6,836 | 11,341 (cascade.py leaves out people already isolated in the dry network) |
+
+The same storm from the public pack gives 25,194 people losing any service, not 67,695. The pack keeps only flagged segments, so many
+5–30 cm slow-downs are missing. **The pack numbers above are therefore lower bounds on slow-wet delay and access loss.** The closure-driven
+parts (detours, corridors) are the same in kind.
 
 ## 3. Limits
 
-_(filled in by the results commit)_
+- **Depth source.** The deployed closure rule on modelled depth. Its held-out skill is modest (3 % site recall 0.20 on held-out 23,
+  `obs/LABELS_ROUND2.md`), so every knock-on number inherits that uncertainty. Packs omit unflagged wet segments (see §2).
+- **Traffic.**
+  - There is no equilibrium assignment. One wet shortest path per stretch, flat daily profile (q = AADT / 24) for delay, H = 0.06 for
+    overload.
+  - Capacities are by class only.
+  - 75 % of local AADT is the 1,000 vpd default.
+  - So overload is per-corridor plausible and an upper bound. Delay is a lower bound: there is no congestion feedback, and the detour cap
+    is 30 min.
+- **People.**
+  - 2020 night-time population on the nearest segment.
+  - Residents of closed segments count as having no coverage (stay-at-home is not modelled).
+  - Facility locations come from OSM. The response standards are planning thresholds.
+- **Culverts.**
+  - Overtopping is the water-on-road proxy, not hydraulics. The packs carry no headwater series; `risk.py` uses the HDS-5 / headwater
+    rules when a run directory is available.
+  - Costs are replacement exposure, not expected loss. `proto/damage.py` needs discharge for fragility.
+  - Stream links have no direction.
+- **No validation data for knock-on effects.** No detour counts, no EMS response logs. The cascade outputs are scenario consequences of
+  the modelled flood, not observed impacts.
 
 ## 4. Does cascade structure improve held-out road-flood prediction?
 
@@ -137,6 +220,52 @@ peaks and durations but no frame series, so "lags" are graph hops and closure du
 - the univariate within-storm AUC of each cascade feature;
 - the coefficients of an all-storm fit (description only).
 
-### 4.2 Result
+### 4.2 Result: no test passes; cascade features add nothing measurable; step (b) not run
 
-_(filled in by the results commit)_
+**Run.** `python proto/cascade_ml.py run --boot 2000`, once, after the pre-registration commit (db85b747).
+- Outputs: `docs/proto/cascade/CASCADE_ML.json` and `score_{base,a_v1,cas_v1,cas_twotier}.json`.
+- To reproduce a verdict: `python proto/score_v2.py --compare docs/proto/cascade/score_base.json docs/proto/cascade/score_cas_v1.json --protocol v2 --k 3`.
+- The in-run baseline equals `obs/round2/score_round2.json` (parity group) site for site. The `--compare` against that file gives the
+  same verdicts.
+
+**Verdicts** (held-out 23, 98 sites, box, 3 % flagged, α = 0.0167):
+
+| test | hits @3 % (base → candidate) | Δ recall | one-sided lower bound | ΔFSS300 | worst storm | tier lift (base) | verdict |
+|---|---|---|---|---|---|---|---|
+| T1 `cas_v1` vs rule | 20 → 32 | +0.122 | −0.017 | +0.0056 | −1 | 5.67 (6.43) | reject (condition 2) |
+| T2 `cas_twotier` vs rule | 20 → 33 | +0.133 | 0.000 | +0.0059 | −1 | 6.43 (= rule) | reject (condition 2) |
+| T3 `cas_v1` vs `a_v1` | 30 → 32 | +0.020 | −0.076 | +0.0014 | −1 | 5.67 (6.43) | reject (conditions 1, 2) |
+| *context: `a_v1` vs rule* | 20 → 30 | +0.102 | −0.018 | +0.0042 | −1 | | reject (condition 2) |
+
+**Recall at 3 %, by pool** (90 % CI for held-out 23):
+
+| | held-out 23 (98) | OOS-7 (40) | NEW16 (58) | dev2 (91) |
+|---|---|---|---|---|
+| depth rule | 0.204 [0.104, 0.303] | 0.275 | 0.155 | 0.363 |
+| `a_v1` (MAIN) | 0.306 [0.209, 0.400] | 0.350 | 0.276 | 0.297 |
+| `cas_v1` (MAIN + cascade) | 0.327 [0.232, 0.424] | 0.350 | 0.310 | 0.253 |
+| `cas_twotier` | 0.337 [0.231, 0.439] | 0.400 | 0.293 | 0.385 |
+
+**Ranking.** Mean per-storm ROC-AUC on held-out 23: rule 0.673, `a_v1` 0.763, `cas_v1` 0.762.
+
+**Reading.**
+- **The cascade features carry signal, but no new signal.**
+  - Each feature alone ranks labelled segments above chance within a storm: mean AUC 0.66–0.68.
+  - In the all-storm fit, three of the four keep positive weights (cl 0.09, nb2_h30 0.15, nb2_closed 0.19 per SD). `up_wet_km` is dropped
+    for sign.
+  - On top of the hazard and terrain features, they buy +2 held-out sites (T3, lower bound −0.08) and no ROC gain. The features mostly
+    re-express the segment's own depth and flow accumulation through its neighbours. With 98 held-out sites, a +0.02 effect cannot be told
+    from zero.
+- **Dev storms move the other way.** `cas_v1` loses 4 dev sites against `a_v1` (27 → 23), so 2 of the 4 lost sites need explaining under
+  the protocol. This fits the picture: in Leominster, neighbourhood flooding is already in the depth field.
+- **The learned layer itself is still the useful thing.** It is just short of the significance bar.
+  - `cas_twotier` is the best point estimate yet: 33/98 held-out sites at 3 %, tier unchanged. But its lower bound is 0.000, not > 0.
+  - This is the same outcome as `d_twotier` / `a_v1` in `ml/EXPANDED.md`. The +11 to +13 sites are real-looking, but the storm-clustered
+    bootstrap cannot exclude zero at α/k.
+- **Step (b) was not run.** The pre-registered gate (T3 conditions 1–2) failed. With ~2 extra sites from the cascade structure, a
+  graph-regularised or label-propagation model, let alone a GNN, would be fitting noise.
+- **What it means for the thesis.** Cascade structure is a **consequence model** (§1–2): where delay, overload and lost access land. It is
+  not, with this data, a **predictor** of where roads flood. Prediction is limited by the depth field and by label coverage, not by missing
+  network context.
+
+**Nothing is wired.** The deployed rule and the watch tier are unchanged.

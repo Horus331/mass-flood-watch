@@ -1317,4 +1317,7 @@ if __name__ == '__main__':
     if not a.labels:
         import glob; a.labels = (sorted(glob.glob(os.path.join(HERE, 'data', f'labels_{a.storm}_*.csv'))) + sorted(glob.glob(os.path.join(HERE, 'data', f'labels_{a.storm}_*.geojson'))) or [None])[0]
     if a.selftest: selftest()
-    else: run(a.run_dir, a.out, a.segments, a.crossings, a.reports, a.facilities, a.repeat, a.top, a.culvert_rule, a.labels, not a.no_blockage, a.freeboard, a.fastwater, a.edge)
+    else:
+        run(a.run_dir, a.out, a.segments, a.crossings, a.reports, a.facilities, a.repeat, a.top, a.culvert_rule, a.labels, not a.no_blockage, a.freeboard, a.fastwater, a.edge)
+        if os.environ.get('PROTO_CASCADE') == '1':      # opt-in: knock-on effects (proto/cascade.py, docs/proto/cascade/CASCADE.md) -> <out>/cascade.json
+            import cascade; cascade.from_outdir(a.out)
