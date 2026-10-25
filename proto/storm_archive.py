@@ -462,8 +462,12 @@ def lab_lsr(S, w0, w1):
     return out, dict(ok=True, rows_ma=len(rows), kept=len(out), raw=rows)
 
 
+SE_COLS = ('EVENT_ID', 'EVENT_TYPE', 'CZ_NAME', 'BEGIN_DATE_TIME', 'END_DATE_TIME', 'BEGIN_LAT', 'BEGIN_LON', 'END_LAT', 'END_LON', 'DAMAGE_PROPERTY',
+           'EPISODE_NARRATIVE', 'EVENT_NARRATIVE', 'BEGIN_LOCATION', 'END_LOCATION')       # as proto/obs_fetch.py (read by validate_points.py)
+
+
 def lab_stormevents(S, w0, w1):
-    years = sorted({w0.year, w1.year}); out = []; found = False; meta = dict(ok=False)
+    years = sorted({w0.year, w1.year}); out = []; found = False; meta = dict(ok=False); raw = []
     idx = get('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/')
     if idx is None: return [], meta
     meta['ok'] = True
@@ -485,6 +489,7 @@ def lab_stormevents(S, w0, w1):
             except Exception: continue
             tw = town_of(lon, lat)
             if not tw: continue
+            raw.append({k: x.get(k, '') for k in SE_COLS})
             nar = (x.get('EVENT_NARRATIVE') or '').strip()
             for k, sent in enumerate([s for s in re.split(r'(?<=[\.;])\s+', nar) if FLOOD_RE.search(s) or ROAD_RE.search(s)] or [nar]):
                 lo, la, cq, road = snap(lon, lat, sent)
@@ -492,7 +497,7 @@ def lab_stormevents(S, w0, w1):
                 out.append(dict(name=f"{road or x.get('BEGIN_LOCATION', '').title()}: {x['EVENT_TYPE'].lower()}", road=road, town=tw, type=ltype(sent), time_local=local(t).strftime('%Y-%m-%dT%H:%M'),
                                 time_quality='report', lon=lo, lat=la, coord_quality=cq, source_url=f"https://www.ncdc.noaa.gov/stormevents/eventdetails.jsp?id={x['EVENT_ID']}",
                                 quote=sent[:300], source='StormEvents', quality='medium'))
-    meta['events_in_window'] = found
+    meta['events_in_window'] = found; meta['raw'] = raw
     return out, meta
 
 
@@ -565,14 +570,10 @@ def cmd_labels(a):
     for name, fn in (('LSR', lab_lsr), ('StormEvents', lab_stormevents), ('MassDOT', lab_massdot), ('SeeClickFix', lab_scf)):
         try: R, M = fn(S, w0, w1)
         except Exception as e: R, M = [], dict(ok=False, error=repr(e)[:200])
-        if name == 'LSR' and M.get('raw'):
-            raw = M.pop('raw'); write_csv(os.path.join(odir, 'lsr.csv'), raw, list(raw[0].keys()))
+        raw = M.pop('raw', None)
+        if name == 'LSR' and raw: write_csv(os.path.join(odir, 'lsr.csv'), raw, list(raw[0].keys()))
+        if name == 'StormEvents' and raw: write_csv(os.path.join(odir, 'stormevents.csv'), raw, list(SE_COLS))
         meta[name] = M; rows += R; log(f'labels {name}: {len(R)} row(s) {json.dumps(M)[:200]}')
-    # Storm Events rows in the validate_points layout (obs/stormevents.csv) for proto/validate_points.py
-    se = [r for r in rows if r['source'] == 'StormEvents']
-    if se: write_csv(os.path.join(odir, 'stormevents.csv'), [dict(EVENT_ID=r['source_url'].rsplit('=', 1)[-1], EVENT_TYPE='Flash Flood', BEGIN_LAT=r['lat'], BEGIN_LON=r['lon'],
-                                                                  BEGIN_DATE_TIME=r['time_local'], EVENT_NARRATIVE=r['quote']) for r in se],
-                     ['EVENT_ID', 'EVENT_TYPE', 'BEGIN_LAT', 'BEGIN_LON', 'BEGIN_DATE_TIME', 'EVENT_NARRATIVE'])
     # duplicates: same source + road + town within 2 h keep the first
     rows.sort(key=lambda r: (r['time_local'], r['source'])); keep, seen = [], set()
     for r in rows:
