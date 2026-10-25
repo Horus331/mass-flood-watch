@@ -918,12 +918,27 @@ def osm_roads(pbf, cases, out_dir):
             for nid, (lo, la) in zip(w['nodes'], a):
                 if nid not in seen: seen.add(nid); els.append(dict(type='node', id=nid, lon=float(lo), lat=float(la)))
         S = build_segments(els, towns); S['source'] = S['source'].replace('via Overpass', 'Geofabrik massachusetts-latest.osm.pbf ' + time.strftime('%Y-%m-%d'))
-        with gzip.open(os.path.join(out_dir, f"{c['name']}.json.gz"), 'wt') as f: json.dump(S, f, separators=(',', ':'))
+        with io.TextIOWrapper(gzip.GzipFile(os.path.join(out_dir, f"{c['name']}.json.gz"), 'wb', mtime=0)) as f: json.dump(S, f, separators=(',', ':'))
         cls = np.asarray(S['props']['cls'])
         info[c['name']] = dict(segments=S['n'], by_class={k: int((cls == k).sum()) for k in (0, 1, 2)}, links=len(S['links']), box=c['box'],
                                towns=sorted({t for t in S['props']['town'] if t}))
         log('roads', c['name'], info[c['name']]['segments'], info[c['name']]['by_class'])
     json.dump(info, open(os.path.join(out_dir, 'roads_info.json'), 'w'), indent=0)
+
+
+def gauges_fast(out_dir):
+    """USGS gauges in each catalogue box (legacy WaterServices IV, one bBox request per storm; the OGC path of obs_catalog.fetch queries the
+    whole state per storm and took hours for 81 storms) -> <out_dir>/gauges_<id>.json in the obs_fetch.py layout (local times)."""
+    sys.path.insert(0, HERE); import obs_fetch as OF
+    os.makedirs(out_dir, exist_ok=True)
+    for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']:
+        p = os.path.join(out_dir, f"gauges_{e['id']}.json")
+        if os.path.exists(p): continue
+        try:
+            G = OF.gauges_legacy(e['bbox_lonlat'], e['start'], e['end'])
+            json.dump(dict(bbox=e['bbox_lonlat'], start=e['start'], end=e['end'], source='legacy waterservices.usgs.gov IV (bBox)', gauges=list(G.values())), open(p, 'w'))
+            log('gauges', e['id'], len(G), [(g['site'], g.get('peak_stage_ft')) for g in G.values()])
+        except Exception as ex: log('gauges failed', e['id'], repr(ex)[:200])
 
 
 def cases_all():
@@ -1110,7 +1125,7 @@ def tables(run):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cmd', choices=['discover', 'queries', 'build', 'roads', 'extract', 'score', 'osm-geocode', 'osm-roads'])
+    ap.add_argument('cmd', choices=['discover', 'queries', 'build', 'roads', 'extract', 'score', 'osm-geocode', 'osm-roads', 'gauges-fast'])
     ap.add_argument('--pbf')
     ap.add_argument('--box'); ap.add_argument('--out'); ap.add_argument('--run-dir'); ap.add_argument('--storm'); ap.add_argument('--segments')
     ap.add_argument('--dest'); ap.add_argument('--run', default='r1'); ap.add_argument('--parts', default='districts,boston311,seeclickfix')
@@ -1120,6 +1135,7 @@ if __name__ == '__main__':
     elif a.cmd == 'build': build(); report()
     elif a.cmd == 'roads': roads(tuple(float(v) for v in a.box.split(',')), a.out)
     elif a.cmd == 'osm-geocode': osm_geocode(a.pbf)
-    elif a.cmd == 'osm-roads': osm_roads(a.pbf, cases_all(), a.out or os.path.join(TD, 'roads'))
+    elif a.cmd == 'osm-roads': osm_roads(a.pbf, cases_all(), a.out or os.path.join(TD, 'roads_osm'))
+    elif a.cmd == 'gauges-fast': gauges_fast(a.out or os.path.join(TD, 'gauges'))
     elif a.cmd == 'extract': extract(a.run_dir, a.storm, a.segments, a.dest)
     elif a.cmd == 'score': score(a.run); print(tables(a.run))
