@@ -81,3 +81,14 @@ does not fit in one session, and the storm corpus does not fit in their storage.
 **Software:** CMake, a C++ compiler, CUDA, netCDF-C and libnuma to build LISFLOOD-FP (`proto/turing/setup_lisflood.sh`);
 Python 3.11 with the packages in `proto/turing/environment.yml`. Job scripts: `proto/turing/run_storm.slurm` (square box), `run_basin.slurm`
 (watershed domain), `run_vt_basin.slurm` (Vermont Winooski basin); staging `stage_inputs.sh`.
+
+## Backing up run outputs to Hugging Face (`proto/turing/backup_hf.sh`)
+
+Scratch space on Turing is not backed up, so copy the outputs that matter to the Hugging Face dataset `mohabeldokla/mass-flood-watch-tiles`
+from time to time. On a login node, from `~/mass-flood-watch`: `export HF_TOKEN=<your write token>` (type it yourself or read it from a file
+only you can read; the script never prints it and refuses to run without it), then `bash proto/turing/backup_hf.sh --dry-run` to see the list
+and `bash proto/turing/backup_hf.sh` to upload. Each `~/scratch/lisflood/run_<name>/out/` goes to `runs/turing/<name>/` (hmax, hsnap, meta,
+the frame packs `frames_cm.npz` including the 5-minute ones, velocity / timing / rain summaries, mass balance, logs). Each
+`~/mass-flood-watch/results/<name>/` goes to `runs/turing/<name>/results/` (summary, score, points, features, matches, maps). Raw per-step
+LISFLOOD-FP files and the rebuilt DEM grids are left out (`--include-dem` keeps the DEM grids). Files already on the dataset with the same size are
+skipped, so you can re-run it after every batch. `--only <text>` limits the backup to matching names.
