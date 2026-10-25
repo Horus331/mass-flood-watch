@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q requests numpy scipy pyproj shapely pyshp pandas
+      - run: pip install -q requests numpy scipy pyproj shapely pyshp pandas osmium
       - name: run
         run: |
           M="${{ inputs.mode }}"; [ -z "$M" ] && M=$(cat docs/proto/transfer/.mode)
@@ -28,6 +28,10 @@ jobs:
                         --seed docs/proto/transfer/raw/geocode_osm.json --out docs/proto/transfer/raw/geocode_osm_new.json 2>&1 | tail -c 300000 > docs/proto/transfer/_logs/geocode.txt || true
                       python -c "import json,os; a='docs/proto/transfer/raw/geocode_osm.json'; b='docs/proto/transfer/raw/geocode_osm_new.json'; A=json.load(open(a)) if os.path.exists(a) else {}; A.update(json.load(open(b)) if os.path.exists(b) else {}); json.dump(A,open(a,'w'),indent=0)"
                       rm -f docs/proto/transfer/raw/geocode_osm_new.json ;;
+            osm-geocode) curl -sSL -o $RUNNER_TEMP/ma.osm.pbf https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf && ls -la $RUNNER_TEMP/ma.osm.pbf
+                      python -u proto/transfer_d456.py osm-geocode --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_geocode.txt || true ;;
+            osm-roads) curl -sSL -o $RUNNER_TEMP/ma.osm.pbf https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf && ls -la $RUNNER_TEMP/ma.osm.pbf
+                      python -u proto/transfer_d456.py osm-roads --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_roads.txt || true ;;
             gauges)   python -u proto/obs_catalog.py fetch --catalog docs/proto/obs/catalog_d456.json --out docs/proto/transfer/obs 2>&1 | tail -c 200000 > docs/proto/transfer/_logs/gauges.txt || true ;;
           esac
           tail -c 6000 docs/proto/transfer/_logs/*.txt

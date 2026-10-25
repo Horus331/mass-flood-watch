@@ -53,10 +53,11 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn pyshp
-      - name: OSM roads for the box
+      - name: OSM roads for the box (committed Geofabrik build, docs/proto/transfer/roads/)
         run: |
-          D=out/${{ matrix.c.name }}; mkdir -p $D
-          python proto/transfer_d456.py roads --box ${{ matrix.c.box }} --out $D 2>&1 | tail -5
+          D=out/${{ matrix.c.name }}; mkdir -p $D; F=docs/proto/transfer/roads/${{ matrix.c.name }}.json.gz
+          if [ -f $F ]; then cp $F $D/roads_graph.json.gz; else python proto/transfer_d456.py roads --box ${{ matrix.c.box }} --out $D 2>&1 | tail -5; fi
+          ls -la $D
       - name: storm window for w9 (runner copy of catalog.json only)
         if: matrix.c.kind == 'test'
         run: |
