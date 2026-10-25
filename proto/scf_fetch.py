@@ -20,7 +20,7 @@ API = 'https://seeclickfix.com/api/v2'
 D3 = (-72.20, 41.90, -71.30, 42.72)                      # lon0, lat0, lon1, lat1: union of the catalogue boxes, padded
 FLOOD_RE = re.compile(r'flood|drain|catch ?basin|storm ?water|stormwater|standing water|ponding|puddl|culvert|sewer back|washout|washed out|'
                       r'water (on|in|across|over) (the )?(road|street)|manhole', re.I)
-SEARCH = ('flood', 'flooding', 'flooded', 'standing water', 'catch basin', 'storm drain', 'drainage', 'ponding', 'washout', 'washed out')
+SEARCH = ('flood',)      # text search is slow on SCF (60 s timeouts seen); request-type ids carry the bulk
 STATUS = 'open,acknowledged,closed,archived'
 LOG = []
 
@@ -32,7 +32,7 @@ def log(*a):
 def get(url, params, tries=6):
     for i in range(tries):
         try:
-            r = requests.get(url, params=params, headers=UA, timeout=60)
+            r = requests.get(url, params=params, headers=UA, timeout=120)
         except Exception as ex:
             log('error', url, repr(ex)[:200]); time.sleep(5 * (i + 1)); continue
         if r.status_code == 429 or r.status_code >= 500:
@@ -119,7 +119,12 @@ def windows():
 def d3(T=None):
     if T is None:
         f = os.path.join(OUT, 'scf_request_types.json'); T = json.load(open(f))['request_types'] if os.path.exists(f) else types()
-    ids = [t['id'] for t in T if t['flood_like']]
+    ids = {t['id'] for t in T if t['flood_like']}
+    for f in sorted(os.listdir(OUT)):          # historic request-type ids seen in the storm windows (types get renumbered over the years)
+        if f.startswith('scf_window_'):
+            for i in json.load(open(os.path.join(OUT, f)))['issues']:
+                if i.get('request_type_id') and FLOOD_RE.search(str(i.get('request_type'))): ids.add(i['request_type_id'])
+    ids = sorted(ids); log('flood-like request type ids', ids)
     lon0, lat0, lon1, lat1 = D3; box = dict(min_lat=lat0, min_lng=lon0, max_lat=lat1, max_lng=lon1)
     got = {}; today = dt.date.today()
     for y in range(2018, today.year + 1):
@@ -160,7 +165,7 @@ def main():
     if m in ('types', 'all'): T = types()
     if m in ('windows', 'all'): windows()
     if m in ('d3', 'all'): d3(T)
-    json.dump(dict(mode=m, utc=dt.datetime.utcnow().isoformat(), log=LOG[-400:]), open(os.path.join(OUT, f'scf_fetch_{m}.json'), 'w'), indent=0)
+    json.dump(dict(mode=m, utc=dt.datetime.now(dt.timezone.utc).isoformat(), log=LOG[-400:]), open(os.path.join(OUT, f'scf_fetch_{m}.json'), 'w'), indent=0)
 
 
 if __name__ == '__main__':
