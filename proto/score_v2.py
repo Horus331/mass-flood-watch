@@ -4,6 +4,9 @@
     python proto/score_v2.py --catalog --out docs/proto/scoring/BASELINE_v2.json --md docs/proto/scoring/baseline_table.md
     python proto/score_v2.py --compare BASE.json CAND.json        # paired bootstrap + the pre-registered adoption rule (PROTOCOL.md §5)
     python proto/score_v2.py --selftest
+Opt-in label settings (secondary analyses, docs/proto/obs/LABELS_ROUND2.md / LABELS_ROUND3.md; defaults unchanged): SCORE_CRASHWATER=1 adds
+proto/data/crashwater_<storm>.csv, SCORE_SCF=1 adds proto/data/scf_<storm>.csv (SeeClickFix), SCORE_TIERS=1 adds weighted site recall
+(site weight = its best label's evidence weight, proto/label_tiers.py) and recall by tier to every block; the unweighted keys stay as they are.
 
 Input: one run folder as prototype.py writes it (flood_meta.json, segments.geojson; features_<storm>.csv and matches_<storm>.json when
 closure_ml.extract has run) and the label CSVs proto/data/labels_<storm>_*.csv.  Nothing is run; nothing in the run folder is changed.
@@ -60,6 +63,7 @@ HELDOUT = ('aug2023', 'aug2023b', 'aug2026', 'jul2021', 'jul2023', 'sep2021', 's
 LOCKED = ('aug2015', 'aug2018', 'aug2020', 'jul2018', 'oct2016')                       # pre-Oct-2020 IEM storms: opened once
 # label expansion 2026-10-23 (docs/proto/obs/LABELS_EXPANSION.md): 16 new storms, none locked; never used for tuning -> held out.
 # Reported as their own pool and pooled with OOS-7 ('heldout23'); the frozen OOS-7 decision set (PROTOCOL.md §5) is unchanged.
+TIER_ORDER = ('confirmed_inundation', 'confirmed_closure', 'corroborated', 'reported', 'suspected')   # proto/label_tiers.TIERS
 NEW16 = ('may2018', 'aug2018b', 'sep2018', 'sep2018w', 'sep2018m', 'sep2018b', 'jul2019', 'aug2019', 'sep2019', 'jun2020', 'jun2020b', 'aug2020b',
          'jul2021b', 'jul2023b', 'jul2023c', 'jul2023d')
 DOMAIN_OVERRIDE = dict(sep2023=('Leominster',))
@@ -136,12 +140,23 @@ def label_files(storm):
     (docs/proto/obs/LABELS_ROUND2.md; default off so the decision set stays the closure labels)."""
     F = sorted(glob.glob(os.path.join(LABELS_DIR, f'labels_{storm}_*.csv')))
     if os.environ.get('SCORE_CRASHWATER') == '1': F += sorted(glob.glob(os.path.join(LABELS_DIR, f'crashwater_{storm}.csv')))
+    if os.environ.get('SCORE_SCF') == '1': F += sorted(glob.glob(os.path.join(LABELS_DIR, f'scf_{storm}.csv')))   # SeeClickFix (LABELS_ROUND3.md)
     return F
+
+
+TIERED = os.environ.get('SCORE_TIERS') == '1'     # opt-in evidence-ladder weights (proto/label_tiers.py; docs/proto/obs/LABELS_ROUND3.md)
+
+
+def tier_weights(storm):
+    """{label key -> (tier, weight)} from proto/label_tiers.py (same rules as proto/data/labels_tiered_<storm>.csv); only with SCORE_TIERS=1."""
+    if not TIERED: return {}
+    sys.path.insert(0, HERE); import label_tiers as LT
+    return LT.weights_by_key(storm)
 
 
 def load_labels(storm, box):
     from pyproj import Transformer
-    tr = Transformer.from_crs(4326, 26986, always_xy=True); x0, y0, x1, y1 = box; out = []
+    tr = Transformer.from_crs(4326, 26986, always_xy=True); x0, y0, x1, y1 = box; out = []; TW = tier_weights(storm)
     for f in label_files(storm):
         for r in csv.DictReader(open(f)):
             try: lon, lat = float(r['lon']), float(r['lat'])
@@ -150,6 +165,7 @@ def load_labels(storm, box):
             if not (x0 <= x < x1 and y0 <= y < y1): continue
             out.append(dict(key=f'{os.path.basename(f)}:{r["id"]}', id=r['id'], type=r.get('type', ''), coord=(r.get('coord_quality') or 'approx').strip(),
                             x=float(x), y=float(y), town=r.get('town', '')))
+            if TIERED: out[-1]['tier'], out[-1]['w'] = TW.get(out[-1]['key'], ('reported', 0.6))
     return out
 
 
@@ -262,6 +278,9 @@ def score_domain(R, dm, towns):
     for c in (np.unique(cl) if len(cl) else []):
         ks = [mk[i] for i in np.nonzero(cl == c)[0]]; sg = sorted({int(remap[s]) for k in ks for s in R['matches'][k] if remap[s] >= 0})
         sites.append(dict(id='+'.join(sorted(labs[k]['id'] for k in ks)), labels=ks, segs=sg, types=sorted({labs[k]['type'] for k in ks})))
+        if TIERED:   # site weight / tier = its best-evidenced label (ties: ladder order)
+            best = min(ks, key=lambda k: (-labs[k]['w'], TIER_ORDER.index(labs[k]['tier'])))
+            sites[-1].update(w=labs[best]['w'], tier=labs[best]['tier'])
     yseg = np.zeros(n, bool)
     for s in sites: yseg[s['segs']] = True
     # false-alarm clusters: flagged non-site segments joined by graph links
@@ -296,6 +315,15 @@ def score_domain(R, dm, towns):
         return out
 
     msz = np.array([len(s['segs']) for s in sites], int)
+    sw = np.array([s.get('w', 1.0) for s in sites]); st = [s.get('tier') for s in sites]
+
+    def tiered(hits):       # SCORE_TIERS=1: weighted site recall and recall by tier (the unweighted keys above are unchanged)
+        o = dict(wsite_recall=float((sw * hits).sum() / sw.sum()) if len(sites) else None, recall_by_tier={})
+        for t in TIER_ORDER:
+            m = np.array([x == t for x in st], bool)
+            if m.any(): o['recall_by_tier'][t] = [float(hits[m].sum()), int(m.sum())]
+        return o
+
     lsegs = {k_: [int(remap[x]) for x in R['matches'][k_] if remap[x] >= 0] for k_ in mk}   # unclustered labels (the RECALL.md / LOSO unit)
 
     def block(masks, k):
@@ -307,12 +335,12 @@ def score_domain(R, dm, towns):
         return dict(k=int(k), share=k / max(1, n), site_recall=rec, site_hits=float(hits.sum()), chance_recall=chr_,
                     label_hits=lh, label_recall=lh / len(mk) if mk else None,
                     lift=(rec / chr_ if rec is not None and chr_ else None), seg_recall=segrec, csi=csi(fl), fss=fss_block(fl),
-                    _hits=hits.round(3).tolist(), _chance=ch.round(5).tolist())
+                    _hits=hits.round(3).tolist(), _chance=ch.round(5).tolist(), **(tiered(hits) if TIERED else {}))
 
     res = dict(n_segments=n, towns=list(towns) if towns else None, n_sites=len(sites), n_label_segments=int(yseg.sum()),
                n_labels_matched=len(mk), f0=RR.f0 if RR else None, fss_useful=(0.5 + RR.f0 / 2) if RR else None,
                complete=bool(towns and R['storm'] in COMPLETE and set(towns) == set(COMPLETE[R['storm']])),
-               sites=[dict(id=s['id'], n_segs=len(s['segs']), types=s['types']) for s in sites])
+               sites=[dict(id=s['id'], n_segs=len(s['segs']), types=s['types'], **({'w': s['w'], 'tier': s['tier']} if TIERED else {})) for s in sites])
     res['rule'] = block([rule], int(rule.sum())); res['may'] = block([may], int(may.sum()))
     res['shares'] = {}
     for sh in SHARES:
@@ -351,15 +379,21 @@ def pooled(runs, dom='box', boot=NBOOT, seed=0):
         o = {}
         for b in blocks:
             path = (b,) if isinstance(b, str) else b; name = b if isinstance(b, str) else 'share_' + b[1]
+            WH = WN = 0.0; TH = {t: 0.0 for t in TIER_ORDER}; TN = {t: 0.0 for t in TIER_ORDER}
             LH = LN = 0.0; H = N = C = 0.0; num = {str(r): 0.0 for r in RADII}; den = {str(r): 0.0 for r in RADII}; cs = np.zeros(3)
             for i, j in zip(sel, site_idx):
                 B = _get(runs[i]['domains'][dom], path); h = np.asarray(B['_hits']); c = np.asarray(B['_chance'])
                 H += h[j].sum(); C += c[j].sum(); N += len(j); cs += np.asarray(B['csi']['site'])
                 LH += B['label_hits']; LN += runs[i]['domains'][dom]['n_labels_matched']
+                if TIERED:
+                    S_ = runs[i]['domains'][dom]['sites']; w = np.array([S_[x]['w'] for x in j]); WH += (w * h[j]).sum(); WN += w.sum()
+                    for x in j: TH[S_[x]['tier']] += h[x]; TN[S_[x]['tier']] += 1
                 for r in num:
                     if r in B['fss']: num[r] += B['fss'][r]['num']; den[r] += B['fss'][r]['den']
             o[name] = dict(label_recall=LH / LN if LN else None, site_recall=H / N if N else None, chance=C / N if N else None, lift=(H / C if C else None),
                            csi_site=cs[0] / cs.sum() if cs.sum() else None, **{f'fss{r}': (1 - num[r] / den[r]) if den[r] else None for r in num})
+            if TIERED: o[name].update(wsite_recall=WH / WN if WN else None, **{f'recall_{t}': (TH[t] / TN[t] if TN[t] else None) for t in TIER_ORDER},
+                                      **{f'n_{t}': TN[t] for t in TIER_ORDER})
         for lv in ('seg', 'site'):
             v = [runs[i]['domains'][dom]['pr_auc'][lv] for i in sel]; v = [x for x in v if x is not None]; o[f'pr_auc_{lv}'] = float(np.mean(v)) if v else None
         return o

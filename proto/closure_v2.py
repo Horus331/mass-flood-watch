@@ -145,7 +145,8 @@ def load_storm(storm, base=PAR, S=None):
     return dict(storm=storm, run=run, rows=rows, seg=seg, y=y, town=town, depth=depth, pmay=pmay, X=X, X0=X0, off=offset_of(depth),
                 p_rule=np.nan_to_num(np.array([F(r['p_close'], 0) for r in rows])), rep_towns=rep, dom=np.isin(town, list(dom_towns)),
                 local=X0[:, CM.FEATURES.index('local_road')], aadt=np.array([F(r['aadt'], 0) for r in rows]),
-                **({'flash': __import__('mrms_flash').load(storm, seg)} if os.environ.get('PROTO_FLASH') == '1' else {}))   # opt-in MRMS FLASH (proto/mrms_flash.py)
+                **({'flash': __import__('mrms_flash').load(storm, seg)} if os.environ.get('PROTO_FLASH') == '1' else {}),   # opt-in MRMS FLASH (proto/mrms_flash.py)
+                **({'tw': CM.tier_weights(rows, storm)} if os.environ.get('TIER_WEIGHTS') == '1' else {}))   # opt-in evidence-ladder weights (label_tiers.py)
 
 
 def cols(feats):
@@ -239,7 +240,7 @@ class V1:
     """The v1 logistic (closure_ml.LR on MAIN, storm-balanced, reporting domains), refitted inside the same folds as the baseline."""
     def fit(self, parts):
         X = np.vstack([p['X0'] for p in parts]); y = np.concatenate([p['y'] for p in parts])
-        w = np.concatenate([np.full(len(p['y']), 1.0 / len(p['y'])) for p in parts]); self.m = CM.LR().fit(X, y, sample_weight=w / w.mean()); return self
+        w = np.concatenate([np.full(len(p['y']), 1.0 / len(p['y'])) * p['w'] for p in parts]); self.m = CM.LR().fit(X, y, sample_weight=w / w.mean()); return self
 
     def score(self, X0, off=None): return self.m.decision(X0)
 
@@ -248,6 +249,7 @@ def parts_for(S, train, pu, e_fn=None):
     out = []
     for s in train:
         D = S[s]; m = D['dom']; w = pu_weights(D, e_fn(D)) if (pu and e_fn) else np.ones(len(D['y']))
+        if 'tw' in D: w = w * D['tw']             # TIER_WEIGHTS=1: positives down-weighted by evidence tier; unlabeled stay 1 (unknown, not negative)
         out.append(dict(X=D['X'][m], X0=D['X0'][m], y=D['y'][m], off=D['off'][m], w=w[m]))
     return out
 
