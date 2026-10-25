@@ -131,3 +131,76 @@ A §5b pass makes the candidate the alert tier; it says nothing about ranking sk
 **Process.** Unchanged from v1 (log every candidate with its `--compare` output; settings committed before any held-out-23 number; the locked
 set is never used in a `--compare`). The honest out-of-sample skill to quote is always the held-out-23 pooled number of whatever is deployed,
 with its CI.
+
+---
+
+# Transfer test (Districts 4–6), pre-registered 25 Oct 2026
+
+Fixed and committed **before any District 4–6 storm was run or scored**. Agreed with the advisor: District 3 stays the case study and the
+deployed product. Storms in MassDOT Highway Districts 4, 5 and 6 (MetroWest / North Shore, SE MA / South Shore, Boston metro) are used
+**only** as independent test storms for the frozen District 3 model. Nothing is retuned on them. They are not part of the v2 decision set
+and never enter a `--compare`, a LOSO fold or any fit. The District 3 locked storms (§2) stay locked and are not touched.
+
+## T-1. Frozen model (exactly as deployed / baselined on 25 Oct 2026)
+
+- **Physics.** The clean CPU parity baseline (`parity/BASELINE.md`): `sim/colab/w9_lisflood.py` unchanged, LISFLOOD-FP 8.2 on CPU (Actions),
+  `LF_PARITY=1`, `LF_LOSS=cn` (AMC II), `LF_CN_SCALE=0.88`, `LF_INFIL_MMH=2`, `LF_QOUT=1`, `LF_VOUT=1`, 20 m grid, every other `LF_*` at its
+  default. Statewide inputs from the same sources as District 3 (HF `data/dem10`, `nlcd10`, `soils30`, `channels30`, `docs/network/crossings_all.json`
+  which covers the whole state, MRMS: AWS Pass2 from 14 Oct 2020, IEM GaugeCorr before, as w9 already does).
+- **Closure rule.** `proto/prototype.py` unchanged and at its defaults: `p_close = Φ((road depth − 0.30 m) / 0.10 m)`, the deployed rule is
+  `p_close ≥ 0.5`; bridge-deck and Interstate-crest handling as for District 3 (`docs/network/nbi_ma.json` is statewide).
+- **Watch tier.** Unchanged: `prototype.TIER_WATCH_P = 0.02` on the all-storm logistic `docs/proto/ml/closure_lr_all.json`
+  (watch = `p_close < 0.5` and `p_close_ml ≥ 0.02`; the "rule + watch" set is scored as a secondary tier).
+- **The one unavoidable difference: the road network.** `docs/graph_segments.json` (MassDOT road inventory) covers District 3 only. For the
+  test boxes the segments come from OpenStreetMap (Overpass, motorway … residential + links), split at junctions and at ~1 km like the
+  District 3 graph, with the District 3 class convention (2 = Interstate, named `I-nn`; 1 = other numbered US / MA route; 0 = the rest).
+  AADT is a class default (it does not enter `p_close`, the ranking or any metric). **Control:** two District 3 held-out storms (sep2021
+  Worcester, aug2023 MetroWest) are rerun with the same frozen settings and scored twice, once on `graph_segments.json` and once on OSM roads
+  built the same way, so the effect of the road source alone is measured. The control is reported; nothing is adjusted on it.
+
+## T-2. Storm selection (the catalogue `obs/catalog_d456.json`, `obs/CATALOG_D456.md`)
+
+- **Where.** MassDOT Highway Districts 4, 5, 6 from the MassGIS `MassDOT_Highway_Districts` polygons (town lists only if the polygons cannot
+  be read). A storm's box centre and all of its scored label sites must lie in Districts 4–6.
+- **When / rain.** 2018-01-01 … 2026-10-24, MRMS hourly QPE available for the whole window (AWS Pass2 or IEM GaugeCorr / Pass2).
+- **Kind (scope).** Flash / pluvial and riverine **rain** floods only. Excluded: coastal surge, tidal or wave flooding (a storm whose
+  reports are mostly coastal is dropped; a single report whose text names tide / surge / ocean / waves / seawall / coastal flooding is
+  dropped), snowmelt and ice jams (reports or narratives naming snow / ice / melt), and broken water mains.
+- **Sources.** NWS Local Storm Reports (BOX, IEM archive), NOAA NCEI Storm Events, Boston 311 requests whose type or text is flooding
+  (Boston open data, kept only inside storm windows), SeeClickFix issues in District 4–6 towns inside storm windows, and news. Every label
+  row is a road-level report with its source URL and a short verbatim quote, in the `proto/data/labels_<id>_<area>.csv` schema, geocoded with
+  OpenStreetMap as in the District 3 pipeline (`proto/label_geocode.py`). Reports without a street-level location stay `town` and are not
+  matched (PROTOCOL §1). Basement-only, private-property and water-main reports are not road labels.
+- **Inclusion.** **≥ 3 road-level sourced sites** (non-`town` coordinates, after the 150 m site clustering) inside one 20 × 20 km box.
+  Box = the 1 km-aligned 20 × 20 km EPSG:26986 square holding the most such sites (tie: the cluster closest to the box centre), as for the
+  District 3 catalogue. A box may not overlap a District 3 catalogue box of the same date. One day can give two storms if two separate boxes
+  each pass. Window: `t0` = first report − 7 h (floored to the hour), `hours` = max(18, last report − t0 + 5 h), as in District 3.
+- **Target** 15–25 storms and 150+ sites if the record supports it; the count actually found is reported whatever it is. Storm ids are
+  `<mon><yyyy><letter>` not used by any District 3 storm.
+
+## T-3. Metrics (all from the frozen scorers; scored **once**)
+
+`proto/score_v2.py` (pool `d456`, box domain primary, towns domain secondary; strict 30 m match, 150 m sites, 2000-replicate two-stage
+bootstrap, 90 % CIs) and `proto/score.py` for gauges. Reported per storm and pooled:
+
+1. **Site recall at the deployed rule** (`p_close ≥ 0.5`) with its share, exact chance and **lift**.
+2. **Site recall at 3 % flagged** (top 3 % by `p_close`, then depth) with chance and **lift** — the primary number.
+3. **FSS at 300 m** (road network), at the rule and at 3 %, with chance FSS and the useful level 0.5 + f₀ / 2.
+4. **Gauges:** USGS stage rise error and peak-timing error (`score.py`: mean abs rise error, bias, gap-aware peak timing).
+5. Secondary: the rule + watch tier (recall, share, lift), recall at 1 / 2 / 5 / 10 %, PR-AUC, towns domain.
+
+**Comparison** is with the District 3 held-out results on the same parity physics: held-out 23 after label round 2
+(`obs/LABELS_ROUND2.md`, `obs/round2/score_round2.json`: 98 sites, rule recall 0.092 lift 6.4, 3 % recall 0.204 [0.104, 0.303] lift 3.1,
+FSS300 at rule 0.051) and the gauge errors of `scoring/BASELINE_v2_expanded.md` / `parity/BASELINE.md`.
+
+**Verdict rule (fixed now).**
+- *Transfers* — the pooled District 4–6 3 % lift has a 90 % CI lower bound > 1 (skill above chance) **and** the pooled 3 % site recall is not
+  below the District 3 held-out-23 lower bound (0.104).
+- *Partial transfer* — the first condition holds, the second does not (ranking skill survives but at a lower level).
+- *Does not transfer* — the 3 % lift CI includes 1.
+- The rule-level recall / lift, FSS and gauge errors are reported next to the verdict and described in plain words; they do not change it.
+
+**Process.** The catalogue (storms, boxes, windows, labels) is committed before any test run. Runs use `.github/workflows/` on CPU with
+exactly the settings above and commit once per workflow run to `docs/proto/transfer/<run>/`. If a run fails for a technical reason
+(download, timeout) it is rerun unchanged; no storm is dropped or re-boxed after its result is seen. Results go to
+`docs/proto/transfer/TRANSFER.md` whatever they are.
