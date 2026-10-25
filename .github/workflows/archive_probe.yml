@@ -1,0 +1,31 @@
+name: archive probe (work branch only, temporary)
+on:
+  push:
+    branches: [archive-work]
+    paths: ['.github/workflows/archive_probe.yml', 'proto/storm_archive.py']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pyproj shapely matplotlib
+      - run: |
+          python proto/storm_archive.py alerts --out /tmp/a_iem.json --window 2023-09-11T00:00Z/2023-09-12T06:00Z
+          python proto/storm_archive.py alerts --out /tmp/a_live.json --lookback-h 72
+          python - <<'PY'
+          import json, sys, argparse
+          sys.path.insert(0, 'proto'); import storm_archive as A
+          for f in ('/tmp/a_iem.json', '/tmp/a_live.json'):
+              J = json.load(open(f)); print(f, {k: v for k, v in J.items() if k != 'alerts'})
+              for x in J['alerts']: print('  ', x['event'], x['start'], x['end'], x['towns'][:6], x['point'])
+          G = dict(issued='2023-09-11T12:00Z', trigger=True, forced=False, towns_over=['Leominster'], district=dict(max6h_window=['2023-09-11T18:00Z', '2023-09-12T00:00Z']),
+                   boxes=[dict(id='b1', box=[168000, 908000, 188000, 928000], max6h_window=['2023-09-11T18:00Z', '2023-09-12T00:00Z'], towns=['Leominster'])])
+          A.jsave('/tmp/g.json', G)
+          A.cmd_archive(argparse.Namespace(gate='/tmp/g.json', alerts='/tmp/a_iem.json', status=None, kofn=None, root='/tmp/arch', now=None, flag='/tmp/f.txt'))
+          S = A.storms('/tmp/arch')[0]; print('boxes', S['boxes'], S['window'])
+          import os; os.makedirs('/tmp/lab', exist_ok=True)
+          A.cmd_labels(argparse.Namespace(storm=S['id'], root='/tmp/arch', labels_dir='/tmp/lab', now=None))
+          print(open(f"/tmp/lab/labels_{S['id']}_auto.csv").read()[:6000])
+          print(json.dumps(A.storms('/tmp/arch')[0]['labels'], indent=1)[:3000])
+          PY
