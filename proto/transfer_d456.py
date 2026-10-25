@@ -66,9 +66,17 @@ def read_shp_zip(content):
     return out
 
 
+def town_key(fields):
+    for f in ('TOWN', 'TOWN_NAME', 'TOWN20', 'NAME', 'NAME20', 'COMMUNITY'):
+        if f in fields: return f
+    return next((f for f in fields if 'TOWN' in f.upper() and not f.upper().endswith('ID')), None)
+
+
 def pick_town_layer(T):
-    P = [v for v in T.values() if v['rows'] and v['rows'][0][2] in (5, 15, 25) and any(f in v['fields'] for f in ('TOWN', 'TOWN_NAME', 'NAME'))]
-    return max(P or list(T.values()), key=lambda v: len(v['rows']))
+    log('town zip layers', {k: (v['fields'], len(v['rows']), v['rows'][0][2] if v['rows'] else None) for k, v in T.items()})
+    P = [v for v in T.values() if v['rows'] and v['rows'][0][2] in (5, 15, 25) and town_key(v['fields'])]
+    P = sorted(P, key=lambda v: ('GENCOAST' in str(v.get('name', '')), -len(v['rows'])))
+    return P[0] if P else max(T.values(), key=lambda v: len(v['rows']))
 
 
 def districts():
@@ -103,7 +111,7 @@ def districts():
         if rt is None: continue
         try:
             T = read_shp_zip(rt.content); lay = pick_town_layer(T); log('towns layer', lay['fields'], len(lay['rows']))
-            nk = next((f for f in ('TOWN', 'TOWN_NAME', 'NAME', 'COMMUNITY') if f in lay['fields']), None)
+            nk = town_key(lay['fields'])
             DG = {d: unary_union(G).buffer(0) for d, G in by.items()}
             for rec, rings, st in lay['rows']:
                 polys = [Polygon(r_) for r_ in rings if len(r_) >= 4]
@@ -417,7 +425,7 @@ def nws_reports(dof):
 
 
 def town_of_report(r):
-    c = re.sub(r'^\d+\s+[NSEW]{1,3}\s+', '', r['city'] or '').title()
+    c = re.sub(r'^\d+\s+[NSEW]{1,3}\s+', '', r['city'] or '', flags=re.I).title()
     return c
 
 
@@ -459,6 +467,255 @@ def place(d, G):
     return None
 
 
+SCF_ROAD_RE = re.compile(r'(street|road|roadway|intersection|lane|avenue|ave|st|rd) (is |was |were |are |completely |totally )*(flood|under water|impassable)|'
+                         r'flooded (street|road|roadway|intersection)|(street|road|roadway) flooding|'
+                         r'(water|flooding|flood water|floodwater|ponding|puddle)s? (is |was )?(on|in|across|over|covering|throughout) (the |our |this )?(entire )?'
+                         r'(street|road|roadway|intersection|travel lane|crosswalk)|impassable|cars? (stuck|stalled)|washed out|washout', re.I)
+NOT_ROAD_RE = re.compile(r'basement|cellar|my (house|home|yard|property)|back ?yard|front yard|garage|sump|leak|water main|hydrant|sewer back ?up|toilet|'
+                         r'odor|smell|mosquito|pothole only|dumping|trash|flood ?lights?|install .{0,20}floods|food establishment|sprinkler|parking lot|'
+                         r'\bpark\b|playground|field|sidewalk only|sewer back|bathroom', re.I)
+BOS_DEFAULT = (42.3594, -71.0587)
+
+
+def bos_rows(day):
+    """Boston 311 requests of a candidate window that report flooding on a street (not basements / private property / mains)."""
+    p = os.path.join(RAW, f'boston311_{day}.json')
+    if not os.path.exists(p): return []
+    out = []
+    for x in json.load(open(p))['rows']:
+        lat = x.get('latitude') or x.get('lat'); lon = x.get('longitude') or x.get('long') or x.get('lon')
+        try: lat, lon = float(lat), float(lon)
+        except (TypeError, ValueError): continue
+        if abs(lat - BOS_DEFAULT[0]) < 1e-3 and abs(lon - BOS_DEFAULT[1]) < 1e-3: continue
+        title = ' '.join(str(x.get(k) or '') for k in ('case_title', 'type', 'service_name', 'description', 'subject'))
+        if not (re.search(r'roadway flooding|street flooding', title, re.I) or SCF_ROAD_RE.search(title)) or NOT_ROAD_RE.search(title): continue
+        t = str(x.get('open_dt') or x.get('open_date') or x.get('requested_datetime') or '').replace('T', ' ')[:16]
+        try: tl = dt.datetime.strptime(t, '%Y-%m-%d %H:%M')
+        except ValueError: continue
+        cid = x.get('case_enquiry_id') or x.get('case_id') or x.get('service_request_id') or x.get('_id')
+        import html as _h
+        loc = re.sub(r'\s+', ' ', _h.unescape(str(x.get('location') or x.get('address') or '')))
+        street = re.sub(r'^(INTERSECTION of |[\d\-]+[A-Z]?\s+)', '', loc, flags=re.I).split('&')[0].split(',')[0]
+        street = re.sub(r'\s+(Boston|Brighton|Roxbury|Dorchester|Mattapan|Jamaica Plain|West Roxbury|Roslindale|Hyde Park|Charlestown|East Boston|South Boston|'
+                        r'Allston|Back Bay|South End)\b.*$', '', street).strip()
+        out.append(dict(src='Boston311', key=f'B311:{cid}', t=tl + dt.timedelta(hours=4), lon=lon, lat=lat, town=str(x.get('neighborhood') or 'Boston').title() or 'Boston',
+                        road=street.title().strip(), type='flooded', coord='exact', quote=f"{x.get('case_title') or x.get('type')}: {loc}"[:300],
+                        url=f'https://311.boston.gov/tickets/{cid}', time_quality='report'))
+    return out
+
+
+def scf_rows(day):
+    p = os.path.join(RAW, f'scf_{day}.json')
+    if not os.path.exists(p): return []
+    out = []
+    for i in json.load(open(p))['issues']:
+        txt = f"{i.get('summary') or ''}. {i.get('description') or ''}"
+        if not (SCF_ROAD_RE.search(txt) or re.search(r'street flooding|roadway flooding|road flooding', str(i.get('request_type')), re.I)) or NOT_ROAD_RE.search(txt) \
+                or i.get('lat') is None: continue
+        t = dt.datetime.strptime(i['created_at'][:19], '%Y-%m-%dT%H:%M:%S'); off = i['created_at'][19:]
+        if off and off[0] in '+-': t = t - dt.timedelta(hours=int(off[1:3]) * (1 if off[0] == '+' else -1))
+        addr = i.get('address') or ''; parts = [x.strip() for x in addr.split(',')]
+        town = re.sub(r'^(city|town) of\s+|,?\s*(ma|massachusetts)$|\s*(town hall|dpw)$', '', str(i.get('organization') or ''), flags=re.I).strip()
+        road = re.sub(r'^\d+[A-Za-z]?\s+', '', parts[0]) if parts else ''
+        if town and road.lower().endswith(' ' + town.lower()): road = road[:-len(town) - 1]
+        road = re.sub(r'\s+(Heights|Highlands|Center|Centre)$', '', road)
+        out.append(dict(src='SeeClickFix', key=f"SCF:{i['id']}", t=t, lon=float(i['lng']), lat=float(i['lat']), town=town, road=road, type=rtype(txt),
+                        coord='exact', quote=f"{i.get('request_type')}: {txt}"[:300], url=i.get('html_url') or f"https://seeclickfix.com/issues/{i['id']}",
+                        time_quality='report'))
+    return out
+
+
+def build():
+    """Geocoded drafts + Boston 311 + SeeClickFix -> storms (PROTOCOL.md Transfer test T-2) -> label CSVs + docs/proto/obs/catalog_d456.json."""
+    from pyproj import Transformer
+    from scipy.spatial import cKDTree
+    sys.path.insert(0, HERE); import score_v2 as SV
+    T = Transformer.from_crs(4326, 26986, always_xy=True); TI = Transformer.from_crs(26986, 4326, always_xy=True)
+    dof = district_of_fn(); G = json.load(open(OSM_PATH)) if os.path.exists(OSM_PATH) else {}
+    drafts = json.load(open(os.path.join(RAW, 'nws_drafts.json'))); cands = json.load(open(os.path.join(RAW, 'candidates.json')))
+    D3 = json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))['events']; used_ids = {e['id'] for e in D3}
+    reports = {r['key']: r for r in nws_reports(dof)}
+    audit = []; storms = []
+    by_day = {}
+    for d in drafts:
+        if d['report'] in DROP: continue
+        pl = place(d, G); t = dt.datetime.strptime(d['t_utc'], '%Y-%m-%dT%H:%MZ')
+        row = dict(src='LSR' if d['src'] == 'LSR' else 'StormEvents', key=d['key'], report=d['report'], t=t, town=d['town'], road=d['road'], cross=d['cross'],
+                   type=d['type'], quote=d['quote'], url=d['url'], time_quality='report')
+        if pl: row.update(lon=pl[0], lat=pl[1], coord=pl[2], how=pl[3])
+        else: row.update(lon=d['nws_lon'], lat=d['nws_lat'], coord='town', how='not placed (OSM found no unique location): NWS point')
+        by_day.setdefault(d['day'], []).append(row)
+    for c in cands:
+        by_day.setdefault(c['day'], [])
+        by_day[c['day']] += bos_rows(c['day']) + scf_rows(c['day'])
+    for day in sorted(by_day):
+        R = by_day[day]
+        for r in R:
+            r['x'], r['y'] = T.transform(r['lon'], r['lat']); r['district'] = dof(r['x'], r['y'])
+        pool = [r for r in R if r['coord'] != 'town' and r['district'] in (4, 5, 6)]
+        taken = []
+        for attempt in range(3):
+            P = [r for r in pool if r['key'] not in {k for b in taken for k in b['keys']}]
+            if not any(r['src'] in ('LSR', 'StormEvents') for r in P): break
+            xy = np.array([[r['x'], r['y']] for r in P]); nws = np.array([r['src'] in ('LSR', 'StormEvents') for r in P])
+            cl = SV.link_clusters(xy, SV.SITE_LINK_M)
+            best = None
+            # candidate origins: every 1 km offset that keeps at least one NWS site inside (vectorised over a coarse 1 km lattice)
+            gx = np.arange(int(xy[:, 0].min() // 1000) - 19, int(xy[:, 0].max() // 1000) + 1) * 1000.0
+            gy = np.arange(int(xy[:, 1].min() // 1000) - 19, int(xy[:, 1].max() // 1000) + 1) * 1000.0
+            for x0 in gx:
+                inx = (xy[:, 0] >= x0) & (xy[:, 0] < x0 + 20000)
+                if not (inx & nws).any(): continue
+                for y0 in gy:
+                    m = inx & (xy[:, 1] >= y0) & (xy[:, 1] < y0 + 20000)
+                    if not (m & nws).any(): continue
+                    if dof(x0 + 10000, y0 + 10000) not in (4, 5, 6): continue
+                    if any(e.get('t0') and abs((dt.date.fromisoformat(e['t0'][:10]) - dt.date.fromisoformat(day)).days) <= 1 and
+                           x0 < e['box_26986'][2] and x0 + 20000 > e['box_26986'][0] and y0 < e['box_26986'][3] and y0 + 20000 > e['box_26986'][1] for e in D3): continue
+                    if any(x0 < b['box'][2] and x0 + 20000 > b['box'][0] and y0 < b['box'][3] and y0 + 20000 > b['box'][1] for b in taken): continue
+                    n = len(np.unique(cl[m])); cen = abs(xy[m, 0].mean() - x0 - 10000) + abs(xy[m, 1].mean() - y0 - 10000)
+                    sc = (n, -cen)
+                    if best is None or sc > best[0]: best = (sc, [x0, y0, x0 + 20000, y0 + 20000])
+            if best is None: break
+            box = best[1]; inb = lambda r: box[0] <= r['x'] < box[2] and box[1] <= r['y'] < box[3]
+            nw = [r for r in R if inb(r) and r['src'] in ('LSR', 'StormEvents') and r['district'] in (4, 5, 6)]
+            tt = sorted(r['t'] for r in nw)
+            t0 = (tt[0] - dt.timedelta(hours=7)).replace(minute=0); hours = max(18, int(math.ceil((tt[-1] - t0).total_seconds() / 3600 + 5)))
+            w0, w1 = t0, t0 + dt.timedelta(hours=hours)
+            keep = [r for r in R if inb(r) and r['district'] in (4, 5, 6) and
+                    ((r['src'] in ('LSR', 'StormEvents')) or (w0 - dt.timedelta(hours=2) <= r['t'] <= w1 + dt.timedelta(hours=12)))]
+            # all NWS reports in box + window (also those without a road) for the scope checks
+            allrep = [q for q in reports.values() if box[0] <= q['x'] < box[2] and box[1] <= q['y'] < box[3] and w0 <= q['t'] <= w1]
+            coastal = sum(bool(COASTAL_RE.search((q['text'] or '') + ' ' + (q.get('episode') or ''))) for q in allrep)
+            snow = sum(bool(SNOW_RE.search((q['text'] or '') + ' ' + (q.get('episode') or ''))) for q in allrep)
+            # dedupe: same road (or same pair) within 1 km -> one row (best coordinate, earliest report)
+            rank = dict(exact=0, approx=1, town=2); keep.sort(key=lambda r: (rank[r['coord']], r['t']))
+            ded = []
+            for r in keep:
+                nm = re.sub(r'[^a-z0-9]', '', (r['road'] or '').lower())
+                if r['src'] in ('LSR', 'StormEvents') and nm and any(re.sub(r'[^a-z0-9]', '', (q['road'] or '').lower()) == nm and
+                                                                   q['src'] in ('LSR', 'StormEvents') and math.hypot(q['x'] - r['x'], q['y'] - r['y']) < 1000 for q in ded): continue
+                ded.append(r)
+            road = [r for r in ded if r['coord'] != 'town']
+            ncl = len(np.unique(SV.link_clusters(np.array([[r['x'], r['y']] for r in road]).reshape(-1, 2), SV.SITE_LINK_M))) if road else 0
+            info = dict(day=day, box=box, t0=t0, hours=hours, rows=ded, n_sites=ncl, n_nws_reports=len(allrep), coastal=coastal, snow=snow,
+                        keys=[r['key'] for r in keep])
+            taken.append(info)
+        storms += taken
+    # one event that crosses local midnight gives two candidate days: a box overlapping an earlier box whose window it continues (starts before
+    # that window's end + 12 h) is merged into it (rows inside the earlier box kept, window extended)
+    merged = []
+    for b in sorted(storms, key=lambda b: b['t0']):
+        a = next((a for a in merged if b['box'][0] < a['box'][2] and b['box'][2] > a['box'][0] and b['box'][1] < a['box'][3] and b['box'][3] > a['box'][1]
+                  and b['t0'] <= a['t0'] + dt.timedelta(hours=a['hours'] + 12)), None)
+        if a is None: merged.append(b); continue
+        inb = lambda r: a['box'][0] <= r['x'] < a['box'][2] and a['box'][1] <= r['y'] < a['box'][3]
+        have = {r['key'] for r in a['rows']}
+        for r in b['rows']:
+            nm = re.sub(r'[^a-z0-9]', '', (r['road'] or '').lower())
+            if r['key'] in have or not inb(r): continue
+            if r['src'] in ('LSR', 'StormEvents') and nm and any(re.sub(r'[^a-z0-9]', '', (q['road'] or '').lower()) == nm and q['src'] in ('LSR', 'StormEvents')
+                                                               and math.hypot(q['x'] - r['x'], q['y'] - r['y']) < 1000 for q in a['rows']): continue
+            a['rows'].append(r)
+        a['hours'] = max(a['hours'], int(math.ceil((b['t0'] + dt.timedelta(hours=b['hours']) - a['t0']).total_seconds() / 3600)))
+        a['n_nws_reports'] += b['n_nws_reports']; a['coastal'] += b['coastal']; a['snow'] += b['snow']; a['keys'] += b['keys']
+        a.setdefault('merged_days', []).append(b['day'])
+        road = [r for r in a['rows'] if r['coord'] != 'town']
+        a['n_sites'] = len(np.unique(SV.link_clusters(np.array([[r['x'], r['y']] for r in road]).reshape(-1, 2), SV.SITE_LINK_M))) if road else 0
+    storms = merged
+    for b in storms:
+        ok = b['n_sites'] >= 3 and b['coastal'] <= 0.5 * max(1, b['n_nws_reports']) and b['snow'] == 0
+        b['selected'] = ok
+        b['why'] = 'selected' if ok else ('< 3 road-level sites' if b['n_sites'] < 3 else 'coastal' if b['coastal'] > 0.5 * max(1, b['n_nws_reports']) else 'snowmelt / ice')
+    sel = [b for b in storms if b['selected']]
+    letters = 'efghknpqrstuvxyz'; events = []
+    for b in sorted(sel, key=lambda b: (b['t0'], b['box'][0])):
+        mon = b['t0'] - dt.timedelta(hours=4); base = mon.strftime('%b').lower() + mon.strftime('%Y')
+        sid = next(base + L for L in letters if base + L not in used_ids); used_ids.add(sid)
+        road = [r for r in b['rows'] if r['coord'] != 'town']
+        tc = {}; tn = {}
+        for r in road:
+            if r['town']: tc[r['town']] = tc.get(r['town'], 0) + 1
+            if r['src'] in ('LSR', 'StormEvents') and r['town']: tn[r['town']] = tn.get(r['town'], 0) + 1
+        area = re.sub(r'[^a-z]', '', max(tn or tc or {'east': 1}, key=(tn or tc or {'east': 1}).get).lower()) or 'east'
+        rows = []
+        for k, r in enumerate(sorted(b['rows'], key=lambda r: r['t'])):
+            tl = r['t'] - dt.timedelta(hours=4)
+            rows.append(dict(id=f'{sid.upper()}-{k + 1:02d}', name=f"{r['road']}{' at ' + r['cross'] if r.get('cross') else ''}: {r['type']}", road=r['road'],
+                             town=r['town'], type=r['type'], time_local=tl.strftime('%Y-%m-%dT%H:%M'), time_quality=r['time_quality'],
+                             lon=f"{r['lon']:.5f}", lat=f"{r['lat']:.5f}", coord_quality=r['coord'], source_url=r['url'], quote=r['quote'], source=r['src']))
+            audit.append(dict(storm=sid, id=rows[-1]['id'], key=r['key'], how=r.get('how', 'source coordinates'), coord_quality=r['coord']))
+        path = os.path.join(HERE, 'data', f'labels_{sid}_{area}.csv')
+        with open(path, 'w', newline='') as f:
+            w = csv.DictWriter(f, fieldnames=LABEL_COLS, lineterminator='\r\n'); w.writeheader(); w.writerows(rows)
+        lo0, la0 = TI.transform(b['box'][0], b['box'][1]); lo1, la1 = TI.transform(b['box'][2], b['box'][3])
+        tt = sorted(r['t'] for r in b['rows'] if r['src'] in ('LSR', 'StormEvents'))
+        era = 'aws' if b['t0'] >= dt.datetime(2020, 10, 14) else 'iem'
+        q = {}; so = {}
+        for r in b['rows']: q[r['coord']] = q.get(r['coord'], 0) + 1; so[r['src']] = so.get(r['src'], 0) + 1
+        events.append(dict(id=sid, area=area, district=dof(b['box'][0] + 10000, b['box'][1] + 10000), date_local=b['day'], t0=b['t0'].strftime('%Y-%m-%dT%H:00Z'),
+                           hours=b['hours'], first_report_utc=tt[0].strftime('%Y-%m-%dT%H:%MZ'), last_report_utc=tt[-1].strftime('%Y-%m-%dT%H:%MZ'),
+                           box_26986=[int(v) for v in b['box']], bbox_lonlat=[round(lo0, 3), round(la0, 3), round(lo1, 3), round(la1, 3)],
+                           start=(b['t0'] - dt.timedelta(days=1)).strftime('%Y-%m-%d'), end=(b['t0'] + dt.timedelta(hours=b['hours']) + dt.timedelta(days=1)).strftime('%Y-%m-%d'),
+                           towns=sorted(tc), counts=dict(label_rows=len(rows), road_level_rows=len(road), sites_150m=b['n_sites'], nws_reports_in_box=b['n_nws_reports'],
+                                                         coastal_reports=b['coastal']),
+                           label_coord_quality=q, sources=so, era=era,
+                           mrms='AWS noaa-mrms-pds MultiSensor_QPE_01H_Pass2' if era == 'aws' else 'IEM mtarchive GaugeCorr_QPE_01H (w9 fallback, as the District 3 2018-2020 storms)',
+                           labels=os.path.relpath(path, ROOT), role='d456 transfer test (never tuned on)'))
+    json.dump(dict(about='District 4-6 transfer-test storms (docs/proto/PROTOCOL.md "Transfer test", T-2); built by proto/transfer_d456.py build',
+                   made=time.strftime('%Y-%m-%d'), events=events), open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json'), 'w'), indent=1)
+    json.dump(dict(audit=audit, considered=[dict(day=b['day'], box=b['box'], t0=b['t0'].strftime('%Y-%m-%dT%H:00Z'), hours=b['hours'], sites=b['n_sites'],
+                                                 nws_reports=b['n_nws_reports'], coastal=b['coastal'], snow=b['snow'], selected=b['selected'], why=b['why'],
+                                                 merged_days=b.get('merged_days'))
+                                            for b in storms]), open(os.path.join(RAW, 'build_audit.json'), 'w'), indent=0, default=str)
+    print(len(events), 'storms;', sum(e['counts']['sites_150m'] for e in events), 'sites')
+    for e in events: print(e['id'], e['area'], e['district'], e['t0'], e['hours'], e['box_26986'], e['counts'], e['sources'])
+
+
+def report():
+    """docs/proto/obs/CATALOG_D456.md from catalog_d456.json + build_audit.json."""
+    C = json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']; A = json.load(open(os.path.join(RAW, 'build_audit.json')))
+    from collections import Counter
+    L = ['# District 4-6 transfer-test storm catalogue (`catalog_d456.json`)', '',
+         'Built by `proto/transfer_d456.py` (`discover` on Actions, `queries`, label geocode on Actions, `build`) under the pre-registered rules of',
+         '`docs/proto/PROTOCOL.md` "Transfer test (Districts 4-6)" (T-2). These storms are **test-only**: the frozen District 3 model is run on them',
+         'once and nothing is tuned on them. Label files: `proto/data/labels_<id>_<area>.csv` (same columns as District 3).', '']
+    tot = Counter(); src = Counter(); q = Counter()
+    for e in C:
+        tot['storms'] += 1; tot['rows'] += e['counts']['label_rows']; tot['road'] += e['counts']['road_level_rows']; tot['sites'] += e['counts']['sites_150m']
+        src.update(e['sources']); q.update(e['label_coord_quality'])
+    L += [f"**{tot['storms']} storms, {tot['sites']} road-level sites** (150 m clusters of non-`town` rows), {tot['road']} road-level rows, {tot['rows']} label rows in all.",
+          f"Rows by source: {', '.join(f'{k} {v}' for k, v in src.most_common())}. Coordinates: {', '.join(f'{k} {v}' for k, v in q.most_common())}.", '',
+          '| id | district | date (local) | era / rain | box EPSG:26986 | t0 UTC / h | sites | rows (road-level) | sources | towns |', '|' + '---|' * 10]
+    for e in C:
+        L.append(f"| {e['id']} | {e['district']} | {e['date_local']} | {e['era']} | {','.join(map(str, e['box_26986']))} | {e['t0']} / {e['hours']} | "
+                 f"{e['counts']['sites_150m']} | {e['counts']['label_rows']} ({e['counts']['road_level_rows']}) | {', '.join(f'{k} {v}' for k, v in e['sources'].items())} | "
+                 f"{', '.join(e['towns'][:6])}{' …' if len(e['towns']) > 6 else ''} |")
+    rej = [c for c in A['considered'] if not c['selected']]
+    L += ['', f"**Considered and not selected: {len(rej)} boxes** (reason: {', '.join(f'{k} {v}' for k, v in Counter(c['why'] for c in rej).most_common())}).",
+          'Every candidate day (>= 2 District 4-6 flood reports in LSR + Storm Events since 2018) was searched for up to three non-overlapping 20 x 20 km',
+          'boxes; the full list with counts is `docs/proto/transfer/raw/build_audit.json`.', '',
+          '## How the labels were made', '',
+          '- **NWS reports** (IEM LSR archive, NCEI Storm Events; `docs/proto/obs/catalog/*_ma_flood_2014_2026.csv`): every FLOOD / FLASH FLOOD report whose',
+          '  point lies in District 4, 5 or 6 (MassGIS `MassDOT_Highway_Districts` polygons) was split into the roads it names (one row per road; "A at B"',
+          '  is one intersection row) by `transfer_d456.mentions`. Dropped: tide / surge / coastal / wave and snowmelt / ice-jam texts, basement / building /',
+          '  water-main reports without a road impact, texts without a flood word. Draft rows: `raw/nws_drafts.json`; reports without a road: `raw/nws_skipped.json`.',
+          '- **Placement** (OSM via `proto/label_geocode.py`, `raw/geocode_osm.json`): intersection within 80 m -> `exact`; the road vertex nearest the NWS',
+          '  point (< 1.5 km) or the centroid vertex of a road shorter than 3 km -> `approx`; otherwise the row stays `town` at the NWS point and is not matched.',
+          '  Same road named twice in one storm within 1 km (an LSR and its Storm Events copy) -> one row (the better coordinate).',
+          '- **Boston 311** (data.boston.gov CKAN, full-text "flood"): requests whose type/title says flooding, at the city-geocoded address (`exact`), opened',
+          '  between t0 - 2 h and t0 + hours + 12 h. Basement, property, flood-light and food-establishment requests are excluded.',
+          '- **SeeClickFix** (api/v2 issues in the window and box): issues whose text says the street / road flooded or had standing water (not chronic',
+          '  drain complaints without a flood word, not private property), at the reporter\'s pin (`exact`), same time window as 311.',
+          '- News was not searched systematically for these districts (time); no news rows.', '',
+          '## Storm windows and boxes', '',
+          '- Box: the 1 km-aligned 20 x 20 km square with the most road-level sites that holds >= 1 NWS road report, centre in Districts 4-6, not overlapping a',
+          '  District 3 catalogue box of the same date (+-1 day). t0 = first NWS report in the box - 7 h; hours = max(18, last NWS report - t0 + 5 h).',
+          '- Selected when >= 3 road-level sites (150 m clusters), coastal texts <= half of the NWS reports in the box and window, and no snowmelt / ice text.',
+          '- Rain: MRMS hourly QPE from AWS Pass2 (from 14 Oct 2020) or the IEM GaugeCorr archive before, exactly as the District 3 2018-2020 storms.', '']
+    open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'CATALOG_D456.md'), 'w').write('\n'.join(L) + '\n'); print('\n'.join(L[:12]))
+
+
 # ------------------------------------------------------------------------------------------------------------------ roads (OSM)
 OSM_CLASSES = ('motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
                'motorway_link', 'trunk_link', 'primary_link', 'secondary_link', 'tertiary_link')     # as sim/colab/vt_inputs.py
@@ -492,7 +749,7 @@ def town_polys():
         if r is None: continue
         try:
             T = read_shp_zip(r.content); lay = pick_town_layer(T)
-            nk = next((f for f in ('TOWN', 'TOWN_NAME', 'NAME', 'COMMUNITY') if f in lay['fields']), None)
+            nk = town_key(lay['fields'])
             out = []
             for rec, rings, st in lay['rows']:
                 polys = [Polygon(r_).buffer(0) for r_ in rings if len(r_) >= 4]
@@ -577,6 +834,105 @@ def roads(box, out):
                 towns=sorted({t for t in S['props']['town'] if t}))
     json.dump(info, open(os.path.join(out, 'roads_info.json'), 'w'), indent=0); log('roads', info)
     return os.path.join(out, 'roads_graph.json.gz')
+
+
+# ---- OSM from the Geofabrik Massachusetts extract (Overpass was too slow for ~1,100 label queries and ~50 boxes) ----
+GEOFABRIK = 'https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf'
+GEO_HW = set(OSM_CLASSES) | {'living_street', 'service', 'road', 'busway'}       # for placing labels only (the model network is OSM_CLASSES)
+
+
+def osm_ways(pbf, bbox=(-71.95, 41.2, -69.85, 42.9)):
+    """Every highway way in bbox from a .osm.pbf: list of dict(id, tags, nodes, lon, lat) (pyosmium, node locations)."""
+    import osmium
+    out = []
+
+    class H(osmium.SimpleHandler):
+        def way(self, w):
+            hw = w.tags.get('highway')
+            if hw not in GEO_HW: return
+            try: ll = [(n.lon, n.lat) for n in w.nodes]; ids = [n.ref for n in w.nodes]
+            except osmium.InvalidLocationError: return
+            if len(ll) < 2: return
+            a = np.array(ll)
+            if a[:, 0].max() < bbox[0] or a[:, 0].min() > bbox[2] or a[:, 1].max() < bbox[1] or a[:, 1].min() > bbox[3]: return
+            out.append(dict(id=w.id, tags={k: w.tags.get(k) for k in ('highway', 'name', 'ref', 'bridge') if w.tags.get(k)}, nodes=ids, ll=a))
+    H().apply_file(pbf, locations=True)
+    log('osm ways', len(out)); return out
+
+
+def osm_geocode(pbf):
+    """proto/label_geocode.py semantics (pair / single, ways within 4 km of the NWS point) on the local extract -> raw/geocode_osm.json."""
+    sys.path.insert(0, HERE); import label_geocode as LG
+    from pyproj import Transformer
+    T = Transformer.from_crs(4326, 26986, always_xy=True)
+    W = osm_ways(pbf); byname = {}; byref = {}
+    for i, w in enumerate(W):
+        if w['tags'].get('name'): byname.setdefault(w['tags']['name'].lower(), []).append(i)
+        for r in (w['tags'].get('ref') or '').split(';'):
+            if r.strip(): byref.setdefault(re.sub(r'\s+', ' ', r.strip().upper()), []).append(i)
+        x, y = T.transform(w['ll'][:, 0], w['ll'][:, 1]); w['xy'] = np.column_stack([x, y])
+
+    def match(spec, near):
+        ids = set()
+        for sp in spec.split('|'):
+            sp = sp.strip()
+            if sp.startswith('ref:'): ids |= set(byref.get(re.sub(r'\s+', ' ', sp[4:].strip().upper()), []))
+            else: ids |= set(byname.get(sp.lower(), []))
+        nx, ny = T.transform(*near)
+        els = []
+        for i in ids:
+            w = W[i]
+            if np.hypot(w['xy'][:, 0] - nx, w['xy'][:, 1] - ny).min() <= 4000:
+                els.append(dict(id=w['id'], tags=w['tags'], nodes=w['nodes'], geometry=[dict(lon=float(a), lat=float(b)) for a, b in w['ll']]))
+        return els
+    Q = json.load(open(Q_PATH)); R = json.load(open(OSM_PATH)) if os.path.exists(OSM_PATH) else {}; n = 0
+    for q in Q:
+        k = q['key']
+        if k in R and (R[k].get('pair') or R[k].get('single')): continue
+        r = dict(q=q, src='Geofabrik massachusetts-latest.osm.pbf (local match, label_geocode.pair/single)')
+        try:
+            A = LG.lines(match(q['a'], q['near'])); r['a_ways'] = len(A)
+            if q.get('b'):
+                B = LG.lines(match(q['b'], q['near'])); r['b_ways'] = len(B)
+                if A and B: r['pair'] = LG.pair(A, B, q['near'])
+            if A: r['single'] = LG.single(A, q['near'])
+        except Exception as e: r['error'] = repr(e)[:300]
+        R[k] = r; n += 1
+    json.dump(R, open(OSM_PATH, 'w'), indent=0); log('geocoded', n, 'new;', sum(1 for v in R.values() if v.get('pair') or v.get('single')), 'placed of', len(R))
+
+
+def osm_roads(pbf, cases, out_dir):
+    """Road graphs (docs/graph_segments.json layout) for every run box from one extract -> <out_dir>/<name>.json.gz + roads_info.json."""
+    import gzip
+    W = [w for w in osm_ways(pbf) if w['tags'].get('highway') in OSM_CLASSES]; towns = town_polys(); os.makedirs(out_dir, exist_ok=True); info = {}
+    from pyproj import Transformer
+    TI = Transformer.from_crs(26986, 4326, always_xy=True)
+    for c in cases:
+        x0, y0, x1, y1 = [float(v) for v in c['box'].split(',')]
+        lo0, la0 = TI.transform(x0 - 1500, y0 - 1500); lo1, la1 = TI.transform(x1 + 1500, y1 + 1500)
+        els = []; seen = set()
+        for w in W:
+            a = w['ll']
+            if a[:, 0].max() < lo0 or a[:, 0].min() > lo1 or a[:, 1].max() < la0 or a[:, 1].min() > la1: continue
+            els.append(dict(type='way', id=w['id'], nodes=w['nodes'], tags=w['tags']))
+            for nid, (lo, la) in zip(w['nodes'], a):
+                if nid not in seen: seen.add(nid); els.append(dict(type='node', id=nid, lon=float(lo), lat=float(la)))
+        S = build_segments(els, towns); S['source'] = S['source'].replace('via Overpass', 'Geofabrik massachusetts-latest.osm.pbf ' + time.strftime('%Y-%m-%d'))
+        with gzip.open(os.path.join(out_dir, f"{c['name']}.json.gz"), 'wt') as f: json.dump(S, f, separators=(',', ':'))
+        cls = np.asarray(S['props']['cls'])
+        info[c['name']] = dict(segments=S['n'], by_class={k: int((cls == k).sum()) for k in (0, 1, 2)}, links=len(S['links']), box=c['box'],
+                               towns=sorted({t for t in S['props']['town'] if t}))
+        log('roads', c['name'], info[c['name']]['segments'], info[c['name']]['by_class'])
+    json.dump(info, open(os.path.join(out_dir, 'roads_info.json'), 'w'), indent=0)
+
+
+def cases_all():
+    C = json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']
+    D3 = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))['events']}
+    out = [dict(id=e['id'], name=f"{e['id']}_{e['area']}_20m", box=','.join(str(int(v)) for v in e['box_26986'])) for e in C]
+    for sid in ('sep2021', 'aug2023'):
+        e = D3[sid]; out.append(dict(id=sid, name=f"{sid}_{e['area']}_20m", box=','.join(str(int(v)) for v in e['box_26986'])))
+    return out
 
 
 def load_graph(path):
@@ -738,14 +1094,32 @@ def score(run):
     return out
 
 
+def tables(run):
+    """Markdown tables for TRANSFER.md from docs/proto/transfer/<run>/transfer_summary.json (the prose is written by hand)."""
+    S = json.load(open(os.path.join(TD, run, 'transfer_summary.json'))); C = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']}
+    f = lambda v, n=2: '–' if v is None else f'{v:.{n}f}'
+    L = ['| storm | district | sites | rule: share / hits / lift | 3 %: hits / recall (chance) / lift | FSS300 rule (chance) | rule + watch: share / hits | gauges: n / mean abs rise err (m) / bias / timing (h) |',
+         '|' + '---|' * 8]
+    for sid, v in S['d456']['per_storm'].items():
+        g = v['gauges'] or {}; t = v['tier'] or {}
+        L.append(f"| {sid} | {C.get(sid, {}).get('district', '')} | {v['sites']} | {f(v['rule']['share'] * 100, 2)} % / {f(v['rule']['hits'], 0)} / {f(v['rule']['lift'], 1)} | "
+                 f"{f(v['share3']['hits'], 1)} / {f(v['share3']['recall'])} ({f(v['share3']['chance'])}) / {f(v['share3']['lift'], 1)} | {f(v['rule']['fss300'], 3)} ({f(v['rule']['fss300_chance'], 3)}) | "
+                 f"{f((t.get('share') or 0) * 100, 1)} % / {f(t.get('hits'), 0)} | {g.get('n', 0)} / {f(g.get('mean_abs_rise_error_m'))} / {f(g.get('bias_m'))} / {f(g.get('mean_abs_peak_timing_h'), 1)} |")
+    return '\n'.join(L)
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cmd', choices=['discover', 'queries', 'build', 'roads', 'extract', 'score'])
+    ap.add_argument('cmd', choices=['discover', 'queries', 'build', 'roads', 'extract', 'score', 'osm-geocode', 'osm-roads'])
+    ap.add_argument('--pbf')
     ap.add_argument('--box'); ap.add_argument('--out'); ap.add_argument('--run-dir'); ap.add_argument('--storm'); ap.add_argument('--segments')
     ap.add_argument('--dest'); ap.add_argument('--run', default='r1'); ap.add_argument('--parts', default='districts,boston311,seeclickfix')
     a = ap.parse_args()
     if a.cmd == 'discover': discover(tuple(a.parts.split(',')))
     elif a.cmd == 'queries': queries()
+    elif a.cmd == 'build': build(); report()
     elif a.cmd == 'roads': roads(tuple(float(v) for v in a.box.split(',')), a.out)
+    elif a.cmd == 'osm-geocode': osm_geocode(a.pbf)
+    elif a.cmd == 'osm-roads': osm_roads(a.pbf, cases_all(), a.out or os.path.join(TD, 'roads'))
     elif a.cmd == 'extract': extract(a.run_dir, a.storm, a.segments, a.dest)
-    elif a.cmd == 'score': score(a.run)
+    elif a.cmd == 'score': score(a.run); print(tables(a.run))
