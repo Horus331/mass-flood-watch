@@ -364,6 +364,8 @@ def find_storm(root, sid):
 # ------------------------------------------------------------------ follow-up planning
 def cmd_due(a):
     nowt = now_utc(a); radar, labels = [], []
+    idx = open(os.path.join(a.root, 'ARCHIVE.md')).read() if os.path.exists(os.path.join(a.root, 'ARCHIVE.md')) else ''
+    reindex = any(f"[{S['id']}]" not in idx for S in storms(a.root))       # a storm archived by forecast.yml since the last index
     for S in storms(a.root):
         if a.storm and S['id'] not in a.storm.split(','): continue
         end = utc(S['evidence']['end']); age = nowt - end; L = S.get('labels') or {}
@@ -375,11 +377,11 @@ def cmd_due(a):
         backfill = (not L.get('stormevents_found') and dt.timedelta(days=45) <= age <= dt.timedelta(days=200) and (last is None or nowt - last >= dt.timedelta(days=7)))
         if ready and (not L.get('collected_at') or backfill or any(r['sid'] == S['id'] for r in radar)): labels.append(S['id'])
     if a.max_jobs and len(radar) > a.max_jobs: radar = radar[:a.max_jobs]
-    P = dict(made=iso(nowt), root=a.root, radar=radar, labels=labels)
-    jsave(a.plan, P); log(f"due: {len(radar)} radar job(s) {[(r['sid'], r['id']) for r in radar]}, labels for {labels}")
+    P = dict(made=iso(nowt), root=a.root, radar=radar, labels=labels, reindex=reindex)
+    jsave(a.plan, P); log(f"due: {len(radar)} radar job(s) {[(r['sid'], r['id']) for r in radar]}, labels for {labels}, reindex {reindex}")
     if a.github_output:
         with open(a.github_output, 'a') as f:
-            f.write('radar=' + json.dumps(radar) + '\n'); f.write(f"any={'true' if (radar or labels) else 'false'}\n")
+            f.write('radar=' + json.dumps(radar) + '\n'); f.write(f"any={'true' if (radar or labels or reindex) else 'false'}\n")
 
 
 # ------------------------------------------------------------------ labels

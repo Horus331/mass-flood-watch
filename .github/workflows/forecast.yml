@@ -158,7 +158,7 @@ jobs:
           ST=docs/site/data/forecast_status.json; [ "$PFX" = "forecast_latest" ] || ST=docs/site/data/${PFX}_status.json
           K=""; [ -f kofn.json ] && K="--kofn kofn.json"
           python proto/storm_archive.py archive --gate arts/gate/gate.json --alerts arts/gate/alerts.json --status $ST $K --root $R --flag archived.txt
-          if [ -f archived.txt ]; then python proto/storm_archive.py index --root $R; echo "AROOT=$R" >> $GITHUB_ENV; fi
+          if [ -f archived.txt ]; then echo "AROOT=$R" >> $GITHUB_ENV; fi     # ARCHIVE.md is rebuilt by archive_followup.yml (one writer, no rebase conflicts)
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish
         run: |
