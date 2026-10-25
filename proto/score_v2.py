@@ -131,10 +131,11 @@ _GRAPH = {}
 
 
 def graph(run_dir=None):
-    """docs/graph_segments.json (District 3), or the run's own road network when the run folder has roads_graph.json[.gz] (District 4-6
-    transfer runs: OSM roads in the same layout, proto/transfer_d456.py roads)."""
-    for f in (('roads_graph.json.gz', 'roads_graph.json') if run_dir else ()):
-        p = os.path.join(run_dir, f)
+    """docs/graph_segments.json (District 3), or the run's own road network: <run>/roads_graph.json[.gz] or ../../roads_osm/<run name>.json.gz
+    (District 4-6 transfer runs: OSM roads in the same layout, proto/transfer_d456.py osm-roads -> docs/proto/transfer/roads_osm/)."""
+    cands = [os.path.join(run_dir, 'roads_graph.json.gz'), os.path.join(run_dir, 'roads_graph.json'),
+             os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(run_dir))), 'roads_osm', os.path.basename(os.path.normpath(run_dir)) + '.json.gz')] if run_dir else []
+    for p in cands:
         if os.path.exists(p):
             if p not in _GRAPH:
                 import gzip

@@ -53,9 +53,9 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn pyshp
-      - name: OSM roads for the box (committed Geofabrik build, docs/proto/transfer/roads/)
+      - name: OSM roads for the box (committed Geofabrik build, docs/proto/transfer/roads_osm/)
         run: |
-          D=out/${{ matrix.c.name }}; mkdir -p $D; F=docs/proto/transfer/roads/${{ matrix.c.name }}.json.gz
+          D=out/${{ matrix.c.name }}; mkdir -p $D; F=docs/proto/transfer/roads_osm/${{ matrix.c.name }}.json.gz
           if [ -f $F ]; then cp $F $D/roads_graph.json.gz; else python proto/transfer_d456.py roads --box ${{ matrix.c.box }} --out $D 2>&1 | tail -5; fi
           ls -la $D
       - name: storm window for w9 (runner copy of catalog.json only)
@@ -88,7 +88,7 @@ jobs:
           OMP_NUM_THREADS: '4'
         run: |
           set -o pipefail
-          G=docs/proto/transfer/obs/gauges_${{ matrix.c.id }}.json; [ -f $G ] && export LF_GAUGES=$PWD/$G
+          G=docs/proto/transfer/gauges/gauges_${{ matrix.c.id }}.json; [ -f $G ] && export LF_GAUGES=$PWD/$G
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: closures + scores
         if: always()
@@ -98,7 +98,7 @@ jobs:
           echo "LF_PARITY=1 LF_LOSS=cn LF_CN_SCALE=0.88 LF_INFIL_MMH=2 LF_QOUT=1 LF_VOUT=1 RES=20 (CPU)" > $D/settings.txt
           tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
           [ -n "$OUTDIR" ] || exit 0
-          G=docs/proto/transfer/obs/gauges_$S.json; [ -f $G ] || G=docs/proto/obs/gauges_$S.json
+          G=docs/proto/transfer/gauges/gauges_$S.json; [ -f $G ] || G=docs/proto/obs/gauges_$S.json
           gunzip -c $D/roads_graph.json.gz > ${{ runner.temp }}/roads.json
           python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S --segments ${{ runner.temp }}/roads.json \
             --reports none --repeat none --facilities none 2>&1 | tail -5 || true
@@ -137,7 +137,8 @@ jobs:
           R=docs/proto/transfer/${{ needs.plan.outputs.run }}; mkdir -p $R; cp -r art/* $R/ 2>/dev/null || true
           for f in $R/*/features_*.csv.gz; do [ -f "$f" ] && gunzip -k "$f"; done
           python proto/transfer_d456.py score --run ${{ needs.plan.outputs.run }} 2>&1 | tail -60 || true
-          rm -f $R/*/features_*.csv
+          rm -f $R/*/features_*.csv $R/*/roads_graph.json.gz $R/*/hmax_cm.npz $R/*/segments.geojson.gz    # roads are in docs/proto/transfer/roads_osm/ (small commit)
+          du -sh $R
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add $R && git commit -qm "transfer test D4-6: run ${{ needs.plan.outputs.run }}" || exit 0
           for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done

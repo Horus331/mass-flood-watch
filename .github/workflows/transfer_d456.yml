@@ -33,6 +33,7 @@ jobs:
                       python -u proto/transfer_d456.py osm-geocode --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_geocode.txt || true ;;
             osm-roads) curl -sSL -o $RUNNER_TEMP/ma.osm.pbf https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf && ls -la $RUNNER_TEMP/ma.osm.pbf
                       python -u proto/transfer_d456.py osm-roads --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_roads.txt || true ;;
+            gauges-fast) python -u proto/transfer_d456.py gauges-fast 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/gauges_fast.txt || true ;;
             gauges)   mkdir -p docs/proto/transfer/obs/catalog; python -u proto/obs_catalog.py fetch --catalog docs/proto/obs/catalog_d456.json --out docs/proto/transfer/obs 2>&1 | tail -c 200000 > docs/proto/transfer/_logs/gauges.txt || true ;;
           esac
           done
