@@ -1,0 +1,111 @@
+{
+ "run": "jul2020e_transfer_jul2020e_lawrence_20m",
+ "title": "2020-07-23 flash floods, Ballardvale, Georgetown, Lawrence (catalogue jul2020e) \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  221000.0,
+  930000.0,
+  241000.0,
+  950000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2020-07-23T12:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 388
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS IEM GaugeCorr_QPE_01H -> TUFLOW NetCDF dynamicrainfile",
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_SCALE": "0.88",
+   "LF_GAUGES": "/home/runner/work/mass-flood-watch/mass-flood-watch/docs/proto/transfer/gauges/gauges_jul2020e.json",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 3.15,
+   "excess_out_mean_mm": 2.09,
+   "kept_share": 0.664,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_products": {
+   "hours": {
+    "IEM GaugeCorr_QPE_01H": 18
+   },
+   "by_hour": {
+    "2020-07-23T13:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T14:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T15:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T16:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T17:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T18:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T19:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T20:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T21:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T22:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-23T23:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T00:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T01:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T02:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T03:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T04:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T05:00Z": "IEM GaugeCorr_QPE_01H",
+    "2020-07-24T06:00Z": "IEM GaugeCorr_QPE_01H"
+   }
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 53,
+ "rain_total_mean_mm": 27,
+ "rain_missing_hours": [],
+ "runtime_s": 1286,
+ "total_s": 1837,
+ "peak_wet_km2": 1.0,
+ "peak_snapshot_wet_km2": 0.6,
+ "mass_tail": [
+  "64500.000    1.0000     1.0000     64500      13857200.0000 2016045.5858  0.000       0.000      9.148             0.0000       0.0000  835110.5949",
+  "64800.000    1.0000     1.0000     64800      13834800.0000 2013299.6666  0.000       0.000      9.153            -0.0000      -0.0000  835110.5949"
+ ],
+ "git_sha": "4f5b914c",
+ "forecast": null
+}
