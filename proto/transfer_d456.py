@@ -324,6 +324,9 @@ def lsr_url(t):
 def se_url(i): return f'https://www.ncdc.noaa.gov/stormevents/eventdetails.jsp?id={i}'
 
 
+JUNK = {'under', 'underneath', 'tracks', 'track', 'train', 'lane', 'lanes', 'right', 'left', 'bridge', 'rotary', 'exit', 'ramp', 'entrance', 'from', 'area',
+        'building', 'house', 'home', 'sections', 'section', 'large', 'multiple', 'alley', 'portion', 'part', 'end', 'side', 'off-ramp', 'on-ramp', 'tunnel',
+        'underpass', 'overpass', 'lot', 'travel', 'breakdown', 'shoulder', 'both', 'all', 'some', 'many', 'two', 'three', 'one', 'cars', 'car', 'route'}
 CONNECT = {'at', 'and', 'near', 'by', 'off', 'corner', 'of', 'intersection', 'between', 'the', '&', '@', '/', ',', 'with', 'north', 'south', 'east', 'west',
            'northbound', 'southbound', 'eastbound', 'westbound', 'nb', 'sb', 'eb', 'wb', 'n', 's', 'e', 'w', 'ramp', 'on'}
 PAIRWORD = {'at', 'and', 'near', 'by', 'off', 'corner', 'intersection', 'between', '&', '@', '/'}
@@ -350,7 +353,7 @@ def mentions(text):
             j = k - 1; words = []
             while j >= 0 and len(words) < 3:
                 x = T[j]; xl = low[j]
-                if xl in LR2.STOP or xl in LR2.SUF or xl in CONNECT - DIRS or not re.match(r"[A-Z0-9]", x) or x.endswith('.') and j != k - 1: break
+                if xl in LR2.STOP or xl in LR2.SUF or xl in JUNK or xl in CONNECT - DIRS or not re.match(r"[A-Z0-9]", x) or x.endswith('.') and j != k - 1: break
                 if re.fullmatch(r'\d+', xl): break
                 words.insert(0, x.strip('.')); j -= 1
             if words and not all(x.lower() in DIRS for x in words):
@@ -372,7 +375,8 @@ def nws_sites(r):
     sys.path.insert(0, HERE); import labels_round2 as LR2
     text = (r['text'] or '').strip()
     if not text or COASTAL_RE.search(text) or SNOW_RE.search(text): return [], 'coastal/snow'
-    if BASEMENT_RE.search(text) and not re.search(r'road|street|\bst\b|\brd\b|route|\bave|impassable|closed', text, re.I): return [], 'basement / main'
+    if BASEMENT_RE.search(text) and not re.search(r'street flooding|flooded street|impassable|closed|stuck|trapped|stranded|stall|water on (the )?(road|street)|roadway', text, re.I):
+        return [], 'basement / building / main'
     if not ROADWORD_RE.search(text): return [], 'no flood words'
     ments = mentions(text)
     if not ments: return [], 'no road named'
