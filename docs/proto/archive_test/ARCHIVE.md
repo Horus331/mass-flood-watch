@@ -12,11 +12,11 @@ Forecast "likely closed" segments vs the radar-driven run (segment level, inside
 
 | pool | rows | hits | misses | false alarms | POD | FAR | CSI | label sites | sites hit: forecast / radar |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| all cycles | 3 | 13 | 33 | 21 | 0.28 | 0.62 | 0.19 | 0 | 0 / 0 |
-| latest cycle | 3 | 13 | 33 | 21 | 0.28 | 0.62 | 0.19 | 0 | 0 / 0 |
+| all cycles | 3 | 13 | 33 | 21 | 0.28 | 0.62 | 0.19 | 9 | 0 / 0 |
+| latest cycle | 3 | 13 | 33 | 21 | 0.28 | 0.62 | 0.19 | 9 | 0 / 0 |
 
 | storm | box | cycle | lead (h) | gate | forecast / radar flagged | hits | CSI | 1 km POD / SR | sites | forecast hits | radar hits |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| arc20230911 | b1 | 2023-09-11T12:00Z | 8.2 | fired | 34 / 38 | 13 | 0.22 | 0.37 / 0.56 | - | - | - |
+| arc20230911 | b1 | 2023-09-11T12:00Z | 8.2 | fired | 34 / 38 | 13 | 0.22 | 0.37 / 0.56 | 8 | 0 | 0 |
 | arc20230911 | b2 | 2023-09-11T12:00Z | 8.2 | fired | 0 / 1 | 0 | 0.00 | - / - | 0 | 0 | 0 |
-| arc20230911 | b3 | 2023-09-11T12:00Z | 8.2 | fired | 0 / 7 | 0 | 0.00 | - / - | - | - | - |
+| arc20230911 | b3 | 2023-09-11T12:00Z | 8.2 | fired | 0 / 7 | 0 | 0.00 | - / - | 1 | 0 | 0 |
