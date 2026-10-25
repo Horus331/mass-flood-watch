@@ -1,0 +1,46 @@
+name: transfer test D4-6 label geocode (OSM via proto/label_geocode.py, 6 shards, one commit)
+on:
+  workflow_dispatch:
+  push:
+    branches: [transfer-d456]
+    paths: [docs/proto/transfer/.geocode]
+permissions:
+  contents: write
+jobs:
+  geocode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: {shard: [0, 1, 2, 3, 4, 5]}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests numpy scipy pyproj
+      - run: |
+          mkdir -p g; timeout 100m python -u proto/label_geocode.py --queries docs/proto/transfer/raw/geocode_queries.json --shard ${{ matrix.shard }}/6 \
+            --seed docs/proto/transfer/raw/geocode_osm.json --out g/geocode_osm_${{ matrix.shard }}.json > g/log_${{ matrix.shard }}.txt 2>&1 || echo stopped
+          tail -5 g/log_${{ matrix.shard }}.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'g${{ matrix.shard }}', path: g/, retention-days: 3}
+  merge:
+    needs: geocode
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {path: g, merge-multiple: true}
+      - run: |
+          python - <<'PY'
+          import json, glob, os
+          p = 'docs/proto/transfer/raw/geocode_osm.json'; A = json.load(open(p)) if os.path.exists(p) else {}
+          for f in sorted(glob.glob('g/geocode_osm_*.json')):
+              for k, v in json.load(open(f)).items():
+                  if v.get('pair') or v.get('single') or v.get('addr') or k not in A: A[k] = v
+          json.dump(A, open(p, 'w'), indent=0); print(len(A), 'geocoded keys')
+          PY
+          mkdir -p docs/proto/transfer/_logs; cat g/log_*.txt | tail -c 200000 > docs/proto/transfer/_logs/geocode.txt || true
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/transfer && git commit -qm "transfer D4-6: label geocode (OSM)" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
