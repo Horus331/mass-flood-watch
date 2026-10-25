@@ -1,5 +1,25 @@
 # Research roadmap: improving the District 3 flash-flood road-closure model (23 Oct 2026)
 
+## Status (25 Oct 2026)
+
+Full ledger and open items: `STATUS.md`.
+
+| task | status | where |
+|---|---|---|
+| T0 re-baseline at parity | **done** on CPU (25 storms, `LF_PARITY=1`, CN × 0.88); GPU confirmation landed, `parity_compare.py` + GPU catalogue rerun **open** | `parity/BASELINE.md` |
+| T1 scoring v2 / PROTOCOL v2 | **done** | `PROTOCOL.md`, `scoring/BASELINE_v2_expanded.md` |
+| T2 sub-hourly MRMS forcing | **not adopted** (opt-in `LF_RAIN_DT=5`) | `rain/RAIN.md` |
+| T3 pluvial rule v2 | **not adopted** | `urban/PLUVIAL_v2.md` |
+| T4 antecedent moisture | A, B1 **not adopted**; B0, C **open** (unfinished) | `runoff/AMC.md` |
+| T5 learned layer v2 | **not adopted** (also failed on held-out 23) | `ml/LEARNED_v2.md`, `ml/EXPANDED.md` |
+| T6 depth × velocity / duration rule | **open** (not started) | |
+| T7 crossing damage fragility | **not adopted** (opt-in `PROTO_DAMAGE=1`) | `damage/DAMAGE.md` |
+| T8 report-conditioned live update | **open** (not started) | |
+| T9 drains v2 | **open** (not started; v1 not adopted) | `drains/DRAINS.md` |
+| T10 10 m urban sub-boxes | **open** (start-up fix not done; `PROTO_RES_CONSISTENT=1` opt-in) | `res10m/FINDINGS.md` |
+| T11 nowcast + REFS logging | **open** (REFS logging from 3 Nov 2026) | |
+| T12 gauge-merging diagnostic | **open** (gauge-ratio checks in `rain/RAIN.md` only) | |
+
 This is a plan only. No code was changed. It builds on the repo's own diagnoses: `recall/RECALL.md`, `urban/FINDINGS.md`, `urban/DCIA.md`,
 `drains/DRAINS.md`, `res10m/FINDINGS.md`, `parity/PARITY.md`, `ml/LOSO.md`, `forecast/{HINDCAST,GATE,ENSEMBLE}.md`, `exp/DAMS_2026-10-22.md`
 and `obs/CATALOG.md`. It also builds on the earlier scan in `docs/research/sota_2026-10-19.md`. Literature is cited inline as [n], and the
