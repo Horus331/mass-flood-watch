@@ -120,7 +120,9 @@ def storm_cfg(sid):
         if e['id'] == sid:
             return dict(t0=e['t0'], hours=int(e['hours']), frame_min=30,
                         title=f"{e.get('date_local', sid)} flash floods, {', '.join((e.get('towns') or [e.get('area', '')])[:3])} (catalogue {sid})")
-    raise SystemExit(f'unknown STORM {sid}: not in STORMS nor docs/proto/obs/catalog.json')
+    if os.environ.get('T0') and os.environ.get('HOURS'):      # auto-archived storms (proto/storm_archive.py): window given by T0 / HOURS
+        return dict(t0=os.environ['T0'], hours=int(os.environ['HOURS']), frame_min=30, title=f"Archived storm {sid} (observed MRMS radar rain)")
+    raise SystemExit(f'unknown STORM {sid}: not in STORMS nor docs/proto/obs/catalog.json (or set T0 and HOURS)')
 
 
 def log(*a):

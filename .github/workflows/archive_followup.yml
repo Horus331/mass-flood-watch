@@ -1,0 +1,134 @@
+name: storm archive follow-up (labels, radar-driven run, forecast verification)
+# Twice a day (no high-frequency cron): for every storm archived by forecast.yml (docs/proto/archive/, proto/storm_archive.py) whose evidence
+# window ended >= 24 h ago, i.e. 24-36 h after the event:
+#   plan     collects the labels for the storm window (IEM LSR, NOAA Storm Events when published, MassDOT roadway-events log, SeeClickFix)
+#            -> proto/data/labels_<id>_auto.csv, and USGS gauges -> <storm>/obs/; Storm Events are re-checked weekly 45-200 days after the storm;
+#   radar    runs the flood model on the storm's boxes with the observed MRMS radar rain (CPU, frozen docs/proto/parity/BASELINE.md settings:
+#            LF_PARITY=1, CN x 0.88, LF_INFIL_MMH=2, LF_QOUT=1, 20 m) and keeps summary / score / points / features / segments.csv;
+#   finalize verifies every archived forecast cycle against the radar run and the labels (score_v2), rebuilds ARCHIVE.md, skill.json and
+#            catalog_candidates.json, and commits ONCE; nothing due = no job after plan and no commit.
+on:
+  schedule:
+    - cron: '23 4,16 * * *'
+  workflow_dispatch:
+    inputs:
+      storm: {description: 'archived storm id(s) to process now, comma-separated (empty = whatever is due)', default: ''}
+      root: {description: 'archive folder (tests: a scratch folder)', default: 'docs/proto/archive'}
+      labels_dir: {description: 'folder for labels_<id>_auto.csv (tests: a scratch folder)', default: 'proto/data'}
+      now: {description: 'pretend current UTC time, ISO (tests)', default: ''}
+      force_radar: {description: 'run the radar job even if it already ran', type: boolean, default: false}
+      publish: {description: 'commit the result', type: boolean, default: true}
+permissions:
+  contents: write
+concurrency:
+  group: storm-archive-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  AROOT: ${{ inputs.root || 'docs/proto/archive' }}
+  LDIR: ${{ inputs.labels_dir || 'proto/data' }}
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      radar: ${{ steps.p.outputs.radar }}
+      any: ${{ steps.p.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pyproj shapely matplotlib
+      - id: p
+        name: what is due; labels for those storms
+        run: |
+          NOW="${{ inputs.now && format('--now {0}', inputs.now) || '' }}"
+          python proto/storm_archive.py due --root $AROOT ${{ inputs.storm && format('--storm {0}', inputs.storm) || '' }} $NOW \
+            ${{ inputs.force_radar && '--force-radar' || '' }} --plan plan.json --github-output $GITHUB_OUTPUT
+          for s in $(python -c "import json; print(' '.join(json.load(open('plan.json'))['labels']))"); do
+            python proto/storm_archive.py labels --storm $s --root $AROOT --labels-dir $LDIR $NOW || echo "::warning::labels for $s failed"
+          done
+          mkdir -p art && cp plan.json art/
+          if [ -d "$AROOT" ]; then tar czf art/plan.tgz $AROOT $(ls $LDIR/labels_*_auto.csv 2>/dev/null); fi
+      - uses: actions/upload-artifact@v4
+        if: steps.p.outputs.any == 'true'
+        with: {name: plan, path: art}
+  radar:
+    needs: plan
+    if: needs.plan.outputs.radar != '[]' && needs.plan.outputs.radar != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        r: ${{ fromJSON(needs.plan.outputs.radar) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
+      - uses: actions/download-artifact@v4
+        with: {name: plan, path: plan}
+      - run: tar xzf plan/plan.tgz
+      - name: flood depth (LISFLOOD-FP 8.2, CPU, observed MRMS radar rain, frozen BASELINE.md settings)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.r.box }}
+          RES: '20'
+          STORM: ${{ matrix.r.sid }}
+          T0: ${{ matrix.r.t0 }}
+          HOURS: ${{ matrix.r.hours }}
+          RUN_DIR: runs/${{ matrix.r.sid }}_radar_${{ matrix.r.id }}
+          LF_PARITY: '1'
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.88'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          LF_VOUT: '1'
+          LF_GAUGES: ${{ env.AROOT }}/${{ matrix.r.folder }}/obs/gauges.json
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures, scores, features
+        if: always()
+        run: |
+          S=${{ matrix.r.sid }}; A=$AROOT/${{ matrix.r.folder }}; D=art/$A/radar/${{ matrix.r.id }}; mkdir -p $D
+          echo '${{ toJSON(matrix.r) }}' > $D/config.json; tail -c 30000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out 2>/dev/null | head -1); [ -n "$OUTDIR" ] || exit 0
+          LBL=$LDIR/labels_${S}_auto.csv; LA=""; [ -s $LBL ] && LA="--labels $LBL"
+          P=${{ runner.temp }}/proto
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S $LA 2>&1 | tail -5
+          [ -f $A/obs/gauges.json ] && python proto/score.py --run-dir $OUTDIR --storm $S --obs $A/obs/gauges.json --out $D/score.json | tail -5 || true
+          python proto/validate_points.py --run-dir $OUTDIR --storm $S --lsr $A/obs/lsr.csv --stormevents $A/obs/stormevents.csv $LA --out $D/points.json | tail -5 || true
+          cp $P/summary.json $D/ && python proto/storm_archive.py segcsv $P/segments.geojson $D/segments.csv
+          python -c "import json; m=json.load(open('$OUTDIR/meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          if [ -n "$LA" ]; then python proto/closure_ml.py extract --run-dir $OUTDIR --storm $S --labels $LBL | tail -2 && cp docs/proto/ml/features_${S}.csv docs/proto/ml/matches_${S}.json $D/ 2>/dev/null; git checkout -q -- docs/proto/ml 2>/dev/null; git clean -fq docs/proto/ml 2>/dev/null; fi
+          ls -la $D
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'radar_${{ matrix.r.sid }}_${{ matrix.r.id }}', path: art, if-no-files-found: ignore}
+  finalize:
+    needs: [plan, radar]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pyproj shapely matplotlib
+      - uses: actions/download-artifact@v4
+        with: {path: arts}
+      - name: radar results -> storm.json, verification (score_v2), index
+        run: |
+          [ -f arts/plan/plan.tgz ] && tar xzf arts/plan/plan.tgz
+          for d in arts/radar_*; do [ -d "$d" ] && cp -r "$d"/. ./; done
+          python proto/storm_archive.py finalize --plan arts/plan/plan.json --root $AROOT --labels-dir $LDIR
+          git status --short | head -40
+      - name: commit (once)
+        if: github.event_name == 'schedule' || inputs.publish
+        run: |
+          git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A $AROOT; ls $LDIR/labels_*_auto.csv >/dev/null 2>&1 && git add $LDIR/labels_*_auto.csv
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -qm "Storm archive follow-up: $(python -c "import json; p=json.load(open('arts/plan/plan.json')); print('radar', sorted({r['sid'] for r in p['radar']}) or '-', 'labels', p['labels'] or '-')")"
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done

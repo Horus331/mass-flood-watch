@@ -7,6 +7,9 @@ name: forecast (HRRR rain -> gate -> LISFLOOD-FP -> road closures, District 3)
 # model runs for the 8 time-lagged HRRR members (this cycle, the 6/12/18 h older 48 h cycles, the 1-4 h older hourly cycles) on every box
 # (boxes deduplicated across the members' own gates), one matrix job each; a road is 'likely closed' when >= 2 of the 8 runs close it and
 # 'possible' at 1 of 8 (proto/forecast_kofn.py, docs/proto/forecast/ENSEMBLE.md).  The replay shows the issue cycle's run per box.
+# STORM ARCHIVE (proto/storm_archive.py, docs/proto/archive/README.md): every cycle also checks api.weather.gov for Flash Flood Warnings / Flood
+# Advisories touching a District 3 town; when the gate fires or such an alert exists, the cycle's forecast is kept under docs/proto/archive/
+# (in the same commit) and .github/workflows/archive_followup.yml later adds labels, the radar-driven run and the verification.
 on:
   schedule:
     - cron: '40 2,8,14,20 * * *'
@@ -19,6 +22,8 @@ on:
       ensemble: {description: '1 = 8-member time-lagged ensemble, 0 = single cycle (empty = repository variable FORECAST_ENSEMBLE, default 1)', default: ''}
       prefix: {description: 'site data key (forecast_latest = live; anything else is a test and writes <prefix>_status.json instead of the live status)', default: 'forecast_latest'}
       max_boxes: {description: 'maximum boxes (empty = 4)', default: ''}
+      archive_root: {description: 'storm archive folder (empty = docs/proto/archive for the live prefix, no archive for test prefixes)', default: ''}
+      alerts_window: {description: 'NWS alert period START/END (UTC ISO) from the IEM archive instead of the live API (tests)', default: ''}
 permissions:
   contents: write
 concurrency:
@@ -36,7 +41,7 @@ jobs:
       jobs: ${{ steps.g.outputs.jobs }}
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q numpy scipy pandas requests pygrib pyproj matplotlib
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj matplotlib shapely
       - id: g
         name: forecast rain over District 3, the gate, and the ensemble members / boxes
         env:
@@ -49,6 +54,9 @@ jobs:
           SINGLE=""; if [ "$ENSEMBLE" = "0" ]; then SINGLE=--single; fi
           python proto/forecast_kofn.py members --gate gate/gate.json $SINGLE --github-output $GITHUB_OUTPUT 2>&1 | tee -a gate.log
           echo "::notice title=gate::$(cut -c1-300 gate.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+      - name: NWS flood alerts touching District 3 (storm archive trigger; never fails the forecast)
+        continue-on-error: true
+        run: python proto/storm_archive.py alerts --out gate/alerts.json ${{ inputs.alerts_window && format('--window {0}', inputs.alerts_window) || '' }} 2>&1 | tail -4
       - uses: actions/upload-artifact@v4
         with: {name: gate, path: gate}
   flood:
@@ -139,12 +147,24 @@ jobs:
           python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out $ST
           head -c 1500 $ST; echo
           du -sh docs/site/data/${PFX}* || true
+      - name: storm archive (gate fired or NWS flood alert in District 3; quiet cycles write nothing)
+        continue-on-error: true
+        env:
+          PFX: ${{ inputs.prefix || 'forecast_latest' }}
+          AR: ${{ inputs.archive_root }}
+        run: |
+          R="$AR"; [ -z "$R" ] && [ "$PFX" = "forecast_latest" ] && R=docs/proto/archive
+          [ -n "$R" ] || { echo "test prefix without archive_root: not archiving"; exit 0; }
+          ST=docs/site/data/forecast_status.json; [ "$PFX" = "forecast_latest" ] || ST=docs/site/data/${PFX}_status.json
+          K=""; [ -f kofn.json ] && K="--kofn kofn.json"
+          python proto/storm_archive.py archive --gate arts/gate/gate.json --alerts arts/gate/alerts.json --status $ST $K --root $R --flag archived.txt
+          if [ -f archived.txt ]; then python proto/storm_archive.py index --root $R; echo "AROOT=$R" >> $GITHUB_ENV; fi
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish
         run: |
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A docs/site/data
+          git add -A docs/site/data; [ -n "$AROOT" ] && git add -A "$AROOT"
           git diff --cached --quiet && { echo "no change"; exit 0; }
           P=${{ inputs.prefix || 'forecast_latest' }}; ST=docs/site/data/forecast_status.json; [ "$P" = "forecast_latest" ] || ST=docs/site/data/${P}_status.json
-          git commit -qm "Forecast $P $(python -c "import json;s=json.load(open('$ST'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")"
+          git commit -qm "Forecast $P $(python -c "import json;s=json.load(open('$ST'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")$([ -f archived.txt ] && echo " + archived storm $(cat archived.txt)")"
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
