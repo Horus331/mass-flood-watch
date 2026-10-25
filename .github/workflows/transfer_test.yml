@@ -1,0 +1,144 @@
+name: transfer test D4-6 (frozen District 3 model on Districts 4-6 storms, CPU)
+# PROTOCOL.md "Transfer test (Districts 4-6)", pre-registered 25 Oct 2026.  Same physics steps and settings as parity_test.yml with the
+# clean parity baseline (parity/BASELINE.md: LF_PARITY=1 LF_LOSS=cn LF_CN_SCALE=0.88 LF_INFIL_MMH=2 LF_QOUT=1 LF_VOUT=1, 20 m, CPU) and
+# prototype.py at its defaults.  Differences from parity_test.yml, none of them in the model: (1) the road segments come from OSM for the box
+# (proto/transfer_d456.py roads; graph_segments.json is District 3 only); (2) the storm's t0 / hours are put into the runner's copy of
+# docs/proto/obs/catalog.json for w9's storm lookup (never committed); (3) jobs upload their results and ONE final job commits everything
+# (one commit per workflow run).  Controls (kind=control): District 3 storms, scored on graph_segments.json AND on OSM roads.
+on:
+  workflow_dispatch:
+    inputs:
+      run: {description: 'run name -> docs/proto/transfer/<run>/', default: 'r1'}
+      only: {description: 'comma-separated storm ids (default: all of catalog_d456.json + the 2 controls)', default: ''}
+  push:
+    branches: [transfer-d456]
+    paths: [docs/proto/transfer/.run]
+permissions:
+  contents: write
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      cases: ${{ steps.p.outputs.cases }}
+      run: ${{ steps.p.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        run: |
+          R="${{ inputs.run }}"; O="${{ inputs.only }}"
+          if [ -z "$R" ]; then R=$(head -1 docs/proto/transfer/.run | awk '{print $1}'); O=$(head -1 docs/proto/transfer/.run | awk '{print $2}'); fi
+          python - "$O" > cases.json <<'PY'
+          import json, sys
+          only = set(x for x in (sys.argv[1] if len(sys.argv) > 1 else '').split(',') if x)
+          C = json.load(open('docs/proto/obs/catalog_d456.json'))['events']
+          D3 = {e['id']: e for e in json.load(open('docs/proto/obs/catalog.json'))['events']}
+          cases = [dict(id=e['id'], name=f"{e['id']}_{e['area']}_20m", box=','.join(str(int(v)) for v in e['box_26986']), t0=e['t0'], hours=str(e['hours']),
+                        kind='test') for e in C]
+          for sid in ('sep2021', 'aug2023'):            # road-source control (District 3 held-out storms, their catalogue box / t0 / hours)
+              e = D3[sid]; cases.append(dict(id=sid, name=f"{sid}_{e['area']}_20m", box=','.join(str(int(v)) for v in e['box_26986']), t0=e['t0'],
+                                             hours=str(e['hours']), kind='control'))
+          if only: cases = [c for c in cases if c['id'] in only]
+          print(json.dumps(cases))
+          PY
+          echo "cases=$(cat cases.json)" >> $GITHUB_OUTPUT; echo "run=$R" >> $GITHUB_OUTPUT; cat cases.json
+  run:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        c: ${{ fromJSON(needs.plan.outputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn pyshp
+      - name: OSM roads for the box (committed Geofabrik build, docs/proto/transfer/roads_osm/)
+        run: |
+          D=out/${{ matrix.c.name }}; mkdir -p $D; F=docs/proto/transfer/roads_osm/${{ matrix.c.name }}.json.gz
+          if [ -f $F ]; then cp $F $D/roads_graph.json.gz; else python proto/transfer_d456.py roads --box ${{ matrix.c.box }} --out $D 2>&1 | tail -5; fi
+          ls -la $D
+      - name: storm window for w9 (runner copy of catalog.json only)
+        if: matrix.c.kind == 'test'
+        run: |
+          python - <<'PY'
+          import json
+          p = 'docs/proto/obs/catalog.json'; C = json.load(open(p)); have = {e['id'] for e in C['events']}
+          for e in json.load(open('docs/proto/obs/catalog_d456.json'))['events']:
+              if e['id'] not in have: C['events'].append(dict(id=e['id'], t0=e['t0'], hours=e['hours'], date_local=e['date_local'], towns=e['towns'], area=e['area']))
+          json.dump(C, open(p, 'w'), indent=1)
+          PY
+      - name: flood depth (LISFLOOD-FP 8.2, CPU; frozen parity baseline)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.id }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.id }}_transfer_${{ matrix.c.name }}
+          LF_PARITY: '1'
+          LF_LOSS: cn
+          LF_CN_SCALE: '0.88'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          LF_VOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          G=docs/proto/transfer/gauges/gauges_${{ matrix.c.id }}.json; [ -f $G ] && export LF_GAUGES=$PWD/$G
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures + scores
+        if: always()
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.id }}; D=out/${{ matrix.c.name }}; P=${{ runner.temp }}/proto
+          echo '${{ toJSON(matrix.c) }}' > $D/config.json
+          echo "LF_PARITY=1 LF_LOSS=cn LF_CN_SCALE=0.88 LF_INFIL_MMH=2 LF_QOUT=1 LF_VOUT=1 RES=20 (CPU)" > $D/settings.txt
+          tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
+          [ -n "$OUTDIR" ] || exit 0
+          G=docs/proto/transfer/gauges/gauges_$S.json; [ -f $G ] || G=docs/proto/obs/gauges_$S.json
+          gunzip -c $D/roads_graph.json.gz > ${{ runner.temp }}/roads.json
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S --segments ${{ runner.temp }}/roads.json \
+            --reports none --repeat none --facilities none 2>&1 | tail -5 || true
+          SCORE_WINDOWS=$D/gauge_windows.npz python proto/score.py --run-dir $OUTDIR --storm $S --obs $G --out $D/score.json | tail -5 || true
+          cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
+          python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
+          python proto/parity_pack.py $OUTDIR $D
+          [ -f $D/segments.geojson ] && gzip -9 $D/segments.geojson
+          python proto/transfer_d456.py extract --run-dir $OUTDIR --storm $S --segments $D/roads_graph.json.gz --dest $D 2>&1 | tail -3 || true
+          if [ "${{ matrix.c.kind }}" = "control" ]; then
+            D2=${D}_d3graph; mkdir -p $D2; cp $D/config.json $D/settings.txt $D/flood_meta.json $D/score.json $D2/ 2>/dev/null
+            python proto/transfer_d456.py extract --run-dir $OUTDIR --storm $S --segments docs/graph_segments.json --dest $D2 2>&1 | tail -3 || true
+          fi
+          for f in $D/features_*.csv ${D}_d3graph/features_*.csv; do [ -f $f ] && gzip -9 $f; done
+          du -sh out/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.c.name }}
+          path: out/
+          retention-days: 5
+  collect:
+    needs: [plan, run]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas pyproj scikit-learn shapely
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+          merge-multiple: true
+      - name: collect + score (pool d456) + commit once
+        run: |
+          R=docs/proto/transfer/${{ needs.plan.outputs.run }}; mkdir -p $R; cp -r art/* $R/ 2>/dev/null || true
+          for f in $R/*/features_*.csv.gz; do [ -f "$f" ] && gunzip -k "$f"; done
+          python proto/transfer_d456.py score --run ${{ needs.plan.outputs.run }} 2>&1 | tail -60 || true
+          rm -f $R/*/features_*.csv $R/*/roads_graph.json.gz $R/*/hmax_cm.npz $R/*/segments.geojson.gz    # roads are in docs/proto/transfer/roads_osm/ (small commit)
+          du -sh $R
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add $R && git commit -qm "transfer test D4-6: run ${{ needs.plan.outputs.run }}" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done

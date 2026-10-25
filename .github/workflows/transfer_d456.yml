@@ -1,0 +1,46 @@
+name: transfer test D4-6 data (discover / geocode / gauges; proto/transfer_d456.py)
+# District 4-6 transfer test of the frozen District 3 model (docs/proto/PROTOCOL.md "Transfer test"). Data steps only; the model runs are
+# transfer_test.yml. One commit per workflow run, to docs/proto/transfer/ (and the catalogue's gauges / label files).
+on:
+  workflow_dispatch:
+    inputs:
+      mode: {description: 'discover | geocode | gauges', default: 'discover'}
+  push:
+    branches: [transfer-d456]
+    paths: [docs/proto/transfer/.mode]
+permissions:
+  contents: write
+jobs:
+  data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests numpy scipy pyproj shapely pyshp pandas osmium
+      - name: run
+        run: |
+          M="${{ inputs.mode }}"; [ -z "$M" ] && M=$(cat docs/proto/transfer/.mode)
+          mkdir -p docs/proto/transfer/_logs docs/proto/transfer/raw
+          set -o pipefail
+          for M in $(echo "$M" | tr '+' ' '); do
+          case "$M" in
+            discover*) P=$(echo "$M" | cut -s -d: -f2); python -u proto/transfer_d456.py discover ${P:+--parts $P} 2>&1 | tail -c 400000 > docs/proto/transfer/_logs/discover.txt || true ;;
+            geocode)  timeout 270m python -u proto/label_geocode.py --queries docs/proto/transfer/raw/geocode_queries.json \
+                        --seed docs/proto/transfer/raw/geocode_osm.json --out docs/proto/transfer/raw/geocode_osm_new.json 2>&1 | tail -c 300000 > docs/proto/transfer/_logs/geocode.txt || true
+                      python -c "import json,os; a='docs/proto/transfer/raw/geocode_osm.json'; b='docs/proto/transfer/raw/geocode_osm_new.json'; A=json.load(open(a)) if os.path.exists(a) else {}; A.update(json.load(open(b)) if os.path.exists(b) else {}); json.dump(A,open(a,'w'),indent=0)"
+                      rm -f docs/proto/transfer/raw/geocode_osm_new.json ;;
+            osm-geocode) curl -sSL -o $RUNNER_TEMP/ma.osm.pbf https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf && ls -la $RUNNER_TEMP/ma.osm.pbf
+                      python -u proto/transfer_d456.py osm-geocode --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_geocode.txt || true ;;
+            osm-roads) curl -sSL -o $RUNNER_TEMP/ma.osm.pbf https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf && ls -la $RUNNER_TEMP/ma.osm.pbf
+                      python -u proto/transfer_d456.py osm-roads --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_roads.txt || true ;;
+            gauges-fast) python -u proto/transfer_d456.py gauges-fast 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/gauges_fast.txt || true ;;
+            gauges)   mkdir -p docs/proto/transfer/obs/catalog; python -u proto/obs_catalog.py fetch --catalog docs/proto/obs/catalog_d456.json --out docs/proto/transfer/obs 2>&1 | tail -c 200000 > docs/proto/transfer/_logs/gauges.txt || true ;;
+          esac
+          done
+          tail -c 6000 docs/proto/transfer/_logs/*.txt
+      - name: commit (once)
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/transfer && git commit -qm "transfer D4-6 data: $(cat docs/proto/transfer/.mode)" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
