@@ -66,6 +66,10 @@ LOCKED = ('aug2015', 'aug2018', 'aug2020', 'jul2018', 'oct2016')                
 TIER_ORDER = ('confirmed_inundation', 'confirmed_closure', 'corroborated', 'reported', 'suspected')   # proto/label_tiers.TIERS
 NEW16 = ('may2018', 'aug2018b', 'sep2018', 'sep2018w', 'sep2018m', 'sep2018b', 'jul2019', 'aug2019', 'sep2019', 'jun2020', 'jun2020b', 'aug2020b',
          'jul2021b', 'jul2023b', 'jul2023c', 'jul2023d')
+# District 4-6 transfer test (PROTOCOL.md "Transfer test", pre-registered 25 Oct 2026): independent test storms of the frozen District 3
+# model, never tuned on, never in a --compare.  Ids from docs/proto/obs/catalog_d456.json; runs in docs/proto/transfer/<run>/ (--d456).
+try: D456 = tuple(e['id'] for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events'])
+except Exception: D456 = ()
 DOMAIN_OVERRIDE = dict(sep2023=('Leominster',))
 COMPLETE = dict(sep2023=('Leominster',))                                                # domains with a complete inventory (DPW)
 # adoption rule (PROTOCOL.md §5) - fixed 23 Oct 2026 before any candidate was scored
@@ -130,8 +134,18 @@ def avg_precision(y, s):
 _GRAPH = {}
 
 
-def graph():
-    if not _GRAPH: _GRAPH['S'] = json.load(open(os.path.join(ROOT, 'docs', 'graph_segments.json')))
+def graph(run_dir=None):
+    """docs/graph_segments.json (District 3), or the run's own road network: <run>/roads_graph.json[.gz] or ../../roads_osm/<run name>.json.gz
+    (District 4-6 transfer runs: OSM roads in the same layout, proto/transfer_d456.py osm-roads -> docs/proto/transfer/roads_osm/)."""
+    cands = [os.path.join(run_dir, 'roads_graph.json.gz'), os.path.join(run_dir, 'roads_graph.json'),
+             os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(run_dir))), 'roads_osm', os.path.basename(os.path.normpath(run_dir)) + '.json.gz')] if run_dir else []
+    for p in cands:
+        if os.path.exists(p):
+            if p not in _GRAPH:
+                import gzip
+                _GRAPH[p] = json.load(gzip.open(p, 'rt') if p.endswith('.gz') else open(p))
+            return _GRAPH[p]
+    if not _GRAPH.get('S'): _GRAPH['S'] = json.load(open(os.path.join(ROOT, 'docs', 'graph_segments.json')))
     return _GRAPH['S']
 
 
@@ -173,7 +187,7 @@ def load_run(run_dir, storm):
     """-> run dict (arrays over the in-box segment universe) for score_run."""
     sys.path.insert(0, os.path.join(ROOT, 'sim', 'infra'))
     import impacts as IM
-    S = graph(); meta = json.load(open(os.path.join(run_dir, 'flood_meta.json'))); box = [float(v) for v in meta['box']]
+    S = graph(run_dir); meta = json.load(open(os.path.join(run_dir, 'flood_meta.json'))); box = [float(v) for v in meta['box']]
     Q = IM.road_points(S, meta); step = float(meta['res_m']) / 2
     feat = os.path.join(run_dir, f'features_{storm}.csv')
     if os.path.exists(feat):
@@ -354,7 +368,7 @@ def score_domain(R, dm, towns):
 def score_run(R):
     """All metrics for one loaded run, box-wide and inside the reporting towns."""
     out = dict(run=R['run'], storm=R['storm'], role=('dev' if R['storm'] in DEV else 'heldout' if R['storm'] in HELDOUT else 'heldout-new' if R['storm'] in NEW16 else
-                                                       'locked' if R['storm'] in LOCKED else 'other'),
+                                                       'locked' if R['storm'] in LOCKED else 'd456' if R['storm'] in D456 else 'other'),
                universe=R['universe'], matches=R['match_src'], label_files=[os.path.basename(f) for f in label_files(R['storm'])],
                labels_in_box=len(R['labels']), domains={})
     out['domains']['box'] = score_domain(R, np.ones(len(R['seg']), bool), None)
@@ -420,6 +434,7 @@ def compare(base, cand, boot=NBOOT, seed=0, rule=ADOPT):
     B = {r['storm']: r for r in base['runs'] if r.get('primary')}; C = {r['storm']: r for r in cand['runs'] if r.get('primary')}
     pool = HELDOUT + NEW16 if rule.get('storms') == 'heldout23' else HELDOUT
     if any(s in LOCKED for s in list(B) + list(C)): raise SystemExit('locked storm in a --compare input (PROTOCOL.md §2)')
+    if any(s in D456 for s in list(B) + list(C)): raise SystemExit('District 4-6 transfer storm in a --compare input (PROTOCOL.md "Transfer test")')
     storms = [s for s in pool if s in B and s in C]
     blk = (lambda X, s: X[s]['domains'][dom]['rule']) if rule.get('level') == 'rule' else (lambda X, s: X[s]['domains'][dom]['shares'][sh])
     hb, hc, per = [], [], {}
@@ -475,6 +490,26 @@ def find_runs():
             if s in LOCKED and os.environ.get('SCORE_LOCKED') != '1': print('locked storm, not scored:', d); continue   # PROTOCOL.md §2
             out.append((p, s, grp, bool(re.fullmatch(rf'{s}_[a-z]+_20m', d))))
     return out
+
+
+def d456(run_dir, out, md=None, boot=NBOOT):
+    """District 4-6 transfer pool: score every run folder <run_dir>/<storm>_<area>_20m (primary) once, pool them as 'd456'."""
+    import time
+    runs = []
+    for d in sorted(os.listdir(run_dir)):
+        p = os.path.join(run_dir, d); s = storm_of(d)
+        if not (s in D456 and os.path.exists(os.path.join(p, 'flood_meta.json'))): continue
+        if not label_files(s): continue
+        t = time.time(); r = score_run(load_run(p, s)); r.update(group='transfer', primary=bool(re.fullmatch(rf'{s}_[a-z]+_20m', d))); runs.append(r)
+        b = r['domains']['box']; print(f"{r['run']:60s} {s:9s} sites {b['n_sites']:3d} rule {fmt(b['rule']['share'])} rec {fmt(b['rule']['site_recall'], 2)} "
+                                        f"3% {fmt(b['shares']['0.03']['site_recall'], 2)} ({time.time() - t:.0f} s)", flush=True)
+    P = [r for r in runs if r['primary'] and r['domains']['box']['n_sites'] > 0]
+    pools = {'transfer:d456': {dom: pooled(P, dom, boot) for dom in ('box', 'towns')}} if P else {}
+    res = dict(made_by='proto/score_v2.py --d456', settings=dict(shares=SHARES, radii=RADII, cell_m=CELL, match_m=MATCH_M, site_link_m=SITE_LINK_M,
+               uncertainty_m=UNC_M, seeds=SEEDS, fss_draws=FSS_DRAWS, boot=boot), runs=runs, pools=pools)
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True); json.dump(res, open(out, 'w'), indent=0)
+    if md: open(md, 'w').write(table_md(runs, pools))
+    return res
 
 
 def fmt(v, nd=3):
@@ -630,6 +665,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--run'); ap.add_argument('--storm'); ap.add_argument('--out'); ap.add_argument('--md')
     ap.add_argument('--catalog', action='store_true'); ap.add_argument('--compare', nargs=2, metavar=('BASE', 'CAND'))
+    ap.add_argument('--d456', metavar='RUN_DIR', help='District 4-6 transfer test: score the runs in RUN_DIR (docs/proto/transfer/<run>) as pool d456')
     ap.add_argument('--boot', type=int, default=NBOOT); ap.add_argument('--selftest', action='store_true')
     ap.add_argument('--protocol', choices=['v1', 'v2'], default='v1', help='--compare: adoption rule of PROTOCOL.md v1 (OOS-7) or v2 (held-out 23)')
     ap.add_argument('--k', type=int, default=1, help='--compare: number of variants scored on the decision set (alpha / k)')
@@ -638,6 +674,8 @@ def main():
     if a.selftest: sys.exit(0 if selftest() else 1)
     if a.catalog:
         catalog(a.out or os.path.join(ROOT, 'docs', 'proto', 'scoring', 'catalog_v2.json'), a.md, a.boot); return
+    if a.d456:
+        d456(a.d456, a.out or os.path.join(a.d456, 'score_d456.json'), a.md, a.boot); return
     if a.compare:
         rule = dict(ADOPT_V2, level=a.level) if a.protocol == 'v2' else dict(ADOPT); rule['alpha'] = rule['alpha'] / a.k
         v = compare(json.load(open(a.compare[0])), json.load(open(a.compare[1])), a.boot, rule=rule); print(json.dumps(v, indent=1))
