@@ -22,6 +22,7 @@ jobs:
           M="${{ inputs.mode }}"; [ -z "$M" ] && M=$(cat docs/proto/transfer/.mode)
           mkdir -p docs/proto/transfer/_logs docs/proto/transfer/raw
           set -o pipefail
+          for M in $(echo "$M" | tr '+' ' '); do
           case "$M" in
             discover*) P=$(echo "$M" | cut -s -d: -f2); python -u proto/transfer_d456.py discover ${P:+--parts $P} 2>&1 | tail -c 400000 > docs/proto/transfer/_logs/discover.txt || true ;;
             geocode)  timeout 270m python -u proto/label_geocode.py --queries docs/proto/transfer/raw/geocode_queries.json \
@@ -32,8 +33,9 @@ jobs:
                       python -u proto/transfer_d456.py osm-geocode --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_geocode.txt || true ;;
             osm-roads) curl -sSL -o $RUNNER_TEMP/ma.osm.pbf https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf && ls -la $RUNNER_TEMP/ma.osm.pbf
                       python -u proto/transfer_d456.py osm-roads --pbf $RUNNER_TEMP/ma.osm.pbf 2>&1 | tail -c 100000 > docs/proto/transfer/_logs/osm_roads.txt || true ;;
-            gauges)   python -u proto/obs_catalog.py fetch --catalog docs/proto/obs/catalog_d456.json --out docs/proto/transfer/obs 2>&1 | tail -c 200000 > docs/proto/transfer/_logs/gauges.txt || true ;;
+            gauges)   mkdir -p docs/proto/transfer/obs/catalog; python -u proto/obs_catalog.py fetch --catalog docs/proto/obs/catalog_d456.json --out docs/proto/transfer/obs 2>&1 | tail -c 200000 > docs/proto/transfer/_logs/gauges.txt || true ;;
           esac
+          done
           tail -c 6000 docs/proto/transfer/_logs/*.txt
       - name: commit (once)
         if: always()
