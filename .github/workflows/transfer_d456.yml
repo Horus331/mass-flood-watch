@@ -23,7 +23,7 @@ jobs:
           mkdir -p docs/proto/transfer/_logs docs/proto/transfer/raw
           set -o pipefail
           case "$M" in
-            discover) python -u proto/transfer_d456.py discover 2>&1 | tail -c 400000 > docs/proto/transfer/_logs/discover.txt || true ;;
+            discover*) P=$(echo "$M" | cut -s -d: -f2); python -u proto/transfer_d456.py discover ${P:+--parts $P} 2>&1 | tail -c 400000 > docs/proto/transfer/_logs/discover.txt || true ;;
             geocode)  timeout 270m python -u proto/label_geocode.py --queries docs/proto/transfer/raw/geocode_queries.json \
                         --seed docs/proto/transfer/raw/geocode_osm.json --out docs/proto/transfer/raw/geocode_osm_new.json 2>&1 | tail -c 300000 > docs/proto/transfer/_logs/geocode.txt || true
                       python -c "import json,os; a='docs/proto/transfer/raw/geocode_osm.json'; b='docs/proto/transfer/raw/geocode_osm_new.json'; A=json.load(open(a)) if os.path.exists(a) else {}; A.update(json.load(open(b)) if os.path.exists(b) else {}); json.dump(A,open(a,'w'),indent=0)"
