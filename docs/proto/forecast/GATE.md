@@ -25,6 +25,14 @@ validated out of sample on 7 storms (`ENSEMBLE.md`). A quiet gate still costs on
 cycle.
 The thresholds can be changed with the env variables `GATE_6H_MM` and `GATE_24H_MM`.
 
+**Flood-model settings (since 25 Oct 2026).** Both the Actions job and `proto/turing/run_forecast.slurm` run the clean parity baseline
+(`parity/BASELINE.md`): `LF_PARITY=1` (infiltration applied to the rain, time step ≤ 1 s), `LF_CN_SCALE=0.88`, `LF_LOSS=cn`, AMC II,
+`LF_INFIL_MMH=2`, `LF_QOUT=1`. Before that the live forecast used CN × 0.91 at the default step; `HINDCAST.md` and `ENSEMBLE.md` were run that
+way and were not re-run. Cost: on the Actions CPU the 1 s step roughly doubles LISFLOOD-FP time (PARITY.md 2.5: 18 → 35 min on sep2023; the
+25 parity catalogue runs took 15–64 min, 48 h Leominster boxes 45–70 min), so a wet member/box job is about 35–80 min against the 330 min job
+limit, and a full 32-job ensemble (20 at a time) still finishes well inside the 6 h cycle. On Turing the District 3 run at these settings
+took 23 min (`turing/d3_sep2023_p`).
+
 ## Why 25 mm / 6 h and 40 mm / 24 h
 
 Numbers: `gate_calibration.json` (`python proto/forecast.py calib`) and `gate_background_2023-06-01.json` (`... background`).
