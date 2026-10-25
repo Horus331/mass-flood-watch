@@ -33,46 +33,61 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   <p class="stats" id="runStats"></p>
 </section>
 
-<section class="legend" id="legend" aria-label="Map layers">
-  <button class="legend-toggle" id="legendToggle" aria-expanded="true" aria-controls="legendBody">Layers</button>
-  <div id="legendBody">
-    <div class="basemaps" role="group" aria-label="Background map" id="basemaps">
-      <button data-bm="streets">Streets</button><button data-bm="terrain">Terrain</button><button data-bm="satellite">Satellite</button><button data-bm="dark">Dark</button>
-    </div>
+<section class="story" id="story" hidden aria-labelledby="stTitle">
+  <ol class="steps" id="stSteps" aria-label="Story scenes"></ol>
+  <h2 id="stTitle"></h2>
+  <p class="st-text" id="stText"></p>
+  <p class="st-live" id="stLive" aria-live="polite"></p>
+  <div class="st-nav">
+    <button type="button" id="stPrev" aria-label="Previous scene"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
+    <button type="button" id="stPause" aria-label="Pause story"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="stPauseIcon" d="M6 4h3v12H6zM11 4h3v12h-3z"/></svg></button>
+    <button type="button" id="stNext" class="primary">Next scene</button>
+    <button type="button" id="stSkip" class="quiet">Explore the map</button>
+  </div>
+</section>
 
-    <h2>Model input</h2>
-    <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain" checked><span>Radar rain, NOAA MRMS</span></label>
-    <div class="ramp rain" id="rainRamp" hidden aria-hidden="true"></div>
-    <div class="ramp-labels" id="rainLabels" hidden aria-hidden="true"><span>1</span><span>10</span><span>25</span><span>50</span><span>100 mm/h</span></div>
-
-    <h2>Model output</h2>
-    <label class="row"><input type="checkbox" id="lyDepth" checked><span>Flood depth</span></label>
-    <div class="ramp depth" aria-hidden="true"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></div>
-    <div class="ramp-labels" aria-hidden="true"><span>5</span><span>15</span><span>30</span><span>100 cm</span></div>
-    <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow" checked><span>Water flow direction and speed</span></label>
-    <div class="flowkey" id="flowKey" hidden>
-      <div class="ramp flow" aria-hidden="true"></div>
-      <div class="ramp-labels" aria-hidden="true"><span>0.1</span><span>0.5</span><span>1</span><span>2+ m/s</span></div>
-      <p class="note">Ripples move with the modelled current; faster water moves faster and streaks along its path. Water 5 cm or deeper; still while paused.</p>
+<section class="legend" id="legend" aria-label="Map key and layers">
+  <div class="key" id="key" aria-label="Map key">
+    <div class="k" id="rainKey" hidden><span class="kl">Rain</span><span class="kr"><i class="kramp" id="rainRamp"></i><span class="kt"><span>1</span><span>10</span><span>50+ mm/h</span></span></span></div>
+    <div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp depth"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></i><span class="kt"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span></span></div>
+    <div class="k"><span class="kl">Roads</span><span class="kr kroads"><span><i class="kw wet"></i>water on road</span><span><i class="kw shut"></i>closed, 30 cm+</span></span></div>
+  </div>
+  <button class="legend-toggle" id="legendToggle" type="button" aria-expanded="false" aria-controls="legendBody"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 1.5 6.5 10 11l8.5-4.5zM3.6 9.6 1.5 10.7 10 15.2l8.5-4.5-2.1-1.1L10 13zM3.6 13.8l-2.1 1.1L10 19.4l8.5-4.5-2.1-1.1-6.4 3.4z"/></svg>Layers</button>
+  <div id="legendBody" class="panel">
+    <div class="grp">
+      <h2>Background</h2>
+      <div class="basemaps" role="group" aria-label="Background map" id="basemaps">
+        <button data-bm="streets">Light</button><button data-bm="terrain">Terrain</button><button data-bm="satellite">Satellite</button><button data-bm="dark">Dark</button>
+      </div>
     </div>
-    <label class="row"><input type="checkbox" id="lyClosed" checked><span>Water on the road</span></label>
-    <div class="ramp road" aria-hidden="true"></div>
-    <div class="ramp-labels" aria-hidden="true"><span>a few cm</span><span>15</span><span>closed at 30 cm</span></div>
-    <label class="row"><input type="checkbox" id="lyPeak" checked><span><i class="sw peak"></i>Closes at some point in the storm</span></label>
-    <label class="row"><input type="checkbox" id="lyMay" checked><span><i class="sw may"></i>May close: stream reaches road level</span></label>
-    <label class="row" id="riskRow" hidden><input type="checkbox" id="lyRisk"><span>Risk class</span></label>
-    <div class="riskkey" id="riskKey" hidden><span><i class="sw rx"></i>Extreme</span><span><i class="sw rh"></i>High</span><span><i class="sw rm"></i>Medium</span><span><i class="sw rl"></i>Low</span></div>
-
-    <h2>Reference</h2>
-    <div class="refs" id="refs">
-      <label class="row" data-ref="gauges" hidden><input type="checkbox" data-ref="gauges" checked><span><i class="ico" data-ico="gauge"></i>USGS river gauges</span></label>
-      <label class="row" data-ref="reports" hidden><input type="checkbox" data-ref="reports"><span><i class="ico" data-ico="report"></i>Reported closures and damage</span></label>
-      <label class="row" data-ref="crossings" hidden><input type="checkbox" data-ref="crossings"><span><i class="ico" data-ico="culvert"></i>Culverts and stream crossings</span></label>
-      <label class="row" data-ref="bridges" hidden><input type="checkbox" data-ref="bridges"><span><i class="ico" data-ico="bridge"></i>Bridges</span></label>
-      <label class="row" data-ref="dams" hidden><input type="checkbox" data-ref="dams"><span><i class="ico" data-ico="dam"></i>Dams</span></label>
-      <label class="row" data-ref="facilities" hidden><input type="checkbox" data-ref="facilities"><span><i class="ico" data-ico="hospital"></i>Hospitals, fire and police</span></label>
+    <div class="grp">
+      <h2>Storm and flood</h2>
+      <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain" checked><span>Radar rain <small>NOAA MRMS</small></span></label>
+      <label class="row"><input type="checkbox" id="lyDepth" checked><span>Water depth</span></label>
+      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow" checked><span>Moving water <small>ripples follow the modelled current</small></span></label>
+      <div id="flowKey" hidden></div>
+      <p class="soon" id="flowSoon" hidden>Moving-water animation comes with the 5-minute GPU runs.</p>
     </div>
-    <p class="soon" id="flowSoon" hidden><span class="tag-dev">In development</span> Water flow arrows, from the 5-minute GPU runs on WPI’s Turing cluster.</p>
+    <div class="grp">
+      <h2>Roads</h2>
+      <label class="row"><input type="checkbox" id="lyClosed" checked><span>Water on roads, closures</span></label>
+      <label class="row"><input type="checkbox" id="lyPeak" checked><span><i class="sw peak"></i>Closes at some point</span></label>
+      <label class="row"><input type="checkbox" id="lyMay" checked><span><i class="sw may"></i>May close <small>stream reaches road level</small></span></label>
+      <label class="row" id="riskRow" hidden><input type="checkbox" id="lyRisk"><span>Risk class</span></label>
+      <div class="riskkey" id="riskKey" hidden><span><i class="sw rx"></i>Extreme</span><span><i class="sw rh"></i>High</span><span><i class="sw rm"></i>Medium</span><span><i class="sw rl"></i>Low</span></div>
+    </div>
+    <div class="grp">
+      <h2>Places</h2>
+      <div class="chips" id="refs">
+        <label class="chip" data-ref="knock" hidden><input type="checkbox" data-ref="knock"><span><i class="ico" data-ico="ring"></i>Near closed roads</span></label>
+        <label class="chip" data-ref="gauges" hidden><input type="checkbox" data-ref="gauges" checked><span><i class="ico" data-ico="gauge"></i>River gauges</span></label>
+        <label class="chip" data-ref="reports" hidden><input type="checkbox" data-ref="reports"><span><i class="ico" data-ico="report"></i>Storm reports</span></label>
+        <label class="chip" data-ref="crossings" hidden><input type="checkbox" data-ref="crossings"><span><i class="ico" data-ico="culvert"></i>Culverts</span></label>
+        <label class="chip" data-ref="bridges" hidden><input type="checkbox" data-ref="bridges"><span><i class="ico" data-ico="bridge"></i>Bridges</span></label>
+        <label class="chip" data-ref="dams" hidden><input type="checkbox" data-ref="dams"><span><i class="ico" data-ico="dam"></i>Dams</span></label>
+        <label class="chip" data-ref="facilities" hidden><input type="checkbox" data-ref="facilities"><span><i class="ico" data-ico="hospital"></i>Hospital, fire, police</span></label>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -84,6 +99,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
       <button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2" aria-pressed="true">2×</button><button data-speed="4">4×</button>
     </div>
     <div class="clock"><b id="clock">–</b><span id="since"></span></div>
+    <button type="button" class="replay" id="replayStory" hidden><span class="rs-l">Replay story</span><span class="rs-s">Story</span></button>
     <div class="now"><b id="nClosed">–</b><span>roads closed</span></div>
   </div>
   <div class="views" id="views" role="group" aria-label="Map view"></div>

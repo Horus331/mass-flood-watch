@@ -7,6 +7,10 @@
             masked to wet cells and faded by depth and speed; frozen still when the replay is paused
    Roads: depth on each segment per frame (cm) is interpolated in time and written to feature-state only when it changes,
    so a road turns grey -> amber -> red as the water rises and fades back as it drains.
+   Base roads: the whole street network from OpenStreetMap vector tiles (OpenFreeMap, no key), drawn over a muted
+   grey basemap and under the water, widths by road class and zoom, so streets read from district to street zoom.
+   Story: opening a replay plays six short scenes on the real timeline (storm arrives, rain intensifies, water
+   collects, streets flood, streets close, knock-on effects), then hands the map over for free exploration.
    Framing: the camera opens on where roads close, with one-click hotspot views and an optional 'follow the storm'. */
 (function () {
   'use strict';
@@ -65,20 +69,26 @@
   var ESRI = function (path, mz, attr) {
     return { type: 'raster', tileSize: 256, maxzoom: mz, attribution: attr, tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/' + path + '/MapServer/tile/{z}/{y}/{x}'] };
   };
-  var BASEMAPS = {
-    streets: { layers: { 'b-voy': 1 } },
-    terrain: { layers: { 'b-hill': 1, 'b-voy': 0.62 } },
+  var BASEMAPS = { // 'streets' keeps its key (stored choices and links) but is now the calm light-grey canvas
+    streets: { layers: { 'b-lgt': 1, 'l-voy': 1 } },
+    terrain: { layers: { 'b-hill': 1, 'b-lgt': 0.5, 'l-voy': 1 } },
     satellite: { layers: { 'b-sat': 1, 'l-dark': 1 } },
     dark: { layers: { 'b-dark': 1, 'l-dark': 1 } }
   };
   // depth ramp (5, 15, 30, 100 cm), roads: wet (amber) -> closed (red), casing under them, footprint of closures, may close
+  // base road network (net): line colour per class [highway, arterial, collector, local], the white street fill at
+  // street zoom, and how strongly it shows. Blue water / amber-red roads stay distinguishable with red-green colour
+  // blindness: water and road status sit on the blue-yellow axis, and closed roads add stripes, not just hue.
   var PAL = {
-    light: { d: ['rgba(120,196,240,.55)', 'rgba(52,148,226,.72)', 'rgba(18,96,196,.85)', 'rgba(8,46,138,.93)'],
-      grey: '#7f8b95', amber: '#f0a020', orange: '#ec6a12', closed: '#d4142a', cas: 'rgba(255,255,255,.95)', peak: '#b4182c', peakOp: 0.5, may: '#e06a00', halo: '#ff3048' },
+    light: { d: ['rgba(120,190,240,.66)', 'rgba(56,140,214,.8)', 'rgba(24,94,186,.88)', 'rgba(10,46,126,.94)'],
+      grey: '#8a959e', amber: '#f0a81c', orange: '#e8641c', closed: '#c8102e', cas: 'rgba(255,255,255,.95)', peak: '#b0122c', peakOp: 0.45, may: '#d9620b', halo: '#ff3048',
+      net: ['#56616c', '#76818b', '#99a2aa', '#a9b1b8'], fill: '#ffffff', netOp: 1, box: '#56616c' },
     satellite: { d: ['rgba(110,226,255,.5)', 'rgba(44,186,255,.7)', 'rgba(24,136,255,.82)', 'rgba(40,84,240,.92)'],
-      grey: '#c9d1d6', amber: '#ffc21a', orange: '#ff7a1a', closed: '#ff2448', cas: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060' },
+      grey: '#c9d1d6', amber: '#ffc21a', orange: '#ff7a1a', closed: '#ff2448', cas: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
+      net: ['rgba(255,255,255,.9)', 'rgba(255,255,255,.75)', 'rgba(255,255,255,.55)', 'rgba(255,255,255,.45)'], fill: 'rgba(30,30,30,.35)', netOp: 0.85, box: '#ffffff' },
     dark: { d: ['rgba(40,104,176,.6)', 'rgba(52,142,222,.76)', 'rgba(96,184,246,.86)', 'rgba(186,228,255,.95)'],
-      grey: '#8796a3', amber: '#ffb52e', orange: '#ff7d2e', closed: '#ff4058', cas: 'rgba(8,14,20,.9)', peak: '#ff7d8c', peakOp: 0.55, may: '#ffa24a', halo: '#ff4a5e' }
+      grey: '#8796a3', amber: '#ffb52e', orange: '#ff7d2e', closed: '#ff4058', cas: 'rgba(8,14,20,.9)', peak: '#ff7d8c', peakOp: 0.55, may: '#ffa24a', halo: '#ff4a5e',
+      net: ['#9aa6b1', '#748190', '#566270', '#4b5663'], fill: '#2b343d', netOp: 1, box: '#9aa6b1' }
   };
   var bm = store('mfw-basemap');
   function basemap() { return BASEMAPS[bm] ? bm : (isDark() ? 'dark' : 'streets'); }
@@ -87,7 +97,8 @@
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
   var flowRGB = { hi: [1, 1, 1], dk: 0.2 }; // flow layer: glint colour and trough shading, per basemap
-  var segs = [], ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null;
+  var segs = [], segById = {}, ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null, cascade = null;
+  var nWet = 0, nClosedNow = 0, sparkRange = [0, 1], rtip = null, rtipId = null, rtipLL = null;
   var fmtClock = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
   var fmtShort = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   var t0;
@@ -192,8 +203,11 @@
 
   // ---------- rain layer (radar loop) ----------
   // mm/h stops: colour and opacity, classic radar greens -> yellow -> red -> magenta, kept clear of the blue depth ramp
-  var RAIN_STOPS = [[0.4, [120, 210, 110, 0]], [1, [96, 196, 92, 0.1]], [3, [46, 168, 66, 0.17]], [8, [22, 128, 46, 0.24]], [15, [238, 222, 40, 0.3]],
-    [30, [248, 150, 24, 0.36]], [50, [226, 36, 36, 0.41]], [80, [204, 34, 168, 0.45]], [150, [150, 70, 236, 0.5]]];
+  // one violet family, light and translucent: reads as a storm shadow sweeping over the map, never as water (blue)
+  // or as road status (amber, red), and heavy cells darken and saturate instead of switching hue
+  var RAIN_STOPS = [[0.4, [150, 140, 200, 0]], [1, [150, 140, 200, 0.06]], [3, [136, 122, 204, 0.11]], [8, [122, 102, 204, 0.16]], [15, [112, 84, 200, 0.22]],
+    [30, [110, 66, 192, 0.28]], [50, [112, 50, 180, 0.34]], [80, [100, 34, 160, 0.39]], [150, [80, 20, 130, 0.45]]];
+  var rainOp = 1; // story fades the radar back once the rain has done its work
   function rainColor(mm) {
     if (mm <= RAIN_STOPS[0][0]) return [0, 0, 0, 0];
     for (var i = 1; i < RAIN_STOPS.length; i++) {
@@ -246,7 +260,7 @@
           gl.uniform4f(loc.uB, R.bounds[0][0], R.bounds[0][1], R.bounds[1][0], R.bounds[1][1]);
           gl.uniform2fv(loc.uCa, A.o); gl.uniform2fv(loc.uCb, B.o); gl.uniform3fv(loc.uMa, A.m); gl.uniform3fv(loc.uMb, B.m);
           gl.uniform2f(loc.uCell, 1 / R.cols, 1 / R.rows); gl.uniform2f(loc.uHalf, 0.5 / (R.cols * R.w), 0.5 / (R.rows * R.h));
-          gl.uniform1f(loc.uT, pos - fa); gl.uniform1f(loc.uOp, 1);
+          gl.uniform1f(loc.uT, pos - fa); gl.uniform1f(loc.uOp, rainOp);
           gl.bindBuffer(gl.ARRAY_BUFFER, buf);
           gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 8, 0);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -495,7 +509,8 @@
       version: 8,
       sources: {
         // CARTO raster tiles now ask for an API key on this domain: Esri basemaps (no key)
-        voy: ESRI('World_Street_Map', 19, 'Esri, HERE, Garmin, © OpenStreetMap contributors, and the GIS User Community'),
+        lgt: ESRI('Canvas/World_Light_Gray_Base', 16, 'Esri, HERE, Garmin, © OpenStreetMap contributors'),
+        omt: { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a>' },
         voyl: ESRI('Canvas/World_Light_Gray_Reference', 16, 'Esri'),
         drk: ESRI('Canvas/World_Dark_Gray_Base', 16, 'Esri, HERE, Garmin, © OpenStreetMap contributors'),
         drkl: ESRI('Canvas/World_Dark_Gray_Reference', 16, 'Esri'),
@@ -504,13 +519,38 @@
       },
       layers: [
         { id: 'b-hill', type: 'raster', source: 'hill', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
-        { id: 'b-voy', type: 'raster', source: 'voy', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
+        { id: 'b-lgt', type: 'raster', source: 'lgt', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-saturation': -0.25, 'raster-brightness-max': 0.82, 'raster-contrast': 0.05 } },
-        { id: 'b-dark', type: 'raster', source: 'drk', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-brightness-min': 0.04 } },
+        { id: 'b-dark', type: 'raster', source: 'drk', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-brightness-min': 0.04 } }
+      ].concat(netLayers(), [
         { id: 'l-voy', type: 'raster', source: 'voyl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'l-dark', type: 'raster', source: 'drkl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } }
-      ]
+      ])
     };
+  }
+  // the street network: OpenMapTiles 'transportation' classes grouped into highway (0), arterial (1), collector (2),
+  // local (3); highways from district zoom, locals fade in by street zoom; a white fill appears inside the casing at
+  // street zoom so streets read as streets. Drawn under the water, so flooded streets disappear under the blue.
+  var NET_RANK = ['match', ['get', 'class'], ['motorway', 'trunk'], 0, ['primary', 'secondary'], 1, 'tertiary', 2, 'minor', 3, 4];
+  function netLayers() {
+    var Z = ['zoom'], R = NET_RANK;
+    var cw = ['interpolate', ['exponential', 1.5], Z,
+      8, ['match', R, 0, 1.1, 1, 0.6, 0.3],
+      10, ['match', R, 0, 2, 1, 1.2, 2, 0.7, 0.4],
+      12, ['match', R, 0, 3.4, 1, 2.4, 2, 1.6, 1],
+      14, ['match', R, 0, 6.5, 1, 5, 2, 3.8, 2.6],
+      17, ['match', R, 0, 18, 1, 14, 2, 11, 8]];
+    var fw = ['interpolate', ['exponential', 1.5], Z, 11.5, 0, 13, ['match', R, 0, 2.2, 1, 1.4, 2, 0.8, 0.4],
+      14, ['match', R, 0, 4.6, 1, 3.4, 2, 2.4, 1.4], 17, ['match', R, 0, 15, 1, 11.5, 2, 9, 6]];
+    var op = ['interpolate', ['linear'], Z, 10.5, ['match', R, [3, 4], 0, 1], 12.5, ['match', R, 4, 0, 1], 14.5, 1];
+    var filt = ['all', ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service'], true, false],
+      ['!=', ['get', 'brunnel'], 'tunnel']];
+    return [
+      { id: 'net-case', type: 'line', source: 'omt', 'source-layer': 'transportation', filter: filt, minzoom: 7,
+        layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['-', 3, R] }, paint: { 'line-width': cw, 'line-opacity': op, 'line-color': '#76818b' } },
+      { id: 'net-fill', type: 'line', source: 'omt', 'source-layer': 'transportation', filter: filt, minzoom: 11.5,
+        layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['-', 3, R] }, paint: { 'line-width': fw, 'line-opacity': op, 'line-color': '#ffffff' } }
+    ];
   }
   function boxBounds() {
     var lons = meta.corners.map(function (c) { return c[0]; }), lats = meta.corners.map(function (c) { return c[1]; });
@@ -525,7 +565,8 @@
       p = { top: g + 8, bottom: H - (pl.height ? pl.top : H) + g, left: card.right + g, right: (lg.width && !$('legend').hidden ? W - lg.left : 0) + g + 40 };
       if (!fc.hidden) { var r = fc.getBoundingClientRect(); p.bottom = Math.max(p.bottom, H - r.top + g); }
     } else {
-      var lgTop = lg.width && !$('legend').hidden ? lg.top : H;
+      var lgTop = lg.width && !$('legend').hidden ? lg.top : H, st = $('story');
+      if (!st.hidden) lgTop = Math.min(lgTop, st.getBoundingClientRect().top);
       p = { top: card.bottom + g, bottom: H - Math.min(pl.height ? pl.top : H, lgTop) + g, left: g, right: g };
       if (!fc.hidden) { var r2 = fc.getBoundingClientRect(); p.bottom = Math.max(p.bottom, H - r2.top + g); }
     }
@@ -572,11 +613,13 @@
         r.off = (new Date(r.start.replace(/Z$/, ':00Z')) - t0) / 60000;
         rain = r; rainLayer.set(img);
         whenStyle(function () { map.addLayer(rainLayer.layer, 'l-voy'); vis('rain', $('lyRain').checked); });
-        $('rainRow').hidden = $('rainRamp').hidden = $('rainLabels').hidden = false;
+        $('rainRow').hidden = $('rainKey').hidden = false;
         progress();
       });
     }).catch(function () { progress(); }));
     jobs.push(getJson(base + 'refs.json').then(function (r) { refs = r; whenStyle(function () { try { addRefs(); } catch (e) { console.error('refs', e); } }); }).catch(function (e) { console.warn('refs', e); }));
+    // optional knock-on dataset from the cascade model (spec in the story section); absent today on most runs
+    jobs.push(getJson(base + 'cascade.json').then(function (c) { cascade = c; }).catch(function () { cascade = null; }));
     if (meta.flow) {
       jobs.push(getJson(base + meta.flow).then(function (fi) {
         return getBitmap(base + fi.sheet).then(function (img) {
@@ -590,8 +633,9 @@
       ready = true;
       $('loading').classList.add('done');
       $('play').disabled = false;
+      try { addKnock(); } catch (e) { console.error('knock-on', e); }
       setTime(t);
-      fitView(currentView, false);
+      if (storyWanted()) storyStart(0); else { fitView(currentView, false); $('replayStory').hidden = false; }
     }).catch(function (e) { $('loadText').textContent = 'Some storm data did not load. Reload the page to try again.'; console.error(e); });
   }
 
@@ -599,14 +643,18 @@
   function addRoads(g) {
     g.features.forEach(function (f) {
       var p = f.properties;
-      if (p.d || p.iv) segs.push({ id: f.id, d: p.d || null, iv: p.iv || null, v: -1, f: f });
+      if (p.d || p.iv) { var sg = { id: f.id, d: p.d || null, iv: p.iv || null, v: -1, f: f }; segs.push(sg); segById[f.id] = sg; }
     });
     map.addSource('roads', { type: 'geojson', data: g, tolerance: 0.2 });
+    // the model box, a quiet dashed outline so the replayed area reads at regional zoom
+    map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
+    map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };
     var D = ['coalesce', ['feature-state', 'd'], 0];
     var byD = function (z9, z15) { // width grows with water on the road, scaled by zoom
       return ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], D, 0, z9[0], 30, z9[1], 100, z9[2]], 15, ['interpolate', ['linear'], D, 0, z15[0], 30, z15[1], 100, z15[2]]];
     };
+    var HASW = ['any', ['has', 'd'], ['has', 'iv']];
     map.addLayer({ id: 'peak', type: 'line', source: 'roads', filter: ['>=', ['get', 'p'], 0.5], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(1, 2.5) } });
     if (meta.kofn) { // forecast ensemble: how many of the time-lagged forecast runs close the road (likely >= 2, possible 1)
       map.addLayer({ id: 'agree', type: 'line', source: 'roads', filter: ['has', 'k'], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(2, 5), 'line-opacity': 0.9 } });
@@ -614,35 +662,81 @@
     }
     map.addLayer({ id: 'may', type: 'line', source: 'roads', filter: ['==', ['get', 'm'], 1], paint: { 'line-width': w(1.5, 3.5), 'line-dasharray': [2, 1.2] } });
     map.addLayer({ id: 'risk', type: 'line', source: 'roads', filter: ['has', 'rk'], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-width': w(2.5, 6) } });
-    map.addLayer({ id: 'halo', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([0, 9, 12], [0, 20, 26]), 'line-blur': w(4, 9), 'line-opacity': ['interpolate', ['linear'], D, 22, 0, 40, 0.42] } });
-    map.addLayer({ id: 'wetcase', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([2.5, 5, 6], [4.5, 9.5, 11]), 'line-opacity': ['interpolate', ['linear'], D, 5, 0, 12, 1] } });
-    map.addLayer({ id: 'wet', type: 'line', source: 'roads', filter: ['has', 'd'], layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([1.2, 3, 3.8], [2.5, 6.5, 7.5]), 'line-opacity': ['interpolate', ['linear'], D, 5, 0, 10, 1] } });
+    map.addLayer({ id: 'halo', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-width': byD([0, 7, 9], [0, 18, 22]), 'line-blur': w(3, 8), 'line-opacity': ['interpolate', ['linear'], D, 22, 0, 40, 0.28] } });
+    map.addLayer({ id: 'wetcase', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-width': byD([1.8, 3.6, 4.4], [4, 10, 11.5]), 'line-opacity': ['interpolate', ['linear'], D, 4, 0, 10, 1] } });
+    map.addLayer({ id: 'wet', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-width': byD([1, 2.4, 3], [2.4, 7.2, 8.2]), 'line-opacity': ['interpolate', ['linear'], D, 3, 0, 8, 1] } });
+    // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
+    map.addLayer({ id: 'bar', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': ['case', ['>=', D, 30], 0.95, 0] } });
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
     applyTheme();
     if (g.features.some(function (f) { return f.properties.rk; })) { $('riskRow').hidden = false; }
     map.on('mouseenter', 'hit', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'hit', function () { map.getCanvas().style.cursor = ''; });
+    map.on('mouseleave', 'hit', function () { map.getCanvas().style.cursor = ''; hideTip(); });
+    map.on('mousemove', 'hit', function (e) {
+      if (small() || !e.features.length) return;
+      var f = pickRoad(e.features);
+      rtipId = f.id; rtipLL = e.lngLat;
+      if (!rtip) rtip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 14, className: 'tip', maxWidth: '240px' });
+      rtip.setLngLat(e.lngLat).setHTML(roadTip(f)).addTo(map);
+    });
     map.on('click', 'hit', function (e) {
       if (map.queryRenderedFeatures(e.point, { layers: refLayers.filter(function (l) { return map.getLayer(l); }) }).length) return;
-      var vis_ = e.features.filter(function (f) {
-        var p = f.properties; return p.p >= 0.5 || p.m === 1 || (p.rk && $('lyRisk').checked) || p.d || p.k;
-      });
-      var f = (vis_.length ? vis_ : e.features).sort(function (a, b) { return b.properties.p - a.properties.p; })[0];
-      showPopup(e.lngLat, popupHtml(f));
+      hideTip();
+      showPopup(e.lngLat, popupHtml(pickRoad(e.features)));
     });
     computeViews(g);
   }
+  function pickRoad(fs) {
+    var vis_ = fs.filter(function (f) {
+      var p = f.properties; return p.p >= 0.5 || p.m === 1 || (p.rk && $('lyRisk').checked) || p.d || p.k;
+    });
+    return (vis_.length ? vis_ : fs).slice().sort(function (a, b) { return (segDepth(b.id) - segDepth(a.id)) || (b.properties.p - a.properties.p); })[0];
+  }
+  function hideTip() { if (rtip) rtip.remove(); rtipId = null; }
+  function segDepth(id) { var s = segById[id]; return s ? Math.max(0, s.v) : 0; }
+  function status(cm) { return cm >= 30 ? ['shut', 'Closed'] : cm >= 3 ? ['wet', 'Water on road'] : ['dry', 'Dry']; }
+  function roadTip(f) {
+    var p = f.properties, cm = segDepth(f.id), st = status(cm);
+    return '<b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? '<br>' + esc(p.t) : '') +
+      '<br>Water now: <b>' + (cm >= 3 ? cm + ' cm' : 'none') + '</b><br><span class="st ' + st[0] + '">' + st[1] + '</span>' +
+      (small() ? '' : '<br><span style="color:var(--muted)">Click for depth over time</span>');
+  }
+  // depth on the road over the whole replay: blue area, red where 30 cm or more, dashed closure line, live cursor
+  function spark(d) {
+    if (!d || !d.length) return '';
+    // x range: the wet part of the storm for this road (2 h either side, at least 8 h), so the rise and fall are legible
+    var per = 60 / meta.frame_min, N = nf - 1, i0 = 0, i1 = d.length - 1;
+    while (i0 < i1 && d[i0] < 3) i0++;
+    var x0 = Math.max(0, i0 - 2 * per), x1 = Math.min(N, Math.max(i1 + 2 * per, x0 + 8 * per)); x0 = Math.max(0, Math.min(x0, x1 - 8 * per));
+    var W = 260, H = 60, pk = Math.max.apply(0, d), mx = Math.max(45, pk);
+    var x = function (i) { return ((i - x0) / (x1 - x0) * W).toFixed(1); }, y = function (v) { return (H - v / mx * (H - 4)).toFixed(1); };
+    var idx = []; for (var k = Math.floor(x0); k <= Math.min(d.length - 1, Math.ceil(x1)); k++) idx.push(k);
+    var pts = idx.map(function (i) { return x(i) + ',' + y(d[i] || 0); }).join(' ');
+    var red = '', run = [], flush = function () { if (run.length) red += '<polyline points="' + run.join(' ') + '" fill="none" stroke="' + css('--closed') + '" stroke-width="2.4"/>'; run = []; };
+    idx.forEach(function (i) { if (d[i] >= 30) run.push(x(i) + ',' + y(d[i])); else flush(); }); flush();
+    var last = x(idx[idx.length - 1]);
+    sparkRange = [x0, x1];
+    return '<div class="spk"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Water depth on this road through the storm">' +
+      '<polygon points="' + x(idx[0]) + ',' + H + ' ' + pts + ' ' + last + ',' + H + '" fill="' + css('--mod') + '" fill-opacity=".22"/>' +
+      '<polyline points="' + pts + '" fill="none" stroke="' + css('--mod') + '" stroke-width="1.6"/>' + red +
+      '<line x1="0" x2="' + W + '" y1="' + y(30) + '" y2="' + y(30) + '" stroke="' + css('--closed') + '" stroke-dasharray="3 3" stroke-width="1"/>' +
+      '<text x="' + (W - 2) + '" y="' + (+y(30) - 3) + '" text-anchor="end" font-size="9.5" fill="' + css('--closed') + '">closed at 30 cm</text>' +
+      '<line id="spkCur" x1="' + x(t) + '" x2="' + x(t) + '" y1="0" y2="' + H + '" stroke="' + css('--ink') + '" stroke-width="1.5"' + (t < x0 || t > x1 ? ' visibility="hidden"' : '') + '/></svg>' +
+      '<div class="cap"><span>' + fmtShort.format(timeAt(x0)) + '</span><span>peak ' + pk + (pk >= 255 ? '+' : '') + ' cm</span><span>' + fmtShort.format(timeAt(x1)) + '</span></div></div>';
+  }
+
   function kofnLegend() {
     var lb = $('legendBody'); if (!lb || $('kofnKey')) return;
-    var k = document.createElement('div'); k.id = 'kofnKey'; k.className = 'kofn';
+    var k = document.createElement('div'); k.id = 'kofnKey'; k.className = 'grp kofn';
     k.innerHTML = '<h2>Forecast agreement</h2><label class="row"><input type="checkbox" id="lyAgree" checked><span>Roads closed in the ' + meta.kofn.n + ' forecast runs</span></label>' +
       '<p class="note"><i style="display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;background:var(--closed)"></i> likely closed: 2 or more of ' + meta.kofn.n + ' agree<br>' +
       '<i style="display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;background:var(--amber)"></i> possible: 1 of ' + meta.kofn.n +
       '<br>Runs from this and the 7 previous HRRR forecasts; the replay shows this forecast\'s run.</p>';
-    var h2 = lb.querySelectorAll('h2'); lb.insertBefore(k, h2.length > 1 ? h2[1] : null);
+    var gs = lb.querySelectorAll('.grp'); lb.insertBefore(k, gs.length > 2 ? gs[2] : null);
     $('lyAgree').addEventListener('change', function () { vis('agree', this.checked); });
   }
   function showPopup(ll, html) {
@@ -655,12 +749,12 @@
   function arr(v) { return v ? (typeof v === 'string' ? JSON.parse(v) : v) : null; }
   function popupHtml(f) {
     var p = f.properties, iv = arr(p.iv), a = arr(p.a), rc = arr(p.rc), d = arr(p.d);
-    var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] + '</p><dl>';
+    var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] + '</p>' + spark(d) + '<dl>';
     if (p.k) h += '<dt>Forecast runs closing it</dt><dd><b>' + p.k + ' of ' + meta.kofn.n + '</b> (' + (p.k >= 2 ? 'likely closed' : 'possible') + ')</dd>';
     h += '<dt>' + (p.k ? 'Chance of closing in the run shown' : 'Chance of closing') + '</dt><dd><b>' + Math.round(p.p * 100) + '%</b></dd>';
     if (d) {
       var fa = Math.min(Math.floor(t), nf - 1), now = Math.round(((d[fa] || 0) * (1 - (t - fa)) + (d[fa + 1] || 0) * (t - fa)));
-      h += '<dt>Water on it now</dt><dd>' + (now >= 3 ? now + ' cm' : 'dry') + '</dd>';
+      h += '<dt>Water on it now</dt><dd id="ppNow" data-id="' + f.id + '">' + (now >= 3 ? now + ' cm' : 'dry') + '</dd>';
     }
     if (iv && iv.length) {
       var s = iv[0][0], e = iv[iv.length - 1][1];
@@ -690,6 +784,7 @@
     hospital: function (c, s) { c.fillStyle = '#d6223a'; rr(c, 2, 2, s - 4, s - 4, 4); c.fill(); c.stroke(); cross(c, s); },
     fire: function (c, s) { c.fillStyle = '#e8590c'; rr(c, 2, 2, s - 4, s - 4, 4); c.fill(); c.stroke(); letter(c, s, 'F'); },
     police: function (c, s) { c.fillStyle = '#1c4e9c'; rr(c, 2, 2, s - 4, s - 4, 4); c.fill(); c.stroke(); letter(c, s, 'P'); },
+    ring: function (c, s) { c.fillStyle = 'rgba(200,16,46,.16)'; c.strokeStyle = '#c8102e'; c.lineWidth = s / 9; c.beginPath(); c.arc(s / 2, s / 2, s / 2 - 3, 0, 7); c.fill(); c.stroke(); },
     report: function (c, s) { c.fillStyle = '#6f2dbd'; c.beginPath(); c.moveTo(s / 2, s - 2); c.arc(s / 2, s * 0.4, s * 0.34, Math.PI * 0.8, Math.PI * 2.2); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(s / 2, s * 0.4, s * 0.13, 0, 7); c.fill(); }
   };
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
@@ -855,14 +950,14 @@
       b.innerHTML = esc(v.name) + (v.count ? ' <span>' + v.count + '</span>' : '');
       b.title = v.count ? v.count + ' roads close here' : v.hint;
       b.setAttribute('aria-pressed', i === currentView ? 'true' : 'false');
-      b.addEventListener('click', function () { setFollow(false); fitView(i, true); });
+      b.addEventListener('click', function () { if (story.on) storyEnd(); setFollow(false); fitView(i, true); });
       el.appendChild(b);
     });
     var lab = document.createElement('label'); lab.className = 'follow';
     lab.innerHTML = '<input type="checkbox" id="follow"><span>Follow the storm</span>';
     el.appendChild(lab);
-    $('follow').addEventListener('change', function (e) { setFollow(e.target.checked); });
-    fitView(0, false);
+    $('follow').addEventListener('change', function (e) { if (story.on) storyEnd(); setFollow(e.target.checked); });
+    if (!story.on) fitView(0, false);
   }
   function fitView(i, animate) {
     if (!map || !views[i]) return;
@@ -894,11 +989,255 @@
     if (cam) map.easeTo({ center: cam.center, zoom: cam.zoom, duration: reduced ? 0 : 2600, easing: function (x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; } });
   }
 
+  // ---------- knock-on effects: places near closing roads, overtopped culverts, and the optional cascade dataset ----------
+  /* cascade.json (optional: docs/site/data/<run>/cascade.json, written by the cascade model). Times are replay frame
+     indices (float; frame k = meta.storm_start + k * meta.frame_min minutes). Every key is optional.
+     {
+       "version": 1,
+       "summary":    { "headline": "one sentence", "people_cut_off": int, "facilities_affected": int,
+                       "max_added_min": number, "detour_km": number, "culverts_failed": int },
+       "events":     [ { "t": frame, "lon": x, "lat": y, "kind": "closure|culvert|washout|bridge|cutoff|facility|other",
+                         "label": "what happens", "cause": "what set it off" } ],
+       "detours":    [ { "t0": frame, "t1": frame, "for": road segment id, "added_min": number, "coords": [[lon, lat], ...] } ],
+       "cutoff":     [ { "t0": frame, "t1": frame, "label": "area", "people": int, "ring": [[lon, lat], ...] } ],
+       "facilities": [ { "name": "..", "kind": "hospital|fire|police|school|shelter", "lon": x, "lat": y, "t0": frame,
+                         "added_min": number, "cut_off": true } ]
+     }
+     Drawn as: cut-off areas a grey hatch with an ink outline, detours dashed ink lines, events dots that appear at
+     their time, facilities circled icons; the summary feeds the last story scene. Without it, the last scene uses the
+     run's own numbers (culverts overtopped, roads that may close) and the stations within 500 m of a closing road. */
+  var knock = { fac: 0, hosp: 0, fire: 0, police: 0, xing: 0 }, cxFrame = -1;
+  function addKnock() {
+    var lat0 = (meta.corners[0][1] + meta.corners[2][1]) / 2, kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.57;
+    var lines = [];
+    segs.concat([]).forEach(function (s) {
+      var p = s.f.properties; if (!(p.p >= 0.5 || s.iv)) return;
+      var g = s.f.geometry, parts = g.type === 'LineString' ? [g.coordinates] : g.coordinates;
+      parts.forEach(function (cs) { for (var i = 1; i < cs.length; i++) lines.push([cs[i - 1][0] * kx, cs[i - 1][1] * ky, cs[i][0] * kx, cs[i][1] * ky]); });
+    });
+    function dist(lon, lat) {
+      var px = lon * kx, py = lat * ky, best = 1e9;
+      for (var i = 0; i < lines.length; i++) {
+        var L = lines[i], dx = L[2] - L[0], dy = L[3] - L[1], q = dx * dx + dy * dy, u = q ? Math.max(0, Math.min(1, ((px - L[0]) * dx + (py - L[1]) * dy) / q)) : 0;
+        var ex = L[0] + u * dx - px, ey = L[1] + u * dy - py, d = ex * ex + ey * ey; if (d < best) best = d;
+      }
+      return Math.sqrt(best);
+    }
+    var feats = [], R = refs || {}, bb = boxBounds();
+    var inBox = function (lon, lat) { return lon >= bb[0][0] && lon <= bb[1][0] && lat >= bb[0][1] && lat <= bb[1][1]; };
+    if (cascade && cascade.facilities && cascade.facilities.length) {
+      cascade.facilities.forEach(function (f) {
+        var k = { hospital: 'hospital', fire: 'fire', police: 'police' }[f.kind] || 'report';
+        feats.push({ type: 'Feature', properties: { k: k, name: f.name || '', note: (f.cut_off ? 'Cut off' : '') + (f.added_min ? (f.cut_off ? ', ' : '') + '+' + Math.round(f.added_min) + ' min to reach' : '') }, geometry: { type: 'Point', coordinates: [f.lon, f.lat] } });
+        knock.fac++;
+      });
+    } else if (R.facilities && lines.length) {
+      [['hospital', 'hospital'], ['fire_station', 'fire'], ['police', 'police']].forEach(function (kk) {
+        (R.facilities[kk[0]] || []).forEach(function (r) {
+          if (!inBox(r[0], r[1])) return;
+          var d = dist(r[0], r[1]); if (d > 0.5) return;
+          feats.push({ type: 'Feature', properties: { k: kk[1], name: r[2] || '', note: Math.round(d * 1000 / 10) * 10 + ' m from a road that closes' }, geometry: { type: 'Point', coordinates: [r[0], r[1]] } });
+          knock.fac++; knock[kk[1] === 'fire' ? 'fire' : kk[1] === 'police' ? 'police' : 'hosp']++;
+        });
+      });
+    }
+    if (R.crossings && R.crossings.rows) R.crossings.rows.forEach(function (r) {
+      if (r[9] != null && r[9] >= 0.5 && inBox(r[0], r[1])) {
+        feats.push({ type: 'Feature', properties: { k: 'culvertRisk', name: r[2] || 'Stream crossing', note: Math.round(r[9] * 100) + '% chance the road over it is overtopped' + (r[3] ? ' (' + r[3] + ')' : '') }, geometry: { type: 'Point', coordinates: [r[0], r[1]] } });
+        knock.xing++;
+      }
+    });
+    if (!feats.length && !cascade) return;
+    if (!map.hasImage('i-hospital')) Object.keys(ICONS).forEach(function (k) { var cv = iconCanvas(k, 40); if (!map.hasImage('i-' + k)) map.addImage('i-' + k, cv.getContext('2d').getImageData(0, 0, 40, 40), { pixelRatio: 2 }); });
+    map.addSource('knock', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
+    var vk = document.querySelector('input[data-ref="knock"]').checked ? 'visible' : 'none';
+    map.addLayer({ id: 'knock-ring', type: 'circle', source: 'knock', filter: ['!=', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk },
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 9, 14, 16], 'circle-color': css('--closed'), 'circle-opacity': 0.12, 'circle-stroke-color': css('--closed'), 'circle-stroke-width': 1.6 } });
+    map.addLayer({ id: 'knock', type: 'symbol', source: 'knock', layout: { visibility: vk, 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.62, 0.85], 'icon-allow-overlap': true, 'symbol-sort-key': ['case', ['==', ['get', 'k'], 'culvertRisk'], 1, 0] } });
+    map.on('mouseenter', 'knock', function (e) {
+      map.getCanvas().style.cursor = 'pointer'; if (small()) return;
+      var p = e.features[0].properties;
+      if (hover) hover.remove();
+      hover = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, className: 'tip' }).setLngLat(e.features[0].geometry.coordinates)
+        .setHTML('<b>' + esc(p.name || { hospital: 'Hospital', fire: 'Fire station', police: 'Police station', culvertRisk: 'Culvert' }[p.k]) + '</b><br>' + esc(p.note)).addTo(map);
+    });
+    map.on('mouseleave', 'knock', function () { map.getCanvas().style.cursor = ''; if (hover) { hover.remove(); hover = null; } });
+    document.querySelector('label[data-ref="knock"]').hidden = false;
+    if (cascade) addCascade();
+  }
+  function addCascade() {
+    var C = cascade, ink = css('--ink');
+    var fcx = function (rows, geom) { return { type: 'FeatureCollection', features: (rows || []).map(function (r, i) { return { type: 'Feature', id: i, properties: { t0: r.t0 != null ? r.t0 : (r.t != null ? r.t : 0), t1: r.t1 != null ? r.t1 : 1e9, label: r.label || r.kind || '', people: r.people || 0, added: r.added_min || 0 }, geometry: geom(r) }; }) }; };
+    map.addSource('cx-cut', { type: 'geojson', data: fcx(C.cutoff, function (r) { return { type: 'Polygon', coordinates: [r.ring] }; }) });
+    map.addSource('cx-det', { type: 'geojson', data: fcx(C.detours, function (r) { return { type: 'LineString', coordinates: r.coords }; }) });
+    map.addSource('cx-ev', { type: 'geojson', data: fcx(C.events, function (r) { return { type: 'Point', coordinates: [r.lon, r.lat] }; }) });
+    var before = map.getLayer('peak') ? 'peak' : undefined;
+    map.addLayer({ id: 'cx-cut', type: 'fill', source: 'cx-cut', paint: { 'fill-color': ink, 'fill-opacity': 0.1 } }, before);
+    map.addLayer({ id: 'cx-cut-line', type: 'line', source: 'cx-cut', paint: { 'line-color': ink, 'line-width': 1.2, 'line-dasharray': [1, 1.5] } }, before);
+    map.addLayer({ id: 'cx-det', type: 'line', source: 'cx-det', paint: { 'line-color': ink, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 15, 3.5], 'line-dasharray': [2, 1.5] } });
+    map.addLayer({ id: 'cx-ev', type: 'circle', source: 'cx-ev', paint: { 'circle-radius': 5, 'circle-color': css('--closed'), 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
+    CX_LAYERS.forEach(function (l) { vis(l, document.querySelector('input[data-ref="knock"]').checked); });
+    cascadeTime(true);
+  }
+  var CX_LAYERS = ['cx-cut', 'cx-cut-line', 'cx-det', 'cx-ev'];
+  function cascadeTime(force) { // filters change only when the replay crosses a frame, never per animation frame
+    if (!map || !map.getLayer('cx-ev')) return;
+    var f = Math.floor(t); if (f === cxFrame && !force) return; cxFrame = f;
+    var on = ['all', ['<=', ['get', 't0'], t], ['>=', ['get', 't1'], t]];
+    CX_LAYERS.forEach(function (l) { map.setFilter(l, l === 'cx-ev' ? ['<=', ['get', 't0'], t] : on); });
+  }
+
+  // ---------- story mode ----------
+  // six scenes on the real timeline; each plays a stretch of storm time, moves the camera, and sets which layers speak
+  var story = { on: false, i: 0, sc: [], start: 0, paused: false, pausedAt: 0, hold: 0, raf: 0 };
+  function storyWanted() { return params.get('story') !== '0' && !document.documentElement.classList.contains('embed'); }
+  function sum(a, n) { var s0 = 0; for (var i = 0; i < Math.min(a.length, Math.floor(n)); i++) s0 += a[i] || 0; if (n % 1 && a[Math.floor(n)]) s0 += a[Math.floor(n)] * (n % 1); return s0; }
+  function buildScenes() {
+    var M = meta, per = 60 / M.frame_min, N = nf - 1, r = M.rain_hourly_mean_mm || [], cp = M.closed_per_frame || [];
+    var cl = function (v) { return Math.max(0, Math.min(N, v)); };
+    var rmax = Math.max.apply(0, r.concat([0.001])), hS = 0, hP = 0, i;
+    for (i = 0; i < r.length; i++) if (r[i] >= 0.15 * rmax) { hS = i; break; }
+    for (i = 0; i < r.length; i++) if (r[i] > r[hP]) hP = i;
+    var cmax = Math.max.apply(0, cp.concat([0])), fP = 0;
+    for (i = 0; i < cp.length; i++) if (cp[i] > cp[fP]) fP = i;
+    // first frame at which q of the peak closures are in, searched from the steady rise (not a lone early river crossing)
+    var fq = function (q) { for (var k = 0; k <= fP; k++) if (cp[k] >= Math.max(2, q * cmax)) return k; return fP; };
+    // flash floods close roads while it is still pouring, so each scene ends on a closure milestone, not on the rain
+    var s1a = cl(hS * per - 1.5 * per), s1b = cl(hS * per + 0.5 * per);
+    var s2b = cl(Math.max(s1b + 0.5 * per, Math.min((hP + 0.5) * per, fq(0.06))));
+    var s3b = cl(Math.max(s2b + 0.25 * per, fq(0.15))), s4b = cl(Math.max(s3b + 0.25 * per, fq(0.55))), s5b = cl(Math.max(s4b + 0.25 * per, fP));
+    var place = RUNS[runKey].title.split(',')[0].replace(/^All of /, ''), hot = views[1] && views[1].count ? views[1] : null;
+    var big = function (v) { return '<b>' + n(v) + '</b>'; };
+    var rep_ = (refs && refs.reports) || [], hits = rep_.filter(function (x) { return x[6]; }).length;
+    var C = cascade && cascade.summary;
+    function rainLive() { var h = t / per, s0 = sum(r, h); return '<b class="rainv">' + s0.toFixed(s0 < 10 ? 1 : 0) + ' mm</b><span>rain so far, averaged over the model area</span>'; }
+    var S = [
+      { title: 'The storm arrives', a: s1a, b: s1b, dur: 6500, rain: 1, cam: rain ? rain.bounds : null, zoomOut: !rain,
+        text: function () { return '<b>' + fmtShort.format(timeAt(s1b)) + '.</b> Radar rain from NOAA MRMS sweeps across central Massachusetts toward ' + esc(place) + '. The dashed outline is the area the flood model covers.'; }, live: rainLive },
+      { title: 'Rain intensifies', a: s1b, b: s2b, dur: 7500, rain: 1, cam: 'box',
+        text: function () { return 'Up to ' + (M.rain_peak1h_max_mm != null ? '<b>' + M.rain_peak1h_max_mm + ' mm</b>' : 'a month’s rain') + ' falls on one spot in a single hour' + (M.rain_max_total_mm != null ? ', and the wettest place in the area collects <b>' + M.rain_max_total_mm + ' mm</b> over the storm.' : '.'); }, live: rainLive },
+      { title: 'Water collects', a: s2b, b: s3b, dur: 7000, rain: 0.55, cam: 0,
+        text: function () { return 'Runoff gathers in streams, ponds and low ground. Blue is water at least 5 cm deep, darker is deeper' + (meta.flow ? '; the ripples move with the modelled current.' : '.'); },
+        live: function () { return '<b class="blue">' + n(nWet + nClosedNow) + '</b><span>road segments with water on them</span>'; } },
+      { title: 'Streets flood', a: s3b, b: s4b, dur: 7500, rain: 0.3, cam: hot ? 1 : 0,
+        text: function () { return 'Where water reaches a road it turns <b>amber</b>: water on the road, still under 30 cm.' + (hot ? ' Around ' + esc(hot.name) + ', ' + big(hot.count) + ' road segments flood during the storm.' : ''); },
+        live: function () { return '<b class="wet">' + n(nWet) + '</b><span>roads with water</span><b class="shut">' + n(nClosedNow) + '</b><span>closed</span>'; } },
+      { title: 'Streets close', a: s4b, b: s5b, dur: 7000, rain: 0.2, cam: 0,
+        text: function () {
+          return 'At 30 cm a road counts as closed: <b>red with white stripes</b>. At the peak, ' + big(cp[fP] || 0) + ' segments are closed at once' +
+            (M.segments_p_ge_50 != null ? ', and ' + big(M.segments_p_ge_50) + ' (' + M.km_p_ge_50 + ' km) close at some point, out of ' + n(M.segments_in_box) + ' in the area.' : '.') +
+            (rep_.length ? ' Check: ' + hits + ' of ' + rep_.length + ' storm reports fall where the model has 30 cm or more.' : '');
+        },
+        live: function () { return '<b class="shut">' + n(nClosedNow) + '</b><span>roads closed now</span>'; } },
+      { title: 'Knock-on effects', a: s5b, b: s5b, dur: 0, rain: 0.15, cam: 0, peak: true, may: true, knock: true,
+        text: function () {
+          if (C) return esc(C.headline || '') + (C.people_cut_off ? ' ' + big(C.people_cut_off) + ' people cut off.' : '') + (C.facilities_affected ? ' ' + big(C.facilities_affected) + ' facilities affected.' : '') +
+            (C.max_added_min ? ' Detours add up to <b>' + Math.round(C.max_added_min) + ' min</b>.' : '');
+          var bits = [];
+          if (M.culverts_overtopped) bits.push(big(M.culverts_overtopped) + ' culverts are overtopped');
+          if (M.segments_may_close) bits.push(big(M.segments_may_close) + ' more segments may close where streams reach road level (dashed)');
+          if (knock.fac) bits.push(big(knock.fac) + (knock.fac > 1 ? ' hospitals, fire and police stations sit' : ' emergency station sits') + ' within 500 m of a closing road (circled)');
+          var list = bits.length > 1 ? bits.slice(0, -1).join('; ') + '; and ' + bits[bits.length - 1] : bits.join('');
+          return 'Closed roads cut routes around them. ' + (list ? list + '.' : '') + ' Faint red lines mark every road that closes at some point.';
+        },
+        live: function () { return M.segments_p_ge_50 != null ? '<b class="shut">' + n(M.segments_p_ge_50) + '</b><span>roads close at some point</span>' + (knock.fac ? '<b class="shut">' + knock.fac + '</b><span>stations near them</span>' : '') : ''; } }
+    ];
+    return S;
+  }
+  function storyLayers(sc) {
+    if (!map) return;
+    vis('peak', !!sc.peak); vis('may', !!sc.may); vis('risk', false);
+    ['knock', 'knock-ring'].concat(CX_LAYERS).forEach(function (l) { vis(l, !!sc.knock); });
+    vis('depth', true); vis('flow', true); vis('rain', true);
+    ['wet', 'wetcase', 'halo', 'bar'].forEach(function (l) { vis(l, true); });
+  }
+  function applyToggles() {
+    vis('rain', $('lyRain').checked); vis('depth', $('lyDepth').checked); vis('flow', $('lyFlow').checked);
+    ['wet', 'wetcase', 'halo', 'bar'].forEach(function (l) { vis(l, $('lyClosed').checked); });
+    vis('peak', $('lyPeak').checked); vis('may', $('lyMay').checked); vis('risk', $('lyRisk').checked);
+    document.querySelectorAll('input[data-ref]').forEach(function (x) { refVis(x.dataset.ref, x.checked); });
+  }
+  function storyCam(sc, first) {
+    var dur = first || reduced ? 0 : 2600, opt = { padding: framePadding(), duration: dur, essential: true, maxZoom: 14.5, curve: 1.3 };
+    if (sc.cam === 'box') map.fitBounds(boxBounds(), opt);
+    else if (Array.isArray(sc.cam)) map.fitBounds(sc.cam, opt);
+    else if (sc.zoomOut) { var b = boxBounds(), dx = b[1][0] - b[0][0], dy = b[1][1] - b[0][1]; map.fitBounds([[b[0][0] - dx, b[0][1] - dy], [b[1][0] + dx, b[1][1] + dy]], opt); }
+    else if (views[sc.cam]) { map.fitBounds(views[sc.cam].bounds, opt); currentView = sc.cam; }
+  }
+  function storyStart(i) {
+    if (!ready) return;
+    if (!story.sc.length) story.sc = buildScenes();
+    if (playing) setPlaying(false);
+    if (popup) popup.remove(); hideTip();
+    if (follow) setFollow(false);
+    story.on = true; document.documentElement.classList.add('story-on');
+    $('story').hidden = false; $('replayStory').hidden = true;
+    var ol = $('stSteps'); ol.innerHTML = ''; ol.style.setProperty('--n', story.sc.length);
+    story.sc.forEach(function (sc, k) {
+      var li = document.createElement('li'); li.innerHTML = '<i></i>'; li.title = (k + 1) + '. ' + sc.title;
+      li.addEventListener('click', function () { storyGo(k); }); ol.appendChild(li);
+    });
+    placeStory();
+    storyGo(i || 0, true);
+    if (!story.raf) story.raf = requestAnimationFrame(storyTick);
+  }
+  function storyGo(i, first) {
+    i = Math.max(0, Math.min(story.sc.length - 1, i));
+    var sc = story.sc[i]; story.i = i; story.hold = 0; story.start = performance.now(); setStoryPaused(false);
+    $('stTitle').innerHTML = '<span class="n">' + (i + 1) + ' of ' + story.sc.length + '</span>' + esc(sc.title);
+    setTime(sc.a);
+    $('stText').innerHTML = sc.text();
+    $('story').classList.toggle('fin', i === story.sc.length - 1);
+    $('stPrev').disabled = i === 0;
+    Array.prototype.forEach.call($('stSteps').children, function (li, k) { li.className = k < i ? 'done' : ''; li.firstChild.style.width = k < i ? '100%' : '0'; });
+    storyLayers(sc); storyCam(sc, first); storyLive();
+    if (i === story.sc.length - 1) setTimeout(function () { if (story.on && story.i === i) $('stSkip').focus({ preventScroll: true }); }, 50);
+  }
+  function storyLive() { var sc = story.sc[story.i]; if (sc) $('stLive').innerHTML = sc.live(); }
+  function storyTick(now) {
+    story.raf = 0;
+    if (!story.on) return;
+    var sc = story.sc[story.i], p = sc.dur ? (story.paused ? story.pausedAt - story.start : now - story.start) / sc.dur : 1;
+    p = Math.max(0, Math.min(1, p));
+    if (!story.paused) setTime(sc.a + (sc.b - sc.a) * p);
+    var li = $('stSteps').children[story.i]; if (li) li.firstChild.style.width = (p * 100).toFixed(1) + '%';
+    var dt = Math.min(0.25, (now - (story.last || now)) / 1000); story.last = now;
+    var dr = sc.rain - rainOp; if (Math.abs(dr) > 0.005) { rainOp += dr * Math.min(1, dt * 2.5); map.triggerRepaint(); }
+    if (p >= 1 && !story.paused && story.i < story.sc.length - 1) {
+      if (!story.hold) story.hold = now;
+      else if (now - story.hold > 1800) storyGo(story.i + 1);
+    }
+    story.raf = requestAnimationFrame(storyTick);
+  }
+  function setStoryPaused(on) {
+    if (on === story.paused) return;
+    story.paused = on;
+    if (on) story.pausedAt = performance.now(); else story.start += performance.now() - story.pausedAt;
+    $('stPauseIcon').setAttribute('d', on ? 'M6 4l10 6-10 6z' : 'M6 4h3v12H6zM11 4h3v12h-3z');
+    $('stPause').setAttribute('aria-label', on ? 'Resume story' : 'Pause story');
+  }
+  function storyEnd() {
+    if (!story.on) return;
+    story.on = false; document.documentElement.classList.remove('story-on');
+    $('story').hidden = true; $('replayStory').hidden = false;
+    rainOp = 1; applyToggles(); map.triggerRepaint();
+    document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === currentView ? 'true' : 'false'); });
+  }
+  function placeStory() { // desktop: under the identity card, in the same left column the framing already keeps clear
+    var c = $('card').getBoundingClientRect();
+    document.documentElement.style.setProperty('--story-top', Math.round(c.bottom + 10) + 'px');
+  }
+  $('stNext').addEventListener('click', function () { storyGo(story.i + 1); });
+  $('stPrev').addEventListener('click', function () { storyGo(story.i - 1); });
+  $('stPause').addEventListener('click', function () { setStoryPaused(!story.paused); });
+  $('stSkip').addEventListener('click', function () { storyEnd(); });
+  $('replayStory').addEventListener('click', function () { storyStart(0); });
+
   // ---------- theme and basemap ----------
   function applyTheme() {
-    if (!map || !map.getLayer('b-voy')) return;
+    if (!map || !map.getLayer('b-lgt')) return;
     var b = basemap(), L = BASEMAPS[b].layers, P = pal();
-    ['b-hill', 'b-voy', 'b-sat', 'b-dark', 'l-voy', 'l-dark'].forEach(function (id) {
+    ['b-hill', 'b-lgt', 'b-sat', 'b-dark', 'l-voy', 'l-dark'].forEach(function (id) {
       map.setLayoutProperty(id, 'visibility', L[id] ? 'visible' : 'none');
       if (L[id]) map.setPaintProperty(id, 'raster-opacity', L[id]);
     });
@@ -909,10 +1248,16 @@
     root.setProperty('--peak', P.peak); root.setProperty('--peak-op', P.peakOp); root.setProperty('--may', P.may);
     flowRGB = b === 'dark' ? { hi: [0.9, 0.97, 1], dk: 0.24 } : b === 'satellite' ? { hi: [0.92, 0.98, 1], dk: 0.26 } : { hi: [1, 1, 1], dk: 0.2 };
     depth.setRamp(P.d.map(rgba));
+    if (map.getLayer('net-case')) {
+      map.setPaintProperty('net-case', 'line-color', ['match', NET_RANK, 0, P.net[0], 1, P.net[1], 2, P.net[2], P.net[3]]);
+      map.setPaintProperty('net-fill', 'line-color', P.fill);
+    }
+    if (map.getLayer('box')) map.setPaintProperty('box', 'line-color', P.box);
     if (map.getLayer('wet')) {
       var D = ['coalesce', ['feature-state', 'd'], 0];
       map.setPaintProperty('wet', 'line-color', ['interpolate', ['linear'], D, 3, P.grey, 10, P.amber, 22, P.orange, 30, P.closed]);
       map.setPaintProperty('wetcase', 'line-color', P.cas);
+      map.setPaintProperty('bar', 'line-color', '#ffffff');
       map.setPaintProperty('halo', 'line-color', P.halo);
       map.setPaintProperty('peak', 'line-color', P.peak); map.setPaintProperty('peak', 'line-opacity', P.peakOp);
       map.setPaintProperty('may', 'line-color', P.may);
@@ -926,7 +1271,7 @@
     x.addEventListener('click', function () { bm = x.dataset.bm; store('mfw-basemap', bm); applyTheme(); });
   });
   (function () { // legend ramps that do not depend on the basemap
-    var stops = [1, 3, 8, 15, 30, 50, 80, 120].map(function (mm, i, a) { var c = rainColor(mm); return 'rgba(' + c.slice(0, 3).map(Math.round).join(',') + ',' + Math.min(1, c[3] + 0.2) + ') ' + Math.round(100 * i / (a.length - 1)) + '%'; });
+    var stops = [1, 3, 8, 15, 30, 50, 80].map(function (mm, i, a) { var c = rainColor(mm); return 'rgba(' + c.slice(0, 3).map(Math.round).join(',') + ',' + Math.min(1, c[3] * 1.6 + 0.12).toFixed(2) + ') ' + Math.round(100 * i / (a.length - 1)) + '%'; });
     $('rainRamp').style.background = 'linear-gradient(90deg,' + stops.join(',') + ')';
   })();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
@@ -992,7 +1337,7 @@
   var lastClock = '';
   function setTime(v) {
     t = Math.max(0, Math.min(nf - 1, v));
-    var fa = Math.min(Math.floor(t), nf - 1), fr = t - fa, closed = 0;
+    var fa = Math.min(Math.floor(t), nf - 1), fr = t - fa, closed = 0, wet = 0;
     for (var i = 0; i < segs.length; i++) {
       var s = segs[i], d = s.d, val;
       if (d) {
@@ -1006,7 +1351,7 @@
           val = Math.max(val, u > 0 ? (t >= x0 && t <= x1 ? 40 : 30 * u) : 0);
         }
       }
-      if (val >= 30) closed++;
+      if (val >= 30) closed++; else if (val >= 3) wet++;
       var q = val < 2 ? 0 : 2 * Math.round(val / 2);
       if (q !== s.v) { s.v = q; map.setFeatureState({ source: 'roads', id: s.id }, { d: q }); }
     }
@@ -1017,8 +1362,17 @@
       $('since').textContent = (mins / 60).toFixed(1) + ' h after the replay starts';
     }
     $('nClosed').textContent = closed;
+    nWet = wet; nClosedNow = closed;
     $('scrub').value = t;
     setCursor();
+    // live bits of open tooltips and popups (a few DOM writes, no feature loops)
+    if (rtipId != null && rtip) { var hf = segById[rtipId]; if (hf) rtip.setHTML(roadTip(hf.f)); }
+    var sc = document.getElementById('spkCur');
+    if (sc) { var xx = ((t - sparkRange[0]) / (sparkRange[1] - sparkRange[0]) * 260).toFixed(1); sc.setAttribute('x1', xx); sc.setAttribute('x2', xx); sc.setAttribute('visibility', t < sparkRange[0] || t > sparkRange[1] ? 'hidden' : 'visible'); }
+    var pn = document.getElementById('ppNow');
+    if (pn) { var cm = segDepth(+pn.dataset.id); pn.textContent = cm >= 3 ? cm + ' cm' : 'dry'; }
+    if (story.on) storyLive();
+    if (cascade) cascadeTime();
     if (map) map.triggerRepaint();
   }
 
@@ -1043,7 +1397,7 @@
       requestAnimationFrame(tick);
     }
   }
-  $('play').addEventListener('click', function () { if (ready) setPlaying(!playing); });
+  $('play').addEventListener('click', function () { if (!ready) return; if (story.on) { storyEnd(); played = true; } setPlaying(!playing); });
   document.querySelectorAll('.speeds button').forEach(function (b0) {
     b0.addEventListener('click', function () {
       var b = b0;
@@ -1054,9 +1408,23 @@
       document.querySelectorAll('.speeds button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
     });
   });
-  $('scrub').addEventListener('input', function (e) { if (!ready) return; if (playing) setPlaying(false); played = true; setTime(+e.target.value); });
+  $('scrub').addEventListener('input', function (e) { if (!ready) return; if (story.on) storyEnd(); if (playing) setPlaying(false); played = true; setTime(+e.target.value); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === ' ' && e.target === document.body && ready) { e.preventDefault(); setPlaying(!playing); }
+    if (!ready || e.altKey || e.ctrlKey || e.metaKey) return;
+    var tg = e.target, free = tg === document.body || tg === map.getCanvas() || (tg.closest && tg.closest('#story'));
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName) && tg.id !== 'scrub') return;
+    if (story.on) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); if (story.i < story.sc.length - 1) storyGo(story.i + 1); else storyEnd(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); storyGo(story.i - 1); }
+      else if (e.key === 'Escape') { e.preventDefault(); storyEnd(); }
+      else if (e.key === ' ' && free && tg.tagName !== 'BUTTON') { e.preventDefault(); setStoryPaused(!story.paused); }
+      return;
+    }
+    if (e.key === ' ' && free && tg.tagName !== 'BUTTON') { e.preventDefault(); setPlaying(!playing); }
+    else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && free) {
+      e.preventDefault(); if (playing) setPlaying(false); played = true;
+      setTime(Math.round(t) + (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 60 / meta.frame_min : 1));
+    }
   });
 
   // ---------- layer toggles ----------
@@ -1064,7 +1432,7 @@
   $('lyRain').addEventListener('change', function (e) { vis('rain', e.target.checked); });
   $('lyDepth').addEventListener('change', function (e) { vis('depth', e.target.checked); });
   $('lyFlow').addEventListener('change', function (e) { vis('flow', e.target.checked); $('flowKey').hidden = !e.target.checked; });
-  $('lyClosed').addEventListener('change', function (e) { ['wet', 'wetcase', 'halo'].forEach(function (l) { vis(l, e.target.checked); }); });
+  $('lyClosed').addEventListener('change', function (e) { ['wet', 'wetcase', 'halo', 'bar'].forEach(function (l) { vis(l, e.target.checked); }); });
   $('lyPeak').addEventListener('change', function (e) { vis('peak', e.target.checked); });
   $('lyMay').addEventListener('change', function (e) { vis('may', e.target.checked); });
   $('lyRisk').addEventListener('change', function (e) {
@@ -1073,17 +1441,23 @@
     $('lyPeak').checked = !on; vis('peak', !on);
     $('lyMay').checked = !on; vis('may', !on);
   });
-  document.querySelectorAll('input[data-ref]').forEach(function (x) { x.addEventListener('change', function () { vis('r-' + x.dataset.ref, x.checked); }); });
+  function refVis(key, on) { if (key === 'knock') ['knock', 'knock-ring'].concat(CX_LAYERS).forEach(function (l) { vis(l, on); }); else vis('r-' + key, on); }
+  document.querySelectorAll('input[data-ref]').forEach(function (x) { x.addEventListener('change', function () { refVis(x.dataset.ref, x.checked); }); });
   var pl = document.querySelector('.player');
   function ph() { document.documentElement.style.setProperty('--player-h', pl.offsetHeight + 'px'); }
   if (window.ResizeObserver) new ResizeObserver(ph).observe(pl); ph();
-  var lg = $('legend');
-  if (small()) { lg.dataset.collapsed = 'true'; $('legendToggle').setAttribute('aria-expanded', 'false'); }
+  // the key is always on screen; the layer panel opens on demand (remembered on desktop)
+  var lg = $('legend'), lgOpen = !small() && store('mfw-layers') === '1';
+  lg.dataset.collapsed = lgOpen ? 'false' : 'true'; $('legendToggle').setAttribute('aria-expanded', lgOpen ? 'true' : 'false');
   $('legendToggle').addEventListener('click', function () {
     var c = lg.dataset.collapsed === 'true';
     lg.dataset.collapsed = c ? 'false' : 'true';
     this.setAttribute('aria-expanded', c ? 'true' : 'false');
+    if (!small()) store('mfw-layers', c ? '1' : '0');
   });
   var rz = 0;
-  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { if (!userMoved && !follow && views.length) fitView(currentView, false); }, 200); });
+  window.addEventListener('resize', function () {
+    clearTimeout(rz);
+    rz = setTimeout(function () { placeStory(); if (story.on) storyCam(story.sc[story.i], true); else if (!userMoved && !follow && views.length) fitView(currentView, false); }, 200);
+  });
 })();
