@@ -10,6 +10,9 @@ name: storm archive follow-up (labels, radar-driven run, forecast verification)
 on:
   schedule:
     - cron: '23 4,16 * * *'
+  push:                                   # TEMPORARY end-to-end test on the work branch
+    branches: [archive-work]
+    paths: ['docs/proto/archive_test/RUN_FOLLOWUP']
   workflow_dispatch:
     inputs:
       storm: {description: 'archived storm id(s) to process now, comma-separated (empty = whatever is due)', default: ''}
@@ -24,8 +27,8 @@ concurrency:
   group: storm-archive-${{ github.ref }}
   cancel-in-progress: false
 env:
-  AROOT: ${{ inputs.root || 'docs/proto/archive' }}
-  LDIR: ${{ inputs.labels_dir || 'proto/data' }}
+  AROOT: ${{ inputs.root || 'docs/proto/archive_test' }}
+  LDIR: ${{ inputs.labels_dir || 'docs/proto/archive_test/labels' }}
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -125,7 +128,7 @@ jobs:
           python proto/storm_archive.py finalize --plan arts/plan/plan.json --root $AROOT --labels-dir $LDIR
           git status --short | head -40
       - name: commit (once)
-        if: github.event_name == 'schedule' || inputs.publish
+        if: github.event_name == 'schedule' || github.event_name == 'push' || inputs.publish
         run: |
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A $AROOT; ls $LDIR/labels_*_auto.csv >/dev/null 2>&1 && git add $LDIR/labels_*_auto.csv
