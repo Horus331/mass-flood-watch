@@ -1,0 +1,92 @@
+name: forecast neighbourhood spreading test (District 3 over-forecast)
+# docs/proto/forecast/DISTRICT.md (pre-registered there). Box hindcasts of the HRRR spreading settings 10,90 / 20,75 / 0,50 (raw) with exactly the
+# ENSEMBLE.md set-up, so 20,90 is the published members. Nothing here changes the live forecast, and nothing is committed: every job uploads a
+# small artifact (seg.json, summary.json, w9_log.txt); proto/forecast_nbhd.py compact turns them into docs/proto/forecast/district/boxes.json.
+#   what=runs tier=1|2|3 (proto/forecast_nbhd.py matrix), or cases=<JSON>;  what=rain: HRRR storm totals per setting vs MRMS (no flood model).
+on:
+  workflow_dispatch:
+    inputs:
+      what: {description: 'runs | rain', default: 'runs'}
+      tier: {description: 'runs: 1 | 2 | 3', default: '1'}
+      cases: {description: 'runs: cases JSON (overrides tier)', default: ''}
+permissions:
+  contents: read
+jobs:
+  rain:
+    if: inputs.what == 'rain'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj
+      - run: |
+          set -o pipefail; mkdir -p out
+          python proto/forecast_nbhd.py rain --out out/rain.json 2>&1 | tee out/rain.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: nbhd_rain, path: out}
+  setup:
+    if: inputs.what == 'runs'
+    runs-on: ubuntu-latest
+    outputs:
+      cases: ${{ steps.m.outputs.cases }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q pandas numpy
+      - id: m
+        env: {CASES: '${{ inputs.cases }}', TIER: '${{ inputs.tier }}'}
+        run: |
+          if [ -z "$CASES" ]; then CASES=$(python proto/forecast_nbhd.py matrix --tier $TIER); fi
+          echo "cases=$(echo "$CASES" | python -c 'import json,sys; print(json.dumps(json.load(sys.stdin)))')" >> $GITHUB_OUTPUT
+  runs:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 18
+      matrix:
+        c: ${{ fromJSON(needs.setup.outputs.cases) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - name: flood depth (LISFLOOD-FP 8.2, CPU; ENSEMBLE.md settings)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          STORM: ${{ matrix.c.storm }}
+          HOURS: ${{ matrix.c.hours }}
+          RUN_DIR: runs/${{ matrix.c.storm }}_nbhd_${{ matrix.c.name }}
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.91'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          export LF_RAIN=hrrr LF_HRRR_INIT=${{ matrix.c.init }}
+          if [ -n "${{ matrix.c.env }}" ]; then export ${{ matrix.c.env }}; fi
+          env | grep -E '^LF_HRRR|^LF_RAIN' || true
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+      - name: closures
+        run: |
+          set -o pipefail
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
+          P=${{ runner.temp }}/proto; D=art/${{ matrix.c.name }}; mkdir -p $D
+          python proto/forecast_ens.py proto --run-dir $OUTDIR --out $P --storm $S --dump $D/seg.json 2>&1 | tee -a w9_stdout.txt | tail -5
+          cp $P/summary.json $D/
+          grep -E "rain:|HRRR|effective|LISFLOOD-FP run|Elapsed|Maximum resident" w9_stdout.txt | tail -n 30 > $D/w9_log.txt || true
+      - name: diagnostics (annotation)
+        if: always()
+        run: |
+          f() { [ -f "$1" ] && { grep -E "$2" "$1" | tail -n ${3:-12}; echo ...; tail -n 15 "$1"; } | cut -c1-300 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
+          echo "::notice title=w9 ${{ matrix.c.name }}::$(f w9_stdout.txt 'rain:|HRRR|effective|Error|error|Traceback|Elapsed|dump')"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'nbhd_${{ matrix.c.name }}', path: 'art/${{ matrix.c.name }}', if-no-files-found: ignore, retention-days: 14}
