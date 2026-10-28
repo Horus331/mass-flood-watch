@@ -13,8 +13,9 @@
 set -eo pipefail
 set +x                                    # never trace: the token must not reach the terminal or a job log
 cd "$(dirname "$0")/../.."
-if [ -z "${HF_TOKEN:-}" ]; then
-  echo "HF_TOKEN is not set: export a Hugging Face write token for mohabeldokla/mass-flood-watch-tiles first (it is read from the environment only)." >&2
+TOKFILE="${HF_TOKEN_PATH:-$HOME/.cache/huggingface/token}"
+if [ -z "${HF_TOKEN:-}" ] && [ ! -s "$TOKFILE" ]; then
+  echo "No Hugging Face token: export HF_TOKEN, or save a write token in $TOKFILE (huggingface-cli login does this)." >&2
   exit 2
 fi
 if ! python -c "import huggingface_hub" 2>/dev/null; then
@@ -66,7 +67,7 @@ for d in sorted(glob.glob(os.path.join(a.results_root, '*'))):
     if a.only and a.only not in name: continue
     plan += [(p, f'{a.prefix}/{name}/results/{os.path.relpath(p, d)}') for p in files(d, KEEP_RES)]
 
-api = HfApi(token=os.environ['HF_TOKEN'])
+api = HfApi(token=os.environ.get('HF_TOKEN') or None)   # None: huggingface_hub reads the saved token file
 have = {}
 try:
     for e in api.list_repo_tree(a.repo, path_in_repo=a.prefix, recursive=True, repo_type='dataset'):
