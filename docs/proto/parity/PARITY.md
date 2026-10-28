@@ -159,3 +159,14 @@ Then, anywhere with the repo: `git pull && python proto/parity_compare.py`. This
 | CN × 0.91 calibration (on sep2023 at the default time step) | **re-check** at `LF_PARITY=1`. At ≤ 1 s, the sep2023 gauge rise bias is −0.12 m instead of +0.03 m, so ×0.91 may no longer be the best value. |
 
 Recommended for the next catalogue run: `LF_PARITY=1` on both solvers, with GPU and CPU spot checks compared by `parity_compare.py` before any number is published.
+
+## GPU confirmation (Turing, 23 Oct 2026 runs; scored 28 Oct)
+
+`python proto/parity_compare.py` on the four Turing parity runs:
+
+| storm | GPU vs CPU, both `LF_PARITY=1` (rain-mode infiltration + 1 s step) | GPU vs CPU, rain mode only (default step) |
+|---|---|---|
+| jul2023 | **MATCH**: flagged segments identical (J 1.0), mean depth difference 0.000 m | differ: 0.63 % vs 0.10 % flagged, J 0.16 (GPU spikes) |
+| sep2023 | **MATCH**: J 1.0, deep-water Jaccard 0.998, mean depth difference 0.000 m | differ: Fitchburg rise 0.20 vs 1.63 m, J 0.93 |
+
+Verdict: with `LF_PARITY=1` the CUDA and CPU builds give the same flood, cell for cell. The remaining GPU–CPU gap at the default step comes from the CUDA build's time-step handling, as diagnosed above. All published replays (`docs/site/data/leominster_sep2023`, `worcester_aug2021`, `d3_sep2023`) were already re-packed from the `LF_PARITY=1, CN 0.88` GPU runs on 23–24 Oct.
