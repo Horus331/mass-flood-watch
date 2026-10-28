@@ -1,0 +1,35 @@
+field,type,unit,description
+seg_id,int,,Segment id = index in docs/graph_segments.json (the Mass Flood Watch District 3 road graph). Not a MassDOT RoadInventory ID.
+road,str,,Street / route name from the road inventory (blank = unnamed)
+town,str,,Town
+rd_class,str,,"Road class: highway (Interstate), arterial (other numbered US / MA route), local / collector (the rest)"
+len_m,int,m,Segment length
+aadt,int,veh/day,AADT carried by the road graph
+aadt_dflt,int,0/1,"1 = AADT is the 1,000 veh/day default (no count on the segment)"
+n_cov,int,storms,Number of the 25 catalogue storms whose model box contains the segment (0 = never modelled in the catalogue)
+n_flag,int,storms,Number of the 25 catalogue storms with p_close >= 0.5 on the segment
+flag_rate,float,0-1,n_flag / n_cov: share of the storms that modelled the segment in which it was flagged
+max_pclose,float,0-1,"Highest p_close over the 25 catalogue storms (physics prior: Phi((peak depth - 0.30 m) / 0.10 m), combined with freeboard / culvert / fast-water terms)"
+flag_strm,str,,Storms (catalogue keys) with p_close >= 0.5
+n_may,int,storms,Catalogue storms where the segment is in the 'may close' layer (p_may_close >= 0.5: stream reaches the road crest) but p_close < 0.5
+cat_dep_m,float,m,Highest modelled peak water depth on the segment over the 25 catalogue storms
+d3_dep_m,float,m,"Peak modelled water depth on the segment, District 3 Sept 11-13 2023 run (blank = outside the run box)"
+d3_pclose,float,0-1,p_close in the District 3 Sept 2023 run
+d3_h30,float,h,"Hours with more than 30 cm on the segment, District 3 Sept 2023 run"
+n_rpt,int,reports,"Documented flood reports (25 catalogue storms) assigned to this segment: nearest segment within 30 m, street-level coordinates only"
+rpt_src,str,,"Source families of those reports with counts (NWS, news, WX1BOX, DPW, MA_state, MassDOT_crash, SeeClickFix)"
+rpt_ids,str,,"Report keys (label file:id), truncated to 254 characters"
+n_mdot,int,sites,MassDOT District 3 repeating flood sites assigned to this segment (nearest segment within 100 m)
+mdot_ids,str,,MassDOT repeating flood site ids
+vh_delay,float,veh-h,"Cascade, Sept 2023 District 3 run: vehicle-hours of delay caused by this segment closing (detour) or being slowed (5-30 cm), 48 h window"
+vh_detour,float,veh-h,Detour part of vh_delay
+h_closed,float,h,Cascade: hours the segment is closed (>= 30 cm) in the Sept 2023 run
+det_min,float,min,Cascade: largest added trip time of the detour around this closure (capped at 30 min)
+peak_vc,float,ratio,Cascade: peak volume / capacity when the segment carries detour traffic from other closures
+h_ovcap,float,h,Cascade: hours over capacity as a detour corridor
+dmg_xid,str,,Road-stream crossing on this segment with the highest damage score (crossing id of docs/network/crossings_all.json)
+dmg_p,float,0-1,"Crossing damage score (stream-power fragility, damage_model.json), maximum over the 10 damage-layer runs. A ranking, not a calibrated probability"
+dmg_rank,int,rank,Rank of that crossing among all modelled crossings (1 = highest damage score)
+dmg_pct,float,%,Damage rank as a percentile of modelled crossings (0 = top)
+vuln,str,,Vulnerability class: High / Medium / Low (rule in README.md)
+vuln_why,str,,Which part of the rule set the class
