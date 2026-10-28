@@ -58,10 +58,8 @@ If another doc disagrees with this page about what is deployed or what a result 
 
 **(a) Owner, on Turing** (`cd ~/mass-flood-watch && git pull`)
 
-1. Night batch of 23 Oct (`proto/turing/night_batch.sh`, job ids in `~/night_batch.log`): `sacct -u $USER -S 2026-10-23 --format=JobID,JobName,State,Elapsed`.
-   The four `parity_*_gpu_*` runs and `leominster_sep2023_p`, `worcester_aug2021_p`, `d3_sep2023_p` have already published to
-   `docs/proto/turing/`; the `pack_site` jobs have **not** written `docs/site/data/{leominster_p,worcester_p,d3_p}`: check `pack_site_<id>.out`.
-2. `python proto/parity_compare.py` (pass: `gpu_rain_dt1_vs_rain_dt1` = MATCH; can also run on GitHub, the files are in the repo).
+1. ~~Night batch of 23 Oct~~ **done (28 Oct):** the parity runs published to `docs/proto/turing/`, and the `pack_site` jobs replaced the live replays (`leominster_sep2023`, `worcester_aug2021`, `d3_sep2023`) with the `LF_PARITY=1, CN 0.88` GPU runs on 23–24 Oct.
+2. ~~`parity_compare.py`~~ **done (28 Oct): GPU = CPU** with `LF_PARITY=1` on jul2023 and sep2023 (J 1.0, depth difference 0.000 m); see PARITY.md "GPU confirmation". A GPU rerun of the catalogue (item 4) is therefore optional: the CPU parity catalogue is the same physics.
 3. `hindcast_d3_sep2023_18z` ran with `PUBLISH=0`: read `$LF_WORK/fc_hindcast_d3_sep2023_18z/` and `roadfcst_<id>.out`.
 4. If parity matches: `LF_PARITY=1 LF_CN_SCALE=0.88 bash proto/turing/submit_catalog.sh` (the variables are inherited through `--export=ALL`;
    the script's own default is still the old × 0.91 from `run_storm.slurm`).
