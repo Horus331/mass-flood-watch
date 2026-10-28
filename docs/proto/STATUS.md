@@ -60,7 +60,7 @@ If another doc disagrees with this page about what is deployed or what a result 
 
 1. ~~Night batch of 23 Oct~~ **done (28 Oct):** the parity runs published to `docs/proto/turing/`, and the `pack_site` jobs replaced the live replays (`leominster_sep2023`, `worcester_aug2021`, `d3_sep2023`) with the `LF_PARITY=1, CN 0.88` GPU runs on 23–24 Oct.
 2. ~~`parity_compare.py`~~ **done (28 Oct): GPU = CPU** with `LF_PARITY=1` on jul2023 and sep2023 (J 1.0, depth difference 0.000 m); see PARITY.md "GPU confirmation". A GPU rerun of the catalogue (item 4) is therefore optional: the CPU parity catalogue is the same physics.
-3. `hindcast_d3_sep2023_18z` ran with `PUBLISH=0`: read `$LF_WORK/fc_hindcast_d3_sep2023_18z/` and `roadfcst_<id>.out`.
+3. ~~`hindcast_d3_sep2023_18z`~~ **done (28 Oct), published to `docs/proto/turing/hindcast_d3_sep2023_18z/`:** the District 3 GPU forecast from the 18z HRRR cycle (20 km / p90 spreading) flags **888 segments (615 km)** vs **276 (197 km)** in the radar-driven run, about 3x over-forecast district-wide even though its peak storm total is lower (158 vs 207 mm): the neighbourhood spreading wets a much larger area. Box-level hindcasts were fine (HINDCAST.md); district-wide the ensemble rule (2-of-8) or less spreading is needed before showing a D3 forecast map.
 4. If parity matches: `LF_PARITY=1 LF_CN_SCALE=0.88 bash proto/turing/submit_catalog.sh` (the variables are inherited through `--export=ALL`;
    the script's own default is still the old × 0.91 from `run_storm.slurm`).
 5. Drains job 2401314: `tail -40 roadflood_drains_2401314.out` (and `results/drains_*`); publish with `PUBLISH=1` only if useful.
