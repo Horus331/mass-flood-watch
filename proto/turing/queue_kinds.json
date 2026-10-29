@@ -1,0 +1,13 @@
+{
+ "about": "Whitelist for proto/turing/queue_runner.py: the only Slurm scripts a queued request can start, and the env keys / sbatch options each accepts. Values are checked against [A-Za-z0-9_.,:=/@+%~-].",
+ "kinds": {
+  "surrogate_gen":    {"script": "proto/turing/surrogate_gen.slurm",    "env": ["PLAN", "PER_TASK", "SURR_ROOT"], "required": ["PLAN"], "sbatch": ["array", "partition", "time"]},
+  "surrogate_inputs": {"script": "proto/turing/surrogate_inputs.slurm", "env": ["SURR_ROOT"], "sbatch": ["partition", "time"]},
+  "surrogate_train":  {"script": "proto/turing/surrogate_train.slurm",  "env": ["PLANS", "K", "SURR_ROOT"], "required": ["PLANS"], "sbatch": ["partition", "time", "gres"]},
+  "run_storm":        {"script": "proto/turing/run_storm.slurm",        "env": null, "sbatch": ["partition", "time", "array", "gres", "mem"]},
+  "pack_site":        {"script": "proto/turing/pack_site.slurm",        "env": ["NAME", "STORM", "SITE", "LIVE", "POOL", "FLOW"], "required": ["NAME", "SITE"], "sbatch": ["partition", "time"]},
+  "run_forecast":     {"script": "proto/turing/run_forecast.slurm",     "env": null, "sbatch": ["partition", "time", "gres"]},
+  "reprocess":        {"script": "proto/turing/reprocess.slurm",        "env": null, "sbatch": ["partition", "time"]},
+  "backup_hf":        {"script": "proto/turing/backup_hf.slurm",        "env": ["ONLY", "RUNS_ROOT", "PREFIX"], "sbatch": ["partition", "time"]}
+ }
+}
