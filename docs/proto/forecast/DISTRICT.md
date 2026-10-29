@@ -66,6 +66,104 @@ plus the 7 OOS storms of `ENSEMBLE.md` §4. They use the same boxes, members, le
   and every box issue cycle, on a 0.01° grid. The numbers are the volume ratio, the area ratio above 50 and 100 mm, and the CSI of those
   areas.
 
-## 2. Results
+## 2. Results (29 Oct 2026, 03:40 UTC)
 
-(pending)
+Files are in `district/`:
+
+- `rain.json`: section C.
+- `boxes.json`: the flagged segment ids of the 220 new box runs (artifacts of runs 40788271812, 40788315952 and 40788360475, collected
+  through the branch `nbhd-data`).
+- `box_scores.json`: section B.
+- `district.json` and `decision.json`: section A.
+
+Reproduce with:
+
+```
+forecast_nbhd.py boxes --runs docs/proto/forecast/district/boxes.json --out docs/proto/forecast/district/box_scores.json
+forecast_nbhd.py district --out docs/proto/forecast/district/district.json
+forecast_nbhd.py decide --district docs/proto/forecast/district/district.json --boxes docs/proto/forecast/district/box_scores.json
+```
+
+### A. District 3: the Turing runs did not arrive
+
+None of `hindcast_d3_18z_nb10p90`, `_nb20p75` or `_raw` was published within 4 h of the pre-registration. The repo was polled every 15 min
+from 23:36 to 03:36 UTC. By rule 5 they are left out.
+
+The only district run is 20,90: 888 segments and 615 km, against the radar's 276 and 197 km. That is ratio_n 3.22 and ratio_km 3.12. It has
+no `segments.geojson`, so its CSI is not available. The radar run scores 29 of 80 sites at the rule (lift 35).
+
+**Decision under the pre-registered rule: keep `LF_HRRR_NBHD=20,90` live.** The rule found no eligible setting (rule 3).
+
+This verdict does not depend on the missing runs. The box veto (rule 4) already rejects every alternative (table B): it allows the loss of at
+most 1 OOS-7 site, and 10,90 loses 2 while 20,75 and raw lose 3. So when the Turing runs land, they can no longer change the live default.
+They are still worth scoring (`district`) for the diagnosis in section C.
+
+### B. Boxes: less spreading loses sites out of sample
+
+The 4 re-runs of 20,90 at today's commit reproduce the published members: Jaccard 0.97 to 1.00. Reusing those members is therefore valid.
+Each cell gives OOS-7 sites hit out of 29, then mean / max flagged share, then lift:
+
+| setting | single cycle, short lead | single cycle, long lead | **2 of 8, short lead** | dev (sep2023 + aug2021, 90 sites), 2 of 8 short |
+| --- | --- | --- | --- | --- |
+| 20,90 (live) | 2, 1.1 / 4.7 %, 2.7 | 6, 1.8 / 4.7 %, 5.3 | **8, 2.3 / 6.1 %, 5.7** | 26, 2.3 %, 11.3 |
+| 10,90 | 2, 0.9 / 4.0 %, 3.3 | 6, 1.7 / 3.7 %, 5.9 | 6, 1.9 / 5.1 %, 5.0 | 27, 2.3 %, 10.0 |
+| 20,75 | 2, 0.8 / 3.7 %, 3.8 | 6, 1.3 / 3.7 %, 7.2 | 5, 1.3 / 4.7 %, 5.8 | 10, 0.5 %, 30.3 |
+| 0,50 (raw) | 2, 0.6 / 2.7 %, 4.8 | 6, 1.0 / 2.5 %, 9.6 | 5, 1.0 / 3.7 %, 7.4 | 4, 0.3 %, 11.5 |
+
+**The single cycle.** Every setting finds the same sites. Less spreading only cuts the flagged share, so the lift rises.
+
+**2 of 8 at short lead, where the live rule works.** 20,90 keeps the most sites. The 3 sites it alone keeps are:
+
+- sep2021: 3 of 5 sites against 2 of 5;
+- aug2023: 1 of 4 against 0;
+- aug2026: 1 of 4 against 0, lost by 20,75 and raw only.
+
+These are 29 sites in all, so the differences are 2 to 3 sites.
+
+**Dev storms.** 20,75 and raw fall apart: Leominster 0.08 / 0.05 against 0.24 to 0.27, and Worcester 0.33 / 0.00 against 0.58. 10,90 is
+close to 20,90.
+
+**How much less does each setting flag?** On the boxes, 10,90 cuts the flagged share by 15 to 20 % and 20,75 / raw by 40 to 55 %. None of
+them comes close to a factor of 3 on the boxes.
+
+### C. Why the district over-forecasts: intensity of the 90th percentile, not radius
+
+District 3, 18z cycle, storm-total rain over 48 h. The volume ratio and the area ratios compare HRRR with MRMS over the same window:
+
+| rain field | district mean (mm) | max (mm) | volume / MRMS | area ≥ 50 mm / MRMS | area ≥ 100 mm / MRMS | CSI of the ≥ 50 mm area | peak hour (mm) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MRMS (radar) | 49.9 | 211 | 1 | 1 (34 % of D3) | 1 (8.8 %) | - | 100 |
+| 20,90 (live) | 95.2 | 158 | **1.91** | 2.41 | **5.92** | 0.39 | 48 |
+| 10,90 | 88.1 | 206 | 1.77 | 2.12 | 5.05 | 0.34 | 65 |
+| 20,75 | 39.1 | 78 | 0.78 | 0.95 | 0.00 | 0.43 | 28 |
+| raw | 35.1 | 134 | 0.70 | 0.76 | 0.19 | 0.20 | 77 |
+
+- **The live spreading nearly doubles the district's rain volume and gives 6 times the radar's area above 100 mm.** The CN losses and the
+  0.30 m closure depth are thresholds, so this turns into about 3 times the flagged roads.
+- **Halving the radius (10,90) removes only about a tenth of that excess** (volume 1.91 → 1.77). Dropping the percentile to the 75th removes
+  all of it (0.78). The over-forecast is therefore **mainly intensity, i.e. the 90th percentile, not the spreading area.** A 90th percentile
+  over a 20 km disk raises every cell near a convective core to near-core totals. Across a 78 × 90 km district, that amounts to a large
+  rain surplus.
+- **The same holds on the boxes, to a smaller degree.** At short lead, 20,90 is 1.25 to 1.56 times the MRMS volume on sep2023, aug2021,
+  sep2021, sep2022 and aug2026, and 0.65 to 0.94 on the others. 20,75 and raw are 0.36 to 0.85 on all of them except sep2021.
+
+  A 20 x 20 km box sits on the storm core, where the radar total is high. There, the 20,90 surplus is what makes up for a displaced or
+  too-weak core. That is why the boxes looked fine.
+
+  Spread over a district, most cells are away from the core, and the surplus becomes a false alarm. The raw HRRR is too dry everywhere
+  (district volume 0.70; box volume 0.19 to 0.62 except sep2021).
+
+### Verdict and next step
+
+**Keep 20,90 live on the boxes.** The 2-of-8 rule at 20,90 is the best box forecast out of sample. No setting with less spreading or a lower
+percentile passes the pre-registered box test.
+
+**Fix the district map separately.** The district over-forecast is a volume bias of the 90th percentile over large domains, so it cannot be
+fixed with the same knob without hurting the boxes. Candidates for a new pre-registration:
+
+- (a) **2 of 8 on the D3 GPU run.** This needs 8 Turing member runs: about 4 GPU-hours.
+- (b) **A volume-preserving neighbourhood.** Rescale each hour's 20,90 field to the raw HRRR domain volume. This keeps the placement spread
+  and drops the surplus.
+- (c) **Use the D3 run only as a "watch" layer**, and show the district map with the k-of-n agreement only.
+
+Until one of these is tested, the D3 forecast map should not be shown as a warning map.
