@@ -40,6 +40,8 @@ FFRI_RE = re.compile(r'refs\.t(\d\d)z\.ffri\.f(\d+)\.conus\.grib2$')
 QPF_RE = re.compile(r'refs\.t(\d\d)z\.(pmmn|mean|avrg|lpmm)\.f(\d+)\.conus\.grib2$')
 QPF_PREF = ('pmmn', 'lpmm', 'mean', 'avrg')
 SPORT = 'https://maps.disasters.nasa.gov/ags03/rest/services/NRT/{}/ImageServer'
+SPORT_HOSTS = ('https://maps.disasters.nasa.gov/ags03/rest/services', 'https://maps.disasters.nasa.gov/ags04/rest/services',
+               'https://maps.disasters.nasa.gov/arcgis/rest/services')
 SPORT_LAYERS = ('lis_rsm_2m', 'lis_vsm_percentile_40cm', 'lis_vsm_percentile_100cm', 'lis_vsm_percentile_200cm')
 SW = 'https://gisstg.massdot.state.ma.us/arcgis/rest/services/Assets/Stormwater/FeatureServer'
 CHUNK = 4000
@@ -363,15 +365,44 @@ def sport_times(url, info):
     return sorted(times)
 
 
+def sport_json(url, params):
+    """-> (json or None, diagnostic string: HTTP status, content type and the first bytes when the reply is not JSON)."""
+    try:
+        r = get(url, params=params, timeout=60, tries=3)
+        try:
+            j = r.json()
+            if isinstance(j, dict) and 'error' in j: return None, f"{url}: ArcGIS error {str(j['error'])[:150]}"
+            return j, f'{url}: ok'
+        except Exception:
+            return None, f"{url}: HTTP {r.status_code} {r.headers.get('Content-Type')} {r.text[:200]!r}"
+    except Exception as e:
+        return None, f'{url}: {repr(e)[:150]}'
+
+
+def sport_service(lay):
+    """The layer's ImageServer: the documented ags03 path, then sibling hosts, then any NRT service whose name contains the layer name.
+    -> (url, info, diagnostics)."""
+    diag = []
+    for h in SPORT_HOSTS:
+        url = f'{h}/NRT/{lay}/ImageServer'; j, d = sport_json(url, dict(f='json')); diag.append(d)
+        if j and ('extent' in j or 'pixelSizeX' in j): return url, j, diag
+    for h in SPORT_HOSTS[:2]:
+        j, d = sport_json(f'{h}/NRT', dict(f='json')); diag.append(d)
+        for sv in (j or {}).get('services', []):
+            if lay.lower() in sv.get('name', '').lower() and sv.get('type') == 'ImageServer':
+                url = f"{h}/{sv['name']}/ImageServer"; jj, dd = sport_json(url, dict(f='json')); diag.append(dd)
+                if jj: return url, jj, diag
+        if j: diag.append('NRT lis services: ' + ' '.join(sv.get('name', '') for sv in j.get('services', []) if 'lis' in sv.get('name', '').lower())[:600])
+    return None, None, diag
+
+
 def sportlis(dry=False, max_steps=60):
     from pyproj import Transformer
     files = {}; summary = {}; folders = set(x.split('/')[-1] for x in hf_ls('sportlis')); LS = {}
     for lay in SPORT_LAYERS:
-        url = SPORT.format(lay)
-        try:
-            info = get(url, params=dict(f='pjson'), timeout=60).json()
-        except Exception as e:
-            summary[lay] = dict(error=repr(e)[:200]); continue
+        url, info, diag = sport_service(lay)
+        if info is None:
+            summary[lay] = dict(error='service not reachable as JSON', tried=diag); continue
         sr = info.get('spatialReference', {}); wk = sr.get('latestWkid') or sr.get('wkid'); px = float(info.get('pixelSizeX') or 0); py = float(info.get('pixelSizeY') or 0)
         tr = Transformer.from_crs(26986, wk, always_xy=True); x0, y0, x1, y1 = D3_BOX; m = MARGIN_M
         X, Y = np.meshgrid(np.linspace(x0 - m, x1 + m, 21), np.linspace(y0 - m, y1 + m, 21)); bx, by = tr.transform(X.ravel(), Y.ravel())
