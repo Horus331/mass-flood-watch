@@ -1,0 +1,60 @@
+name: Hybrid rule test (FEMA SFHA on District 4-6 transfer roads)
+# Manual. Pre-registration: docs/proto/static/HYBRID.md.  Intersects the FEMA NFHL Special Flood Hazard Area (MassGIS statewide copy; FEMA
+# REST fallback) with the OSM road segments of the 81 District 4-6 transfer runs (roads from the work branch transfer-d456) and returns the
+# per-segment % of length inside the SFHA as ::notice annotations (gzip+base64; proto/static_maps.py decode --run <id>), plus neutral check
+# runs as a fallback channel.  Scoring runs locally (proto/hybrid_d456.py score).  Never commits.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  checks: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: roads from transfer-d456
+        run: |
+          git fetch --depth=1 origin transfer-d456
+          git checkout FETCH_HEAD -- docs/proto/transfer/roads_osm
+          ls docs/proto/transfer/roads_osm | wc -l
+      - run: pip install -q numpy scipy requests shapely pyproj geopandas pyogrio
+      - name: fetch and intersect
+        run: |
+          set -o pipefail
+          python proto/hybrid_d456.py fetch --out sfha_d456.json 2>&1 | tee fetch.log
+          python -c "import json; m=json.load(open('sfha_d456.json'))['meta']; print(json.dumps(m['per_storm']))" > per.txt
+          echo "::notice title=hybrid_d456 per storm::$(cut -c1-3900 per.txt)"
+          ls -l sfha_d456.json
+      - name: check runs (fallback channel)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python proto/static_maps.py checkruns sfha_d456.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sfha_d456
+          path: |
+            sfha_d456.json
+            fetch.log
+  emit:
+    needs: fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        g: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sfha_d456
+      - run: pip install -q numpy
+      - name: annotations a
+        run: python proto/hybrid_d456.py emit sfha_d456.json --part $(( ${{ matrix.g }} * 4 + 0 ))
+      - name: annotations b
+        run: python proto/hybrid_d456.py emit sfha_d456.json --part $(( ${{ matrix.g }} * 4 + 1 ))
+      - name: annotations c
+        run: python proto/hybrid_d456.py emit sfha_d456.json --part $(( ${{ matrix.g }} * 4 + 2 ))
+      - name: annotations d
+        run: python proto/hybrid_d456.py emit sfha_d456.json --part $(( ${{ matrix.g }} * 4 + 3 ))
