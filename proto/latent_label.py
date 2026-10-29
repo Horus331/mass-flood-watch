@@ -45,7 +45,9 @@ PRIOR = dict(b_o=(1.0, 0.3), b_0=(0.0, 3.0), b=(0.0, 1.0),     # Gaussian (mean,
              a=(-1.5, 1.5), a_dpw=(2.2, 0.5), g=(0.0, 1.0),     # logit d: generic source ~0.18 at mean r; DPW ~0.90 (complete inventory)
              f=(1.0, 2000.0))                                  # Beta(1, 2000) on the per-segment false-report rate: MAP 0 + data, mean 5e-4
 EM_TOL, EM_MAXIT = 1e-5, 300
-NBOOT_FIT = 100                                                # storm-cluster bootstrap of the all-storm fit (CIs of d_s, f_s, coefficients)
+NBOOT_FIT = int(os.environ.get('LATENT_BOOT', 30))             # storm-cluster bootstrap of the all-storm fit (CIs of d_s, f_s, coefficients);
+                                                               # pre-registered 100, cut to 30 (warm start, <= 100 EM iterations) for run time
+BOOT_MAXIT = 100
 
 
 def F(x, d=0.0):
@@ -237,14 +239,14 @@ def p_detect(ph, R, Y):
     return 1 - miss
 
 
-def em(A, init=None, verbose=False):
+def em(A, init=None, verbose=False, maxit=None):
     o, H, R, Y = A['o'], A['H'], A['R'], A['Y']
     yany = np.nan_to_num(Y, nan=0).max(1)
     th = init['th'] if init else np.r_[1.0, -2.0, np.zeros(H.shape[1])]
     ph = init['ph'] if init else np.r_[[PRIOR['a_dpw'][0] if s == 'DPW' else PRIOR['a'][0] for s in FAMILIES], np.zeros(R.shape[1])]
     f = init['f'] if init else np.full(Y.shape[1], 1e-4)
     q = posterior(th, ph, f, o, H, R, Y)[0] if init else np.clip(yany, 0.01, 0.99)
-    for it in range(EM_MAXIT):
+    for it in range(maxit or EM_MAXIT):
         th = fit_pi(o, H, q, th); ph = fit_d(R, Y, q, ph); f = fit_f(Y, q)
         q2, pi = posterior(th, ph, f, o, H, R, Y); dq = np.abs(q2 - q).max(); q = q2
         if verbose and it % 10 == 0: print(f'  EM {it:3d} max|dq| {dq:.2e} sum q {q.sum():.1f} sum pi {pi.sum():.1f}', flush=True)
@@ -314,7 +316,7 @@ def cmd_fit(boot=NBOOT_FIT):
     rng = np.random.default_rng(0)
     for b in range(boot):
         sel = [storms[k] for k in rng.integers(0, len(storms), len(storms))]
-        Db = {f'{s}#{k}': D[s] for k, s in enumerate(sel)}; Ab = assemble(Db, list(Db)); fb = em(Ab, init=fit); reps.append(summarize(fb, Ab))
+        Db = {f'{s}#{k}': D[s] for k, s in enumerate(sel)}; Ab = assemble(Db, list(Db)); fb = em(Ab, init=fit, maxit=BOOT_MAXIT); reps.append(summarize(fb, Ab))
         if b % 10 == 0: print('boot', b, flush=True)
     ci = lambda xs: [float(np.percentile(xs, 5)), float(np.percentile(xs, 95))] if xs else None
     for s, v in S0['sources'].items():
