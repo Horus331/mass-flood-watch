@@ -1,0 +1,65 @@
+name: USGS stream cameras (NIMS) for District 3 storms
+# Manual. proto/cameras.py, docs/proto/cameras/CAMERAS.md.
+#   mode=list     camera list in / near District 3 -> docs/proto/cameras/usgs_cameras.csv
+#   mode=catalog  stills for the catalogue storms (ids, empty = all) -> contact sheets; images to the HF dataset when upload=true
+#   mode=fetch    stills for one period (t0, hours)
+# Images never go into git; only the camera list and the small per-storm summaries are committed (publish=true).
+on:
+  workflow_dispatch:
+    inputs:
+      mode: {description: 'list | catalog | fetch', default: 'list'}
+      ids: {description: 'catalog: storm ids, comma-separated (empty = all)', default: ''}
+      t0: {description: 'fetch: start UTC, e.g. 2023-09-11T12:00Z', default: ''}
+      hours: {description: 'fetch: hours', default: '36'}
+      every_min: {description: 'one still per N minutes', default: '15'}
+      near_km: {description: 'cameras within this distance of District 3 (km)', default: '10'}
+      upload: {description: 'upload the images to the HF dataset (cameras/...)', type: boolean, default: false}
+      publish: {description: 'commit the camera list / summaries', type: boolean, default: false}
+permissions:
+  contents: write
+jobs:
+  cams:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests shapely pyproj numpy pillow huggingface_hub
+      - name: cameras
+        env:
+          API_USGS_PAT: ${{ secrets.API_USGS_PAT }}
+        run: |
+          set -o pipefail
+          python proto/cameras.py list 2>&1 | tee cams.log | head -60
+          case "${{ inputs.mode }}" in
+            catalog) python proto/cameras.py catalog --out camout --every-min ${{ inputs.every_min }} --near-km ${{ inputs.near_km }} \
+                       ${{ inputs.ids && format('--ids {0}', inputs.ids) || '' }} 2>&1 | tee -a cams.log | grep -v '^  ' ;;
+            fetch)   python proto/cameras.py fetch --out camout/fetch --t0 ${{ inputs.t0 }} --hours ${{ inputs.hours }} --every-min ${{ inputs.every_min }} \
+                       --near-km ${{ inputs.near_km }} 2>&1 | tee -a cams.log ;;
+          esac
+          for d in $(find camout -name index.csv -printf '%h\n' 2>/dev/null); do python proto/cameras.py sheet $d | tail -2; done
+          echo "::notice title=cameras::$(grep -E 'camera\(s\)|catalogue|image\(s\),' cams.log | tail -40 | cut -c1-250 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+      - name: upload images to the HF dataset
+        if: inputs.upload
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          [ -d camout ] || exit 0
+          for d in camout/*/; do n=$(basename $d); python proto/cameras.py upload $d --prefix cameras/$n; done
+      - name: summaries and contact sheets (artifact)
+        if: always()
+        run: |
+          mkdir -p art; cp cams.log art/ 2>/dev/null || true; cp docs/proto/cameras/usgs_cameras.csv art/ 2>/dev/null || true
+          [ -d camout ] && (cd camout && find . -name 'summary.json' -o -name 'index.csv' -o -name 'sheet_*.jpg' -o -name 'catalog_summary.json' | tar czf ../art/camout.tgz -T -) || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: cameras, path: art}
+      - name: commit
+        if: inputs.publish
+        run: |
+          mkdir -p docs/proto/cameras/storms
+          if [ -d camout ]; then for d in camout/*/; do n=$(basename $d); mkdir -p docs/proto/cameras/storms/$n; cp $d/summary.json $d/index.csv docs/proto/cameras/storms/$n/ 2>/dev/null || true; done
+            cp camout/catalog_summary.json docs/proto/cameras/storms/ 2>/dev/null || true; fi
+          git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A docs/proto/cameras; git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -qm "USGS cameras: ${{ inputs.mode }} ${{ inputs.ids }}"
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done

@@ -57,6 +57,10 @@ jobs:
       - name: NWS flood alerts touching District 3 (storm archive trigger; never fails the forecast)
         continue-on-error: true
         run: python proto/storm_archive.py alerts --out gate/alerts.json ${{ inputs.alerts_window && format('--window {0}', inputs.alerts_window) || '' }} 2>&1 | tail -4
+      - name: flood reports in District 3 since the previous cycle (LSR, MassDOT log; archives storms the gate and the NWS missed; live only)
+        if: inputs.alerts_window == '' || inputs.alerts_window == null
+        continue-on-error: true
+        run: python proto/storm_archive.py reports --out gate/reports.json 2>&1 | tail -3
       - uses: actions/upload-artifact@v4
         with: {name: gate, path: gate}
   flood:
@@ -158,13 +162,24 @@ jobs:
           [ -n "$R" ] || { echo "test prefix without archive_root: not archiving"; exit 0; }
           ST=docs/site/data/forecast_status.json; [ "$PFX" = "forecast_latest" ] || ST=docs/site/data/${PFX}_status.json
           K=""; [ -f kofn.json ] && K="--kofn kofn.json"
-          python proto/storm_archive.py archive --gate arts/gate/gate.json --alerts arts/gate/alerts.json --status $ST $K --root $R --flag archived.txt
+          RP=""; [ -f arts/gate/reports.json ] && RP="--reports arts/gate/reports.json"
+          python proto/storm_archive.py archive --gate arts/gate/gate.json --alerts arts/gate/alerts.json $RP --status $ST $K --root $R --flag archived.txt
           if [ -f archived.txt ]; then echo "AROOT=$R" >> $GITHUB_ENV; fi     # ARCHIVE.md is rebuilt by archive_followup.yml (one writer, no rebase conflicts)
+      - name: forward-test ledger (live cycles only; one row per cycle, quiet ones too; docs/proto/prospective/PROSPECTIVE.md)
+        if: (inputs.prefix || 'forecast_latest') == 'forecast_latest'
+        continue-on-error: true
+        env:
+          GIT_SHA: ${{ github.sha }}
+          ENS: ${{ inputs.ensemble || vars.FORECAST_ENSEMBLE || '1' }}
+        run: |
+          K=""; [ -f kofn.json ] && K="--kofn kofn.json"
+          python proto/storm_archive.py ledger --gate arts/gate/gate.json --status docs/site/data/forecast_status.json --alerts arts/gate/alerts.json \
+            --reports arts/gate/reports.json $K --flag archived.txt --settings "ensemble=$ENS nbhd=20,90 cn=0.88 parity=1 infil=2 res=20"
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish
         run: |
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A docs/site/data; [ -n "$AROOT" ] && git add -A "$AROOT"
+          git add -A docs/site/data; [ -n "$AROOT" ] && git add -A "$AROOT"; [ -d docs/proto/prospective ] && git add -A docs/proto/prospective
           git diff --cached --quiet && { echo "no change"; exit 0; }
           P=${{ inputs.prefix || 'forecast_latest' }}; ST=docs/site/data/forecast_status.json; [ "$P" = "forecast_latest" ] || ST=docs/site/data/${P}_status.json
           git commit -qm "Forecast $P $(python -c "import json;s=json.load(open('$ST'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")$([ -f archived.txt ] && echo " + archived storm $(cat archived.txt)")"

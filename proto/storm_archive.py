@@ -239,11 +239,19 @@ def cmd_alerts(a):
 
 
 # ------------------------------------------------------------------ archive (forecast.yml publish job)
-def evidence(G, A):
-    """Trigger evidence of one cycle -> dict(gate, alerts, start, end, boxes) or None when nothing triggers."""
+def evidence(G, A, R=None):
+    """Trigger evidence of one cycle -> dict(gate, alerts, reports, start, end, boxes) or None when nothing triggers.
+    R = flood reports (cmd_reports): LSR / MassDOT flood reports in District 3 since the previous cycle. They archive a storm even when the gate
+    stayed quiet and the NWS issued nothing, so storms the system missed are scored too (a quiet gate = a forecast of no closure)."""
     gate = bool(G.get('trigger')) and not G.get('forced')
-    al = (A or {}).get('alerts') or []
-    if not gate and not al: return None
+    al = list((A or {}).get('alerts') or []); rp = list((R or {}).get('reports') or [])
+    if not gate and not al and not rp: return None
+    E = _evidence(G, al + rp, gate)
+    E['alerts'] = [x for x in E['alerts'] if not x.get('report')]; E['reports'] = [{k: x.get(k) for k in ('id', 'event', 'report_time', 'towns', 'source', 'text')} for x in rp]
+    return E
+
+
+def _evidence(G, al, gate):
     ts, te = [], []
     if gate:
         for b in G.get('boxes') or []:
@@ -260,8 +268,9 @@ def evidence(G, A):
     for x in al:
         if not x.get('point'): continue
         bx = box_at(*to26986(*x['point']))
-        boxes.append(dict(box=bx, source=f"NWS {x['event']} {x['start']}", towns=x.get('towns', [])))
-    return dict(gate=gate, alerts=[{k: x[k] for k in ('id', 'event', 'start', 'end', 'towns', 'source')} for x in al], start=min(ts), end=max(te), boxes=boxes,
+        boxes.append(dict(box=bx, source=(f"{x['event']} {x.get('report_time')}" if x.get('report') else f"NWS {x['event']} {x['start']}"), towns=x.get('towns', [])))
+    return dict(gate=gate, alerts=[dict({k: x[k] for k in ('id', 'event', 'start', 'end', 'towns', 'source')}, report=bool(x.get('report'))) for x in al],
+                start=min(ts), end=max(te), boxes=boxes,
                 towns_over=G.get('towns_over', []) if gate else [])
 
 
@@ -314,10 +323,21 @@ def write_csv(path, rows, cols):
 
 def cmd_archive(a):
     G = jload(a.gate); A = jload(a.alerts, {}) if a.alerts else {}
-    E = evidence(G, A)
+    R = jload(a.reports, {}) if getattr(a, 'reports', None) else {}
+    root = a.root
+    if R.get('reports'):          # a report inside a storm that is already archived and past its radar run adds nothing new
+        def covered(x):
+            t = utc(x['report_time'])
+            for s in storms(root):
+                if s['radar']['status'] in ('pending', 'failed'): continue
+                w0, w1 = storm_window(s)
+                if w0 <= t <= w1: return True
+            return False
+        R = dict(R, reports=[x for x in R['reports'] if not covered(x)])
+    E = evidence(G, A, R)
     if E is None:
-        log('archive: quiet cycle (gate not fired, no NWS flood alert in District 3): nothing archived'); return
-    root = a.root; S = None; cyc = utc(G['issued'])
+        log('archive: quiet cycle (gate not fired, no NWS flood alert, no new flood report in District 3): nothing archived'); return
+    S = None; cyc = utc(G['issued'])
     for s in storms(root):
         es, ee = utc(s['evidence']['start']), utc(s['evidence']['end'])
         if E['start'] <= ee + dt.timedelta(hours=MERGE_H) and E['end'] >= es - dt.timedelta(hours=MERGE_H) and s['radar']['status'] in ('pending', 'failed'):
@@ -335,13 +355,14 @@ def cmd_archive(a):
     cdir = os.path.join(S['_dir'], 'forecast', f'{cyc:%Y%m%d%H}'); os.makedirs(cdir, exist_ok=True)
     shutil.copy(a.gate, os.path.join(cdir, 'gate.json'))
     if a.alerts and os.path.exists(a.alerts): shutil.copy(a.alerts, os.path.join(cdir, 'alerts.json'))
+    if R.get('reports'): jsave(os.path.join(cdir, 'reports.json'), R)
     St = jload(a.status) if a.status and os.path.exists(a.status) else None
     if St: jsave(os.path.join(cdir, 'status.json'), St, indent=None)
     K = jload(a.kofn) if a.kofn and os.path.exists(a.kofn) else None
     rows = kofn_rows(K)
     write_csv(os.path.join(cdir, 'kofn.csv'), rows, ['segment', 'road', 'town', 'box', 'k', 'n', 'n_members', 'p_max', 'cls', 'x', 'y'])
     if K: jsave(os.path.join(cdir, 'kofn_meta.json'), {k: v for k, v in K.items() if k != 'segments'})
-    ent = dict(cycle=iso(cyc), gate=E['gate'], forced=bool(G.get('forced')), towns_over=E['towns_over'][:20], alerts=E['alerts'], state=(St or {}).get('state'),
+    ent = dict(cycle=iso(cyc), gate=E['gate'], forced=bool(G.get('forced')), towns_over=E['towns_over'][:20], alerts=E['alerts'], reports=E['reports'], state=(St or {}).get('state'),
                likely_closed=(St or {}).get('likely_closed'), possible=(St or {}).get('possible'), forecast_boxes=[b['box'] for b in G.get('boxes') or []] if G.get('trigger') else [],
                n_members=(K or {}).get('n_members'), dir=os.path.relpath(cdir, S['_dir']))
     S['cycles'] = [c for c in S['cycles'] if c['cycle'] != ent['cycle']] + [ent]; S['cycles'].sort(key=lambda c: c['cycle'])
@@ -359,6 +380,119 @@ def find_storm(root, sid):
     for S in storms(root):
         if S['id'] == sid: return S
     raise SystemExit(f'storm {sid} not in {root}')
+
+
+# ------------------------------------------------------------------ flood reports since the previous cycle (catches storms nothing flagged)
+TRIGGER_RE = re.compile(r'flood|washout|washed out|ponding|standing water|high water|water (on|in|across|over|covering) (the )?(road|street|roadway|lanes?)|'
+                        r'impassable|submerged|road closed due to water', re.I)      # stricter than FLOOD_RE: no culvert / drain work
+
+
+def reports_live(lookback_h, now):
+    w0 = now - dt.timedelta(hours=lookback_h); rows, meta = [], {}
+    for name, fn in (('LSR', lab_lsr), ('MassDOT', lab_massdot)):
+        try: R, M = fn(None, w0, now)
+        except Exception as e: R, M = [], dict(ok=False, error=repr(e)[:200])
+        M.pop('raw', None); meta[name] = M
+        for r in R:
+            t = utc(local_naive(r['time_local']))
+            if t < w0 or t > now: continue                      # only reports new since the previous cycle
+            if name == 'MassDOT' and not TRIGGER_RE.search(r['name'] + ' ' + r['quote']): continue
+            rows.append(dict(id=f"{name}:{r['source_url']}", event=f'{name} flood report', source=name, report=True, report_time=iso(t),
+                             start=iso(t - dt.timedelta(hours=6)), end=iso(t), towns=[r['town']], point=(r['lon'], r['lat']), text=r['name'][:120], quality=r['quality']))
+    return dict(source='IEM LSR + MassDOT roadway events log', window=[iso(w0), iso(now)], sources=meta, reports=rows)
+
+
+def cmd_reports(a):
+    try: R = reports_live(a.lookback_h, now_utc(a))
+    except Exception as e: R = dict(error=repr(e)[:300], reports=[]); log('reports failed:', R['error'])
+    jsave(a.out, R)
+    log(f"flood reports in District 3 since the previous cycle: {len(R['reports'])}; " + '; '.join(f"{x['source']} {x['report_time']} {x['text']}" for x in R['reports'][:6]))
+
+
+# ------------------------------------------------------------------ prospective ledger (one row per live cycle) and results
+PROSPECTIVE = os.path.join('docs', 'proto', 'prospective')
+PROSPECTIVE_START = os.environ.get('PROSPECTIVE_START', '2026-11-03T00:00Z')
+LEDGER_COLS = ['issued', 'built', 'state', 'gate', 'forced', 'towns_over', 'd3_max1h_mm', 'd3_max6h_mm', 'd3_max24h_mm', 'likely_closed', 'possible', 'n_members',
+               'nws_alerts', 'flood_reports', 'archived_storm', 'git_sha', 'settings', 'status_sha256']
+
+
+def cmd_ledger(a):
+    """Append this live cycle to the ledger (quiet cycles too), so skill can be counted against every forecast that was issued, not only stormy ones.
+    The ledger is committed with the cycle's forecast; git history time-stamps each row."""
+    import hashlib
+    G = jload(a.gate, {}); St = jload(a.status, {}) if a.status and os.path.exists(a.status) else {}
+    A = jload(a.alerts, {}) if a.alerts and os.path.exists(a.alerts) else {}; R = jload(a.reports, {}) if a.reports and os.path.exists(a.reports) else {}
+    K = jload(a.kofn, {}) if a.kofn and os.path.exists(a.kofn) else {}
+    d = (G.get('district') or {})
+    row = dict(issued=G.get('issued'), built=St.get('built') or iso(_utcnow()), state=St.get('state'), gate=bool(G.get('trigger')), forced=bool(G.get('forced')),
+               towns_over=';'.join((G.get('towns_over') or [])[:8]), d3_max1h_mm=d.get('max1h_mm'), d3_max6h_mm=d.get('max6h_mm'), d3_max24h_mm=d.get('max24h_mm'),
+               likely_closed=St.get('likely_closed'), possible=St.get('possible'), n_members=K.get('n_members') or '', nws_alerts=len(A.get('alerts') or []),
+               flood_reports=len(R.get('reports') or []), archived_storm=(open(a.flag).read().strip() if a.flag and os.path.exists(a.flag) else ''),
+               git_sha=os.environ.get('GIT_SHA', '')[:12], settings=a.settings or '',
+               status_sha256=hashlib.sha256(open(a.status, 'rb').read()).hexdigest()[:16] if a.status and os.path.exists(a.status) else '')
+    p = a.out; new = not os.path.exists(p); os.makedirs(os.path.dirname(os.path.abspath(p)), exist_ok=True)
+    if not new and any(l.startswith(f"{row['issued']},") for l in open(p)):
+        log('ledger: cycle', row['issued'], 'already logged'); return
+    with open(p, 'a', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=LEDGER_COLS, extrasaction='ignore')
+        if new: w.writeheader()
+        w.writerow(row)
+    log('ledger +1:', row)
+
+
+def first_report(S, labels_dir):
+    """Earliest medium/high-quality label time of the storm (UTC) and the number of such labels; SeeClickFix (low) does not count."""
+    p = (S.get('labels') or {}).get('file') or os.path.join(labels_dir, f"labels_{S['id']}_auto.csv")
+    if not os.path.exists(p): return None, 0
+    T = [utc(local_naive(r['time_local'])) for r in csv.DictReader(open(p)) if r.get('quality') in ('high', 'medium') and r.get('time_local')]
+    return (min(T) if T else None), len(T)
+
+
+def cmd_prospective(a):
+    """docs/proto/prospective/RESULTS.md: the pre-registered forward test (PROSPECTIVE.md), storm by storm, from PROSPECTIVE_START on."""
+    t0 = utc(PROSPECTIVE_START); L = list(csv.DictReader(open(a.ledger))) if os.path.exists(a.ledger) else []
+    L = [r for r in L if r.get('issued') and utc(r['issued']) >= t0]
+    rows = []
+    for S in storms(a.root):
+        if utc(S['evidence']['end']) < t0: continue
+        fr, n = first_report(S, a.labels_dir); V = jload(os.path.join(S['_dir'], 'verify.json'), {}) or {}
+        before = [c for c in S['cycles'] if fr is None or utc(c['cycle']) <= fr - dt.timedelta(hours=1)]
+        fired = [c for c in before if c['gate']]
+        lead = round((fr - utc(fired[0]['cycle'])).total_seconds() / 3600, 1) if fired and fr else None
+        cyc_ok = {c['cycle'] for c in before}; vr = [r for r in V.get('rows', []) if r.get('cycle') in cyc_ok and 'forecast_vs_labels' in r]
+        best = max(vr, key=lambda r: ((r['forecast_vs_labels'].get('site_hits') or 0), r['cycle']), default=None)
+        sites = sum(max([(r['radar_vs_labels'].get('sites') or 0) for r in V.get('rows', []) if r.get('box') == b['id']] or [0]) for b in S['boxes'])
+        fhits = sum(max([(r['forecast_vs_labels'].get('site_hits') or 0) for r in vr if r.get('box') == b['id']] or [0]) for b in S['boxes'])
+        rhits = sum(max([(r['radar_vs_labels'].get('site_hits') or 0) for r in V.get('rows', []) if r.get('box') == b['id']] or [0]) for b in S['boxes'])
+        trig = sorted({'gate' for c in S['cycles'] if c['gate']} | {'NWS' for c in S['cycles'] if c['alerts']} | {'report' for c in S['cycles'] if c.get('reports')})
+        if not S.get('verify'): cls = 'pending'
+        elif n == 0: cls = 'false alarm' if fired else 'no flooding reported'
+        elif not fired: cls = 'missed'
+        elif fhits > 0: cls = 'hit'
+        else: cls = 'right storm, wrong roads'
+        rows.append(dict(storm=S['id'], start=S['evidence']['start'], trig=trig, reports=n, first_report=iso(fr), lead_h=lead, sites=sites, fhits=fhits, rhits=rhits, cls=cls))
+    done = [r for r in rows if r['cls'] != 'pending']; flooded = [r for r in done if r['reports']]
+    k = lambda c: sum(r['cls'] == c for r in done)
+    S_ = sum(r['sites'] for r in flooded); FH = sum(r['fhits'] for r in flooded); RH = sum(r['rhits'] for r in flooded)
+    leads = sorted(r['lead_h'] for r in done if r['lead_h'] is not None)
+    out = ['# Forward test: results so far', '',
+           f'Generated by `proto/storm_archive.py prospective` after each storm follow-up. Rules: `PROSPECTIVE.md`. Window: from {PROSPECTIVE_START}. '
+           'Labels are the automatic ones (LSR, Storm Events, MassDOT log; SeeClickFix not counted) and are unreviewed.', '',
+           '## Headline', '',
+           f'- Forecast cycles issued: **{len(L)}** ({sum(r["gate"] == "True" for r in L)} with the gate fired, {sum(r["state"] not in ("quiet", None, "") for r in L)} not quiet).',
+           f'- Storms scored: **{len(done)}** ({len(rows) - len(done)} pending). With flood reports: {len(flooded)}.',
+           f'- Hit {k("hit")} · right storm, wrong roads {k("right storm, wrong roads")} · missed {k("missed")} · false alarm {k("false alarm")} · no flooding reported {k("no flooding reported")}.',
+           f'- Report sites caught by the forecast issued at least 1 h before the first report: **{FH} of {S_}**'
+           + (f' ({FH / S_:.0%}); the radar-driven run of the same boxes catches {RH} ({RH / S_:.0%}).' if S_ else '.'),
+           f'- Warning lead time (first gate fire to first report), median: **{leads[len(leads) // 2]} h**' + f' (range {leads[0]}–{leads[-1]} h).' if leads else '- Warning lead time: none yet.',
+           '', f'Interim reading after 5 storms with reports; main reading at the end of the window (`PROSPECTIVE.md`). Now: {len(flooded)} of 5.', '',
+           '## Storms', '', '| storm | start (UTC) | trigger | reports | first report (UTC) | lead (h) | sites | forecast hits | radar hits | result |', '|' + ' --- |' * 10]
+    for r in rows:
+        out.append(f"| {r['storm']} | {r['start']} | {', '.join(r['trig'])} | {r['reports']} | {r['first_report'] or '-'} | {_f(r['lead_h'])} | {r['sites']} | {r['fhits']} | {r['rhits']} | {r['cls']} |")
+    if not rows: out.append('| (none yet) | | | | | | | | | |')
+    os.makedirs(a.out_dir, exist_ok=True); open(os.path.join(a.out_dir, 'RESULTS.md'), 'w').write('\n'.join(out) + '\n')
+    jsave(os.path.join(a.out_dir, 'results.json'), dict(made=iso(_utcnow()), start=PROSPECTIVE_START, cycles=len(L), storms=rows))
+    log(f'prospective: {len(L)} cycles, {len(rows)} storms -> {a.out_dir}/RESULTS.md')
 
 
 # ------------------------------------------------------------------ follow-up planning
@@ -715,6 +849,9 @@ def cmd_finalize(a):
         if any(os.path.exists(os.path.join(S['_dir'], 'radar', b['id'], 'segments.csv')) for b in S['boxes']):
             a.storm = sid; cmd_verify(a)
     cmd_index(a)
+    if os.path.normpath(a.root) == os.path.normpath(ARCHIVE):       # the live archive: refresh the forward-test results (PROSPECTIVE.md)
+        try: cmd_prospective(argparse.Namespace(root=a.root, labels_dir=a.labels_dir, ledger=os.path.join(PROSPECTIVE, 'ledger.csv'), out_dir=PROSPECTIVE))
+        except Exception as e: log('prospective failed:', repr(e)[:200])
 
 
 # ------------------------------------------------------------------ index, skill, catalogue candidates
@@ -729,7 +866,8 @@ def cmd_index(a):
              '| storm | evidence (UTC) | trigger | cycles | boxes | radar run | labels (LSR / SE / MassDOT / SCF) | verified |', '|' + ' --- |' * 8]
     for S in SS:
         L = S.get('labels') or {}; c = L.get('counts') or {}
-        trig = ', '.join(sorted({'gate' for x in S['cycles'] if x['gate']} | {'NWS ' + al['event'] for x in S['cycles'] for al in x['alerts']}))
+        trig = ', '.join(sorted({'gate' for x in S['cycles'] if x['gate']} | {'NWS ' + al['event'] for x in S['cycles'] for al in x['alerts']}
+                                | {'report ' + r['source'] for x in S['cycles'] for r in x.get('reports') or []}))
         lines.append(f"| [{S['id']}]({S['folder']}/storm.json) | {S['evidence']['start']} .. {S['evidence']['end']} | {trig} | {len(S['cycles'])} | {len(S['boxes'])} | "
                      f"{S['radar']['status']} | {c.get('LSR', '-')} / {c.get('StormEvents', '-')} / {c.get('MassDOT', '-')} / {c.get('SeeClickFix', '-')} | "
                      f"{'yes' if S.get('verify') else 'no'} |")
@@ -802,6 +940,20 @@ def selftest():
     assert box_at(0, 0)[0] == D3_BOX[0] and overlap([0, 0, 2, 2], [1, 0, 3, 2]) == 0.5
     c = contingency({1, 2}, {2, 3}, [-1e9, -1e9, 1e9, 1e9]); assert c['hits'] == 1 and c['misses'] == 1 and c['false_alarms'] == 1 and abs(c['csi'] - 1 / 3) < 1e-9, c
     cmd_index(argparse.Namespace(root=ns.root)); assert os.path.exists(os.path.join(ns.root, 'ARCHIVE.md'))
+    # flood report with a quiet gate and no NWS alert -> a storm of its own ('missed' unless the forecast caught it)
+    Rp = dict(reports=[dict(id='LSR:x', event='LSR flood report', source='LSR', report=True, report_time='2023-10-05T20:00Z', start='2023-10-05T14:00Z',
+                            end='2023-10-05T20:00Z', towns=['Worcester'], point=(-71.80, 42.27), text='Main St: flood')])
+    Gq = dict(G, issued='2023-10-05T18:00Z', trigger=False, boxes=[]); E = evidence(Gq, {}, Rp)
+    assert E and not E['gate'] and len(E['boxes']) == 1 and E['reports'][0]['source'] == 'LSR' and not E['alerts'], E
+    rp = os.path.join(root, 'r.json'); jsave(rp, Rp); jsave(gp, Gq)
+    ns2 = argparse.Namespace(**dict(vars(ns), reports=rp, kofn=None)); cmd_archive(ns2); SS = storms(ns.root); assert len(SS) == 3 and SS[-1]['cycles'][0]['reports'], SS[-1]
+    S3 = SS[-1]; S3['radar']['status'] = 'done'; save_storm(S3); cmd_archive(ns2); assert len(storms(ns.root)) == 3     # already covered -> nothing new
+    assert TRIGGER_RE.search('water over the road') and not TRIGGER_RE.search('culvert replacement')
+    lp = os.path.join(root, 'p', 'ledger.csv'); St = dict(state='quiet', likely_closed=0, built='x'); sp_ = os.path.join(root, 's.json'); jsave(sp_, St)
+    la = argparse.Namespace(gate=gp, status=sp_, alerts=None, reports=rp, kofn=None, flag=None, settings='nb=20,90', out=lp)
+    cmd_ledger(la); cmd_ledger(la); assert len(open(lp).read().strip().split('\n')) == 2
+    cmd_prospective(argparse.Namespace(root=ns.root, labels_dir=root, ledger=lp, out_dir=os.path.join(root, 'p')))
+    assert os.path.exists(os.path.join(root, 'p', 'RESULTS.md'))
     print('storm_archive selftest ok')
 
 
@@ -809,7 +961,12 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0]); sp = ap.add_subparsers(dest='cmd', required=True)
     p = sp.add_parser('alerts'); p.add_argument('--out', required=True); p.add_argument('--window'); p.add_argument('--lookback-h', type=float, default=6.5)
     p.add_argument('--now'); p.add_argument('--github-output')
-    p = sp.add_parser('archive'); p.add_argument('--gate', required=True); p.add_argument('--alerts'); p.add_argument('--status'); p.add_argument('--kofn')
+    p = sp.add_parser('reports'); p.add_argument('--out', required=True); p.add_argument('--lookback-h', type=float, default=6.5); p.add_argument('--now')
+    p = sp.add_parser('ledger'); p.add_argument('--gate', required=True); p.add_argument('--status'); p.add_argument('--alerts'); p.add_argument('--reports')
+    p.add_argument('--kofn'); p.add_argument('--flag'); p.add_argument('--settings', default=''); p.add_argument('--out', default=os.path.join(PROSPECTIVE, 'ledger.csv'))
+    p = sp.add_parser('prospective'); p.add_argument('--root', default=ARCHIVE); p.add_argument('--labels-dir', default=LABELS_DIR)
+    p.add_argument('--ledger', default=os.path.join(PROSPECTIVE, 'ledger.csv')); p.add_argument('--out-dir', default=PROSPECTIVE)
+    p = sp.add_parser('archive'); p.add_argument('--gate', required=True); p.add_argument('--alerts'); p.add_argument('--reports'); p.add_argument('--status'); p.add_argument('--kofn')
     p.add_argument('--root', default=ARCHIVE); p.add_argument('--now'); p.add_argument('--flag', default='archived.txt')
     p = sp.add_parser('due'); p.add_argument('--root', default=ARCHIVE); p.add_argument('--now'); p.add_argument('--storm'); p.add_argument('--plan', required=True)
     p.add_argument('--github-output'); p.add_argument('--max-jobs', type=int, default=8); p.add_argument('--force-radar', action='store_true')
@@ -820,5 +977,5 @@ if __name__ == '__main__':
     p = sp.add_parser('index'); p.add_argument('--root', default=ARCHIVE)
     sp.add_parser('selftest')
     a = ap.parse_args()
-    dict(alerts=cmd_alerts, archive=cmd_archive, due=cmd_due, labels=cmd_labels, segcsv=cmd_segcsv, finalize=cmd_finalize, verify=cmd_verify, index=cmd_index,
+    dict(alerts=cmd_alerts, reports=cmd_reports, ledger=cmd_ledger, prospective=cmd_prospective, archive=cmd_archive, due=cmd_due, labels=cmd_labels, segcsv=cmd_segcsv, finalize=cmd_finalize, verify=cmd_verify, index=cmd_index,
          selftest=lambda a: selftest())[a.cmd](a)

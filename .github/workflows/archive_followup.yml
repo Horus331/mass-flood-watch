@@ -124,11 +124,24 @@ jobs:
           for d in arts/radar_*; do [ -d "$d" ] && cp -r "$d"/. ./; done
           python proto/storm_archive.py finalize --plan arts/plan/plan.json --root $AROOT --labels-dir $LDIR
           git status --short | head -40
+      - name: USGS stream-camera stills for the storms (proto/cameras.py; images -> HF dataset, summary + index in the storm folder)
+        continue-on-error: true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          API_USGS_PAT: ${{ secrets.API_USGS_PAT }}
+        run: |
+          pip install -q pillow huggingface_hub
+          for s in $(python -c "import json; print(' '.join(json.load(open('arts/plan/plan.json'))['labels']))"); do
+            d=$(ls -d $AROOT/*_$s 2>/dev/null | head -1); [ -n "$d" ] || continue; [ -f $d/cameras/summary.json ] && continue
+            python proto/cameras.py storm --storm $s --root $AROOT --out cam/$s 2>&1 | tail -3 || continue
+            mkdir -p $d/cameras; cp cam/$s/summary.json cam/$s/index.csv $d/cameras/ 2>/dev/null || true
+            if [ -n "$HF_TOKEN" ] && ls cam/$s/*/ >/dev/null 2>&1; then python proto/cameras.py upload cam/$s --prefix cameras/$s || true; fi
+          done
       - name: commit (once)
         if: github.event_name == 'schedule' || inputs.publish
         run: |
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A $AROOT; ls $LDIR/labels_*_auto.csv >/dev/null 2>&1 && git add $LDIR/labels_*_auto.csv
+          git add -A $AROOT; [ -d docs/proto/prospective ] && git add -A docs/proto/prospective; ls $LDIR/labels_*_auto.csv >/dev/null 2>&1 && git add $LDIR/labels_*_auto.csv
           git diff --cached --quiet && { echo "no change"; exit 0; }
           git commit -qm "Storm archive follow-up: $(python -c "import json; p=json.load(open('arts/plan/plan.json')); print('radar', sorted({r['sid'] for r in p['radar']}) or '-', 'labels', p['labels'] or '-')")"
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done

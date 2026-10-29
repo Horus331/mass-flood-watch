@@ -20,6 +20,13 @@ On every 6-hourly forecast cycle, either of these archives the storm:
   towns in the district. Past periods (tests, backfill) use the IEM archive of NWS storm-based warnings (VTEC `FF.W`, `FA.Y`). The event
   list can be changed with `ARCHIVE_ALERT_EVENTS`.
 
+- **A flood report appears in District 3** (added 29 Oct 2026). The same job reads the NWS Local Storm Reports (IEM) and the MassDOT
+  roadway-events log for flood reports since the previous cycle (`storm_archive.py reports`). A report archives a storm even when the gate
+  stayed quiet and the NWS issued nothing, so storms the system missed are scored as misses. Its box is centred on the report, and its
+  evidence starts 6 h before it. Reports inside a storm that has already had its radar run are ignored.
+
+Every live cycle, quiet or not, also adds one row to `docs/proto/prospective/ledger.csv` (the forward test, `PROSPECTIVE.md`).
+
 A cycle whose evidence window starts within 12 h of an archived storm's window joins that storm, as long as its radar run has not been done
 yet. A storm can therefore hold several forecast cycles, which gives forecasts at several lead times. Quiet cycles write nothing.
 
@@ -32,6 +39,8 @@ yet. A storm can therefore hold several forecast cycles, which gives forecasts a
 | `storm.json` | both | evidence window, trigger per cycle (gate / NWS alerts), boxes, radar window, radar / label / verification status |
 | `forecast/<YYYYMMDDHH>/status.json` | forecast.yml | that cycle's `forecast_status.json` (headline, rain summary, runs, k of n) |
 | `forecast/<YYYYMMDDHH>/gate.json`, `alerts.json` | forecast.yml | the gate decision and boxes, and the NWS alerts that touched District 3 |
+| `forecast/<YYYYMMDDHH>/reports.json` | forecast.yml | the flood reports that triggered or joined this cycle |
+| `cameras/summary.json`, `cameras/index.csv` | follow-up | USGS stream-camera stills of the storm window (images on the HF dataset; `docs/proto/cameras/CAMERAS.md`) |
 | `forecast/<YYYYMMDDHH>/kofn.csv`, `kofn_meta.json` | forecast.yml | every segment closed by at least one member: k, n, likely / possible, box, centre (EPSG:26986) |
 | `obs/lsr.csv`, `obs/stormevents.csv`, `obs/gauges.json` | follow-up | raw LSRs, Storm Events rows, USGS gauges for the boxes |
 | `radar/<box>/` | follow-up | radar-driven run: `summary.json`, `score.json` (gauges), `points.json`, `features_<id>.csv` + `matches_<id>.json`, `segments.csv`, `flood_meta.json`, `config.json` |
