@@ -38,6 +38,8 @@ If another doc disagrees with this page about what is deployed or what a result 
 | Storm drains v1 (`LF_DRAINS`) | not adopted (opt-in lower bound) | `drains/DRAINS.md` |
 | DCIA loss (`cn_dcia`) | not adopted (doesn't fix misses; "qualified yes" deferred to a future re-baseline, not taken in T0) | `urban/DCIA.md` |
 | Sub-hourly rain (`LF_RAIN_DT=5`) | not adopted (opt-in) | `rain/RAIN.md` |
+| Forward test from 3 Nov 2026: ledger of every live cycle + flood-report trigger (catches misses) + automatic results | **live** (pre-registered 29 Oct) | `prospective/PROSPECTIVE.md`, `prospective/RESULTS.md` |
+| USGS stream-camera stills (NIMS, public domain) for archived and catalogue storms | **live** in the follow-up; catalogue test run | `cameras/CAMERAS.md` |
 | Gauge-adjusted rain (`LF_RAIN_GAUGE=idw`) | not adopted (hindcast-only, opt-in) | `rain/RAIN.md` |
 | T4 antecedent moisture / infiltration | A (`LF_CN_AMC=auto`) **not adopted**; B1 (`LF_INFIL_MMH=1`) **not adopted**; B0 (`LF_INFIL_MMH=0`) and C (LOSO NWM-wetness CN) **unfinished** (stopped at owner's request; retest under v2) | `runoff/AMC.md` |
 | Pluvial rule v1 (`PROTO_PLUVIAL=1`) | not adopted (opt-in; fails on the parity baseline) | `urban/FINDINGS.md`, `urban/PLUVIAL_v2.md` |
@@ -70,6 +72,8 @@ If another doc disagrees with this page about what is deployed or what a result 
 
 - Worcester DPW data request (draft ready); reply to Roseberry; CMRPC / MRPC NPMRDS request.
 - Add the `GOTIME_KEY` repository secret so the traffic logger can run.
+- Optional: a free USGS API key (api.waterdata.usgs.gov/signup) as the `API_USGS_PAT` secret, for the camera fetches' rate limit.
+- MassDOT traffic-camera stills: request research access from TrafficLand / MassDOT (`cameras/CAMERAS.md`); nothing is collected until then.
 - Waze data via Prof. Tao: on hold.
 
 **(c) Can be done on GitHub (no owner action)**
