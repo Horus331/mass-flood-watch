@@ -112,11 +112,29 @@ def fetch(out, roads_dir, log=print):
         t = time.time(); lines = graph_lines(p); B = [g for g in lines if g is not None]
         bb = shapely.bounds(np.array(B, dtype=object)); env = shapely.box(bb[:, 0].min(), bb[:, 1].min(), bb[:, 2].max(), bb[:, 3].max())
         sel = list(P[tree.query(env, predicate='intersects')])
-        d = SM.overlap_pct(lines, {'sfha': sel}, log=lambda *a: None)['sfha']; cats[f"sfha|{e['id']}"] = d
+        d = overlap_tiled(lines, sel, env); cats[f"sfha|{e['id']}"] = d
         meta['per_storm'][e['id']] = dict(n_graph=len(lines), polygons=len(sel), any=len(d), ge30=sum(v >= STRICT for v in d.values()))
         log(f"{e['id']:10s} {len(lines):6d} segments, {len(sel):5d} SFHA polygons, touched {len(d):5d}, >= 30 % {meta['per_storm'][e['id']]['ge30']:5d} ({time.time() - t:.0f} s)")
     res = dict(meta=meta, categories=cats); json.dump(res, open(out, 'w'), separators=(',', ':'))
     return res
+
+
+def overlap_tiled(lines, polys, env, tile=1000.0):
+    """static_maps.overlap_pct for one zone, but the unioned zone is cut into 1 km tiles first, so each line-polygon intersection works
+    on a small piece instead of a coastal polygon with 10^5 vertices.  Tiles are disjoint, so lengths (and the % per segment) are the same."""
+    import shapely
+    L = np.array([g if g is not None else shapely.LineString() for g in lines], dtype=object); tot = shapely.length(L)
+    if not polys: return {}
+    U = shapely.make_valid(shapely.union_all(polys)); x0, y0, x1, y1 = env.bounds; pieces = []
+    for x in np.arange(np.floor(x0 / tile) * tile, x1, tile):
+        for y in np.arange(np.floor(y0 / tile) * tile, y1, tile):
+            g = shapely.clip_by_rect(U, x, y, x + tile, y + tile)
+            if not g.is_empty: pieces += [q for q in shapely.get_parts(g) if q.geom_type in ('Polygon', 'MultiPolygon') and not q.is_empty]
+    if not pieces: return {}
+    P = np.array(pieces, dtype=object); li, pi = shapely.STRtree(P).query(L, predicate='intersects'); inside = np.zeros(len(L))
+    np.add.at(inside, li, shapely.length(shapely.intersection(L[li], P[pi])))
+    pct = np.where(tot > 0, 100 * inside / np.maximum(tot, 1e-9), 0)
+    return {int(s): int(max(1, np.floor(min(100.0, pct[s])))) for s in np.nonzero(inside > 1e-6)[0]}
 
 
 # ------------------------------------------------------------------------------------------------ scoring
