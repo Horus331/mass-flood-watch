@@ -14,6 +14,10 @@ What it gives us:
 - **Timing.** A still every few minutes shows when a stream rose and fell, which checks the model's timing at that point.
 - **Road crossings.** Several cameras look at a culvert or bridge on a road, so a still can show the road overtopped.
 
+**Test result (29 Oct 2026, `cameras.yml` run 40878466705): not useful for District 3 today.** NIMS lists 13 cameras in Massachusetts,
+none inside District 3 and 2 within 10 km of it, and those two had no images in the windows of aug2021, jul2023, aug2023 or sep2023. The
+automatic follow-up step stays on (it costs seconds and picks up any camera USGS adds), but this is not a label source for now.
+
 Limits: few cameras, and they point at streams, not streets. This is supporting evidence for some sites, not a new label source for the
 whole district.
 
