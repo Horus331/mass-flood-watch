@@ -159,6 +159,22 @@ def stage_runs(runs_root, dest):
     return r1
 
 
+def read_gz_features(S):
+    """Let score_v2.load_run read the run folders of the work branch as they are (features_<id>.csv.gz), without writing a plain copy."""
+    import builtins
+    import types
+    real = os.path
+
+    def exists(p):
+        return real.exists(p) or (p.endswith('.csv') and os.path.basename(p).startswith('features_') and real.exists(p + '.gz'))
+
+    def op(p, *a, **k):
+        if isinstance(p, str) and p.endswith('.csv') and not real.exists(p) and real.exists(p + '.gz'): return gzip.open(p + '.gz', 'rt')
+        return builtins.open(p, *a, **k)
+    path = types.SimpleNamespace(**{k: getattr(real, k) for k in dir(real) if not k.startswith('__')}); path.exists = exists
+    S.os = types.SimpleNamespace(**{k: getattr(os, k) for k in dir(os) if not k.startswith('__')}); S.os.path = path; S.open = op
+
+
 def flags_for(flags, storm, segs):
     d = flags['categories'].get(f'sfha|{storm}', {})
     return np.array([d.get(str(int(s)), 0) for s in segs], float)
@@ -219,7 +235,8 @@ def score(flags_path, runs_root, out, boot=BOOT):
     S.RADII = (300,); S.FSS_DRAWS = 0
     flags = json.load(open(flags_path)) if flags_path else dict(categories={}, meta={})
     import tempfile
-    work = tempfile.mkdtemp(prefix='hyb_'); r1 = stage_runs(runs_root, work); per = {}
+    src = os.path.join(runs_root, 'docs', 'proto', 'transfer') if os.path.isdir(os.path.join(runs_root, 'docs')) else runs_root
+    r1 = os.path.join(src, 'r1'); per = {}; read_gz_features(S)
     for e in events():
         d = os.path.join(r1, e['name'])
         if not os.path.exists(os.path.join(d, 'flood_meta.json')): print('missing run', e['name']); continue
@@ -250,7 +267,7 @@ def score(flags_path, runs_root, out, boot=BOOT):
         Q = {k: D for k, D in P.items() if D['district'] == dist}
         res['by_district'][str(dist)] = {v: pool(Q, (lambda D: D['model_rule']) if v == 'model_rule' else (lambda D, v=v: D['rows'][v])) for v in ('model_rule', 'H1', 'H2')}
     res['gate'] = dict(storms_gated=sum(D['gate'] for D in per.values()), storms=len(per))
-    json.dump(res, open(out, 'w'), indent=0, default=float); shutil.rmtree(work, ignore_errors=True)
+    json.dump(res, open(out, 'w'), separators=(',', ':'), default=float)
     return res
 
 

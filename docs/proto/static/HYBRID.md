@@ -101,6 +101,61 @@ the model's ranking.
   `python proto/hybrid_d456.py score --flags docs/proto/static/hybrid_d456_sfha.json --runs-root <checkout of transfer-d456> --out docs/proto/static/hybrid_d456.json`.
 - If the fetch fails for a technical reason it is rerun unchanged. No zone, threshold, gate, storm or test changes after a result is seen.
 
-## 2. Results
+## 2. Results (29 Oct 2026)
 
 *(added after the run; section 1 is unchanged)*
+
+**Verdict: neither hybrid is adopted.** Both add sites over the rule, but both lose clearly to the model's own ranking at the same share.
+On Districts 4–6 the FEMA layer is a poor way to spend an alert budget: roads with ≥ 30 % of their length in the SFHA hold fewer closure
+sites than random roads would (lift 0.67).
+
+### 2.1 What was run
+
+- SFHA: MassGIS statewide NFHL (`nfhl.zip`, HTTP Last-Modified 24 Jul 2025, the same file as `STATIC.md`). It gave 28,288 polygons in the
+  81 boxes (+ 3 km), 14,752 of them SFHA. The FEMA REST fallback was not needed.
+- Transport: workflow run 40966174644, 81 storm categories returned in `::notice` annotations (sha 10ddca66d659). The first dispatch
+  (run 40956902598) was cancelled after more than 1 h inside the intersection step, before it returned anything. The only change before the
+  rerun was cutting the unioned zone into 1 km tiles before the line–polygon intersections (`overlap_tiled`): same lengths, same rule.
+  On a synthetic check against the untiled `static_maps.overlap_pct`, the floored % moved by at most 1 point on 2 % of segments, and no
+  segment crossed 30 %.
+- Scored locally with `proto/hybrid_d456.py score` on the r1 run folders of `transfer-d456` (features read from the `.csv.gz`). The model
+  rows reproduce `TRANSFER.md` exactly: rule 18 / 498, lift 6.7. The H2 gate passes in 40 of the 81 storms.
+- Results: `hybrid_d456.json` (pooled rows, tests, decision, per-storm sums). The per-segment SFHA file is not committed (1.6 MB); rebuild it
+  with `python proto/static_maps.py decode --run 40966174644 --out hybrid_d456_sfha.json`.
+
+### 2.2 Results (81 storms, 498 sites, box domain)
+
+| row | mean (pooled) share flagged | site recall (hits) | chance | lift | hits per 1,000 flagged | model's top-*k* at the same share |
+|---|---|---|---|---|---|---|
+| model, deployed rule | 0.14 % (0.14 %) | 0.036 (18) | 0.005 | **6.7** | 7.3 | |
+| **H1** = rule ∪ SFHA ≥ 30 % | 5.74 % (5.43 %) | 0.137 (68) | 0.162 | 0.84 | 0.71 | **0.292 (145.6)** |
+| **H2** = rule ∪ (SFHA ≥ 30 % if box-mean rain ≥ 40 mm) | 2.69 % (2.76 %) | 0.088 (44) | 0.095 | 0.94 | 0.91 | **0.184 (91.4)** |
+| *descr.* SFHA ≥ 30 % alone | 5.62 % (5.31 %) | 0.106 (53) | 0.158 | 0.67 | 0.57 | 0.290 (144.2) |
+| *descr.* rule ∪ SFHA any | 7.54 % (6.85 %) | 0.167 (83) | 0.201 | 0.83 | 0.69 | 0.335 (166.6) |
+
+Paired two-stage bootstrap, 2000 replicates, seed 0; lower bound = one-sided at α / k = 0.025:
+
+| variant | (A) Δ vs rule [lower bound] | (B) Δ vs model top-*k*, same share [lower bound] | checks 1–4 | decision |
+|---|---|---|---|---|
+| H1 | **+0.100** [+0.066] | **−0.156** [−0.215] | ✓ ✓ ✗ ✗ | not adopted |
+| H2 | **+0.052** [+0.026] | **−0.095** [−0.151] | ✓ ✓ ✗ ✗ | not adopted |
+
+By district (descriptive): H1 recall 0.144 / 0.151 / 0.109 and lift 0.87 / 0.93 / 0.70 in Districts 4 / 5 / 6. H2 reaches lift 0.98 /
+0.99 / 0.81. H1 adds at least one site over the rule in 36 of the 81 storms.
+
+### 2.3 What it means
+
+- **The District 3 hybrid does not transfer.** On District 3 (held-out 23) the SFHA layer had lift about 2 and the hybrid lifted recall
+  from 9 to 16 of 98 at 2.6 % flagged. On Districts 4–6, SFHA ≥ 30 % flags 5.3 % of the OSM road segments (District 3: 2.1 %), and the roads it
+  flags hold *fewer* closure sites than chance. That is likely because of what the zone covers there. The boxes are coastal (Lynn,
+  Dedham, Fall River, Hingham, the Cape), so the SFHA includes large coastal AE / VE zones, and the transfer catalogue excludes surge and
+  tidal flooding by design. Rain closures in these boxes are mostly convective ponding away from mapped floodplains. The shorter OSM
+  segments also make "≥ 30 % inside" easier to reach.
+- **The rain gate helps but not enough.** H2 halves the share and brings lift close to 1, but the model's own ranking at the same
+  2.7 % still catches about twice as many sites (91 vs 44).
+- **Condition (B) was the hard one, as section 1.5 expected, and it failed by a wide margin.** Gains over the rule (A) come only from
+  flagging 20–40 times more road. Spent on the model's ranking instead, the same budget does much better.
+- **For the forward test from 3 Nov:** nothing is added. No hybrid layer is proposed for the live forecast, and the live defaults are
+  unchanged. The District 3 exploratory gain stays exploratory. Any future riverine channel should be built as an input to the model
+  (for example a channel- or floodplain-aware feature tested under PROTOCOL v2), not as a union with the FEMA map, and it would need a
+  coastal-zone exclusion fixed in advance.
