@@ -264,6 +264,9 @@ Re-select only the capacity and gate, by LOSO, exactly as in FINDINGS §3. The c
 - **Surrogates / emulators.** CNN surrogates of 2-D pluvial models now report CSI ≈ 0.8 at about 100× speed-up on one city (Asif, Bentivoglio &
   Albano 2026 [33]). Mesh GNNs generalise better (Bentivoglio et al. 2025 [34]). We do not need one yet: District 3 at 20 m takes 17 min per GPU,
   so 8 members on 4 Turing GPUs take about 35 min. Revisit only for 50+ member nowcast ensembles (A3) or a probabilistic design-storm atlas.
+  **Update 29 Oct 2026: now needed.** `forecast/DISTRICT.md` showed that the District 3 map needs the 2-of-8 ensemble district-wide every
+  6 h, and Turing is not on that schedule. A surrogate that runs on GitHub Actions CPUs would make that possible. Pre-registered in
+  `surrogate/SURROGATE.md` (district-wide / ensemble layer only; not run yet).
 - **Data assimilation.**
   - *Gauges:* an EnKF on water levels (Annis et al. 2022 [35]: NSE +5–40 %, bias −80 % with gauges plus SAR). That is heavy for a 2-D grid. The
     cheap and effective version for us is a **rain-multiplier particle filter**: run K = 5–8 rain scalings (0.7–1.6) as members, weight them by
@@ -467,7 +470,8 @@ anyone tunes rain multipliers.
 - **Distribution bias correction of HRRR.** Placement, not intensity, is the error. Use ensembles and neighbourhoods.
 - **Raw 10 m everywhere.** It is mostly artefacts until T10's start-up fix.
 - **Switching solver family** (TRITON, SERGHEI, HiPIMS). No accuracy case beyond LISFLOOD-FP's own FV1/DG2.
-- **GNNs, foundation tabular models, deep surrogates now.** 163 positive segments. Revisit after T5 and new labels.
+- **GNNs, foundation tabular models, deep surrogates now.** 163 positive segments. Revisit after T5 and new labels. (Exception, 29 Oct 2026:
+  a surrogate trained on the physics, not on labels, for the district-wide ensemble; `surrogate/SURROGATE.md`.)
 - **Tolerant matching as a score.** Its chance recall inflates. Use FSS with a chance baseline.
 
 ## References

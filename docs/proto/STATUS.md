@@ -56,6 +56,7 @@ If another doc disagrees with this page about what is deployed or what a result 
 | Forecast spreading 10,90 / 20,75 / raw (District 3 over-forecast) | not adopted (box veto: −2 / −3 / −3 OOS sites under 2-of-8); 20,90 stays | `forecast/DISTRICT.md` |
 | Labels round 1 (16 storms, news/agency) | **adopted** | `obs/LABELS_EXPANSION.md`, `obs/CATALOG.md` |
 | Labels round 2 (split, WX1BOX, crash-water, FLASH) | **adopted** (labels); crash-water and FLASH stay opt-in sources | `obs/LABELS_ROUND2.md` |
+| Surrogate of LISFLOOD-FP (U-Net, terrain + rain -> peak depth; for the district-wide 2-of-8 ensemble only) | **pre-registered, not run** (29 Oct; no run or score yet) | `surrogate/SURROGATE.md` |
 
 ## 4. Open items
 
@@ -67,6 +68,13 @@ If another doc disagrees with this page about what is deployed or what a result 
 4. If parity matches: `LF_PARITY=1 LF_CN_SCALE=0.88 bash proto/turing/submit_catalog.sh` (the variables are inherited through `--export=ALL`;
    the script's own default is still the old × 0.91 from `run_storm.slurm`).
 5. Drains job 2401314: `tail -40 roadflood_drains_2401314.out` (and `results/drains_*`); publish with `PUBLISH=1` only if useful.
+6. **Surrogate, batch 1** (`surrogate/SURROGATE.md` §6). Once: `conda activate ~/envs/roadflood && pip install torch --index-url https://download.pytorch.org/whl/cu126`. Then:
+   - `python proto/surrogate/scenarios.py scan --out ~/scratch/surrogate/scan.json` (login node, ~1 h).
+   - `python proto/surrogate/scenarios.py plan --scan ~/scratch/surrogate/scan.json --batch 1 --out ~/scratch/surrogate/plan_b1.json` (prints the array range).
+   - `sbatch --array=0-23%4 --export=ALL,PLAN=$HOME/scratch/surrogate/plan_b1.json,PER_TASK=8 proto/turing/surrogate_gen.slurm` (192 box runs, ~16 GPU-h, ~4 h on 4 GPUs; no push).
+   - `sbatch proto/turing/surrogate_inputs.slurm` (CPU, ~2-3 h: inputs for the 25 catalogue storms and District 3; no push).
+   - When both are done: `sbatch --export=ALL,PLANS=$HOME/scratch/surrogate/plan_b1.json proto/turing/surrogate_train.slurm` (~3 GPU-h; one push to `docs/proto/turing/surrogate_eval/` and `docs/proto/surrogate/RESULTS.md`).
+   - Back up: `bash proto/turing/backup_hf.sh --runs-root ~/scratch/surrogate --results-root /nonexistent --prefix runs/surrogate`.
 
 **(b) Owner, emails / secrets**
 
