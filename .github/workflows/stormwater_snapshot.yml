@@ -1,0 +1,23 @@
+name: MassDOT Stormwater Asset Database snapshot (one-off)
+# Manual. Pages every layer and table of the public MassDOT Stormwater FeatureServer (staging server gisstg; may vanish) statewide ->
+# HF massdot_stormwater/<date>/ (GeoJSON + CSV + layer metadata + summary.json). The summary (counts per layer per District 3 town, fields,
+# copyright text) comes back as ::notice annotations: python proto/archive_feeds.py swdecode --run <id> --out summary.json. Never commits.
+on:
+  workflow_dispatch:
+    inputs:
+      date: {description: 'snapshot folder name', default: '2026-10-29'}
+      dry: {description: 'do not upload', type: boolean, default: false}
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: proto, sparse-checkout-cone-mode: true}
+      - run: pip install -q numpy requests huggingface_hub
+      - name: snapshot -> HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python proto/archive_feeds.py stormwater --date "${{ inputs.date }}" ${{ inputs.dry && '--dry' || '' }}

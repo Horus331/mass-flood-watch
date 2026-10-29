@@ -1,0 +1,46 @@
+name: Archive forward-only feeds (REFS ffri + QPF, SPoRT-LIS soil moisture) for District 3
+# Every 6 h, offset from forecast.yml (:40 at 02/08/14/20 UTC). proto/archive_feeds.py, docs/proto/archive_feeds/FEEDS.md.
+# REFS: every new cycle's refs.tCCz.ffri.fFF.conus.grib2 from NOMADS com/refs/prod or com/refs/para (AWS RRFS buckets if NOMADS has none),
+#   clipped to District 3 + 15 km -> HF refs/ffri/YYYYMMDD/tCCz/ (and REFS APCP -> refs/qpf/YYYYMMDD/tCCz/). Missing cycles are skipped.
+# SPoRT-LIS: every time step the NRT ImageServers offer that is not archived yet -> HF sportlis/YYYYMMDD_HH/<layer>.tif.
+# Never commits to the repo: the HF dataset is the archive and the state. Results are echoed as ::notice annotations.
+on:
+  schedule:
+    - cron: '10 4,10,16,22 * * *'
+  workflow_dispatch:
+    inputs:
+      feeds: {description: 'refs | sportlis | both', default: 'both'}
+      max_cycles: {description: 'REFS cycles to archive per run (oldest first)', default: '4'}
+      dates: {description: 'REFS dates YYYYMMDD,... (empty = the last 3 UTC days)', default: ''}
+      min_age_h: {description: 'REFS: archive a cycle once it is this many hours old', default: '6'}
+      dry: {description: 'do not upload', type: boolean, default: false}
+permissions:
+  contents: read
+concurrency:
+  group: archive-feeds
+  cancel-in-progress: false
+jobs:
+  refs:
+    if: github.event_name == 'schedule' || inputs.feeds == 'both' || inputs.feeds == 'refs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: proto, sparse-checkout-cone-mode: true}
+      - run: pip install -q numpy pyproj requests pygrib huggingface_hub
+      - name: REFS ffri (+ QPF) -> HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python proto/archive_feeds.py refs --max-cycles "${{ inputs.max_cycles || '4' }}" --dates "${{ inputs.dates }}" --min-age-h "${{ inputs.min_age_h || '6' }}" ${{ inputs.dry && '--dry' || '' }}
+  sportlis:
+    if: github.event_name == 'schedule' || inputs.feeds == 'both' || inputs.feeds == 'sportlis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: proto, sparse-checkout-cone-mode: true}
+      - run: pip install -q numpy pyproj requests rasterio huggingface_hub
+      - name: SPoRT-LIS -> HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python proto/archive_feeds.py sportlis ${{ inputs.dry && '--dry' || '' }}
