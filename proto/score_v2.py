@@ -155,6 +155,7 @@ def label_files(storm):
     F = sorted(glob.glob(os.path.join(LABELS_DIR, f'labels_{storm}_*.csv')))
     if os.environ.get('SCORE_CRASHWATER') == '1': F += sorted(glob.glob(os.path.join(LABELS_DIR, f'crashwater_{storm}.csv')))
     if os.environ.get('SCORE_SCF') == '1': F += sorted(glob.glob(os.path.join(LABELS_DIR, f'scf_{storm}.csv')))   # SeeClickFix (LABELS_ROUND3.md)
+    if os.environ.get('SCORE_CROWD') == '1': F += sorted(glob.glob(os.path.join(LABELS_DIR, f'crowd_{storm}.csv')))   # resident crowdsource maps (obs/CROWD.md)
     return F
 
 
