@@ -502,6 +502,7 @@ def score(flags_path, out, md=None, boot=BOOT):
             if not any(dom in D for D in per.values()): continue
             rows = {}; mr = pool(per, dom, 'model_rule'); rows['model_rule'] = mr
             for v in V:
+                if not all(v in D[dom]['static'] for D in per.values() if dom in D): continue      # BSC map rows: Leominster domain only
                 st = pool(per, dom, 'static', v); mk = pool(per, dom, 'model_k', v)
                 rows[v] = dict(static=st, model_same_share=mk,
                                static_minus_model_same_share=boot_pair(hits_list(per, dom, 'static', v), hits_list(per, dom, 'model_k', v), boot),
