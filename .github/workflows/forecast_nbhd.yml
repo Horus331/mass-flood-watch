@@ -6,12 +6,31 @@ name: forecast neighbourhood spreading test (District 3 over-forecast)
 on:
   workflow_dispatch:
     inputs:
-      what: {description: 'runs | rain', default: 'runs'}
+      what: {description: 'runs | rain | collect', default: 'runs'}
+      run_ids: {description: 'collect: space separated run ids whose nbhd_* artifacts go to branch nbhd-data', default: ''}
       tier: {description: 'runs: 1 | 2 | 3', default: '1'}
       cases: {description: 'runs: cases JSON (overrides tier)', default: ''}
 permissions:
-  contents: read
+  contents: write
+  actions: read
 jobs:
+  collect:
+    if: inputs.what == 'collect'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy pandas
+      - env: {GH_TOKEN: '${{ github.token }}', IDS: '${{ inputs.run_ids }}'}
+        run: |
+          mkdir -p arts
+          for id in $IDS; do gh run download $id -R ${{ github.repository }} -D arts/$id -p 'nbhd_*' || true; done
+          mkdir -p data; F=$(ls -d arts/*/nbhd_* | grep -v nbhd_rain || true)
+          mkdir -p flat; for d in $F; do cp -r $d flat/; done
+          python proto/forecast_nbhd.py compact --arts flat --out data/boxes.json
+          for f in arts/*/nbhd_rain/rain.json; do [ -f "$f" ] && cp $f data/rain.json && cp $(dirname $f)/rain.log data/rain.log; done
+          ls data; git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add data; git commit -qm "nbhd data: runs $IDS" && git push -q origin HEAD:nbhd-data
   rain:
     if: inputs.what == 'rain'
     runs-on: ubuntu-latest
