@@ -14,7 +14,10 @@ env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multipl
      LF_DOMAIN basin + LF_DOMAIN_FILE (watershed-shaped domain, sim/colab/lf_domain.py; default box), LF_EXE / LF_EXE_CUDA (prebuilt LISFLOOD-FP),
      LF_MRMS_DIR (MRMS file cache: stage on a login node, then run offline),
      LF_DRAINS (path to a storm-drain pipe shapefile .zip/.shp; private data, read only) / LF_DRAIN_DESIGN 1 (generic design-storm drains):
-     storm-drain capacity as a per-cell sink (sim/colab/lf_drains.py; CPU build, LF_FORCE_CPU 1 forces it), off by default
+     storm-drain capacity as a per-cell sink (sim/colab/lf_drains.py; CPU build, LF_FORCE_CPU 1 forces it), off by default,
+     LF_RAIN_SHIFT_M 'dx,dy' (opt-in, metres EPSG:26986: the storm is moved by dx, dy; MRMS or HRRR; proto/surrogate),
+     LF_SURR_SAVE 1 (opt-in: surr_inputs.npz = static layers + hourly rain for the flood surrogate, proto/surrogate/dataset.py; LF_SURR_OUT path,
+     LF_SURR_RAIN_COARSEN cells per rain block, default 5); both unset by default, and then nothing changes
 Steps:  1. download LISFLOOD-FP from Zenodo (v8.2, record 13121102; concept record 4073010 as fallback) and build it with CMake,
            with CUDA when nvcc and a GPU are present, else the OpenMP CPU build; everything lives under /content/lisflood.
         2. inputs from the same data as w4_flood_gpu.py: 10 m DEM tiles (HF data/dem10) averaged to RES, the channels30 burn
@@ -110,6 +113,34 @@ def mrms_sample(raw_gz, lat_c, lon_c, gp):
     j0 = np.searchsorted(lon1d, lon_c.min() - 0.05); j1 = np.searchsorted(lon1d, lon_c.max() + 0.05) + 1
     fi = RegularGridInterpolator((lat1d[i0:i1][::-1], lon1d[j0:j1]), v[i0:i1, j0:j1][::-1], bounds_error=False, fill_value=0)
     LA, LO = np.meshgrid(lat_c, lon_c, indexing='ij'); return fi((LA, LO)).astype(np.float32)
+
+
+def rain_shift():
+    """LF_RAIN_SHIFT_M 'dx,dy' (m, EPSG:26986; opt-in for the surrogate training runs, proto/surrogate/scenarios.py): the rain that fell at
+    (x - dx, y - dy) is put at (x, y), i.e. the observed or forecast storm is moved by (dx, dy).  Unset or 0,0 (default) -> None: no change."""
+    s_ = os.environ.get('LF_RAIN_SHIFT_M', '').strip()
+    if not s_: return None
+    dx, dy = (float(v) for v in s_.split(','))
+    return (dx, dy) if (dx or dy) else None
+
+
+def surr_pack(path, I, BOX, RES, S, coarsen=5):
+    """LF_SURR_SAVE=1 (opt-in): the inputs the flood surrogate needs (proto/surrogate/dataset.py) in one file: model DEM after the
+    hydraulic edits, lidar DEM and its 10 m crest, masks, impervious share, curve number, and the hourly observed / forecast rain
+    (before losses, after LF_RAIN_SCALE / LF_RAIN_SHIFT_M) as block means of `coarsen` x `coarsen` cells (float16 mm)."""
+    R = np.asarray(I['RAIN_OBS'], np.float32); T, ny, nx = R.shape; k = max(1, int(coarsen))
+    py_, px_ = (-ny) % k, (-nx) % k
+    Rp = np.pad(R, ((0, 0), (0, py_), (0, px_)), mode='edge') if (py_ or px_) else R
+    Rc = Rp.reshape(T, (ny + py_) // k, k, (nx + px_) // k, k).mean(axis=(2, 4)).astype(np.float16)
+    mask = (I['water'].astype(np.uint8) | (I['chan'].astype(np.uint8) << 1) | (I['carved'].astype(np.uint8) << 2) | (I['sea'].astype(np.uint8) << 3))
+    cn = I.get('CN'); env_ = {k_: os.environ[k_] for k_ in sorted(os.environ) if k_.startswith('LF_') and k_ not in ('LF_WORK',)}
+    np.savez_compressed(path, z=I['Z'].astype(np.float32), z_raw=I['Z_RAW'].astype(np.float32), z_raw_max10=I['ZMAX10'].astype(np.float32),
+                        mask=mask.astype(np.uint8), imp=np.clip(np.round(I['IMP'] * 100), 0, 100).astype(np.uint8),
+                        cn=(cn if cn is not None else np.zeros((ny, nx), np.float32)).astype(np.float16), rain=Rc, rain_coarsen=np.int32(k),
+                        meta=np.array(json.dumps(dict(box=list(BOX), res_m=RES, shape=[ny, nx], t0=S['t0'], hours=int(S['hours']), rain_src=S.get('rain_src', 'mrms'),
+                                                      hrrr_init=S.get('hrrr_init'), mask_bits='1 water (incl. sea), 2 channel, 4 carved (breached), 8 sea / no data',
+                                                      env=env_, missing=I.get('missing', []), git_sha=os.environ.get('GIT_SHA', '')[:8]))))
+    return dict(path=path, rain_shape=list(Rc.shape), mb=round(os.path.getsize(path) / 1e6, 1))
 
 
 def storm_cfg(sid):
@@ -797,6 +828,12 @@ def build_inputs(BOX, RES, S, TOK):
     xc = x0 + (np.arange(nx) + 0.5) * RES; yc = y1 - (np.arange(ny) + 0.5) * RES
     lon_c, _ = tr.transform(xc, np.full(nx, (y0 + y1) / 2)); _, lat_c = tr.transform(np.full(ny, (x0 + x1) / 2), yc)
     lon_c, lat_c = np.asarray(lon_c), np.asarray(lat_c)
+    SHIFT = rain_shift(); lon_r, lat_r = lon_c, lat_c      # where the rain is read (= the cells themselves unless LF_RAIN_SHIFT_M)
+    if SHIFT:
+        if os.environ.get('LF_RAIN_GAUGE') or int(os.environ.get('LF_RAIN_DT', '60') or 60) < 60:
+            raise SystemExit('LF_RAIN_SHIFT_M cannot be combined with LF_RAIN_GAUGE or LF_RAIN_DT')
+        lon_r, _ = tr.transform(xc - SHIFT[0], np.full(nx, (y0 + y1) / 2 - SHIFT[1])); _, lat_r = tr.transform(np.full(ny, (x0 + x1) / 2 - SHIFT[0]), yc - SHIFT[1])
+        lon_r, lat_r = np.asarray(lon_r), np.asarray(lat_r); log(f'LF_RAIN_SHIFT_M {SHIFT}: rain read {SHIFT[0]:+.0f} m E, {SHIFT[1]:+.0f} m N of each cell, i.e. the storm is moved by that much')
     # NLCD impervious
     IMP = np.zeros((ny, nx), np.float32)
     try:
@@ -908,7 +945,7 @@ def build_inputs(BOX, RES, S, TOK):
     def mrms_hour(ts):
         raw_, lab, url = mrms_fetch_raw(ts, mrms_http_fetch, os.environ.get('LF_MRMS_DIR'))
         PRODUCTS[ts.strftime('%Y-%m-%dT%H:%MZ')] = lab
-        return mrms_sample(raw_, lat_c, lon_c, gp)
+        return mrms_sample(raw_, lat_r, lon_r, gp)
     t0 = pd.Timestamp(S['t0']); hours = [t0 + pd.Timedelta(hours=h + 1) for h in range(S['hours'])]
     RAIN, MISSING = [], []
     if S.get('rain_src') == 'hrrr':      # LF_RAIN=hrrr: NOAA HRRR forecast buckets; forecast hour fh = model hour fh - 1 (hrrr_rain.py), zero rain after the horizon (drain-down)
@@ -919,7 +956,7 @@ def build_inputs(BOX, RES, S, TOK):
             m1 = hrrr_rain.apcp(init, fh)
             if m1 is not None: break
         if m1 is None: raise SystemExit(f'no HRRR APCP on AWS for the {init:%Y-%m-%d %H}z cycle')
-        XX, YY = np.meshgrid(xc, yc); sampler = hrrr_rain.LccGrid(m1).bilinear(XX, YY); del XX, YY
+        XX, YY = np.meshgrid(xc - SHIFT[0], yc - SHIFT[1]) if SHIFT else np.meshgrid(xc, yc); sampler = hrrr_rain.LccGrid(m1).bilinear(XX, YY); del XX, YY
         F = hrrr_rain.hourly(init, nh, sampler, log=log)
         for k_, v_ in enumerate(F):
             if v_ is None: MISSING.append((init + pd.Timedelta(hours=k_ + 1)).strftime('%Y-%m-%dT%H:%MZ')); v_ = np.zeros((ny, nx), np.float32)
@@ -962,7 +999,7 @@ def build_inputs(BOX, RES, S, TOK):
         cnt_ = {}
         for v_ in PRODUCTS.values(): cnt_[v_] = cnt_.get(v_, 0) + 1
         log(f'MRMS products (hours): {cnt_}')
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, RAIN=RAIN, rain_total=tot, missing=MISSING, rain_products=PRODUCTS, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, CN=CNG, RAIN=RAIN, rain_total=tot, missing=MISSING, rain_products=PRODUCTS, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
                 NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM, SUB=SUB, GAUGE=GAUGE)
 
 
@@ -1036,6 +1073,10 @@ def main():
         f"chan {int(I['chan'][0].sum())}/{int(I['chan'][-1].sum())}/{int(I['chan'][:, 0].sum())}/{int(I['chan'][:, -1].sum())}, "
         f"water {int(I['water'][0].sum())}/{int(I['water'][-1].sum())}/{int(I['water'][:, 0].sum())}/{int(I['water'][:, -1].sum())}, "
         f"rain total row 0 mean {float(I['RAIN'][:, 0].sum(0).mean()):.0f} mm vs box {float(I['RAIN'].sum(0).mean()):.0f} mm")
+    SURR = None
+    if os.environ.get('LF_SURR_SAVE') == '1':      # opt-in: inputs for the flood surrogate (proto/surrogate/dataset.py); kept outside wd, copied to out/ below
+        SURR = os.environ.get('LF_SURR_OUT') or f'{WORK}/surr_inputs_{run_name}.npz'; os.makedirs(os.path.dirname(os.path.abspath(SURR)), exist_ok=True)
+        log('LF_SURR_SAVE:', surr_pack(SURR, I, BOX, RES, S, int(os.environ.get('LF_SURR_RAIN_COARSEN', '5'))))
     if os.environ.get('LF_INPUTS_ONLY') == '1': log('LF_INPUTS_ONLY: stopping after the inputs'); return
     wd = f'{WORK}/run_{run_name}'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
     DOM = I.get('DOM'); MSK = DOM['mask'] if DOM else None
@@ -1248,6 +1289,7 @@ def main():
                         'zcut notch level, n_eq Manning n of a sized notch (LF_BREACH_SIZED), q_peak_m3s peak flow through the block (LF_QOUT, 30-min snapshots)',
                    sized=os.environ.get('LF_BREACH_SIZED', '0') == '1', qout=QOUT, crossings=XG, gauges=GQ), open(f'{OUT}/xings.json', 'w'))
     for f in ('run.par', 'run.bci', 'lisflood_stdout.txt'): shutil.copy(f'{wd}/{f}', f'{OUT}/{f}')
+    if SURR and os.path.exists(SURR): shutil.copy(SURR, f'{OUT}/surr_inputs.npz')
     if os.path.exists(f'{wd}/run.bdy'): shutil.copy(f'{wd}/run.bdy', f'{OUT}/run.bdy')
     if mass: shutil.copy(mass[0], f'{OUT}/lisflood.mass')
     meta = dict(run=run_name, title=S['title'] + ' · LISFLOOD-FP benchmark', box=list(BOX), res_m=RES, shape=[ny, nx], t0=S['t0'], frame_min=S['frame_min'], frames=frames,
@@ -1459,6 +1501,17 @@ def selftest():
     except RuntimeError: pass
     cd_ = tempfile.mkdtemp(prefix='w9mr_'); mrms_fetch_raw(t19, fake(['GaugeCorr']), cd_); seen.clear()
     assert mrms_fetch_raw(t19, fake([]), cd_)[1] == 'IEM GaugeCorr_QPE_01H' and not seen; shutil.rmtree(cd_)   # cache hit, no download
+    os.environ.pop('LF_RAIN_SHIFT_M', None); assert rain_shift() is None
+    os.environ['LF_RAIN_SHIFT_M'] = '0,0'; assert rain_shift() is None
+    os.environ['LF_RAIN_SHIFT_M'] = '-12000,3500'; assert rain_shift() == (-12000.0, 3500.0); del os.environ['LF_RAIN_SHIFT_M']
+    I_ = dict(RAIN_OBS=np.arange(2 * 7 * 6, dtype=np.float32).reshape(2, 7, 6), Z=np.ones((7, 6), np.float32), Z_RAW=np.ones((7, 6), np.float32),
+              ZMAX10=np.ones((7, 6), np.float32), water=np.eye(7, 6, dtype=bool), chan=np.zeros((7, 6), bool), carved=np.zeros((7, 6), bool),
+              sea=np.zeros((7, 6), bool), IMP=np.full((7, 6), 0.25, np.float32), CN=np.full((7, 6), 80.0, np.float32))
+    sp_ = surr_pack(os.path.join(tempfile.mkdtemp(prefix='w9sp_'), 's.npz'), I_, (0, 0, 120, 140), 20.0, dict(t0='2023-01-01T00:00Z', hours=2), coarsen=5)
+    with np.load(sp_['path']) as q_:
+        assert q_['rain'].shape == (2, 2, 2) and abs(float(q_['rain'][0, 0, 0]) - I_['RAIN_OBS'][0, :5, :5].mean()) < 0.05 and q_['imp'][0, 0] == 25
+        assert q_['mask'][0, 0] == 1 and json.loads(str(q_['meta']))['shape'] == [7, 6] and int(q_['rain_coarsen']) == 5
+    ok.append('LF_RAIN_SHIFT_M parsing (unset / 0,0 = no shift); LF_SURR_SAVE pack (block-mean rain, masks, meta)')
     c_ = storm_cfg('jul2019'); assert c_['t0'] == '2019-07-06T14:00Z' and c_['hours'] == 18 and c_['frame_min'] == 30
     assert storm_cfg('sep2023')['hours'] == 36 and storm_cfg('aug2018b')['hours'] == 22
     ok.append('MRMS sources: AWS Pass2 first from 2020-10-14, IEM Pass2 when AWS lacks the hour, IEM GaugeCorr before; cache; catalogue storm config')

@@ -4,6 +4,7 @@
 #   bash proto/turing/backup_hf.sh --dry-run          # list what would be uploaded, upload nothing
 #   bash proto/turing/backup_hf.sh                    # upload (files already on the dataset with the same size are skipped)
 #   bash proto/turing/backup_hf.sh --only leominster  # only runs / results whose name contains 'leominster'
+#   bash proto/turing/backup_hf.sh --runs-root ~/scratch/surrogate --results-root /nonexistent --prefix runs/surrogate   # surrogate training runs
 # Sources:  ~/scratch/lisflood/run_*/out/   -> runs/turing/<name>/          (<name> = folder name without 'run_')
 #           ~/mass-flood-watch/results/*/   -> runs/turing/<name>/results/
 # Kept: hmax / hsnap / meta / score / summary / points / features / matches json-csv, the frame packs (frames_cm.npz: the 5-min packs of
@@ -36,7 +37,8 @@ ap.add_argument('--batch', type=int, default=40, help='files per commit')
 a = ap.parse_args()
 
 KEEP_OUT = ['hmax.npy', 'hsnap.npy', 'meta.json', '*.json', 'frames_cm.npz', '*pack*', 'vel_max.npz', 'timing.npz', 'rainstats.npz', 'gauge_windows.npz',
-            'lisflood.mass', 'run.par', 'run.bci', 'run.bdy', '*_log.txt', '*stdout*.txt', 'domain_mask.npy']
+            'lisflood.mass', 'run.par', 'run.bci', 'run.bdy', '*_log.txt', '*stdout*.txt', 'domain_mask.npy',
+            'surr_inputs.npz']                     # surr_inputs.npz: surrogate inputs (w9 LF_SURR_SAVE=1; proto/turing/surrogate_gen.slurm)
 KEEP_RES = ['*.json', '*.csv', '*.md', '*.npz', '*.geojson', '*.geojson.gz', '*.html', '*.txt', '*pack*']
 DEM = ['z.npy', 'z_raw.npz', 'watermask.npy']
 RAW = re.compile(r'(\.(wd|vx|vy|qx|qy|asc|wdfp|elev|inittm|maxtm|totaltm|max|mxe|Vx|Vy|Qx|Qy)$)|(^res-)|(-\d{4}\.)', re.I)
