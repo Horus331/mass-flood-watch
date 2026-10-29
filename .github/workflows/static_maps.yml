@@ -1,0 +1,59 @@
+name: Static flood maps (FEMA NFHL, BSC/MRPC Leominster) -> segment flags
+# Manual. proto/static_maps.py, docs/proto/static/STATIC.md.  Fetches the FEMA NFHL flood hazard zones for District 3 (MassGIS statewide copy,
+# FEMA's NFHL REST service as fallback / cross-check) and the BSC Group / MRPC Leominster 100-yr extents, intersects them with
+# docs/graph_segments.json and scores them against the parity catalogue.  Never commits: the flags travel as an artifact, as ::notice
+# annotations (gzip+base64 chunks; proto/static_maps.py decode --run <id>) and as neutral check runs (fallback channel).
+on:
+  workflow_dispatch:
+    inputs:
+      fema_source: {description: 'massgis (statewide copy, default) | rest (FEMA NFHL MapServer)', default: 'massgis'}
+      rest_check: {description: 'also query the FEMA REST service as a cross-check', type: boolean, default: true}
+      score: {description: 'also score (proto/static_maps.py score) and attach the table', type: boolean, default: true}
+permissions:
+  contents: read
+  checks: write
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy scikit-learn requests shapely pyproj geopandas pyogrio
+      - name: fetch and intersect
+        run: |
+          set -o pipefail
+          python proto/static_maps.py fetch --out static_flags.json --fema-source ${{ inputs.fema_source }} ${{ !inputs.rest_check && '--no-rest-check' || '' }} 2>&1 | tee fetch.log
+      - name: annotations 0
+        run: python proto/static_maps.py emit static_flags.json --part 0
+      - name: annotations 1
+        run: python proto/static_maps.py emit static_flags.json --part 1
+      - name: annotations 2
+        run: python proto/static_maps.py emit static_flags.json --part 2
+      - name: annotations 3
+        run: python proto/static_maps.py emit static_flags.json --part 3
+      - name: check runs (fallback channel)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python proto/static_maps.py checkruns static_flags.json || true
+      - name: score
+        if: inputs.score
+        run: |
+          set -o pipefail
+          python proto/static_maps.py score --flags static_flags.json --out static_results.json --md static_results.md 2>&1 | tee score.log
+          cat static_results.md >> "$GITHUB_STEP_SUMMARY"
+      - name: summary
+        if: always()
+        run: |
+          { echo '### fetch log (tail)'; echo '```'; tail -40 fetch.log 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          python -c "import json; m=json.load(open('static_flags.json'))['meta']; print(json.dumps(dict(touched=m.get('touched'), strict=m.get('strict'), sources={k: {x: v.get(x) for x in ('source', 'error', 'polygons_by_class', 'polygons_in_bbox', 'http', 'agreement_sfha_segments')} for k, v in m['sources'].items() if isinstance(v, dict)})))" > meta.txt 2>/dev/null || true
+          echo "::notice title=static_maps meta::$(cut -c1-3500 meta.txt | sed 's/%/%25/g')"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: static_maps
+          path: |
+            static_flags.json
+            static_results.json
+            static_results.md
+            fetch.log
+            score.log
