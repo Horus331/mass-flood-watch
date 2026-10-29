@@ -56,6 +56,7 @@ If another doc disagrees with this page about what is deployed or what a result 
 | Forecast spreading 10,90 / 20,75 / raw (District 3 over-forecast) | not adopted (box veto: −2 / −3 / −3 OOS sites under 2-of-8); 20,90 stays | `forecast/DISTRICT.md` |
 | Labels round 1 (16 storms, news/agency) | **adopted** | `obs/LABELS_EXPANSION.md`, `obs/CATALOG.md` |
 | Labels round 2 (split, WX1BOX, crash-water, FLASH) | **adopted** (labels); crash-water and FLASH stay opt-in sources | `obs/LABELS_ROUND2.md` |
+| Static flood maps as a baseline (FEMA NFHL SFHA via MassGIS, cross-checked with FEMA REST; BSC/MRPC Leominster 100-yr) | **benchmark, nothing adopted** (pre-registered 29 Oct): held-out 23, FEMA SFHA ∩ road 32 / 98 at 7.0 % flagged (lift 2.2) vs model top-*k* at the same share 36 / 98, Δ −0.04 [−0.18, +0.11], no detectable difference; model rule lift 6.4; only 15 sites shared; on sep2023 (dev) the model wins at equal share (Δ −0.23); BSC extents flag 48 % of Leominster roads, chance at ≥ 30 % | `static/STATIC.md` |
 | Surrogate of LISFLOOD-FP (U-Net, terrain + rain -> peak depth; for the district-wide 2-of-8 ensemble only) | **pre-registered, not run** (29 Oct; no run or score yet) | `surrogate/SURROGATE.md` |
 
 ## 4. Open items
