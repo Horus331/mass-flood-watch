@@ -4,7 +4,7 @@
     python w9_lisflood.py --selftest            (offline: checks the input writers on a tiny synthetic grid)
 
 env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multiple of 10), STORM (default sep2023), T0, HOURS,
-     LF_LOSS none|fc|cn|cn_dcia (default none; LF_CN_AMC II|III|auto (default II; auto = class from 5-day MRMS rain, lf_antecedent.py); cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
+     LF_LOSS none|fc|cn|cn_dcia (default none; LF_CN_AMC I|II|III|auto, LF_CN_FROZEN 1 (what-if: frozen ground = paved CN everywhere), LF_XINGS_BLOCKED 1 (what-if: culverts pass no water; LF_XING_BLOCK_M) (default II; auto = class from 5-day MRMS rain, lf_antecedent.py); cn_dcia: LF_DCIA sutherland|sutherland_high|<fraction of TIA>, LF_DCIA_IA mm, see cn_dcia_excess), LF_CHAN vol|none (default vol), LF_BASEFLOW 1|0, LF_ZENODO (record id override),
      LF_INFIL_MMH (constant infiltration mm/h, default 4) + LF_INFIL_MODE solver|rain (default solver = the solver's keyword, CPU only;
      rain = out of the hourly rain excess, identical on CPU and GPU; docs/proto/parity/PARITY.md),
      LF_PARITY 1 (= LF_INFIL_MODE rain + LF_INIT_TSTEP 1: the same physics and time step on the CPU and CUDA builds),
@@ -723,6 +723,31 @@ def open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, sized=False):
     return Z, NOV, XG
 
 
+def is_bridge(row):
+    """A mapped crossing that is a bridge (stays open when culverts are blocked): in the NBI, a MassDOT bridge, NAACC shape 'bridge',
+    a structure type other than a culvert, or a span of 6 m or more."""
+    xt = (row.get('xtype') or '').lower()
+    return bool(row.get('nbi_id')) or 'bridge' in (row.get('mdot_cat') or '').lower() or (row.get('shape') or '') == 'bridge' or \
+        (xt not in ('', 'tiger2020 road') and 'culvert' not in xt) or float(row.get('span_m') or 0) >= 6.0
+
+
+def block_crossings(Z, rows_x, xx, yy, BOX, RES, kp):
+    """Culverts full or blocked (LF_XINGS_BLOCKED=1): the opposite of open_crossings.  The 3x3 cells at each crossing are raised to their
+    highest cell (the road fill is solid: no notch, and the channel burn cannot pass under the road there), and a (2 kp + 1)^2 block around
+    it is protected from depression breaching, so no carved path stands in for the pipe.  Water behind the road can only leave over the
+    road.  Returns (Z, protect mask, XG in open_crossings' format with zcut = crest)."""
+    x0, y0, x1, y1 = BOX; ny, nx = Z.shape; Z = Z.copy(); P = np.zeros((ny, nx), bool); XG = []
+    for row, xq, yq in zip(rows_x, xx, yy):
+        if not (x0 <= xq < x1 and y0 <= yq < y1): continue
+        rq, cq = int((y1 - yq) // RES), int((xq - x0) // RES)
+        blk = (slice(max(0, rq - 1), rq + 2), slice(max(0, cq - 1), cq + 2))
+        zmin, zcrest = float(Z[blk].min()), float(Z[blk].max()); Z[blk] = zcrest
+        P[max(0, rq - kp):rq + kp + 1, max(0, cq - kp):cq + kp + 1] = True
+        XG.append(dict(id=row.get('id'), r=rq, c=cq, r0=blk[0].start, r1=min(ny, rq + 2), c0=blk[1].start, c1=min(nx, cq + 2), zmin=round(zmin, 2),
+                       zcrest=round(zcrest, 2), zcut=round(zcrest, 2), n_eq=None, blocked=True))
+    return Z, P, XG
+
+
 def block_throughflow(Qx, Qy, r0, r1, c0, c1):
     """Flow through a block of cells rows r0..r1-1, cols c0..c1-1 from LISFLOOD-FP flux grids (m3/s per face; Qx (ny, nx+1), column c = face
     between cells c-1 and c, + eastwards; Qy (ny+1, nx), row r = face between rows r-1 and r, + southwards, rows north -> south).
@@ -873,7 +898,20 @@ def build_inputs(BOX, RES, S, TOK):
     # than the surveyed invert (crest - fill - rise) and given the Manning n at which the 3x3-cell notch passes the HDS-5 capacity of the
     # real barrel(s); crossings without a size (and bridges) keep the default full opening.
     nb = 0; NOV = np.full((ny, nx), np.nan, np.float32); XG = []; nsized = 0
-    if os.environ.get('LF_BREACH_XINGS', '1') == '1':
+    XPROT = None
+    if os.environ.get('LF_XINGS_BLOCKED', '0') == '1':      # opt-in (what-if scenarios): culverts full / blocked, sim/colab/w9_lisflood.py block_crossings
+        try:
+            xp = os.environ.get('LF_CROSSINGS') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
+            XJ = json.load(open(xp)); C = XJ['columns']; il, ia = C.index('lon'), C.index('lat')
+            from pyproj import Transformer
+            tf = Transformer.from_crs(4326, 26986, always_xy=True)
+            rows_x = [dict(zip(C, r_)) for r_ in XJ['rows'] if r_[il] is not None and not is_bridge(dict(zip(C, r_)))]
+            xx, yy = tf.transform([r_['lon'] for r_ in rows_x], [r_['lat'] for r_ in rows_x])
+            Z, XPROT, XG = block_crossings(Z, rows_x, xx, yy, BOX, RES, int(math.ceil(float(os.environ.get('LF_XING_BLOCK_M', '40')) / RES)))
+            log(f'LF_XINGS_BLOCKED=1: {len(XG)} culverts / small crossings closed (road fill kept as a dam, no notch, never carved); bridges stay open')
+        except Exception as e:
+            raise SystemExit(f'LF_XINGS_BLOCKED=1 failed: {e!r}')
+    if os.environ.get('LF_BREACH_XINGS', '1') == '1' and XPROT is None:
         try:
             SIZED = os.environ.get('LF_BREACH_SIZED', '0') == '1'
             xp = os.environ.get('LF_CROSSINGS') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
@@ -905,7 +943,7 @@ def build_inputs(BOX, RES, S, TOK):
     if os.environ.get('LF_BREACH_DEPRESSIONS', '1') == '1':
         t_ = time.time(); mcc = os.environ.get('LF_BREACH_CHAN_MAX')
         D4 = os.environ.get('LF_BREACH_D4', '1') == '1'     # carve 4-connected outlets (the solver's face fluxes; default since 22 Oct 2026); LF_BREACH_D4=0 restores the old 8-connected carving
-        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None, d4=D4, protect=DAMS['protect'] if DAMS else None)
+        Z, carved, st_ = breach_depressions(Z, float(os.environ.get('LF_BREACH_MAX', '4')), chan if mcc else None, float(mcc) if mcc else None, d4=D4, protect=(DAMS['protect'] | XPROT) if (DAMS and XPROT is not None) else DAMS['protect'] if DAMS else XPROT)
         log(f'depressions ({"4" if D4 else "8"}-connected): {st_["cells"]:,} cells carved (mean {st_["mean_cut_m"]} m, max {st_["max_cut_m"]} m), {st_["kept_deep"]} basins deeper than the cap kept'
             + (f', {st_["chan_deep_cut"]} channel pits cut deeper than the cap (LF_BREACH_CHAN_MAX={mcc})' if mcc else '') + f', {time.time() - t_:.0f}s')
     loss = None
@@ -929,7 +967,9 @@ def build_inputs(BOX, RES, S, TOK):
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_antecedent
             amc, p5_, _ = lf_antecedent.resolve(S['t0'], lat_c, lon_c, log=log)
             os.environ['LF_CN_AMC_RESOLVED'] = f'{amc} (P5 {p5_:.1f} mm)'; log(f'LF_CN_AMC=auto: 5-day antecedent rain {p5_:.1f} mm -> AMC {amc}')
-            if amc == 'I': CNG = 4.2 * CNG / (10.0 - 0.058 * CNG)                # dry antecedent conditions (Chow et al. 1988)
+        if os.environ.get('LF_CN_FROZEN', '0') == '1':   # opt-in (what-if scenarios): frozen ground sheds rain like pavement (concrete frost): every land cell
+            CNG = np.full_like(CNG, 98.0); amc = 'frozen'; log('LF_CN_FROZEN=1: frozen ground, every land cell at the paved CN 98 before the scale')
+        if amc == 'I': CNG = 4.2 * CNG / (10.0 - 0.058 * CNG)                    # dry antecedent conditions (Chow et al. 1988); explicit LF_CN_AMC=I or auto
         if amc == 'III': CNG = 23.0 * CNG / (10.0 + 0.13 * CNG)                  # wet antecedent conditions (Chow et al. 1988)
         CNG = np.clip(CNG * float(os.environ.get('LF_CN_SCALE', '1')), 30, 98); CNG = np.where(water, 100.0, CNG).astype(np.float32)
         log(f'LF_LOSS=cn: AMC {amc}, mean CN {float(CNG[~water].mean()):.1f} (HSG A-D + NLCD impervious)')
@@ -1429,6 +1469,15 @@ def selftest():
     assert Z8[2, 3] == 7 and Z8[3, 2] == 7                                       # 8-connected: no face-connected outlet carved
     assert min(Z4[2, 3], Z4[3, 2]) <= 5.0 and low4.any()                            # 4-connected: a face neighbour is cut to the pit level
     ok.append('LF_BREACH_D4 carves face-connected (4-neighbour) outlets; 8-connected carving leaves corner-only exits')
+    # LF_XINGS_BLOCKED: a blocked culvert keeps the road fill as a dam that depression breaching may not carve through
+    Zb = np.full((7, 9), 20.0, np.float32); Zb[3, :] = [20, 10, 10, 10, 13, 9, 9, 9, 8]   # river along row 3, a 3 m fill at column 4
+    Zo_, _, _ = breach_depressions(Zb, 4.0); assert Zo_[3, 4] <= 10                   # unprotected: carved (the default stand-in for the pipe)
+    xb_, yb_ = [150000 + 4.5 * 20], [905000 + 7 * 20 - 3.5 * 20]
+    Zbl, Pb, XGb = block_crossings(Zb, [dict(id='x')], xb_, yb_, (150000, 905000, 150000 + 9 * 20, 905000 + 7 * 20), 20.0, 2)
+    Zbb, _, _ = breach_depressions(Zbl, 4.0, protect=Pb); assert Zbb[3, 4] >= 13 and Pb[3, 4] and len(XGb) == 1 and XGb[0]['blocked']
+    assert is_bridge(dict(nbi_id='123')) and is_bridge(dict(span_m=8.0)) and is_bridge(dict(xtype='slab')) and not is_bridge(dict(xtype='tiger2020 road')) \
+        and not is_bridge(dict(shape='circular', xtype='culvert includes frame culverts'))
+    ok.append('LF_XINGS_BLOCKED keeps a culvert fill as a dam (no notch, not carved); bridges stay open')
     # velocity output (LF_VOUT): cell speed as LISFLOOD-FP's UpdateV, peaks from snapshots and from .maxVc / .maxVcd
     Vx = np.zeros((2, 4)); Vy = np.zeros((3, 3)); Vx[0, 1] = -3.0; Vx[0, 2] = 1.0; Vy[1, 0] = 4.0
     sp = cell_speed(Vx, Vy); assert abs(sp[0, 0] - 5.0) < 1e-6 and abs(sp[0, 1] - 3.0) < 1e-6 and abs(sp[1, 0] - 4.0) < 1e-6 and sp[1, 2] == 0

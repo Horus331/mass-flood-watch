@@ -16,31 +16,42 @@
   'use strict';
   var RUNS = {
     leominster_sep2023: {
-      title: 'Leominster and Fitchburg, Sept 11, 2023',
+      title: 'Leominster · Sept 11, 2023',
       kind: 'Tuned case. 20 × 20 km box at 20 m, the storm the model settings were checked against.'
     },
     worcester_aug2021: {
-      title: 'Worcester, Aug 19, 2021',
+      title: 'Worcester · Aug 19, 2021',
       kind: 'Blind test. Same model settings as Leominster, run on a storm it was not tuned on.'
     },
     d3_sep2023: {
-      title: 'All of MassDOT District 3, Sept 11, 2023',
+      title: 'District 3 · Sept 11, 2023',
       kind: 'One GPU run on WPI’s Turing cluster: 17.6 million cells at 20 m (shown here at 80 m).'
     },
-    forecast: { title: 'Live forecast, MassDOT District 3', kind: '' }
+    whatif: {
+      title: 'What if? · Leominster storm',
+      kind: 'The real storm, rerun by the flood model with heavier or lighter rain, wetter or frozen ground, and blocked culverts.'
+    },
+    forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
   var params = new URLSearchParams(location.search);
   var runKey = RUNS[params.get('run')] ? params.get('run') : /^[a-z0-9_]{3,60}$/.test(params.get('run') || '') ? params.get('run') : 'leominster_sep2023';
   if (!RUNS[runKey]) RUNS[runKey] = { title: runKey.replace(/_/g, ' '), kind: '' }; // any other published run folder, e.g. a 5-minute rerun
   var base = 'site/data/' + runKey + '/';
+  var WHATIF = runKey === 'whatif', WI = 'site/data/whatif/', wi = null, WION = false; // WION: the scenario runs are published
+  if (WHATIF) {
+    base = 'site/data/leominster_sep2023/'; // rain, gauges, dams and facilities of the same box
+    document.documentElement.classList.add('whatif');
+  }
+  var REPLAY = runKey !== 'forecast'; // replays (and what-if) get the night water basemap: hillshade, vector water, streets and names
+  // light by default (dark maps read worst in daylight); the dark theme follows the system setting or the stored choice
   var $ = function (id) { return document.getElementById(id); };
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var small = function () { return window.innerWidth < 720; };
 
   document.querySelectorAll('.runs a').forEach(function (a) {
     var on = a.dataset.run === runKey;
-    a.setAttribute('aria-selected', on ? 'true' : 'false');
+    a.setAttribute('aria-current', on ? 'true' : 'false');
     var q = new URLSearchParams(location.search); q.set('run', a.dataset.run);
     a.href = '?' + q.toString();
   });
@@ -69,30 +80,38 @@
   var ESRI = function (path, mz, attr) {
     return { type: 'raster', tileSize: 256, maxzoom: mz, attribution: attr, tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/' + path + '/MapServer/tile/{z}/{y}/{x}'] };
   };
-  var BASEMAPS = { // 'streets' keeps its key (stored choices and links) but is now the calm light-grey canvas
+  var BASEMAPS = REPLAY ? { // replays: a vector basemap (OpenFreeMap / OpenMapTiles) drawn by this page: muted land, every street with its
+    // name, water in pale grey-blue; 'night' is kept as an alias of dark for stored choices and links
+    streets: { layers: {} },
+    terrain: { layers: { 'b-hill': 0.5 } },
+    satellite: { layers: { 'b-sat': 1 } },
+    dark: { layers: { 'b-hshade': 1 } },
+    night: { layers: { 'b-hshade': 1 } }
+  } : {
     streets: { layers: { 'b-lgt': 1, 'l-voy': 1 } },
     terrain: { layers: { 'b-hill': 1, 'b-lgt': 0.5, 'l-voy': 1 } },
     satellite: { layers: { 'b-sat': 1, 'l-dark': 1 } },
-    dark: { layers: { 'b-dark': 1, 'l-dark': 1 } }
+    dark: { layers: { 'b-dark': 1, 'l-dark': 1 } },
+    night: { layers: { 'b-dark': 1, 'l-dark': 1 } }
   };
   // depth ramp (5, 15, 30, 100 cm), roads: wet (amber) -> closed (red), casing under them, footprint of closures, may close
   // base road network (net): line colour per class [highway, arterial, collector, local], the white street fill at
   // street zoom, and how strongly it shows. Blue water / amber-red roads stay distinguishable with red-green colour
   // blindness: water and road status sit on the blue-yellow axis, and closed roads add stripes, not just hue.
   var PAL = {
-    light: { d: ['rgba(120,190,240,.66)', 'rgba(56,140,214,.8)', 'rgba(24,94,186,.88)', 'rgba(10,46,126,.94)'],
-      grey: '#8a959e', amber: '#f0a81c', orange: '#e8641c', closed: '#c8102e', cas: 'rgba(255,255,255,.95)', peak: '#b0122c', peakOp: 0.45, may: '#d9620b', halo: '#ff3048',
-      net: ['#56616c', '#76818b', '#99a2aa', '#a9b1b8'], fill: '#ffffff', netOp: 1, box: '#56616c' },
-    satellite: { d: ['rgba(110,226,255,.5)', 'rgba(44,186,255,.7)', 'rgba(24,136,255,.82)', 'rgba(40,84,240,.92)'],
-      grey: '#c9d1d6', amber: '#ffc21a', orange: '#ff7a1a', closed: '#ff2448', cas: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
+    light: { d: ['rgba(181,226,238,.85)', 'rgba(109,185,221,.85)', 'rgba(53,134,196,.85)', 'rgba(26,85,160,.85)'], // tested depth ramp, 85 %
+      grey: '#8a959e', amber: '#E69F00', orange: '#D55E00', closed: '#7A0019', cas: '#FFFFFF', casDark: '#1F2328', peak: '#7A0019', peakOp: 0.45, may: '#D55E00', halo: '#7A0019',
+      net: ['#7C7C77', '#878782', '#9A9A95', '#A4A49F'], fill: '#ffffff', netOp: 1, box: '#5F6368' }, // streets readable from z11
+    satellite: { d: ['rgba(181,226,238,.8)', 'rgba(109,185,221,.85)', 'rgba(53,134,196,.88)', 'rgba(26,85,160,.9)'],
+      grey: '#c9d1d6', amber: '#F5B400', orange: '#FF8A3D', closed: '#FF5C6C', cas: 'rgba(20,20,20,.85)', casDark: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
       net: ['rgba(255,255,255,.9)', 'rgba(255,255,255,.75)', 'rgba(255,255,255,.55)', 'rgba(255,255,255,.45)'], fill: 'rgba(30,30,30,.35)', netOp: 0.85, box: '#ffffff' },
-    dark: { d: ['rgba(40,104,176,.6)', 'rgba(52,142,222,.76)', 'rgba(96,184,246,.86)', 'rgba(186,228,255,.95)'],
-      grey: '#8796a3', amber: '#ffb52e', orange: '#ff7d2e', closed: '#ff4058', cas: 'rgba(8,14,20,.9)', peak: '#ff7d8c', peakOp: 0.55, may: '#ffa24a', halo: '#ff4a5e',
-      net: ['#9aa6b1', '#748190', '#566270', '#4b5663'], fill: '#2b343d', netOp: 1, box: '#9aa6b1' }
+    dark: { d: ['rgba(212,236,244,.85)', 'rgba(151,203,228,.85)', 'rgba(100,166,214,.85)', 'rgba(69,128,194,.85)'],
+      grey: '#8796a3', amber: '#F5B400', orange: '#FF8A3D', closed: '#FF5C6C', cas: '#1E2124', casDark: '#1E2124', peak: '#FF5C6C', peakOp: 0.55, may: '#FF8A3D', halo: '#FF5C6C',
+      net: ['#7d848c', '#646a72', '#50565d', '#474c53'], fill: '#2f3439', netOp: 1, box: '#9AA0A6' }
   };
-  var bm = store('mfw-basemap');
-  function basemap() { return BASEMAPS[bm] ? bm : (isDark() ? 'dark' : 'streets'); }
-  function pal() { var b = basemap(); return b === 'satellite' ? PAL.satellite : b === 'dark' ? PAL.dark : PAL.light; }
+  var BMKEY = WHATIF ? 'mfw-basemap-wi' : 'mfw-basemap', bm = store(BMKEY);
+  function basemap() { return BASEMAPS[bm] ? (bm === 'night' ? 'dark' : bm) : (isDark() ? 'dark' : 'streets'); }
+  function pal() { var b = basemap(); return b === 'satellite' ? PAL.satellite : b === 'dark' || b === 'night' ? PAL.dark : PAL.light; }
 
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
@@ -100,6 +119,7 @@
   var segs = [], segById = {}, ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null, cascade = null;
   var nWet = 0, nClosedNow = 0, sparkRange = [0, 1], rtip = null, rtipId = null, rtipLL = null;
   var fmtClock = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
+  var fmtCap = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   var fmtShort = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   var t0;
   function timeAt(f) { return new Date(t0.getTime() + f * meta.frame_min * 60000); }
@@ -140,22 +160,27 @@
 
   // ---------- depth layer ----------
   var depth = (function () {
-    var gl, prog, buf, loc = {}, tex = [], queue = [], ramp = null;
+    var gl, prog, buf, loc = {}, tex = [], queue = [], ramp = null, drnCol = new Float32Array([0.48, 0.54, 0.6, 0.7]);
     var VS = 'attribute vec2 aPos;attribute vec2 aUv;uniform mat4 uM;varying vec2 vUv;' +
       'void main(){vUv=aUv;gl_Position=uM*vec4(aPos,0.0,1.0);}';
     var FS = 'precision highp float;varying vec2 vUv;uniform sampler2D uA;uniform sampler2D uB;' +
       'uniform vec3 uMa;uniform vec3 uMb;uniform float uDa;uniform float uDb;uniform float uT;uniform vec4 uC[4];' +
-      'uniform vec2 uS;' +
+      'uniform vec2 uS;uniform sampler2D uR;uniform vec3 uMr;uniform float uDr;uniform float uHasR;uniform vec4 uDrn;' +
       // classes are decoded per cell first (base-5 digits cannot be filtered), then interpolated: bilinear between the
       // four nearest cell centres. A wet cell next to a dry one reads 0.5 exactly on their shared edge, so the soft
       // threshold at 0.5 keeps the water edge on the cell boundary (never more than half a cell onto dry ground)
       'float code(sampler2D s,vec3 m,float d,vec2 uv){float x=floor(dot(texture2D(s,uv).rgb,m)*255.0+0.5);return mod(floor(x/d+0.001),5.0);}' +
+      // classes decoded per cell, then bilinear between cell centres with a soft threshold at 0.5: smooth water edges that stay on
+      // the cell boundary (never more than half a cell onto dry ground); isolated shallow cells are removed in the pack (despeckle)
       'float cls(sampler2D s,vec3 m,float d){vec2 p=vUv*uS-0.5;vec2 i=floor(p);vec2 f=p-i;vec2 c=(i+0.5)/uS;vec2 dx=vec2(1.0/uS.x,0.0);vec2 dy=vec2(0.0,1.0/uS.y);' +
       'return mix(mix(code(s,m,d,c),code(s,m,d,c+dx),f.x),mix(code(s,m,d,c+dy),code(s,m,d,c+dx+dy),f.x),f.y);}' +
       'vec4 ramp(float L){if(L<=2.0)return mix(uC[0],uC[1],L-1.0);' +
       'if(L<=3.0)return mix(uC[1],uC[2],L-2.0);return mix(uC[2],uC[3],L-3.0);}' +
       'void main(){float L=mix(cls(uA,uMa,uDa),cls(uB,uMb,uDb),uT);float e=smoothstep(0.38,0.62,L);if(e<0.004)discard;' +
-      'vec4 c=ramp(max(L,1.0));c.a*=e;gl_FragColor=vec4(c.rgb*c.a,c.a);}';
+      // drying: where the depth class an hour earlier was higher the water is going down (draining or soaking in): it cools to
+      // slate and thins out, so receding water reads as receding
+      'vec4 c=ramp(max(L,1.0));if(uHasR>0.5){float dr=smoothstep(0.35,1.2,cls(uR,uMr,uDr)-L);c=vec4(mix(c.rgb,uDrn.rgb,dr*0.7),c.a*mix(1.0,uDrn.a,dr));}' +
+      'c.a*=e;gl_FragColor=vec4(c.rgb*c.a,c.a);}';
     function slot(f) {
       var k = f % 9, m = [0, 0, 0]; m[Math.floor(k / 3)] = 1;
       return { tex: tex[Math.floor(f / 9)], m: m, d: [1, 5, 25][k % 3] };
@@ -166,7 +191,7 @@
         onAdd: function (m, g) {
           gl = g; prog = program(gl, VS, FS);
           ['aPos', 'aUv'].forEach(function (k) { loc[k] = gl.getAttribLocation(prog, k); });
-          ['uM', 'uA', 'uB', 'uMa', 'uMb', 'uDa', 'uDb', 'uT', 'uC', 'uS'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
+          ['uM', 'uA', 'uB', 'uMa', 'uMb', 'uDa', 'uDb', 'uT', 'uC', 'uS', 'uR', 'uMr', 'uDr', 'uHasR', 'uDrn'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
           buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(meta.corners), gl.STATIC_DRAW);
         },
         render: function (g, matrix) {
@@ -182,6 +207,10 @@
           gl.uniform1f(loc.uDa, A.d); gl.uniform1f(loc.uDb, B.d);
           gl.uniform1f(loc.uT, fb === fa ? 0 : t - fa);
           gl.uniform4fv(loc.uC, ramp);
+          var R = slot(Math.max(0, fa - Math.round(60 / meta.frame_min))); // an hour earlier
+          if (R.tex && fa > 0) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, R.tex); gl.uniform1i(loc.uR, 2); gl.uniform3fv(loc.uMr, R.m); gl.uniform1f(loc.uDr, R.d); gl.uniform1f(loc.uHasR, 1); }
+          else gl.uniform1f(loc.uHasR, 0);
+          gl.uniform4fv(loc.uDrn, drnCol);
           gl.bindBuffer(gl.ARRAY_BUFFER, buf);
           gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 16, 0);
           gl.enableVertexAttribArray(loc.aUv); gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 16, 8);
@@ -193,6 +222,7 @@
       },
       add: function (i, img) { queue.push({ i: i, img: img }); },
       setRamp: function (cols) { ramp = new Float32Array([].concat.apply([], cols)); },
+      setDrain: function (c) { drnCol = new Float32Array(c); },
       // the two depth frames around t, for the flow layer's wet mask (null until both are on the GPU)
       frames: function () {
         var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1), A = slot(fa), B = slot(fb);
@@ -219,15 +249,15 @@
     return RAIN_STOPS[RAIN_STOPS.length - 1][1];
   }
   var rainLayer = (function () {
-    var gl, prog, buf, loc = {}, tex = null, lut = null, pending = null;
+    var gl, prog, buf, loc = {}, tex = null, lut = null, pending = null, K = 1;
     var VS = 'attribute vec2 aPos;uniform mat4 uM;varying vec2 vM;void main(){vM=aPos;gl_Position=uM*vec4(aPos,0.0,1.0);}';
     // vM is Web Mercator (0..1); the radar grid is regular in lat/lon, so the row is found from latitude, not mercator y
     var FS = 'precision highp float;varying vec2 vM;uniform sampler2D uS;uniform sampler2D uL;uniform vec4 uB;' +
-      'uniform vec2 uCa;uniform vec2 uCb;uniform vec3 uMa;uniform vec3 uMb;uniform vec2 uCell;uniform vec2 uHalf;uniform float uT;uniform float uOp;' +
+      'uniform vec2 uCa;uniform vec2 uCb;uniform vec3 uMa;uniform vec3 uMb;uniform vec2 uCell;uniform vec2 uHalf;uniform float uT;uniform float uOp;uniform float uK;uniform float uLm;' +
       'void main(){float lon=vM.x*360.0-180.0;float yy=3.14159265*(1.0-2.0*vM.y);float lat=degrees(atan((exp(yy)-exp(-yy))*0.5));' +
       'vec2 uv=vec2((lon-uB.x)/(uB.z-uB.x),(uB.w-lat)/(uB.w-uB.y));if(uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0)discard;' +
       'vec2 c=clamp(uv*uCell,uHalf,uCell-uHalf);float a=dot(texture2D(uS,uCa+c).rgb,uMa);float b=dot(texture2D(uS,uCb+c).rgb,uMb);' +
-      'float v=mix(a,b,uT);if(v<0.03)discard;vec4 k=texture2D(uL,vec2(v,0.5));float al=k.a*uOp;' +
+      'float v=mix(a,b,uT);if(uK!=1.0){v=min(1.0,log(1.0+(exp(v*uLm)-1.0)*uK)/uLm);}if(v<0.03)discard;vec4 k=texture2D(uL,vec2(v,0.5));float al=k.a*uOp;' +
       'float e=min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y));al*=smoothstep(0.0,0.06,e);gl_FragColor=vec4(k.rgb*al,al);}';
     return {
       layer: {
@@ -235,7 +265,7 @@
         onAdd: function (m, g) {
           gl = g; prog = program(gl, VS, FS);
           loc.aPos = gl.getAttribLocation(prog, 'aPos');
-          ['uM', 'uS', 'uL', 'uB', 'uCa', 'uCb', 'uMa', 'uMb', 'uCell', 'uHalf', 'uT', 'uOp'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
+          ['uM', 'uS', 'uL', 'uB', 'uCa', 'uCb', 'uMa', 'uMb', 'uCell', 'uHalf', 'uT', 'uOp', 'uK', 'uLm'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
           var b = rain.bounds, p = [[b[0][0], b[1][1]], [b[1][0], b[1][1]], [b[1][0], b[0][1]], [b[0][0], b[0][1]]].map(function (q) { return maplibregl.MercatorCoordinate.fromLngLat(q); });
           buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
           gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([p[0].x, p[0].y, p[1].x, p[1].y, p[3].x, p[3].y, p[2].x, p[2].y]), gl.STATIC_DRAW);
@@ -260,7 +290,7 @@
           gl.uniform4f(loc.uB, R.bounds[0][0], R.bounds[0][1], R.bounds[1][0], R.bounds[1][1]);
           gl.uniform2fv(loc.uCa, A.o); gl.uniform2fv(loc.uCb, B.o); gl.uniform3fv(loc.uMa, A.m); gl.uniform3fv(loc.uMb, B.m);
           gl.uniform2f(loc.uCell, 1 / R.cols, 1 / R.rows); gl.uniform2f(loc.uHalf, 0.5 / (R.cols * R.w), 0.5 / (R.rows * R.h));
-          gl.uniform1f(loc.uT, pos - fa); gl.uniform1f(loc.uOp, rainOp);
+          gl.uniform1f(loc.uT, pos - fa); gl.uniform1f(loc.uOp, rainOp); gl.uniform1f(loc.uK, K); gl.uniform1f(loc.uLm, Math.log1p(R.max_mmh));
           gl.bindBuffer(gl.ARRAY_BUFFER, buf);
           gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 8, 0);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -269,155 +299,819 @@
           gl.activeTexture(gl.TEXTURE0);
         }
       },
-      set: function (img) { pending = img; }
+      set: function (img) { pending = img; },
+      scale: function (k) { K = k; if (map) map.triggerRepaint(); } // what-if: the radar rain as scaled in the run
     };
   })();
 
-  // ---------- flow layer (moving water surface along the modelled velocity field) ----------
-  // One quad over the model box, all on the GPU. Per pixel: the depth frames around t give a smooth wet mask (bilinear
-  // on the 20 m depth classes, so nothing moves on dry land); the 100 m velocity field is read bilinearly, weighted by
-  // each block's wet share, and interpolated between its 15-min frames; a tiling ripple texture is then advected
-  // along that velocity with the flow-map technique (two layers half a cycle apart, cross-faded so the resets never
-  // show), smeared a little along the current so fast water reads as streaks, and lit with a soft glint.
-  // The animation clock only runs while the replay plays and eases to a stop on pause: a paused picture is still.
+  // ---------- flow layer: particles advected along the modelled velocity field (wind-map style) ----------
+  // flow.png holds the water velocity of each 100 m block per frame (east / north speed, wet share), from the modelled water surface.
+  // Particles live only where water moves (wet share >= 0.5, speed >= 0.2 m/s), are seeded in proportion to speed, drift along the
+  // field (interpolated in space and between frames), and leave short fading trails: faster water draws longer, brighter streaks.
+  // Paused, the trails stay where they are as still streamlines; scrubbing recomputes them. Off by default (Layers), street zoom only
+  // (14.5 and closer), paused while the map moves or the page is hidden.
+  var mapMoving = false; // particles pause while the map pans or zooms
   var flowLayer = (function () {
-    var gl, prog, buf, loc = {}, F = null, img = null, ftex = null, ntex = null, clock = 0, rate = 0, lastT = 0;
-    var Q = 160, T = 1.6; // ripple tile (px at the zoom level it belongs to; wavelengths Q/7..Q/2.5), flow-map cycle (s)
-    var VS = 'attribute vec2 aPos;attribute vec2 aUv;uniform mat4 uM;varying vec2 vUv;' +
-      'void main(){vUv=aUv;gl_Position=uM*vec4(aPos,0.0,1.0);}';
-    var FS = [
-      'precision highp float;varying vec2 vUv;',
-      'uniform sampler2D uDa;uniform sampler2D uDb;uniform vec3 uMa;uniform vec3 uMb;uniform float uKa;uniform float uKb;uniform float uDt;uniform vec2 uDs;',
-      'uniform sampler2D uF;uniform vec4 uFa;uniform vec4 uFb;uniform vec2 uFn;uniform float uFt;uniform float uVmax;',
-      'uniform sampler2D uN;uniform vec2 uBox;uniform vec4 uLod;uniform float uPh;uniform float uT;uniform vec3 uHi;uniform float uDk;uniform float uOp;',
-      'float code(sampler2D s,vec3 m,float d,vec2 uv){float x=floor(dot(texture2D(s,uv).rgb,m)*255.0+0.5);return mod(floor(x/d+0.001),5.0);}',
-      'float depthAt(sampler2D s,vec3 m,float d,vec2 uv){vec2 p=uv*uDs-0.5;vec2 i=floor(p);vec2 f=p-i;vec2 c=(i+0.5)/uDs;vec2 dx=vec2(1.0/uDs.x,0.0);vec2 dy=vec2(0.0,1.0/uDs.y);',
-      ' return mix(mix(code(s,m,d,c),code(s,m,d,c+dx),f.x),mix(code(s,m,d,c+dy),code(s,m,d,c+dx+dy),f.x),f.y);}',
-      // velocity (m/s, x east, y north) from one atlas cell: bilinear, each block weighted by its wet share
-      'vec3 tap(vec4 cell,vec2 c,float w){c=clamp(c,vec2(0.0),uFn-1.0);vec3 s=texture2D(uF,cell.xy+(c+0.5)/uFn*cell.zw).rgb;float k=w*s.b;',
-      ' return vec3((s.rg*255.0-128.0)/127.0*uVmax*k,k);}',
-      'vec2 vel(vec4 cell,vec2 uv){vec2 p=uv*uFn-0.5;vec2 i=floor(p);vec2 f=p-i;',
-      ' vec3 a=tap(cell,i,(1.0-f.x)*(1.0-f.y))+tap(cell,i+vec2(1.0,0.0),f.x*(1.0-f.y))+tap(cell,i+vec2(0.0,1.0),(1.0-f.x)*f.y)+tap(cell,i+vec2(1.0,1.0),f.x*f.y);',
-      ' return a.xy/max(a.z,0.004);}',
-      'vec3 nz(vec2 x){return texture2D(uN,x/' + Q.toFixed(1) + ').rgb*2.0-1.0;}', // value, slope x, slope y; x in level px
-      // one advected layer: the ripple texture at x (level px), smeared over L px along the current d (line-integral style)
-      'vec3 lay(vec2 x,vec2 d,float L){vec2 o=d*(L*0.25);return (nz(x-2.0*o)+nz(x-o)+nz(x)+nz(x+o)+nz(x+2.0*o))*0.2;}',
-      // flow-map at one zoom level: s = level px per metre, v = velocity in level px per s
-      'vec3 surf(float s,vec2 v,vec2 d,float L,float pn){vec2 x=vUv*uBox*s;',
-      ' float p0=fract(uPh+pn);float p1=fract(p0+0.5);float w0=1.0-abs(2.0*p0-1.0);float w1=1.0-w0;',
-      ' vec3 a=lay(x-v*(p0*uT),d,L);vec3 b=lay(x-v*(p1*uT)+vec2(53.0,91.0),d,L);',
-      ' return (a*w0+b*w1)/sqrt(w0*w0+w1*w1);}',
-      'void main(){',
-      // only inside the depth layer's water edge (>= 5 cm, same bilinear class field), faded towards the edge
-      ' float L=mix(depthAt(uDa,uMa,uKa,vUv),depthAt(uDb,uMb,uKb,vUv),uDt);if(L<0.5)discard;',
-      ' vec2 u=mix(vel(uFa,vUv),vel(uFb,vUv),uFt);float sp=length(u);',
-      ' float amp=smoothstep(0.5,1.2,L)*mix(0.35,1.0,smoothstep(1.2,3.2,L))*smoothstep(0.03,0.25,sp)*mix(0.45,1.0,smoothstep(0.25,1.5,sp))*uOp;',
-      ' if(amp<0.004)discard;',
-      ' vec2 d=vec2(u.x,-u.y)/max(sp,1e-4);', // uv y runs south
-      ' float vis=30.0*sp/(1.0+0.6*sp);', // screen px per s: 1 m/s ~ 19 px/s, compressive so floods in rivers do not smear
-      ' float st=mix(4.0,110.0,smoothstep(0.1,1.8,sp));', // streak length, px
-      ' float pn=texture2D(uN,vUv*uBox/700.0).r;', // per-place phase (fixed on the ground), so cycles never pulse in step
-      // two zoom levels cross-faded, so ripples keep their on-screen size while zooming; a level at weight ~0 is skipped
-      ' float w=uLod.w;vec3 h=vec3(0.0);',
-      ' if(w<0.99)h=surf(uLod.x,d*vis*uLod.z,d,st,pn);',
-      ' if(w>0.01){vec3 h1=surf(uLod.y,d*vis*uLod.z*2.0,d,st,pn);h=(h*(1.0-w)+h1*w)/sqrt((1.0-w)*(1.0-w)+w*w);}',
-      ' vec3 n=normalize(vec3(-h.yz*1.6,1.0));vec3 H=normalize(vec3(-0.35,-0.45,1.0)+vec3(0.0,0.0,1.0));',
-      ' float spec=pow(max(dot(n,normalize(H)),0.0),36.0);',
-      ' float lit=dot(n,normalize(vec3(-0.45,-0.55,0.7)))-0.7;',
-      ' float aHi=amp*clamp(0.55*spec+0.6*max(lit,0.0)+0.14*smoothstep(0.3,0.9,h.x),0.0,0.62);',
-      ' float aDk=amp*uDk*clamp(smoothstep(0.0,0.8,-h.x)+2.0*max(-lit,0.0),0.0,1.0);',
-      ' gl_FragColor=vec4(uHi*aHi,min(1.0,aHi+aDk));}'
-    ].join('\n');
-    // tiling ripple texture: a sum of waves with whole-number wavenumbers (so it wraps), value in R, slope in G, B
-    function ripples() {
-      var S = 128, W = [], r = 0.5, rnd = function () { r = (r * 9301 + 49297) % 233280; return r / 233280; };
-      for (var k = 0; k < 36; k++) {
-        var kx, ky, m;
-        do { kx = Math.round((rnd() * 2 - 1) * 7); ky = Math.round((rnd() * 2 - 1) * 7); m = Math.hypot(kx, ky); } while (m < 2.5 || m > 7.5);
-        W.push([kx * 2 * Math.PI / S, ky * 2 * Math.PI / S, rnd() * 6.2832, 1 / m]);
-      }
-      var V = new Float32Array(S * S * 3), mx = [0, 0, 0];
-      for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
-        var v = 0, gx = 0, gy = 0;
-        for (var j = 0; j < W.length; j++) { var w = W[j], a = w[0] * x + w[1] * y + w[2], c = Math.cos(a) * w[3]; v += Math.sin(a) * w[3]; gx += c * w[0] * S / 8; gy += c * w[1] * S / 8; }
-        var i = (y * S + x) * 3; V[i] = v; V[i + 1] = gx; V[i + 2] = gy;
-        mx[0] = Math.max(mx[0], Math.abs(v)); mx[1] = Math.max(mx[1], Math.abs(gx), Math.abs(gy));
-      }
-      var D = new Uint8Array(S * S * 4);
-      for (var q = 0; q < S * S; q++) {
-        D[q * 4] = Math.round(127.5 + 127.5 * V[q * 3] / mx[0]);
-        D[q * 4 + 1] = Math.round(127.5 + 127.5 * V[q * 3 + 1] / mx[1]);
-        D[q * 4 + 2] = Math.round(127.5 + 127.5 * V[q * 3 + 2] / mx[1]);
-        D[q * 4 + 3] = 255;
-      }
-      var tx = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, tx);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, D);
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-      return tx;
+    var gl, prog, buf, loc = {}, F = null, A = null, Wd = 0, Ht = 0, C = null, N = 0, K = 10, P, H, age, life, spd, verts, lastT = -1, lastNow = 0, warm = false;
+    var VS = 'attribute vec2 aPos;attribute float aA;uniform mat4 uM;varying float vA;void main(){vA=aA;gl_Position=uM*vec4(aPos,0.0,1.0);}';
+    var FS = 'precision mediump float;varying float vA;uniform vec3 uC;void main(){gl_FragColor=vec4(uC*vA,vA);}';
+    function rnd() { return Math.random(); }
+    function tex(fi, x, y, o) { // one atlas texel of flow frame fi at block (x, y)
+      var cx = fi % F.cols, cy = Math.floor(fi / F.cols); x = Math.max(0, Math.min(F.w - 1, x)); y = Math.max(0, Math.min(F.h - 1, y));
+      var i = ((cy * F.h + y) * Wd + cx * F.w + x) * 4, w = A[i + 2] / 255;
+      o[0] += (A[i] - 128) / 127 * F.vmax_ms * w * o[3]; o[1] += (A[i + 1] - 128) / 127 * F.vmax_ms * w * o[3]; o[2] += w * o[3];
     }
-    function cell(f) { return [(f % F.cols) / F.cols, Math.floor(f / F.cols) / F.rows, 1 / F.cols, 1 / F.rows]; } // atlas cell of flow frame f, in uv
+    var tmp = [0, 0, 0, 0];
+    function vel(fi, u, v, out) { // bilinear, weighted by wet share: [east m/s, north m/s, wet share]
+      var px = u * F.w - 0.5, py = v * F.h - 0.5, x = Math.floor(px), y = Math.floor(py), fx = px - x, fy = py - y;
+      tmp[0] = tmp[1] = tmp[2] = 0;
+      tmp[3] = (1 - fx) * (1 - fy); tex(fi, x, y, tmp); tmp[3] = fx * (1 - fy); tex(fi, x + 1, y, tmp);
+      tmp[3] = (1 - fx) * fy; tex(fi, x, y + 1, tmp); tmp[3] = fx * fy; tex(fi, x + 1, y + 1, tmp);
+      var w = Math.max(tmp[2], 1e-3); out[0] = tmp[0] / w; out[1] = tmp[1] / w; out[2] = tmp[2];
+    }
+    var va = [0, 0, 0], vb = [0, 0, 0];
+    function field(u, v, out) {
+      var fi = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min)), f0 = Math.floor(fi), f1 = Math.min(f0 + 1, F.n - 1), k = fi - f0;
+      vel(f0, u, v, va); vel(f1, u, v, vb);
+      out[0] = va[0] + (vb[0] - va[0]) * k; out[1] = va[1] + (vb[1] - va[1]) * k; out[2] = va[2] + (vb[2] - va[2]) * k;
+    }
+    // drawn-water mask: the depth sheet of the current frame, read back on the CPU, so particles move only on water the map shows
+    var SD = null, sdIdx = -1, sdLoading = -1;
+    function maskSheet() {
+      var k = Math.max(0, Math.min(nf - 1, Math.round(t))), si = Math.floor(k / 9);
+      if (si === sdIdx || si === sdLoading || !meta.sheets) return;
+      sdLoading = si;
+      var url = (WION && wi ? WI + wi.key + '/' : base) + meta.sheets[si];
+      getBitmap(url).then(function (img) {
+        var cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+        var cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0); if (img.close) img.close();
+        SD = { d: cx.getImageData(0, 0, cv.width, cv.height).data, w: cv.width, h: cv.height }; sdIdx = si; sdLoading = -1; warm = false; map.triggerRepaint();
+      }).catch(function () { sdLoading = -1; });
+    }
+    function drawn(u, v) {
+      if (!SD) return false;
+      var k = Math.max(0, Math.min(nf - 1, Math.round(t))); if (Math.floor(k / 9) !== sdIdx) return true;   // next sheet still loading
+      var j = k % 9, x = Math.min(SD.w - 1, Math.floor(u * SD.w)), y = Math.min(SD.h - 1, Math.floor(v * SD.h));
+      return Math.floor(SD.d[(y * SD.w + x) * 4 + Math.floor(j / 3)] / [1, 5, 25][j % 3]) % 5 >= 1;
+    }
+    var fv = [0, 0, 0];
+    function spawn(i) {
+      for (var tries = 0; tries < 14; tries++) {
+        var u = rnd(), v = rnd(); field(u, v, fv);
+        var s = Math.hypot(fv[0], fv[1]);
+        if (fv[2] >= 0.3 && s >= 0.2 && rnd() < Math.min(1, s / 0.9) && drawn(u, v)) {
+          P[i * 2] = u; P[i * 2 + 1] = v; for (var j = 0; j < K; j++) { H[(i * K + j) * 2] = u; H[(i * K + j) * 2 + 1] = v; }
+          age[i] = 0; life[i] = 40 + rnd() * 80; spd[i] = s; return;
+        }
+      }
+      age[i] = -1; spd[i] = 0;   // nothing found this time: idle
+    }
+    function step(scale) { // move every particle; scale = box-uv per (m/s) for this step
+      for (var i = 0; i < N; i++) {
+        if (age[i] < 0 || age[i] > life[i]) { spawn(i); if (age[i] < 0) continue; }
+        var u = P[i * 2], v = P[i * 2 + 1]; field(u, v, fv);
+        var s = Math.hypot(fv[0], fv[1]);
+        if (fv[2] < 0.3 || s < 0.15) { age[i] = life[i] + 1; continue; }
+        u += fv[0] * scale; v -= fv[1] * scale;
+        if (u < 0 || u > 1 || v < 0 || v > 1 || !drawn(u, v)) { age[i] = life[i] + 1; continue; }
+        for (var j = K - 1; j > 0; j--) { H[(i * K + j) * 2] = H[(i * K + j - 1) * 2]; H[(i * K + j) * 2 + 1] = H[(i * K + j - 1) * 2 + 1]; }
+        H[i * K * 2] = u; H[i * K * 2 + 1] = v; P[i * 2] = u; P[i * 2 + 1] = v; spd[i] = s; age[i]++;
+      }
+    }
+    function uvScale() { // uv per (m/s) per step: ~22 px per second per m/s on screen at 60 steps a second
+      var lat = map.getCenter().lat, mpp = 40075016.7 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, map.getZoom()));
+      return 55 * mpp / 60 / (F.w * F.cell_m);
+    }
+    function warmUp() { var sc = uvScale(); for (var k = 0; k < K + 2; k++) step(sc * 2.2); warm = true; }
+    function mercUV(u, v, o, j) { // bilinear between the four corners of the box (TL, TR, BR, BL)
+      var x = (C[0].x * (1 - u) + C[1].x * u) * (1 - v) + (C[3].x * (1 - u) + C[2].x * u) * v;
+      var y = (C[0].y * (1 - u) + C[1].y * u) * (1 - v) + (C[3].y * (1 - u) + C[2].y * u) * v;
+      o[j] = x; o[j + 1] = y;
+    }
     return {
       layer: {
         id: 'flow', type: 'custom', renderingMode: '2d',
         onAdd: function (m, g) {
           gl = g; prog = program(gl, VS, FS);
-          ['aPos', 'aUv'].forEach(function (k) { loc[k] = gl.getAttribLocation(prog, k); });
-          ['uM', 'uDa', 'uDb', 'uMa', 'uMb', 'uKa', 'uKb', 'uDt', 'uDs', 'uF', 'uFa', 'uFb', 'uFn', 'uFt', 'uVmax', 'uN', 'uBox', 'uLod', 'uPh', 'uT', 'uHi', 'uDk', 'uOp']
-            .forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
-          buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(F.corners), gl.STATIC_DRAW);
-          ntex = ripples();
-          lastT = performance.now();
+          loc.aPos = gl.getAttribLocation(prog, 'aPos'); loc.aA = gl.getAttribLocation(prog, 'aA'); loc.uM = gl.getUniformLocation(prog, 'uM'); loc.uC = gl.getUniformLocation(prog, 'uC');
+          buf = gl.createBuffer(); lastNow = performance.now();
         },
         render: function (g, matrix) {
-          if (img) { ftex = texture(gl, img, gl.NEAREST); if (img.close) img.close(); img = null; }
-          var D = depth.frames();
-          if (!F || !ftex || !D) return;
-          // animation clock: runs with the replay, eases to a stop in about half a second when paused
-          var now = performance.now(), real = (now - lastT) / 1000, dt = Math.min(0.1, real); lastT = now;
-          var target = playing && !reduced ? 1 : 0;
-          rate += (target - rate) * Math.min(1, real * 6);
-          if (target === 0 && rate < 0.003) rate = 0;
-          clock = (clock + dt * rate) % (T * 1000);
-          var fi = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min)), f0 = Math.floor(fi), f1 = Math.min(f0 + 1, F.n - 1);
-          var z = map.getZoom(), zl = Math.floor(z), lat = map.getCenter().lat;
-          var mppL = function (zz) { return 40075016.7 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, zz)); };
-          var fr = z - zl, w1 = Math.min(1, Math.max(0, (fr - 0.15) / 0.7)); w1 = w1 * w1 * (3 - 2 * w1); // mostly one level, blended over the middle of each zoom step
-          gl.useProgram(prog);
-          gl.uniformMatrix4fv(loc.uM, false, matrix);
-          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, D.A.tex); gl.uniform1i(loc.uDa, 0);
-          gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, D.B.tex); gl.uniform1i(loc.uDb, 1);
-          gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, ftex); gl.uniform1i(loc.uF, 2);
-          gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, ntex); gl.uniform1i(loc.uN, 3);
-          gl.uniform3fv(loc.uMa, D.A.m); gl.uniform3fv(loc.uMb, D.B.m); gl.uniform1f(loc.uKa, D.A.d); gl.uniform1f(loc.uKb, D.B.d);
-          gl.uniform1f(loc.uDt, D.ft); gl.uniform2f(loc.uDs, meta.w, meta.h);
-          gl.uniform4fv(loc.uFa, cell(f0)); gl.uniform4fv(loc.uFb, cell(f1)); gl.uniform2f(loc.uFn, F.w, F.h);
-          gl.uniform1f(loc.uFt, fi - f0); gl.uniform1f(loc.uVmax, F.vmax_ms);
-          gl.uniform2f(loc.uBox, F.w * F.cell_m, F.h * F.cell_m);
-          // level px per metre at the two zoom levels around z, the level-to-screen scale, and the cross-fade weight
-          gl.uniform4f(loc.uLod, 1 / mppL(zl), 1 / mppL(zl + 1), Math.pow(2, zl - z), w1);
-          gl.uniform1f(loc.uPh, (clock / T) % 1); gl.uniform1f(loc.uT, T);
-          gl.uniform3fv(loc.uHi, flowRGB.hi); gl.uniform1f(loc.uDk, flowRGB.dk); gl.uniform1f(loc.uOp, 1);
+          if (!F || !A || !N) return;
+          var z = map.getZoom(); if (z < 13.4) return;
+          maskSheet(); if (!SD) return;
+          var now = performance.now(), dt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+          if (!warm || (!playing && Math.abs(t - lastT) > 0.6)) warmUp();
+          else if (playing && !reduced && !mapMoving && !document.hidden) { var sc = uvScale(), n_ = Math.max(1, Math.round(dt * 60)); for (var k = 0; k < Math.min(n_, 3); k++) step(sc); }
+          lastT = t;
+          var fade = Math.min(1, (z - 13.4) / 0.6), nv = 0, hw = 0.8 * (window.devicePixelRatio || 1) / (512 * Math.pow(2, z)) / (window.devicePixelRatio || 1) * 1.6;
+          var P0 = [0, 0], P1 = [0, 0];
+          for (var i = 0; i < N; i++) {
+            if (age[i] < 0) continue;
+            var a0 = Math.min(1, age[i] / 4) * Math.min(1, (life[i] - age[i]) / 10 + 0.001) * Math.min(0.95, 0.45 + spd[i] / 1.2) * fade;
+            if (a0 <= 0.02) continue;
+            for (var j = 0; j < K - 1; j++) { // each trail step as a quad (two triangles), about 1.6 px wide, fading towards the tail
+              var a = a0 * (1 - j / (K - 1)), b = a0 * (1 - (j + 1) / (K - 1));
+              mercUV(H[(i * K + j) * 2], H[(i * K + j) * 2 + 1], P0, 0); mercUV(H[(i * K + j + 1) * 2], H[(i * K + j + 1) * 2 + 1], P1, 0);
+              var dx = P1[0] - P0[0], dy = P1[1] - P0[1], L = Math.hypot(dx, dy); if (L < 1e-12) continue;
+              var nx = -dy / L * hw, ny = dx / L * hw, o = nv * 3;
+              verts[o] = P0[0] + nx; verts[o + 1] = P0[1] + ny; verts[o + 2] = a; verts[o + 3] = P0[0] - nx; verts[o + 4] = P0[1] - ny; verts[o + 5] = a;
+              verts[o + 6] = P1[0] + nx; verts[o + 7] = P1[1] + ny; verts[o + 8] = b; verts[o + 9] = P0[0] - nx; verts[o + 10] = P0[1] - ny; verts[o + 11] = a;
+              verts[o + 12] = P1[0] - nx; verts[o + 13] = P1[1] - ny; verts[o + 14] = b; verts[o + 15] = P1[0] + nx; verts[o + 16] = P1[1] + ny; verts[o + 17] = b; nv += 6;
+            }
+          }
+          if (!nv) return;
+          gl.useProgram(prog); gl.uniformMatrix4fv(loc.uM, false, matrix); gl.uniform3fv(loc.uC, flowRGB.hi);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * 3), gl.DYNAMIC_DRAW);
+          gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 12, 0);
+          gl.enableVertexAttribArray(loc.aA); gl.vertexAttribPointer(loc.aA, 1, gl.FLOAT, false, 12, 8);
+          gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+          gl.drawArrays(gl.TRIANGLES, 0, nv);
+          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aA);
+          if (playing && !reduced) map.triggerRepaint();
+        }
+      },
+      stat: function () { var a = 0; for (var i = 0; i < N; i++) if (age && age[i] >= 0) a++; return { N: N, alive: a, sd: sdIdx, F: !!F }; },
+      set: function (info, image) {
+        F = info; F.frame_min = info.frame_min || (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
+        var cv = document.createElement('canvas'); cv.width = image.width; cv.height = image.height;
+        var cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(image, 0, 0); A = cx.getImageData(0, 0, cv.width, cv.height).data; Wd = cv.width; Ht = cv.height;
+        if (image.close) image.close();
+        C = info.corners.map(function (p) { return maplibregl.MercatorCoordinate.fromLngLat(p); });
+        N = small() ? 1200 : 4000;
+        P = new Float32Array(N * 2); H = new Float32Array(N * K * 2); age = new Float32Array(N).fill(-1); life = new Float32Array(N); spd = new Float32Array(N);
+        verts = new Float32Array(N * (K - 1) * 6 * 3); warm = false; lastT = -1;
+        if (map) map.triggerRepaint();
+      }
+    };
+  })();
+
+  // ---------- what-if explorer (?run=whatif): one real storm, rerun with other inputs; every combination a full physics run ----------
+  /* docs/site/data/whatif/ (proto/whatif.py pack, from WHATIF runs on Turing):
+       index.json   axes, per-scenario numbers and status;  roads.json  every road segment that gets water in any scenario;
+       terrain.png  R hillshade of the lidar DEM, G mapped water / channel cells, B elevation;  culverts.json  crossings in the box
+       <id>/d.json  depth on each road per 15-min frame, closures, culverts overtopped, numbers;  <id>/depth_NN.png  9 frames per image
+                    (base-5 classes; on channels and ponds the class is the rise above the starting level);  <id>/flow.*  30-min velocity
+     Until those runs land, the tab shows the live replay of the actual storm (same physics) and marks the other settings as queued. */
+  var wdepth = (function () {
+    var gl, prog, buf, loc = {}, sets = {}, queue = [], cur = null, prev = null, X = 1, mask = null, maskImg = null;
+    var VS = 'attribute vec2 aPos;attribute vec2 aUv;uniform mat4 uM;varying vec2 vUv;void main(){vUv=aUv;gl_Position=uM*vec4(aPos,0.0,1.0);}';
+    var FS = 'precision highp float;varying vec2 vUv;uniform sampler2D uA;uniform sampler2D uB;uniform sampler2D uPA;uniform sampler2D uPB;uniform sampler2D uR;uniform sampler2D uK;' +
+      'uniform vec3 uMa;uniform vec3 uMb;uniform vec3 uMpa;uniform vec3 uMpb;uniform vec3 uMr;uniform float uDa;uniform float uDb;uniform float uDpa;uniform float uDpb;uniform float uDr;' +
+      'uniform float uT;uniform float uX;uniform float uHasK;uniform vec2 uS;uniform vec4 uL[4];uniform vec4 uC[4];uniform vec4 uDrn;' +
+      'float code(sampler2D s,vec3 m,float d,vec2 uv){float x=floor(dot(texture2D(s,uv).rgb,m)*255.0+0.5);return mod(floor(x/d+0.001),5.0);}' +
+      'float cls(sampler2D s,vec3 m,float d){vec2 p=vUv*uS-0.5;vec2 i=floor(p);vec2 f=p-i;vec2 c=(i+0.5)/uS;vec2 dx=vec2(1.0/uS.x,0.0);vec2 dy=vec2(0.0,1.0/uS.y);' +
+      'return mix(mix(code(s,m,d,c),code(s,m,d,c+dx),f.x),mix(code(s,m,d,c+dy),code(s,m,d,c+dx+dy),f.x),f.y);}' +
+      'vec4 rmp(vec4 c[4],float L){if(L<=2.0)return mix(c[0],c[1],L-1.0);if(L<=3.0)return mix(c[1],c[2],L-2.0);return mix(c[2],c[3],L-3.0);}' +
+      'void main(){float Lc=mix(cls(uA,uMa,uDa),cls(uB,uMb,uDb),uT);float Lp=uX<0.999?mix(cls(uPA,uMpa,uDpa),cls(uPB,uMpb,uDpb),uT):Lc;' +
+      'float L=mix(Lp,Lc,uX);float e=smoothstep(0.38,0.62,L);if(e<0.004)discard;' +
+      'float k=uHasK>0.5?smoothstep(0.3,0.7,texture2D(uK,vUv).g):0.0;' +
+      'vec4 c=mix(rmp(uL,max(L,1.0)),rmp(uC,max(L,1.0)),k);' +
+      // draining: the class an hour earlier was higher -> the water is going down: cooler, greyer, a little fainter
+      'float dr=smoothstep(0.35,1.2,cls(uR,uMr,uDr)-Lc)*(1.0-k*0.6);c=vec4(mix(c.rgb,uDrn.rgb,dr*0.75),c.a*mix(1.0,uDrn.a,dr));' +
+      'c.a*=e;gl_FragColor=vec4(c.rgb*c.a,c.a);}';
+    function slot(key, f) {
+      var S = sets[key]; if (!S) return null; f = Math.max(0, Math.min(nf - 1, f));
+      var k = f % 9, m = [0, 0, 0]; m[Math.floor(k / 3)] = 1;
+      return { tex: S.tex[Math.floor(f / 9)], m: m, d: [1, 5, 25][k % 3] };
+    }
+    function bind(unit, name, s) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, s.tex); gl.uniform1i(loc[name], unit); }
+    var api = {
+      layer: {
+        id: 'depth', type: 'custom', renderingMode: '2d',
+        onAdd: function (m, g) {
+          gl = g; prog = program(gl, VS, FS);
+          ['aPos', 'aUv'].forEach(function (k) { loc[k] = gl.getAttribLocation(prog, k); });
+          ['uM', 'uA', 'uB', 'uPA', 'uPB', 'uR', 'uK', 'uMa', 'uMb', 'uMpa', 'uMpb', 'uMr', 'uDa', 'uDb', 'uDpa', 'uDpb', 'uDr', 'uT', 'uX', 'uHasK', 'uS', 'uL', 'uC', 'uDrn']
+            .forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
+          buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(meta.corners), gl.STATIC_DRAW);
+        },
+        render: function (g, matrix) {
+          while (queue.length) { var q = queue.shift(); if (sets[q.key]) sets[q.key].tex[q.i] = texture(gl, q.img, gl.NEAREST); if (q.img.close) q.img.close(); }
+          if (maskImg) { mask = texture(gl, maskImg, gl.LINEAR); if (maskImg.close) maskImg.close(); maskImg = null; }
+          Object.keys(sets).forEach(function (k) { var S = sets[k]; if (S.drop) { S.tex.forEach(function (tx) { if (tx) gl.deleteTexture(tx); }); delete sets[k]; } });
+          var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1), per = 60 / meta.frame_min;
+          var A = slot(cur, fa), B = slot(cur, fb), R = slot(cur, Math.round(t - per));
+          if (!A || !A.tex || !B.tex || !R.tex) return;
+          var useP = X < 0.999 && prev && sets[prev], PA = useP ? slot(prev, fa) : A, PB = useP ? slot(prev, fb) : B;
+          if (!PA.tex || !PB.tex) { PA = A; PB = B; }
+          gl.useProgram(prog); gl.uniformMatrix4fv(loc.uM, false, matrix);
+          bind(0, 'uA', A); bind(1, 'uB', B); bind(2, 'uPA', PA); bind(3, 'uPB', PB); bind(4, 'uR', R);
+          gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, mask || A.tex); gl.uniform1i(loc.uK, 5); gl.uniform1f(loc.uHasK, mask ? 1 : 0);
+          gl.uniform3fv(loc.uMa, A.m); gl.uniform3fv(loc.uMb, B.m); gl.uniform3fv(loc.uMpa, PA.m); gl.uniform3fv(loc.uMpb, PB.m); gl.uniform3fv(loc.uMr, R.m);
+          gl.uniform1f(loc.uDa, A.d); gl.uniform1f(loc.uDb, B.d); gl.uniform1f(loc.uDpa, PA.d); gl.uniform1f(loc.uDpb, PB.d); gl.uniform1f(loc.uDr, R.d);
+          gl.uniform1f(loc.uT, fb === fa ? 0 : t - fa); gl.uniform1f(loc.uX, useP ? X : 1); gl.uniform2f(loc.uS, meta.w, meta.h);
+          gl.uniform4fv(loc.uL, WPAL.land); gl.uniform4fv(loc.uC, WPAL.chan); gl.uniform4fv(loc.uDrn, WPAL.drain);
           gl.bindBuffer(gl.ARRAY_BUFFER, buf);
           gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 16, 0);
           gl.enableVertexAttribArray(loc.aUv); gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 16, 8);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aUv);
-          gl.activeTexture(gl.TEXTURE0);
-          if (rate > 0) map.triggerRepaint(); // only animate while the water is moving; a paused map is not redrawn
+          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aUv); gl.activeTexture(gl.TEXTURE0);
         }
       },
-      set: function (info, image) {
-        F = info; img = image; F.frame_min = info.frame_min || (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
+      open: function (key, n) { if (!sets[key]) sets[key] = { tex: new Array(n), n: n, used: performance.now() }; sets[key].used = performance.now(); },
+      alive: function (key) { return !!sets[key] && !sets[key].drop; },
+      has: function (key) { var S = sets[key]; if (!S) return false; for (var i = 0; i < S.n; i++) if (!S.tex[i]) return false; return true; },
+      add: function (key, i, img) { queue.push({ key: key, i: i, img: img }); },
+      setMask: function (img) { maskImg = img; },
+      show: function (key) { if (key === cur) return; prev = cur; cur = key; X = prev ? 0 : 1; api.trim(); },
+      fade: function (x) { X = x; },
+      trim: function () { // keep at most a few scenarios on the GPU (each is ~22 textures of 1000 x 1000)
+        var keep = small() ? 2 : 4, ks = Object.keys(sets).filter(function (k) { return k !== cur && k !== prev && !sets[k].drop; });
+        ks.sort(function (a, b) { return sets[a].used - sets[b].used; });
+        while (ks.length + 2 > keep && ks.length) sets[ks.shift()].drop = true;
+      },
+      frames: function () {
+        var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1), A = slot(cur, fa), B = slot(cur, fb);
+        return A && B && A.tex && B.tex ? { A: A, B: B, ft: fb === fa ? 0 : t - fa } : null;
       }
     };
+    return api;
   })();
+
+  // the model's own terrain inside the box: lidar hillshade, slate-toned, under the water (terrain.png from the baseline run)
+  var terrainLayer = (function () {
+    var gl, prog, buf, loc = {}, tex = null, img = null, corners = null, op = 0;
+    var VS = 'attribute vec2 aPos;attribute vec2 aUv;uniform mat4 uM;varying vec2 vUv;void main(){vUv=aUv;gl_Position=uM*vec4(aPos,0.0,1.0);}';
+    var FS = 'precision mediump float;varying vec2 vUv;uniform sampler2D uT;uniform vec3 uLo;uniform vec3 uHi;uniform vec3 uW;uniform float uOp;' +
+      'void main(){vec3 s=texture2D(uT,vUv).rgb;float h=pow(s.r,1.15);vec3 c=mix(uLo,uHi,h)*(0.92+0.16*s.b);c=mix(c,uW,smoothstep(0.35,0.8,s.g)*0.55);' +
+      'float e=min(min(vUv.x,1.0-vUv.x),min(vUv.y,1.0-vUv.y));float a=uOp*smoothstep(0.0,0.025,e);gl_FragColor=vec4(c*a,a);}';
+    return {
+      layer: {
+        id: 'terrain', type: 'custom', renderingMode: '2d',
+        onAdd: function (m, g) {
+          gl = g; prog = program(gl, VS, FS); loc.aPos = gl.getAttribLocation(prog, 'aPos'); loc.aUv = gl.getAttribLocation(prog, 'aUv');
+          ['uM', 'uT', 'uLo', 'uHi', 'uW', 'uOp'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
+          buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(corners), gl.STATIC_DRAW);
+        },
+        render: function (g, matrix) {
+          if (img) { tex = texture(gl, img, gl.LINEAR); if (img.close) img.close(); img = null; }
+          if (!tex || op <= 0) return;
+          var P = WPAL.terrain;
+          gl.useProgram(prog); gl.uniformMatrix4fv(loc.uM, false, matrix);
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(loc.uT, 0);
+          gl.uniform3fv(loc.uLo, P[0]); gl.uniform3fv(loc.uHi, P[1]); gl.uniform3fv(loc.uW, P[2]); gl.uniform1f(loc.uOp, op);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 16, 0);
+          gl.enableVertexAttribArray(loc.aUv); gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 16, 8);
+          gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aUv);
+        }
+      },
+      set: function (c, image) { corners = c; img = image; },
+      opacity: function (v) { op = v; }
+    };
+  })();
+
+  // water-journey palette (what-if tab): overland water pale aqua -> blue as it deepens; streams, rivers and ponds rising in teal;
+  // draining water cools to slate. Roads keep the amber -> red closure ramp, so the four stages never share a hue.
+  var WPAL = {
+    land: [].concat([0.36, 0.78, 0.86, 0.5], [0.22, 0.6, 0.92, 0.7], [0.2, 0.42, 0.95, 0.84], [0.42, 0.36, 1.0, 0.93]),
+    chan: [].concat([0.16, 0.86, 0.76, 0.55], [0.22, 0.95, 0.8, 0.72], [0.55, 1.0, 0.88, 0.86], [0.85, 1.0, 0.95, 0.95]),
+    drain: [0.5, 0.58, 0.68, 0.72],
+    terrain: [[0.05, 0.08, 0.11], [0.36, 0.42, 0.47], [0.1, 0.32, 0.4]]
+  };
+  function wpalFor(b) {
+    if (b === 'night' || b === 'dark') {
+      WPAL.land = [].concat([0.831, 0.925, 0.957, 0.85], [0.592, 0.796, 0.894, 0.85], [0.392, 0.651, 0.839, 0.85], [0.271, 0.502, 0.761, 0.85]);
+      WPAL.chan = [].concat([0.16, 0.86, 0.76, 0.55], [0.22, 0.95, 0.8, 0.72], [0.55, 1.0, 0.88, 0.86], [0.85, 1.0, 0.95, 0.95]);
+      WPAL.drain = [0.5, 0.58, 0.68, 0.72];
+    } else { // light / terrain / satellite
+      WPAL.land = [].concat([0.71, 0.886, 0.933, 0.85], [0.427, 0.725, 0.867, 0.85], [0.208, 0.525, 0.769, 0.85], [0.102, 0.333, 0.627, 0.85]);
+      WPAL.chan = [].concat([0.0, 0.66, 0.62, 0.55], [0.0, 0.58, 0.55, 0.72], [0.0, 0.48, 0.46, 0.85], [0.0, 0.34, 0.33, 0.94]);
+      WPAL.drain = [0.48, 0.54, 0.6, 0.7];
+    }
+  }
+
+  var WI_TEXT = {
+    rain: ['Half the radar rain', 'Three quarters of the radar rain', 'The storm as the radar measured it', 'A quarter more rain than measured'],
+    soil: ['Dry ground soaks up more of the rain (the driest soil class)', 'Ground as it was: the model’s calibrated setting',
+      'Soaked ground from earlier rain sheds more of it (the wettest soil class)', 'Frozen ground sheds rain like pavement: nothing soaks in (an upper bound)'],
+    culv: ['Water passes under roads through culverts and pipes', 'Culverts are full or blocked: road embankments hold water back like dams (bridges stay open)']
+  };
+  var wiCtl = { rain: ['r050', 'r075', 'r100', 'r125'], soil: ['dry', 'normal', 'wet', 'frozen'], culv: ['open', 'blocked'] };
+  function wiKey() { return wiCtl.rain[+$('wiRain').value] + '_' + wiCtl.soil[+$('wiSoil').value] + '_' + wiCtl.culv[+$('wiCulv').value]; }
+  function wiScale() { return [0.5, 0.75, 1, 1.25][+$('wiRain').value]; }
+
+  // load one scenario (d.json, depth sheets, flow) -> resolves with its data once every texture is queued
+  function wiLoad(key) {
+    var dir = WI + key + '/';
+    if (wi.cache[key] && wdepth.alive(key)) return wi.cache[key];
+    var p = getJson(dir + 'd.json').then(function (dj) {
+      wdepth.open(key, dj.sheets.length);
+      return Promise.all(dj.sheets.map(function (s, i) { return getBitmap(dir + s).then(function (img) { wdepth.add(key, i, img); if (map) map.triggerRepaint(); }); }))
+        .then(function () { return dj; });
+    });
+    wi.cache[key] = p; p.catch(function () { delete wi.cache[key]; });
+    return p;
+  }
+  function wiIntervals(d) { // closed stretches (>= 30 cm) in frame units, as build_data.intervals
+    var out = [], st = null;
+    for (var i = 0; i < d.length; i++) {
+      var v = d[i];
+      if (v >= 30 && st === null) st = i === 0 ? 0 : i - 1 + (30 - d[i - 1]) / Math.max(v - d[i - 1], 1e-6);
+      if (v < 30 && st !== null) { out.push([st, i - 1 + (d[i - 1] - 30) / Math.max(d[i - 1] - v, 1e-6)]); st = null; }
+    }
+    if (st !== null) out.push([st, nf - 0.5]);
+    return out;
+  }
+  // apply a loaded scenario: roads (depth series cross-fade), numbers, chart, flow, culverts, then fade the water
+  function wiApply(key, dj, first) {
+    wi.key = key; wi.dj = dj; store('mfw-whatif', key);
+    meta.closed_per_frame = dj.closed_per_frame; meta.rain_hourly_mean_mm = dj.rain_hourly_mean_mm;
+    var N = dj.numbers || {};
+    ['segments_closed', 'km_closed', 'segments_may_close', 'culverts_overtopped', 'rain_peak1h_mm', 'rain_max_total_mm', 'segments_in_box'].forEach(function (k) {
+      var mk = { segments_closed: 'segments_p_ge_50', km_closed: 'km_p_ge_50', rain_peak1h_mm: 'rain_peak1h_max_mm' }[k] || k; meta[mk] = N[k];
+    });
+    var may = {}; (dj.may || []).forEach(function (id) { may[id] = 1; });
+    segs.forEach(function (s) {
+      var d = dj.seg[s.id] || null;
+      s.dp = first ? null : (s.d || []); s.d = d || []; s.iv = d ? wiIntervals(d) : []; s.e = (dj.edge && dj.edge[s.id]) || null;
+      var pr = s.f.properties; pr.p = dj.p[s.id] || 0; pr.m = may[s.id] ? 1 : 0; pr.d = d; if (s.iv.length) pr.iv = s.iv; else delete pr.iv;
+    });
+    if (map.getSource('roads')) map.getSource('roads').setData(wi.roads);
+    wdepth.show(key);
+    if (dj._flow) { flowLayer.set(dj._flow.info, dj._flow.img); dj._flow = null; }
+    rainLayer.scale(wiScale());
+    wiCulverts();
+    wiNumbers(); wiPhases(); drawChart(); if (ready) { instInit(); rankBuild(); }
+    if (first) { wdepth.fade(1); wi.x = 1; setTime(t); return; }
+    var t0_ = performance.now(), D = reduced ? 1 : 650;
+    (function step(now) {
+      var x = Math.min(1, (now - t0_) / D); x = x * x * (3 - 2 * x); wi.x = x; wdepth.fade(x); setTime(t);
+      if (x < 1) requestAnimationFrame(step); else segs.forEach(function (s) { s.dp = null; });
+    })(t0_);
+    wiPulse();
+  }
+  function wiSelect() {
+    var key = wiKey(), st = wi.index && wi.index.scenarios[key];
+    wiLabels();
+    if (!WION) { // before the runs land: the actual storm is the live replay; the rest are queued
+      if (key === 'r100_normal_open') { $('wi').classList.remove('pending'); $('wiNote').innerHTML = 'The actual storm, from the live replay. <b>The other combinations are queued on WPI’s Turing GPU cluster</b>: each is a full flood-model run of this storm with one input changed.'; }
+      else wiPending(key);
+      return;
+    }
+    if (!st || st.status !== 'ok') { wiPending(key); return; }
+    $('wi').classList.remove('pending'); $('wi').classList.add('busy'); $('wiNote').textContent = 'Loading this run…';
+    var want = key;
+    wiLoad(key).then(function (dj) {
+      return getJson(WI + key + '/flow.json').then(function (fi) {   // the bitmap is consumed by the GPU upload: fetch again (HTTP cache) on every switch
+        return getBitmap(WI + key + '/' + fi.sheet).then(function (img) { dj._flow = { info: fi, img: img }; return dj; });
+      }).catch(function () { return dj; });
+    }).then(function (dj) {
+      if (wiKey() !== want) return;
+      // wait until every sheet is on the GPU, so the cross-fade never shows a half-loaded run
+      (function wait() { map.triggerRepaint(); if (wdepth.has(want) || !dj.sheets.length) { $('wi').classList.remove('busy'); wiApply(want, dj, false); } else setTimeout(wait, 40); })();
+    }).catch(function (e) { console.error('whatif', e); $('wi').classList.remove('busy'); $('wiNote').textContent = 'This run did not load. Try again.'; });
+  }
+  function wiPending(key) {
+    $('wi').classList.add('pending');
+    var done = wi.index ? wi.index.n_ok || 0 : 1;
+    $('wiNote').innerHTML = '<b>This combination is queued on WPI’s Turing GPU cluster.</b> ' + (wi.index ? done + ' of ' + (wi.index.n || 32) + ' runs are in so far; ' : '') +
+      'the map keeps showing the last run that has landed.';
+  }
+  function wiLabels() {
+    $('wiRainV').textContent = ['×0.5', '×0.75', 'actual', '×1.25'][+$('wiRain').value];
+    $('wiSoilV').textContent = ['dry', 'normal', 'soaked', 'frozen'][+$('wiSoil').value];
+    $('wiCulvV').textContent = ['clear', 'blocked'][+$('wiCulv').value];
+    $('wiRainH').textContent = WI_TEXT.rain[+$('wiRain').value];
+    $('wiSoilH').textContent = WI_TEXT.soil[+$('wiSoil').value];
+    $('wiCulvH').textContent = WI_TEXT.culv[+$('wiCulv').value];
+    ['wiRain', 'wiSoil', 'wiCulv'].forEach(function (id) { var e = $(id); e.style.setProperty('--v', (+e.value / +e.max * 100) + '%'); e.setAttribute('aria-valuetext', $(id + 'V').textContent); });
+    $('wiCulv').style.setProperty('--b', +$('wiCulv').value ? '#ff5a6e' : '#2fdcc2');
+    ['wiSoil', 'wiCulv'].forEach(function (id) {
+      var box = $(id).parentNode, tk = box.querySelectorAll('.ticks span');
+      Array.prototype.forEach.call(box.querySelectorAll('.seg button'), function (b, i) { b.setAttribute('aria-checked', +b.dataset.v === +$(id).value ? 'true' : 'false'); b.classList.toggle('q', !!(tk[i] && tk[i].classList.contains('q'))); });
+    });
+    $('wiSoil').style.setProperty('--b', ['#c8a46b', '#8d7a5c', '#4f6b7a', '#bfe6ff'][+$('wiSoil').value]);
+    { // ticks whose run is not in yet are marked queued
+      var r = +$('wiRain').value, s = +$('wiSoil').value, c = +$('wiCulv').value, S = wi.index ? wi.index.scenarios : { r100_normal_open: { status: 'ok' } };
+      var okAt = function (rr, ss, cc) { var v = S[wiCtl.rain[rr] + '_' + wiCtl.soil[ss] + '_' + wiCtl.culv[cc]]; return v && v.status === 'ok'; };
+      [['wiRainBox', 4, function (i) { return okAt(i, s, c); }], ['wiSoilBox', 4, function (i) { return okAt(r, i, c); }], ['wiCulvBox', 2, function (i) { return okAt(r, s, i); }]].forEach(function (a) {
+        var tk = $(a[0]).querySelectorAll('.ticks span'); for (var i = 0; i < a[1]; i++) tk[i].classList.toggle('q', !a[2](i));
+      });
+    }
+  }
+  function wiNumbers() {
+    var N = (wi.dj && wi.dj.numbers) || {}, B = wi.index && wi.index.scenarios[wi.index.baseline], base_ = wi.key !== (wi.index && wi.index.baseline) && B && B.status === 'ok' ? B : null;
+    var delta = function (v, b) { if (!base_ || v == null || b == null) return ''; var d = v - b; return d === 0 ? ' <i>same as the actual storm</i>' : ' <i>' + (d > 0 ? '+' : '−') + n(Math.abs(d)) + ' vs actual</i>'; };
+    $('wiNRain').innerHTML = N.rain_total_mm != null ? Math.round(N.rain_total_mm) + ' mm' + (N.rain_peak1h_mm ? '<i>up to ' + Math.round(N.rain_peak1h_mm) + ' mm in one hour</i>' : '') : '–';
+    $('wiNClosed').innerHTML = N.segments_closed != null ? n(N.segments_closed) + (N.pct_closed != null ? '<small>' + N.pct_closed.toFixed(1) + '% of roads</small>' : '') + delta(N.segments_closed, base_ && base_.segments_closed) : '–';
+    $('wiNPeople').innerHTML = N.people_cut_off != null ? n(N.people_cut_off) + delta(N.people_cut_off, base_ && base_.people_cut_off) : '–';
+    $('wiNCulv').innerHTML = N.culverts_overtopped != null ? n(N.culverts_overtopped) + delta(N.culverts_overtopped, base_ && base_.culverts_overtopped) : '–';
+    $('wiNote').innerHTML = 'Each setting is a full LISFLOOD-FP flood-model run of the real storm with that one input changed: ' +
+      (wi.index ? wi.index.n_ok + ' runs' : 'runs') + ' on WPI’s Turing GPU cluster, not an extrapolation. People cut off: residents with no route to a hospital, fire or police station.';
+    $('runStats').innerHTML = '<b>' + n(N.segments_closed || 0) + '</b> road segments close (' + (N.km_closed || 0) + ' km), <b>' + n(N.culverts_overtopped || 0) +
+      '</b> culverts overtopped, out of ' + n(N.segments_in_box || 0) + ' segments in the area.';
+  }
+
+  // phases of the water's journey, from the run's own series: rain -> runoff -> streams rise -> streets flood -> draining
+  var PH = [], phNow = -1;
+  var PHASES = [
+    { k: 'rain', name: 'Rain falls', s: 'Radar rain sweeps over the hills' },
+    { k: 'runoff', name: 'Runoff', s: 'Rain the ground cannot take runs off over the land' },
+    { k: 'chan', name: 'Streams rise', s: 'Brooks, rivers and ponds collect it and swell' },
+    { k: 'over', name: 'Streets flood', s: 'Water overflows onto roads; 30 cm closes them' },
+    { k: 'drain', name: 'Draining', s: 'Water drains downstream and roads reopen' }
+  ];
+  function wiPhases() {
+    var r = meta.rain_hourly_mean_mm || [], cp = meta.closed_per_frame || [], per = 60 / meta.frame_min, N = nf - 1, dj = wi && wi.dj;
+    var rmax = Math.max.apply(0, r.concat([0.001])), cmax = Math.max.apply(0, cp.concat([0])), i;
+    var first = function (a, th, from) { for (var k = from || 0; k < a.length; k++) if (a[k] >= th) return k; return -1; };
+    var hS = first(r, 0.12 * rmax); var a0 = Math.max(0, (hS < 0 ? 0 : hS) * per - per);
+    var wk = dj && dj.wet_km2, ck = dj && dj.channel_rise_km;
+    var fRun = wk ? first(wk, 0.12 * Math.max.apply(0, wk)) : -1; if (fRun < 0) fRun = a0 + per;
+    var fCh = ck ? first(ck, 0.2 * Math.max.apply(0, ck)) : -1;
+    var fOv = first(cp, Math.max(2, 0.1 * cmax), Math.floor(a0)); if (fOv < 0) fOv = Math.min(N, fRun + 2 * per);
+    if (fCh < 0) fCh = (fRun + fOv) / 2;
+    var fPk = 0; for (i = 0; i < cp.length; i++) if (cp[i] > cp[fPk]) fPk = i;
+    var fDr = fPk; while (fDr < N && cp[fDr] >= 0.85 * cmax) fDr++;   // draining: once closures are clearly past their peak
+    var b = [a0, Math.max(a0 + 0.4 * per, fRun), 0, 0, 0, N];
+    b[2] = Math.max(b[1] + 0.4 * per, fCh); b[3] = Math.max(b[2] + 0.4 * per, Math.min(fOv, fPk)); b[4] = Math.max(b[3] + 0.6 * per, fDr);
+    for (i = 1; i < b.length; i++) b[i] = Math.min(N, Math.max(b[i], b[i - 1]));
+    PH = PHASES.map(function (p, k) { return { k: p.k, name: p.name, s: p.s, a: b[k], b: b[k + 1] }; });
+    var el = $('phases'); el.hidden = false; el.innerHTML = '';
+    PH.forEach(function (p, k) {
+      var d = document.createElement('button'); d.type = 'button'; d.className = 'ph ph-' + p.k; d.dataset.i = k;
+      d.style.left = (100 * p.a / N) + '%'; d.style.width = Math.max(0, 100 * (p.b - p.a) / N) + '%';
+      d.innerHTML = '<span>' + esc(p.name) + '</span>'; d.title = p.name + ': ' + p.s + ' (' + fmtShort.format(timeAt(p.a)) + ')';
+      d.setAttribute('aria-label', d.title);
+      d.addEventListener('click', function () { if (playing) setPlaying(false); played = true; setTime(p.a + 0.01); phaseCaption(true); });
+      el.appendChild(d);
+    });
+    Array.prototype.forEach.call(el.children, function (d) { var sp = d.firstChild; if (sp.scrollWidth > sp.clientWidth + 1) d.classList.add('nl'); });
+    var ol = $('phsteps'); ol.hidden = false; ol.innerHTML = '';
+    PH.forEach(function (p, k) {
+      var li = document.createElement('li'); li.className = 'ps ph-' + p.k;
+      li.innerHTML = '<button type="button"><i></i><b>' + esc(p.name) + '</b><span>' + esc(fmtShort.format(timeAt(p.a)).replace(/^[A-Z][a-z]{2} \d+, /, '')) + '</span></button>';
+      li.firstChild.addEventListener('click', function () { if (playing) setPlaying(false); played = true; setTime(p.a + 0.01); phaseCaption(true); });
+      ol.appendChild(li);
+    });
+    phNow = -1; phaseCaption();
+  }
+  function phaseAt(f) { for (var k = PH.length - 1; k >= 0; k--) if (f >= PH[k].a) return k; return -1; }
+  var capTimer = 0;
+  function phaseCaption(force) {
+    if (!PH.length) return;
+    var k = phaseAt(t);
+    if (k === phNow && !force) return;
+    phNow = k;
+    [$('phases'), $('phsteps')].forEach(function (el) { Array.prototype.forEach.call(el.children, function (c, j) { c.classList.toggle('on', j === k); c.classList.toggle('past', j < k); }); });
+    // the time pill over the map: clock and the phase of the water's journey, with one line of explanation when the phase changes
+    var cap = $('caption'); if (story.on) { cap.hidden = true; return; }
+    var p = PH[Math.max(0, k)], live = '';
+    if (p.k === 'rain' && meta.rain_peak1h_max_mm) live = ' (up to ' + Math.round(meta.rain_peak1h_max_mm) + ' mm in one hour at the wettest spot)';
+    $('capT').textContent = k < 0 ? 'Before the storm' : p.name; $('capS').textContent = k < 0 ? '' : p.s + live;
+    cap.className = 'caption cap-' + (k < 0 ? 'pre' : p.k); cap.hidden = false; capClock(true);
+    cap.classList.toggle('long', playing || !!force);
+    clearTimeout(capTimer); capTimer = setTimeout(function () { cap.classList.remove('long'); }, 5200);
+  }
+  var capLast = '';
+  function capClock(force) {
+    if (!meta || !t0) return;
+    var mins = Math.round(t * meta.frame_min / 5) * 5, s = fmtCap.format(new Date(t0.getTime() + mins * 60000));
+    if (s !== capLast || force) { capLast = s; $('capC').textContent = s; }
+  }
+
+  // culverts: open (pale ring), overtopped (amber, from the moment the run overtops it), blocked in this scenario (red bar)
+  var wiCx = null, wiCxOn = -1;
+  function wiCulvertsInit(rows) {
+    wiCx = rows.map(function (r, i) { return { type: 'Feature', id: i, properties: { road: r[2], stream: r[3], br: r[4], b: 0 }, geometry: { type: 'Point', coordinates: [r[0], r[1]] } }; });
+    map.addSource('wcx', { type: 'geojson', data: { type: 'FeatureCollection', features: wiCx } });
+    var st = ['coalesce', ['feature-state', 'o'], 0];
+    // culverts from street zoom (z14.5): open white with a grey ring, overtopped dark red, blocked in this run charcoal with a cross
+    map.addLayer({ id: 'wcx', type: 'circle', source: 'wcx', filter: ['==', ['get', 'br'], 0], minzoom: 14.5,
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14.5, 5, 16, 7],
+        'circle-color': ['case', ['==', ['get', 'b'], 1], '#1F2328', ['==', st, 1], '#7A0019', '#FFFFFF'],
+        'circle-stroke-color': ['case', ['==', ['get', 'b'], 1], '#FFFFFF', ['==', st, 1], '#FFFFFF', '#5F6368'],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 1, 15, 1.8], 'circle-opacity': 0.95 } });
+    map.addLayer({ id: 'wcx-x', type: 'symbol', source: 'wcx', filter: ['all', ['==', ['get', 'br'], 0], ['==', ['get', 'b'], 1]], minzoom: 14.5,
+      layout: { 'text-field': '×', 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12.5, 9, 15, 13], 'text-allow-overlap': true, 'text-ignore-placement': true },
+      paint: { 'text-color': '#fff' } });
+    map.addLayer({ id: 'wcx-lb', type: 'symbol', source: 'wcx', filter: ['all', ['==', ['get', 'br'], 0], ['!=', ['get', 'stream'], '']], minzoom: 14.5,
+      layout: { 'text-field': ['concat', 'culvert, ', ['get', 'stream']], 'text-font': ['Noto Sans Italic'], 'text-size': 10.5, 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true },
+      paint: { 'text-color': '#2F5C80', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.4 } });
+    map.on('mouseenter', 'wcx', function (e) {
+      map.getCanvas().style.cursor = 'pointer'; if (small()) return; var p = e.features[0].properties, o = (map.getFeatureState({ source: 'wcx', id: e.features[0].id }) || {}).o;
+      if (hover) hover.remove();
+      hover = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'tip' }).setLngLat(e.features[0].geometry.coordinates)
+        .setHTML('<b>' + esc(p.road || 'Road–stream crossing') + '</b>' + (p.stream ? ' over ' + esc(p.stream) : '') + '<br>' +
+          (p.b ? 'Blocked in this run: the road fill holds water back' : o ? 'Overtopped: 15 cm or more of water on the road here' : 'Culvert passing water')).addTo(map);
+    });
+    map.on('mouseleave', 'wcx', function () { map.getCanvas().style.cursor = ''; if (hover) { hover.remove(); hover = null; } });
+    if (wi && wi.dj) wiCulverts();
+  }
+  function wiCulverts() {
+    if (!wiCx || !wi.dj) return;
+    var blk = wiCtl.culv[+$('wiCulv').value] === 'blocked' && /_blocked$/.test(wi.key);
+    wiCx.forEach(function (f) { f.properties.b = blk ? 1 : 0; });
+    map.getSource('wcx').setData({ type: 'FeatureCollection', features: wiCx });
+    wi.cxT = {}; (wi.dj.culverts || []).forEach(function (c) { wi.cxT[c[0]] = c[1]; });
+    wiCxOn = -1; wiCulvertTime();
+  }
+  function wiCulvertTime() {
+    if (!wiCx || !wi.cxT) return;
+    var f = Math.floor(t); if (f === wiCxOn) return; wiCxOn = f;
+    wiCx.forEach(function (x, i) { var a = wi.cxT[i], o = a != null && a <= t ? 1 : 0; if (x._o !== o) { x._o = o; map.setFeatureState({ source: 'wcx', id: i }, { o: o }); } });
+  }
+
+  // streams and rivers: dashes travel downstream (OpenStreetMap waterways are drawn in the direction of flow) and swell with the run
+  var DASH = [[0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5]];
+  var dashI = 0, dashLast = 0, dashUntil = 0, swellLast = -1;
+  function wiPulse() { dashUntil = performance.now() + 6000; requestAnimationFrame(dashTick); }
+  function dashTick(now) {
+    if (!map || !map.getLayer('h-flow') || reduced) return;
+    if (now - dashLast > 85) { dashLast = now; dashI = (dashI + 1) % DASH.length; map.setPaintProperty('h-flow', 'line-dasharray', DASH[dashI]); }
+    if (playing || now < dashUntil) requestAnimationFrame(dashTick);
+  }
+  function wiSwell() { // stream glow follows the run's channel rise (or, before the runs land, the closures) through the storm
+    if (!map || !map.getLayer('h-flow')) return;
+    var a = (wi && wi.dj && wi.dj.channel_rise_km) || (stageAt() != null && stageSer) || meta.closed_per_frame || [], mx = Math.max.apply(0, a.concat([1e-6]));
+    var f = Math.max(0, Math.min(nf - 1, t)), i = Math.floor(f), v = ((a[i] || 0) + ((a[i + 1] || a[i] || 0) - (a[i] || 0)) * (f - i)) / mx;
+    v = Math.round(v * 20) / 20; if (v === swellLast) return; swellLast = v;
+    map.setPaintProperty('h-flow', 'line-opacity', 0.25 + 0.7 * v);
+    map.setPaintProperty('h-river', 'line-width', ['interpolate', ['exponential', 1.5], ['zoom'], 9, 1 + v, 13, 2.2 + 2 * v, 16, 5 + 4 * v]);
+  }
+
+
+  // ---------- what-if: loading, controls, labels ----------
+  function pieceOrd(seg) { var c = {}; return seg.map(function (s) { c[s] = (c[s] || 0) + 1; return c[s] - 1; }); }
+  function wiLoadJobs() {
+    var k0 = wi.first, dj = wi.dj, ix = wi.index, jobs = [];
+    total = 4;
+    jobs.push(Promise.all([getJson(WI + 'roads.json'), getJson(WI + 'pieces.json').catch(function () { return null; })]).then(function (a) {
+      var g = a[0]; if (a[1] && a[1].seg) { PCS = a[1]; PCS.k = pieceOrd(PCS.seg); }
+      var may = {}; (dj.may || []).forEach(function (id) { may[id] = 1; });
+      g.features.forEach(function (f) { var p = f.properties; p.d = dj.seg[f.id] || null; p.e = (dj.edge && dj.edge[f.id]) || null; p.p = dj.p[f.id] || 0; p.m = may[f.id] ? 1 : 0; if (p.d) { var iv = wiIntervals(p.d); if (iv.length) p.iv = iv; } });
+      wi.roads = g;
+      return new Promise(function (res) { whenStyle(function () { addRoads(g); progress(); res(); }); });
+    }));
+    jobs.push(getBitmap(WI + ix.terrain.sheet).then(function (img) {
+      terrainLayer.set(ix.corners, img);
+      whenStyle(function () { map.addLayer(terrainLayer.layer, map.getLayer('h-water') ? 'h-water' : 'l-voy'); applyTheme(); });
+      return getBitmap(WI + ix.terrain.sheet).then(function (im2) { wdepth.setMask(im2); progress(); });
+    }).catch(function (e) { console.warn('terrain', e); progress(); }));
+    jobs.push(getJson(WI + 'culverts.json').then(function (c) { whenStyle(function () { try { wiCulvertsInit(c.rows); } catch (e) { console.error('culverts', e); } }); progress(); }).catch(function (e) { console.warn('culverts', e); progress(); }));
+    jobs.push(getJson(WI + k0 + '/flow.json').then(function (fi) {
+      return getBitmap(WI + k0 + '/' + fi.sheet).then(function (img) {
+        flowLayer.set(fi, img);
+        whenStyle(function () { map.addLayer(flowLayer.layer, map.getLayer('rain') ? 'rain' : 'l-voy'); vis('flow', $('lyFlow').checked); });
+        $('flowRow').hidden = $('flowKey').hidden = false; progress();
+      });
+    }).catch(function (e) { console.warn('flow', e); progress(); }));
+    return jobs;
+  }
+  // the live replay's reference layers, on the scenario clock (15-min frames): observed gauge flow only, no single-run model numbers
+  function wiRefs(r) {
+    if (!WION) return r;
+    var k = Math.round(meta.frame_min / 5);
+    (r.gauges || []).forEach(function (g) {
+      if (g.obs_q) g.obs_q = g.obs_q.filter(function (v, i) { return i % k === 0; });
+      ['model_q', 'model_rise_m', 'model_peak_utc', 'timing_error_h'].forEach(function (x) { delete g[x]; });
+    });
+    r.reports = []; r.crossings = { columns: [], rows: [] }; // culverts come from the scenario (wiCulverts)
+    return r;
+  }
+  function segmented(id, names) { // native-style segmented control driving a hidden range input
+    var inp = $(id), box = inp.parentNode, g = document.createElement('div'); g.className = 'seg'; g.setAttribute('role', 'radiogroup');
+    g.setAttribute('aria-label', box.querySelector('label b').textContent);
+    names.forEach(function (nm, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = nm; b.dataset.v = i; b.setAttribute('role', 'radio');
+      b.addEventListener('click', function () { inp.value = i; inp.dispatchEvent(new Event('input')); });
+      g.appendChild(b);
+    });
+    inp.insertAdjacentElement('afterend', g); box.classList.add('has-seg');
+  }
+  function wiInitUi() {
+    $('wi').hidden = false; document.documentElement.classList.add('wi-on');
+    segmented('wiSoil', ['Dry', 'Normal', 'Soaked', 'Frozen']); segmented('wiCulv', ['Clear', 'Blocked']);
+    if (WION && $('drnKey')) $('drnKey').remove();
+    if (WION) { // the key names the stages of the water's journey
+      var k = document.querySelector('#key .kramp.depth'); if (k) k.closest('.k').outerHTML =
+        '<div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp wl"></i><span class="kt"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span></span></div>' +
+        '<div class="k kdrn"><span class="kl">Draining</span><span class="kr kroads"><span><i class="kw drn"></i>water going down</span></span></div>';
+    }
+    $('replayStory').hidden = true;
+    ['wiRain', 'wiSoil', 'wiCulv'].forEach(function (id) {
+      $(id).addEventListener('input', function () { wiLabels(); clearTimeout(wi.deb); wi.deb = setTimeout(wiSelect, 120); });
+    });
+    $('wiPlay').addEventListener('click', function () { if (!ready) return; played = false; setPlaying(true); });
+    wiLabels();
+    if (WION) wiNumbers();
+    else {
+      $('wiNRain').textContent = Math.round(sum(meta.rain_hourly_mean_mm || [], 99)) + ' mm';
+      $('wiNClosed').innerHTML = n(meta.segments_p_ge_50 || 0) + (meta.segments_in_box ? '<small>' + (100 * meta.segments_p_ge_50 / meta.segments_in_box).toFixed(1) + '% of roads</small>' : '');
+      $('wiNPeople').textContent = '–'; $('wiNCulv').textContent = n(meta.culverts_overtopped || 0);
+      fetch(base + 'cascade.json').then(function (r) { return r.text(); }).then(function (x) { return JSON.parse(x.replace(/\bNaN\b/g, 'null')); }).then(function (c) { var pk = c && c.totals && c.totals.peak; if (pk && pk.pop_isolated != null) $('wiNPeople').textContent = n(pk.pop_isolated); }).catch(function () {});
+    }
+  }
+  function wiLive() { // the live part of the numbers: roads closed right now
+    var el = $('wiNClosedL'); if (!el) return;
+    var txt = playing || played ? 'roads close (' + n(nClosedNow) + ' closed now)' : 'roads close during the storm';
+    if (el.textContent !== txt) el.textContent = txt;
+  }
+  // labels: rivers, brooks, lakes and ponds, towns, route numbers, hospitals, schools, fire and police (OpenStreetMap via OpenFreeMap
+  // vector tiles), dams (National Inventory of Dams); collision-aware, by zoom, most important first
+  function addLabels() {
+    if (!map.getSource('omt')) return;
+    var halo = 'rgba(9,17,23,.9)', F = { r: ['Noto Sans Regular'], b: ['Noto Sans Bold'], i: ['Noto Sans Italic'] };
+    var pill = document.createElement('canvas'); pill.width = pill.height = 24; var c = pill.getContext('2d');
+    c.fillStyle = '#e9eef1'; c.strokeStyle = '#3c4852'; c.lineWidth = 2; rr(c, 1.5, 3.5, 21, 17, 4); c.fill(); c.stroke();
+    if (!map.hasImage('shield')) map.addImage('shield', c.getImageData(0, 0, 24, 24), { pixelRatio: 2, stretchX: [[7, 17]], stretchY: [[8, 16]], content: [5, 5, 19, 19] });
+    var L = [
+      { id: 'lb-place', type: 'symbol', source: 'omt', 'source-layer': 'place', minzoom: 8, filter: ['match', ['get', 'class'], ['city', 'town', 'village', 'suburb', 'hamlet', 'neighbourhood'], true, false],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.b, 'text-size': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'class'], ['city', 'town'], 13, 10], 14, ['match', ['get', 'class'], ['city', 'town'], 17, 12.5]],
+          'text-letter-spacing': 0.04, 'symbol-sort-key': ['match', ['get', 'class'], 'city', 0, 'town', 1, 'village', 2, 3], 'text-padding': 6 },
+        paint: { 'text-color': '#e8eef2', 'text-halo-color': halo, 'text-halo-width': 1.6, 'text-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.9, 15, 0.55] } },
+      { id: 'lb-water', type: 'symbol', source: 'omt', 'source-layer': 'water_name', minzoom: 11, filter: ['==', ['geometry-type'], 'Point'],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.i, 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10.5, 15, 13.5], 'text-max-width': 7, 'text-padding': 4 },
+        paint: { 'text-color': '#8fd8f2', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
+      { id: 'lb-waterl', type: 'symbol', source: 'omt', 'source-layer': 'water_name', minzoom: 11, filter: ['==', ['geometry-type'], 'LineString'],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.i, 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10.5, 15, 13.5], 'symbol-placement': 'line', 'text-padding': 4 },
+        paint: { 'text-color': '#8fd8f2', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
+      { id: 'lb-river', type: 'symbol', source: 'omt', 'source-layer': 'waterway', minzoom: 11.5, filter: ['all', ['has', 'name'], ['!=', ['get', 'brunnel'], 'tunnel']],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.i, 'text-size': ['interpolate', ['linear'], ['zoom'], 12, ['match', ['get', 'class'], 'river', 11.5, 10], 16, ['match', ['get', 'class'], 'river', 14, 12]],
+          'symbol-placement': 'line', 'symbol-spacing': 320, 'text-letter-spacing': 0.06, 'symbol-sort-key': ['match', ['get', 'class'], 'river', 0, 1] },
+        paint: { 'text-color': '#7fe0e8', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
+      { id: 'lb-shield', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 9.5,
+        filter: ['all', ['has', 'ref'], ['<=', ['length', ['to-string', ['get', 'ref']]], 5], ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false]],
+        layout: { 'text-field': ['get', 'ref'], 'text-font': F.b, 'text-size': 10.5, 'icon-image': 'shield', 'icon-text-fit': 'both', 'icon-text-fit-padding': [1, 4, 1, 4],
+          'symbol-placement': 'line', 'symbol-spacing': 420, 'text-rotation-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'symbol-sort-key': ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 2] },
+        paint: { 'text-color': '#17222c' } },
+      { id: 'lb-road', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 13.5, filter: ['has', 'name'],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.r, 'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 13], 'symbol-placement': 'line', 'symbol-spacing': 260, 'text-padding': 3 },
+        paint: { 'text-color': '#c3ccd3', 'text-halo-color': halo, 'text-halo-width': 1.3 } },
+      { id: 'lb-poi', type: 'symbol', source: 'omt', 'source-layer': 'poi', minzoom: 13,
+        filter: ['any', ['match', ['get', 'class'], ['hospital', 'school', 'college', 'police', 'fire_station', 'town_hall'], true, false], ['match', ['get', 'subclass'], ['hospital', 'fire_station', 'police', 'school'], true, false]],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.r, 'text-size': 10.5, 'text-max-width': 9, 'text-padding': 4, 'text-optional': true,
+          'symbol-sort-key': ['match', ['get', 'class'], 'hospital', 0, 'fire_station', 1, 'police', 1, 2] },
+        paint: { 'text-color': ['match', ['get', 'class'], 'hospital', '#ff9aa8', ['fire_station', 'police'], '#ffc28a', '#d7dde2'], 'text-halo-color': halo, 'text-halo-width': 1.3 } }
+    ];
+    // dams and the region's hospitals / stations from the replay's reference files (names from NID and OpenStreetMap)
+    var R = refs || {}, pts = [];
+    (R.dams || []).forEach(function (d) { if (d[2]) pts.push({ type: 'Feature', properties: { name: title(d[2]).replace(/\bDam\b/, 'dam'), k: 'dam' }, geometry: { type: 'Point', coordinates: [d[0], d[1]] } }); });
+    var FAC = R.facilities || {};
+    [['hospital', 'hospital'], ['fire_station', 'fire'], ['police', 'police']].forEach(function (a) {
+      (FAC[a[0]] || []).forEach(function (f) { if (f[2]) pts.push({ type: 'Feature', properties: { name: f[2], k: a[1] }, geometry: { type: 'Point', coordinates: [f[0], f[1]] } }); });
+    });
+    map.addSource('lbp', { type: 'geojson', data: { type: 'FeatureCollection', features: pts } });
+    L.push({ id: 'lb-pts', type: 'symbol', source: 'lbp', minzoom: 11.5,
+      layout: { 'text-field': ['get', 'name'], 'text-font': ['match', ['get', 'k'], 'dam', ['literal', F.i], ['literal', F.r]], 'text-size': ['match', ['get', 'k'], 'hospital', 11.5, 10.5],
+        'text-max-width': 9, 'text-variable-anchor': ['top', 'bottom', 'right', 'left'], 'text-radial-offset': 0.9, 'text-padding': 3, 'symbol-sort-key': ['match', ['get', 'k'], 'hospital', 0, 'dam', 1, 2] },
+      paint: { 'text-color': ['match', ['get', 'k'], 'dam', '#9cc8ff', 'hospital', '#ff9aa8', '#ffc28a'], 'text-halo-color': halo, 'text-halo-width': 1.4 } });
+    // streets for 'this closed road runs between X and Y': an invisible query layer and a highlight of the two cross streets
+    map.addLayer({ id: 'net-q', type: 'line', source: 'omt', 'source-layer': 'transportation_name', minzoom: 10, filter: ['has', 'name'], paint: { 'line-width': 10, 'line-opacity': 0 } }, 'edge');
+    map.addLayer({ id: 'net-hl', type: 'line', source: 'omt', 'source-layer': 'transportation_name', filter: ['in', ['get', 'name'], ['literal', []]],
+      layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 2, 16, 6], 'line-opacity': 0.55, 'line-dasharray': [1.5, 1] } }, 'edge');
+    map.addLayer({ id: 'net-alt', type: 'line', source: 'omt', 'source-layer': 'transportation_name', filter: ['in', ['get', 'name'], ['literal', []]],
+      layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': css('--alt') || '#1E8E3E', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 2.5, 16, 7], 'line-opacity': 0.55 } }, 'edge');
+    L.forEach(function (l) { if (!map.getLayer(l.id)) map.addLayer(l, map.getLayer('rlab-w') ? 'rlab-w' : undefined); });
+    applyTheme();
+  }
+  // vector water and hillshade for the what-if basemap (OpenFreeMap / OpenMapTiles, AWS Terrain Tiles)
+  function hydroLayers() {
+    if (!REPLAY) return [];
+    var Z = ['zoom'];
+    return [
+      { id: 'b-hshade', type: 'hillshade', source: 'dem', layout: { visibility: 'none' },
+        paint: { 'hillshade-exaggeration': 0.4, 'hillshade-shadow-color': '#121417', 'hillshade-highlight-color': '#3a4047', 'hillshade-accent-color': '#1a1d20', 'hillshade-illumination-direction': 315 } },
+      { id: 'v-park', type: 'fill', source: 'omt', 'source-layer': 'park', paint: { 'fill-color': '#E8EBE4', 'fill-opacity': 0.9 } },
+      { id: 'v-bldg', type: 'fill', source: 'omt', 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': '#E4E4E0', 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 1] } },
+      { id: 'h-water', type: 'fill', source: 'omt', 'source-layer': 'water', paint: { 'fill-color': '#D5DDE3', 'fill-opacity': 1 } },
+      // ponds and lakes rise with the river: the outline thickens and brightens with the stage (pondSwell)
+      { id: 'h-water-ol', type: 'line', source: 'omt', 'source-layer': 'water', minzoom: 11, paint: { 'line-color': '#3586C4', 'line-width': 0.6, 'line-opacity': 0.15 } },
+      { id: 'h-stream', type: 'line', source: 'omt', 'source-layer': 'waterway', minzoom: 10, filter: ['match', ['get', 'class'], ['stream', 'drain', 'ditch'], true, false],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#2b8db5', 'line-width': ['interpolate', ['exponential', 1.5], Z, 11, 0.6, 14, 1.6, 17, 3.5], 'line-opacity': ['interpolate', ['linear'], Z, 10, 0.4, 13, 0.85] } },
+      { id: 'h-river', type: 'line', source: 'omt', 'source-layer': 'waterway', filter: ['match', ['get', 'class'], ['river', 'canal'], true, false],
+        layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#3aa7d6', 'line-width': ['interpolate', ['exponential', 1.5], Z, 9, 1, 13, 2.2, 16, 5] } },
+      { id: 'h-flow', type: 'line', source: 'omt', 'source-layer': 'waterway', minzoom: 11, filter: ['all', ['match', ['get', 'class'], ['river', 'canal', 'stream'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: { 'line-color': '#b9f3ff', 'line-width': ['interpolate', ['exponential', 1.5], Z, 11, 0.8, 14, ['match', ['get', 'class'], 'stream', 1.2, 2], 17, ['match', ['get', 'class'], 'stream', 2.6, 4]],
+          'line-opacity': 0.35, 'line-dasharray': DASH[0] } }
+    ];
+  }
+  function labelTheme(b) { // vector labels (every tab): colours per basemap
+    var night = b === 'night' || b === 'dark', sat = b === 'satellite', dk = night || sat;
+    var halo = dk ? 'rgba(30,33,36,.92)' : '#FFFFFF';
+    var col = { 'lb-place': dk ? '#E8EAED' : '#1F2328', 'lb-water': dk ? '#9cc3dc' : '#2F5C80', 'lb-waterl': dk ? '#9cc3dc' : '#2F5C80', 'lb-river': dk ? '#9cc3dc' : '#2F5C80', 'lb-road': dk ? '#C3C7CC' : '#3C4043' };
+    Object.keys(col).forEach(function (id) { if (map.getLayer(id)) { map.setPaintProperty(id, 'text-color', col[id]); map.setPaintProperty(id, 'text-halo-color', halo); } });
+    if (map.getLayer('lb-poi')) map.setPaintProperty('lb-poi', 'text-color', ['match', ['get', 'class'], 'hospital', dk ? '#ff9aa8' : '#b4122c', ['fire_station', 'police'], dk ? '#ffc28a' : '#9a4a00', dk ? '#d7dde2' : '#4b5864']);
+    if (map.getLayer('lb-pts')) map.setPaintProperty('lb-pts', 'text-color', ['match', ['get', 'k'], 'dam', dk ? '#9cc8ff' : '#1f5fa8', 'hospital', dk ? '#ff9aa8' : '#b4122c', dk ? '#ffc28a' : '#9a4a00']);
+    ['lb-poi', 'lb-pts'].forEach(function (id) { if (map.getLayer(id)) map.setPaintProperty(id, 'text-halo-color', halo); });
+    if (map.getLayer('net-hl')) map.setPaintProperty('net-hl', 'line-color', dk ? '#ffffff' : '#17222c');
+  }
+  function wiTheme(b) { // colours of the vector water per basemap (what-if tab)
+    labelTheme(b);
+    if (!map.getLayer('h-water')) return;
+    var night = b === 'night' || b === 'dark', sat = b === 'satellite';
+    ['h-water', 'v-park', 'v-bldg'].forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', sat ? 'none' : 'visible'); });
+    map.setPaintProperty('h-water', 'fill-color', night ? '#2B3A45' : '#D5DDE3');
+    map.setPaintProperty('v-park', 'fill-color', night ? '#252a26' : '#E8EBE4'); map.setPaintProperty('v-bldg', 'fill-color', night ? '#2a2e33' : '#E4E4E0');
+    map.setPaintProperty('h-stream', 'line-color', night ? '#3f6178' : sat ? '#7fd4ff' : '#A9BFCF');
+    map.setPaintProperty('h-river', 'line-color', night ? '#4a6f88' : sat ? '#8adcff' : '#9DB6C8');
+    map.setPaintProperty('h-flow', 'line-color', night || sat ? '#b9e6f5' : '#ffffff');
+    wpalFor(b); WPAL.chan = WPAL.land; // rising streams stay in the one blue depth family
+    WPAL.terrain = night ? [[0.09, 0.1, 0.11], [0.24, 0.26, 0.28], [0.17, 0.23, 0.27]] : [[0.8, 0.8, 0.78], [0.97, 0.97, 0.95], [0.84, 0.87, 0.89]];
+    terrainLayer.opacity(sat || !WHATIF ? 0 : night ? 0.5 : 0.28);
+  }
+
+
+  // ---------- instruments: the inputs and the state of the system at the current moment, for the whole replay ----------
+  var instCx = null, instSer = {};
+  function instInit() {
+    var g = instGauge();
+    $('inRiverBox').hidden = !g;
+    if (WHATIF) { var sv = +$('wiSoil').value; $('inGround').textContent = ['dry', 'as it was', 'soaked', 'frozen'][sv]; $('inGroundS').textContent = ['driest soil class', 'normal wetness', 'wettest soil class', 'sheds rain like pavement'][sv]; }
+    instSpark('inRoadsSp', meta.closed_per_frame || [], 'roads');
+    if (g) instSpark('inRiverSp', g.obs_q || [], 'river');
+    instNow();
+  }
+  function instGauge() { if (!refs || !refs.gauges || !refs.gauges.length) return null; var g = refs.gauges[+$('gaugeSel').value] || refs.gauges[0]; return g && g.obs_q ? g : null; }
+  function instSpark(id, a, key) {
+    var el = $(id); if (!el) return;
+    var mx = 0, k; for (k = 0; k < a.length; k++) if (a[k] != null && a[k] > mx) mx = a[k];
+    var N = Math.max(1, nf - 1), pts = [];
+    for (k = 0; k < a.length; k += Math.max(1, Math.floor(a.length / 120))) if (a[k] != null) pts.push((100 * k / N).toFixed(1) + ',' + (23 - 21 * a[k] / (mx || 1)).toFixed(1));
+    el.innerHTML = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="currentColor" stroke-width="1.4" vector-effect="non-scaling-stroke"/><line class="cur" x1="0" x2="0" y1="0" y2="24" vector-effect="non-scaling-stroke"/>';
+    instSer[key] = el.querySelector('.cur');
+  }
+  function instNow() {
+    if (!meta) return;
+    var per = 60 / meta.frame_min, h = t / per, r = meta.rain_hourly_mean_mm || [], hr = r[Math.floor(h)] || 0, tot = sum(r, h);
+    $('inRain').textContent = (hr >= 10 ? Math.round(hr) : hr.toFixed(1)) + ' mm/h';
+    $('inRainS').textContent = (tot >= 10 ? Math.round(tot) : tot.toFixed(1)) + ' mm so far (area average)';
+    var x = (100 * t / Math.max(1, nf - 1)).toFixed(2);
+    Object.keys(instSer).forEach(function (k) { var c = instSer[k]; if (c) { c.setAttribute('x1', x); c.setAttribute('x2', x); } });
+    var g = instGauge();
+    if (g) { var q = g.obs_q[Math.round(t)]; $('inRiver').textContent = q != null ? (q >= 10 ? Math.round(q) : q.toFixed(1)) + ' m³/s' : '–'; $('inRiverL').textContent = 'River, observed: ' + g.name.replace(/, MA$/, '').replace(/ (at|near) .*/, ''); }
+    var cx = WION && wi && wi.cxT ? Object.keys(wi.cxT).map(function (k) { return wi.cxT[k]; }) : instCx, nc = 0;
+    if (cx) { for (var i = 0; i < cx.length; i++) if (cx[i] <= t) nc++; $('inCulv').textContent = n(nc); $('inCulvS').textContent = 'of ' + n(cx.length) + ' that overtop in this run'; }
+    else { $('inCulv').textContent = meta.culverts_overtopped != null ? n(meta.culverts_overtopped) : '–'; $('inCulvS').textContent = 'over the whole storm'; }
+    $('inRoads').textContent = n(nClosedNow);
+  }
+  // knock-on numbers from the replay's cascade file (tolerates NaN in it): culvert overtopping times and people cut off
+  function loadCascadeNumbers() {
+    return fetch(base + 'cascade.json').then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (x) {
+      var c = JSON.parse(x.replace(/\bNaN\b/g, 'null')), fpm = meta.frame_min;
+      if (!WION) instCx = (c.culverts || []).filter(function (u) { return u.first_h != null; }).map(function (u) { return u.first_h * 60 / fpm; });
+      return c;
+    }).catch(function () { return null; });
+  }
+
+  // ---------- evidence: real reports, which the model caught, gauges, the honest headline ----------
+  function loadEvidence(casc) {
+    return getJson(base + 'evidence.json').then(function (E) {
+      if (refs) { refs.crowd = (E.crowd && E.crowd.rows) || []; }
+      var R = refs || {}, rep_ = R.reports || [], hit = rep_.filter(function (x) { return x[6]; }).length, cr = refs.crowd, c30 = cr.filter(function (x) { return x[6] >= 3; }).length;
+      var gs = (R.gauges || []).filter(function (g) { return g.obs_rise_m != null; });
+      var pk = casc && casc.totals && casc.totals.peak;
+      var h = '<p class="ev-head">' + esc(E.numbers.heldout.text) + '</p>';
+      if (!WHATIF) {
+        h += '<ul class="ev">';
+        if (rep_.length) h += '<li><b>' + hit + ' of ' + rep_.length + '</b> storm reports (NWS, NOAA, news, city public works) have 30 cm or more of modelled water nearby <span class="ok">▲</span> caught, <span class="ok">△</span> not</li>';
+        if (cr.length) h += '<li><b>' + c30 + ' of ' + cr.length + '</b> residents’ pins (MRPC / BSC map) have 30 cm or more modelled within ' + Math.round(E.radius_m) + ' m</li>';
+        gs.forEach(function (g) { h += '<li>' + gaugeName(g) + ': river rose <b>' + g.obs_rise_m.toFixed(2) + ' m</b> observed, <b>' + (g.model_rise_m != null ? g.model_rise_m.toFixed(2) + ' m' : '–') + '</b> modelled</li>'; });
+        if (pk && pk.pop_isolated != null) h += '<li><b>' + n(pk.pop_isolated) + '</b> residents cut off from any hospital, fire or police station at the worst moment (' + n(pk.pop_lost_any) + ' lose at least one)</li>';
+        h += '</ul>';
+      } else h += '<p class="ev-note">Markers: the residents’ flood reports from this storm. Which ones the model catches is shown on the Leominster tab (the actual storm).</p>';
+      h += '<p class="ev-small">' + esc(E.numbers.tuned.text) + ' Sources: docs/proto/STATUS.md, docs/proto/obs/CROWD.md.</p>';
+      $('evidBody').innerHTML = h; $('evid').hidden = false;
+      if (!WHATIF) { var rp = document.querySelector('input[data-ref="reports"]'); if (rp) rp.checked = true; }
+    }).catch(function () { /* no evidence file for this run */ });
+  }
+
+  // ---------- phones: the panels live in a bottom sheet; the map is full screen until the sheet is opened ----------
+  var homes = {};
+  function sheetPlace() {
+    var pl = document.querySelector('.player'), body = $('sheetBody'), card = $('card');
+    ['rank', 'evid', 'legend', 'tabs', 'live', 'inst'].forEach(function (id) {
+      var el = $(id); if (!el) return;
+      if (!homes[id]) homes[id] = { parent: el.parentNode, next: el.nextSibling };
+      if (id === 'legend') { if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
+      if (id === 'tabs') { if (small()) { if (el.parentNode !== document.body) document.body.appendChild(el); } else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
+      if (id === 'inst') { if (small()) { if (el.previousElementSibling !== $('timeline')) $('timeline').insertAdjacentElement('afterend', el); } else if (el.parentNode !== card) { var after = $('live'); after.insertAdjacentElement('afterend', el); } return; }
+      if (id === 'live') { if (small()) { if (el.parentNode !== pl) $('grab').insertAdjacentElement('afterend', el); } else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
+      if (small()) { if (el.parentNode !== body) body.appendChild(el); }
+      else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next);
+    });
+    // phones: the status line heads the sheet; desktop: it sits in the card, and the what-if controls move into the card too
+    var sl = $('statusLine'), w = $('wi');
+    if (small()) { if (sl.parentNode !== pl) $('grab').insertAdjacentElement('afterend', sl); if (w.parentNode !== pl || w.previousElementSibling !== $('inst')) $('inst').insertAdjacentElement('afterend', w); }
+    else { if (sl.parentNode !== card) card.querySelector('.pick').insertAdjacentElement('afterend', sl); if (WHATIF && w.parentNode !== card) sl.insertAdjacentElement('afterend', w); }
+    pl.dataset.sheet = small() ? 'on' : 'off';
+    document.documentElement.style.setProperty('--card-b', Math.round(card.getBoundingClientRect().bottom) + 'px');
+    if (small()) sheetDetent(detent || 'peek'); else { pl.style.removeProperty('--sheet-off'); pl.style.removeProperty('--sheet-h'); pl.style.transform = ''; delete pl.dataset.detent; }
+  }
+  function sheetToggle(open) {
+    if (small()) { sheetDetent(open === undefined ? (detent === 'peek' ? 'half' : 'peek') : open ? 'half' : 'peek'); return; }
+    var pl = document.querySelector('.player'); if (open === undefined) open = pl.dataset.open !== 'true';
+    pl.dataset.open = open ? 'true' : 'false'; $('grab').setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.documentElement.classList.toggle('sheet-open', open);
+    $('grabL').textContent = open ? 'Show more map' : (WHATIF ? 'Set up the storm, layers, timeline' : 'Timeline, layers, evidence');
+    drawChart();
+  }
 
   // ---------- loading ----------
   function getBitmap(url) {
@@ -446,16 +1140,35 @@
   if (runKey === 'forecast') {
     getJson('site/data/forecast_status.json').then(function (s) {
       var run0 = s && s.runs && s.runs[0], dir = s && (s.dir || (run0 && run0.viewer) || (s.state === 'run' && s.run));
-      if (s && s.state === 'quiet') { forecastQuiet(s); return; }
+      if (s && s.state === 'quiet') { forecastQuiet(s); liveInit(s); return; }
       var ok = s && (s.ready === true || s.status === 'ok' || s.state === 'run') && dir;
       if (!ok) throw new Error('forecast not ready');
       base = 'site/data/' + String(dir).replace(/^(site\/)?data\//, '').replace(/\/?$/, '/');
       if (!s.title && s.headline) s.title = s.headline;
       if (s.title) $('runTitle').textContent = s.title;
       $('runKind').textContent = s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.');
-      start();
-    }).catch(function () { forecastPlaceholder(); });
+      start(); liveInit(s);
+    }).catch(function () { forecastPlaceholder(); liveInit(null); });
+  } else if (WHATIF) {
+    getJson(WI + 'index.json').then(function (ix) {
+      var b = ix.scenarios && ix.scenarios[ix.baseline];
+      if (!b || b.status !== 'ok' || !ix.terrain) throw new Error('what-if runs not published yet');
+      wi = { index: ix, cache: {}, x: 1 }; WION = true;
+      var k0 = params.get('s') || store('mfw-whatif'); if (!(k0 && ix.scenarios[k0] && ix.scenarios[k0].status === 'ok')) k0 = ix.baseline;
+      wiSetCtl(k0);
+      return wiLoad(k0).then(function (dj) {
+        wi.first = k0; wi.dj = dj; wi.key = k0;
+        begin({ corners: ix.corners, storm_start: ix.storm_start || dj.storm_start, frame_min: dj.frame_min, nf: dj.nf, w: ix.terrain.w, h: ix.terrain.h, sheets: dj.sheets,
+          rain_hourly_mean_mm: dj.rain_hourly_mean_mm, closed_per_frame: dj.closed_per_frame, segments_in_box: dj.numbers.segments_in_box,
+          segments_p_ge_50: dj.numbers.segments_closed, km_p_ge_50: dj.numbers.km_closed, segments_may_close: dj.numbers.segments_may_close,
+          culverts_overtopped: dj.numbers.culverts_overtopped, rain_peak1h_max_mm: dj.numbers.rain_peak1h_mm, rain_max_total_mm: dj.numbers.rain_max_total_mm });
+      });
+    }).catch(function (e) { console.info('what-if:', e && e.message); wi = { index: null, cache: {}, x: 1 }; WION = false; start(); });
   } else start();
+  function wiSetCtl(key) {
+    var p = String(key).split('_');
+    $('wiRain').value = Math.max(0, wiCtl.rain.indexOf(p[0])); $('wiSoil').value = Math.max(0, wiCtl.soil.indexOf(p[1])); $('wiCulv').value = Math.max(0, wiCtl.culv.indexOf(p[2]));
+  }
 
   // forecast issued, but rain below the gate: a live 'quiet' card with the forecast rain, no replay
   function forecastQuiet(s) {
@@ -485,7 +1198,10 @@
   }
 
   function start() {
-    getJson(base + 'meta.json').then(function (m) {
+    getJson(base + 'meta.json').then(begin).catch(function (e) { $('loadText').textContent = 'The storm data did not load. Reload the page to try again.'; console.error(e); });
+  }
+  function begin(m) {
+    {
       meta = m; nf = m.nf;
       if (m.kofn) { var bl = document.querySelector('[data-band=rain] .blabel'); if (bl) bl.innerHTML = '<b>Input</b> forecast rain, NOAA HRRR (box mean, mm/h)'; }
       t0 = new Date(m.storm_start.replace(/Z$/, ':00Z'));
@@ -498,15 +1214,18 @@
       var peak = 0, cp = m.closed_per_frame || [];
       cp.forEach(function (v, i) { if (v > cp[peak]) peak = i; });
       t = peak;
+      if (params.get('t') != null && !isNaN(+params.get('t'))) t = Math.max(0, Math.min(nf - 1, +params.get('t')));
+      if (WHATIF) wiInitUi();
       drawChart();
       initMap();
-    }).catch(function (e) { $('loadText').textContent = 'The storm data did not load. Reload the page to try again.'; console.error(e); });
+    }
   }
 
   // ---------- map ----------
   function baseStyle() {
-    return {
+    var st = {
       version: 8,
+      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
       sources: {
         // CARTO raster tiles now ask for an API key on this domain: Esri basemaps (no key)
         lgt: ESRI('Canvas/World_Light_Gray_Base', 16, 'Esri, HERE, Garmin, © OpenStreetMap contributors'),
@@ -522,11 +1241,17 @@
         { id: 'b-lgt', type: 'raster', source: 'lgt', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-saturation': -0.25, 'raster-brightness-max': 0.82, 'raster-contrast': 0.05 } },
         { id: 'b-dark', type: 'raster', source: 'drk', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-brightness-min': 0.04 } }
-      ].concat(netLayers(), [
+      ].concat(hydroLayers(), netLayers(), [
         { id: 'l-voy', type: 'raster', source: 'voyl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'l-dark', type: 'raster', source: 'drkl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } }
       ])
     };
+    if (REPLAY) {
+      st.sources.dem = { type: 'raster-dem', encoding: 'terrarium', tileSize: 256, maxzoom: 14, tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+        attribution: 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> (USGS 3DEP)' };
+      st.layers.unshift({ id: 'bg', type: 'background', paint: { 'background-color': '#F2F2EF' } });
+    }
+    return st;
   }
   // the street network: OpenMapTiles 'transportation' classes grouped into highway (0), arterial (1), collector (2),
   // local (3); highways from district zoom, locals fade in by street zoom; a white fill appears inside the casing at
@@ -536,13 +1261,15 @@
     var Z = ['zoom'], R = NET_RANK;
     var cw = ['interpolate', ['exponential', 1.5], Z,
       8, ['match', R, 0, 1.1, 1, 0.6, 0.3],
-      10, ['match', R, 0, 2, 1, 1.2, 2, 0.7, 0.4],
-      12, ['match', R, 0, 3.4, 1, 2.4, 2, 1.6, 1],
-      14, ['match', R, 0, 6.5, 1, 5, 2, 3.8, 2.6],
+      10, ['match', R, 0, 2.2, 1, 1.4, 2, 0.8, 0.5],
+      11, ['match', R, 0, 2.8, 1, 2, 2, 1.3, 3, 0.9, 0.6],
+      12, ['match', R, 0, 3.8, 1, 2.8, 2, 1.8, 3, 1.3, 0.9],
+      14, ['match', R, 0, 7, 1, 5.4, 2, 4, 2.8],
       17, ['match', R, 0, 18, 1, 14, 2, 11, 8]];
     var fw = ['interpolate', ['exponential', 1.5], Z, 11.5, 0, 13, ['match', R, 0, 2.2, 1, 1.4, 2, 0.8, 0.4],
       14, ['match', R, 0, 4.6, 1, 3.4, 2, 2.4, 1.4], 17, ['match', R, 0, 15, 1, 11.5, 2, 9, 6]];
-    var op = ['interpolate', ['linear'], Z, 10.5, ['match', R, [3, 4], 0, 1], 12.5, ['match', R, 4, 0, 1], 14.5, 1];
+    // minor / residential streets are drawn from z11 so a flooded street reads as one street among its neighbours
+    var op = ['interpolate', ['linear'], Z, 10.3, ['match', R, [3, 4], 0, 1], 11, ['match', R, 4, 0, 1], 13, ['match', R, 4, 0.6, 1], 14.5, 1];
     var filt = ['all', ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service'], true, false],
       ['!=', ['get', 'brunnel'], 'tunnel']];
     return [
@@ -579,17 +1306,20 @@
 
   function initMap() {
     map = new maplibregl.Map({
-      container: 'map', bounds: boxBounds(), maxZoom: 17, minZoom: 6, dragRotate: false, pitchWithRotate: false,
+      container: 'map', bounds: boxBounds(), maxZoom: 16, minZoom: 6, dragRotate: false, pitchWithRotate: false,
       fitBoundsOptions: { padding: framePadding() }, attributionControl: false, fadeDuration: 0, style: baseStyle()
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: ' + (meta && meta.kofn ? 'NOAA HRRR forecast' : 'NOAA MRMS') + ' · Roads: MassDOT' }));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.touchZoomRotate.disableRotation();
+    if (params.get('debug') === '1') { window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
     map.once('style.load', function () {
-      map.addLayer(depth.layer, 'l-voy');
+      map.addLayer(WION ? wdepth.layer : depth.layer, 'l-voy');
       applyTheme();
       styleReady();
     });
+    map.on('movestart', function () { mapMoving = true; });
+    map.on('moveend', function () { mapMoving = false; map.triggerRepaint(); });
     map.on('movestart', function (e) { if (e.originalEvent) { userMoved = true; if (follow) setFollow(false); } });
     var at = document.querySelector('.maplibregl-ctrl-attrib');
     if (at && small()) at.classList.remove('maplibregl-compact-show');
@@ -601,11 +1331,12 @@
 
   function loadData() {
     total = meta.sheets.length + 2;
-    var jobs = meta.sheets.map(function (s, i) {
+    var jobs = WION ? wiLoadJobs() : meta.sheets.map(function (s, i) {
       return getBitmap(base + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
     });
-    jobs.push(getJson(base + 'roads.json').then(function (g) {
-      return new Promise(function (res) { whenStyle(function () { addRoads(g); progress(); res(); }); });
+    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').catch(function () { return null; })]).then(function (a) {
+      if (a[1] && a[1].seg) { PCS = a[1]; PCS.k = pieceOrd(PCS.seg); }
+      return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));
     // optional layers: a missing file only hides that layer
     jobs.push(getJson(base + 'rain.json').then(function (r) {
@@ -617,10 +1348,10 @@
         progress();
       });
     }).catch(function () { progress(); }));
-    jobs.push(getJson(base + 'refs.json').then(function (r) { refs = r; whenStyle(function () { try { addRefs(); } catch (e) { console.error('refs', e); } }); }).catch(function (e) { console.warn('refs', e); }));
+    jobs.push(getJson(base + 'refs.json').then(function (r) { refs = WHATIF ? wiRefs(r) : r; whenStyle(function () { try { addRefs(); raiseLabels(); } catch (e) { console.error('refs', e); } }); }).catch(function (e) { console.warn('refs', e); }));
     // optional knock-on dataset from the cascade model (spec in the story section); absent today on most runs
-    jobs.push(getJson(base + 'cascade.json').then(function (c) { cascade = c; }).catch(function () { cascade = null; }));
-    if (meta.flow) {
+    if (!WHATIF) jobs.push(getJson(base + 'cascade.json').then(function (c) { cascade = c; }).catch(function () { cascade = null; }));
+    if (WION) { /* flow comes with each scenario (wiLoadJobs) */ } else if (meta.flow) {
       jobs.push(getJson(base + meta.flow).then(function (fi) {
         return getBitmap(base + fi.sheet).then(function (img) {
           flowLayer.set(fi, img);
@@ -633,9 +1364,14 @@
       ready = true;
       $('loading').classList.add('done');
       $('play').disabled = false;
-      try { addKnock(); } catch (e) { console.error('knock-on', e); }
+      if (!WHATIF) { try { addKnock(); } catch (e) { console.error('knock-on', e); } }
+      try { addLabels(); } catch (e) { console.error('labels', e); }
+      $('slMode').textContent = WHATIF ? 'What-if · not a forecast · ' : runKey === 'forecast' ? 'Forecast · ' : '';
+      loadCascadeNumbers().then(function (c) { instInit(); return loadEvidence(c); }).then(function () { if (refs && refs.crowd && refs.crowd.length) { try { addCrowd(); raiseLabels(); } catch (e) { console.error('crowd', e); } } });
+      if (WION) wiApply(wi.first, wi.dj, true); else if (WHATIF) { wiPhases(); wiSelect(); } else wiPhases();
+      try { rankBuild(); } catch (e) { console.error('rank', e); }
       setTime(t);
-      if (storyWanted()) storyStart(0); else { fitView(currentView, false); $('replayStory').hidden = false; }
+      if (storyWanted()) storyStart(0); else { refit(); $('replayStory').hidden = false; }
     }).catch(function (e) { $('loadText').textContent = 'Some storm data did not load. Reload the page to try again.'; console.error(e); });
   }
 
@@ -643,18 +1379,35 @@
   function addRoads(g) {
     g.features.forEach(function (f) {
       var p = f.properties;
-      if (p.d || p.iv) { var sg = { id: f.id, d: p.d || null, iv: p.iv || null, v: -1, f: f }; segs.push(sg); segById[f.id] = sg; }
+      if (p.d || p.iv || p.e || WION) { var sg = { id: f.id, d: p.d || (WION ? [] : null), iv: p.iv || [], e: p.e || null, v: -1, f: f }; segs.push(sg); segById[f.id] = sg; }
     });
     map.addSource('roads', { type: 'geojson', data: g, tolerance: 0.2 });
+    var RS = 'roads';
+    if (PCS) { // road state drawn per ~40 m piece, only where the map shows water on the piece (pieces.json)
+      map.addSource('pieces', { type: 'geojson', data: { type: 'FeatureCollection', features: PCS.seg.map(function (sid, i) { return { type: 'Feature', id: i, properties: { s: sid }, geometry: { type: 'LineString', coordinates: PCS.lines[i] } }; }) }, tolerance: 0.2 });
+      RS = 'pieces'; PCS.v = new Int16Array(PCS.seg.length).fill(-1); PCS.e = new Int8Array(PCS.seg.length).fill(-1);
+      PCS.bySeg = {}; PCS.seg.forEach(function (sid, i) { (PCS.bySeg[sid] = PCS.bySeg[sid] || []).push(i); });
+    }
     // the model box, a quiet dashed outline so the replayed area reads at regional zoom
     map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
     map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };
-    var D = ['coalesce', ['feature-state', 'd'], 0];
+    var D = PCS ? ['coalesce', ['get', 'd'], 0] : ['coalesce', ['feature-state', 'd'], 0]; RD = D;
+    var RR = RS; // the road-state lines: with pieces, merged runs of the painted pieces of each segment (one continuous line per run)
+    if (PCS) {
+      map.addSource('runs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 }); RR = 'runs';
+      map.addSource('rlab', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    }
     var byD = function (z9, z15) { // width grows with water on the road, scaled by zoom
       return ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], D, 0, z9[0], 30, z9[1], 100, z9[2]], 15, ['interpolate', ['linear'], D, 0, z15[0], 30, z15[1], 100, z15[2]]];
     };
     var HASW = ['any', ['has', 'd'], ['has', 'iv']];
+    // overview zooms show closed roads only; at-risk (15-30 cm) appears from z13, water on the road from z14
+    var ZOP = ['interpolate', ['linear'], ['zoom'], 12.6, ['case', ['>=', D, 30], 1, 0], 13.2, ['case', ['>=', D, 15], 1, 0], 13.8, ['case', ['>=', D, 15], 1, 0], 14.3, ['case', ['>=', D, 4], 1, 0]];
+    // water at the road edge: a soft water-blue band along the road, under the road-state lines
+    // water at the road edge: a thin dashed amber line (the road surface stays above the water), from street zoom
+    map.addLayer({ id: 'edge', type: 'line', source: RS, minzoom: 13.5, layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: { 'line-width': w(1.2, 2.6), 'line-color': '#E69F00', 'line-dasharray': [1.2, 1.6], 'line-opacity': ['case', ['==', ['coalesce', ['feature-state', 'e'], 0], 1], 0.95, 0] } });
     map.addLayer({ id: 'peak', type: 'line', source: 'roads', filter: ['>=', ['get', 'p'], 0.5], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(1, 2.5) } });
     if (meta.kofn) { // forecast ensemble: how many of the time-lagged forecast runs close the road (likely >= 2, possible 1)
       map.addLayer({ id: 'agree', type: 'line', source: 'roads', filter: ['has', 'k'], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(2, 5), 'line-opacity': 0.9 } });
@@ -662,16 +1415,25 @@
     }
     map.addLayer({ id: 'may', type: 'line', source: 'roads', filter: ['==', ['get', 'm'], 1], paint: { 'line-width': w(1.5, 3.5), 'line-dasharray': [2, 1.2] } });
     map.addLayer({ id: 'risk', type: 'line', source: 'roads', filter: ['has', 'rk'], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-width': w(2.5, 6) } });
-    map.addLayer({ id: 'halo', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
+    map.addLayer({ id: 'halo', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 7, 9], [0, 18, 22]), 'line-blur': w(3, 8), 'line-opacity': ['interpolate', ['linear'], D, 22, 0, 40, 0.28] } });
-    map.addLayer({ id: 'wetcase', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([1.8, 3.6, 4.4], [4, 10, 11.5]), 'line-opacity': ['interpolate', ['linear'], D, 4, 0, 10, 1] } });
-    map.addLayer({ id: 'wet', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([1, 2.4, 3], [2.4, 7.2, 8.2]), 'line-opacity': ['interpolate', ['linear'], D, 3, 0, 8, 1] } });
+    map.addLayer({ id: 'wetcase', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-width': byD([2.8, 3.8, 4.6], [7.4, 10.4, 11.8]), 'line-opacity': ZOP } });
+    map.addLayer({ id: 'wet', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-width': byD([1.6, 2.4, 3], [4.4, 7.2, 8.2]), 'line-opacity': ZOP } });
     // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
-    map.addLayer({ id: 'bar', type: 'line', source: 'roads', filter: HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    map.addLayer({ id: 'bar', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': ['case', ['>=', D, 30], 0.95, 0] } });
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
+    if (PCS) { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z14
+      [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 14], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 13], ['rlab-c', ['>=', ['get', 'd'], 30], 12]].forEach(function (a) {
+        map.addLayer({ id: a[0], type: 'symbol', source: 'rlab', filter: a[1], minzoom: a[2],
+          layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 13], 'text-allow-overlap': false,
+            'text-variable-anchor': ['top', 'bottom', 'left', 'right'], 'text-radial-offset': 0.7, 'text-padding': 3, 'text-max-width': 14, 'symbol-sort-key': ['-', 0, ['get', 'd']] },
+          paint: { 'text-halo-width': 2 } });
+      });
+    }
+    vis('peak', $('lyPeak').checked); vis('may', $('lyMay').checked); // static peak-based layers: off by default, they mark roads that may be dry now
     applyTheme();
     if (g.features.some(function (f) { return f.properties.rk; })) { $('riskRow').hidden = false; }
     map.on('mouseenter', 'hit', function () { map.getCanvas().style.cursor = 'pointer'; });
@@ -686,7 +1448,7 @@
     map.on('click', 'hit', function (e) {
       if (map.queryRenderedFeatures(e.point, { layers: refLayers.filter(function (l) { return map.getLayer(l); }) }).length) return;
       hideTip();
-      showPopup(e.lngLat, popupHtml(pickRoad(e.features)));
+      openPlace(pickRoad(e.features), e.lngLat);
     });
     computeViews(g);
   }
@@ -698,9 +1460,9 @@
   }
   function hideTip() { if (rtip) rtip.remove(); rtipId = null; }
   function segDepth(id) { var s = segById[id]; return s ? Math.max(0, s.v) : 0; }
-  function status(cm) { return cm >= 30 ? ['shut', 'Closed'] : cm >= 3 ? ['wet', 'Water on road'] : ['dry', 'Dry']; }
+  function status(cm, id) { var s = segById[id]; return cm >= 30 ? ['shut', 'Closed'] : cm >= 3 ? ['wet', 'Water on road'] : s && s.eg ? ['edge', 'Water at the road edge; the road surface is above it'] : ['dry', 'Dry']; }
   function roadTip(f) {
-    var p = f.properties, cm = segDepth(f.id), st = status(cm);
+    var p = f.properties, cm = segDepth(f.id), st = status(cm, f.id);
     return '<b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? '<br>' + esc(p.t) : '') +
       '<br>Water now: <b>' + (cm >= 3 ? cm + ' cm' : 'none') + '</b><br><span class="st ' + st[0] + '">' + st[1] + '</span>' +
       (small() ? '' : '<br><span style="color:var(--muted)">Click for depth over time</span>');
@@ -746,12 +1508,28 @@
   }
 
   var CLS = ['Local or collector road', 'Arterial', 'Highway'];
+  function likely(p) { var v = Math.round(p * 100); return (p >= 0.7 ? 'Likely' : p >= 0.3 ? 'Possible' : 'Unlikely') + ' · ' + v + '%'; }
   function arr(v) { return v ? (typeof v === 'string' ? JSON.parse(v) : v) : null; }
-  function popupHtml(f) {
+  // the named streets at the two ends of a road segment (OpenStreetMap names in the vector tiles), excluding the road itself
+  function crossStreets(f) {
+    if (!map.getLayer('net-q')) return [];
+    var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), own = String(f.properties.n || '').toLowerCase(), out = [];
+    [cs[0], cs[cs.length - 1]].forEach(function (c) {
+      var p = map.project(c), hits = map.queryRenderedFeatures([[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]], { layers: ['net-q'] });
+      for (var i = 0; i < hits.length; i++) {
+        var nm = hits[i].properties.name; if (!nm) continue;
+        var l = nm.toLowerCase(); if (l === own || own.indexOf(l) >= 0 || l.indexOf(own) >= 0 && own) continue;
+        if (out.indexOf(nm) < 0) { out.push(nm); break; }
+      }
+    });
+    return out;
+  }
+  function popupHtml(f, ends) {
     var p = f.properties, iv = arr(p.iv), a = arr(p.a), rc = arr(p.rc), d = arr(p.d);
-    var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] + '</p>' + spark(d) + '<dl>';
+    var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] +
+      (ends && ends.length ? (ends.length > 1 ? ', between ' + esc(ends[0]) + ' and ' + esc(ends[1]) : ', at ' + esc(ends[0])) : '') + '</p>' + spark(d) + '<dl>';
     if (p.k) h += '<dt>Forecast runs closing it</dt><dd><b>' + p.k + ' of ' + meta.kofn.n + '</b> (' + (p.k >= 2 ? 'likely closed' : 'possible') + ')</dd>';
-    h += '<dt>' + (p.k ? 'Chance of closing in the run shown' : 'Chance of closing') + '</dt><dd><b>' + Math.round(p.p * 100) + '%</b></dd>';
+    h += '<dt>' + (p.k ? 'Closing, in the run shown' : 'Closing') + '</dt><dd><b>' + likely(p.p) + '</b></dd>';
     if (d) {
       var fa = Math.min(Math.floor(t), nf - 1), now = Math.round(((d[fa] || 0) * (1 - (t - fa)) + (d[fa + 1] || 0) * (t - fa)));
       h += '<dt>Water on it now</dt><dd id="ppNow" data-id="' + f.id + '">' + (now >= 3 ? now + ' cm' : 'dry') + '</dd>';
@@ -774,7 +1552,7 @@
   }
 
   // ---------- reference layers ----------
-  var refLayers = ['r-crossings', 'r-bridges', 'r-dams', 'r-facilities', 'r-reports', 'r-gauges'];
+  var refLayers = ['r-crossings', 'r-bridges', 'r-dams', 'r-facilities', 'r-reports', 'r-crowd', 'r-gauges'];
   var ICONS = {
     gauge: function (c, s) { c.fillStyle = '#0b7a75'; c.beginPath(); c.moveTo(s / 2, 2); c.lineTo(s - 2, s - 3); c.lineTo(2, s - 3); c.closePath(); c.fill(); c.stroke(); },
     culvert: function (c, s) { c.fillStyle = '#8a5a2b'; c.beginPath(); c.arc(s / 2, s / 2, s / 2 - 3, 0, 7); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(s / 2, s / 2, s / 5, 0, 7); c.fill(); },
@@ -785,11 +1563,18 @@
     fire: function (c, s) { c.fillStyle = '#e8590c'; rr(c, 2, 2, s - 4, s - 4, 4); c.fill(); c.stroke(); letter(c, s, 'F'); },
     police: function (c, s) { c.fillStyle = '#1c4e9c'; rr(c, 2, 2, s - 4, s - 4, 4); c.fill(); c.stroke(); letter(c, s, 'P'); },
     ring: function (c, s) { c.fillStyle = 'rgba(200,16,46,.16)'; c.strokeStyle = '#c8102e'; c.lineWidth = s / 9; c.beginPath(); c.arc(s / 2, s / 2, s / 2 - 3, 0, 7); c.fill(); c.stroke(); },
+    repHit: function (c, s) { c.fillStyle = '#1F2328'; tri(c, s); c.fill(); c.stroke(); },
+    repMiss: function (c, s) { c.fillStyle = '#FFFFFF'; tri(c, s); c.fill(); c.strokeStyle = '#1F2328'; c.lineWidth = s / 8; c.stroke(); },
+    pin: function (c, s) { c.fillStyle = '#1F2328'; dia(c, s); c.fill(); c.stroke(); },
+    pinHit: function (c, s) { c.fillStyle = '#1F2328'; dia(c, s); c.fill(); c.stroke(); },
+    pinMiss: function (c, s) { c.fillStyle = '#FFFFFF'; dia(c, s); c.fill(); c.strokeStyle = '#1F2328'; c.lineWidth = s / 8; c.stroke(); },
     report: function (c, s) { c.fillStyle = '#6f2dbd'; c.beginPath(); c.moveTo(s / 2, s - 2); c.arc(s / 2, s * 0.4, s * 0.34, Math.PI * 0.8, Math.PI * 2.2); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(s / 2, s * 0.4, s * 0.13, 0, 7); c.fill(); }
   };
+  function tri(c, s) { c.beginPath(); c.moveTo(s / 2, 3); c.lineTo(s - 3, s - 4); c.lineTo(3, s - 4); c.closePath(); }
+  function dia(c, s) { c.beginPath(); c.moveTo(s / 2, 3); c.lineTo(s - 4, s / 2); c.lineTo(s / 2, s - 3); c.lineTo(4, s / 2); c.closePath(); }
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
   function cross(c, s) { c.fillStyle = '#fff'; var a = s * 0.18, b = s * 0.56; c.fillRect(s / 2 - a / 2, s / 2 - b / 2, a, b); c.fillRect(s / 2 - b / 2, s / 2 - a / 2, b, a); }
-  function letter(c, s, L) { c.fillStyle = '#fff'; c.font = '800 ' + Math.round(s * 0.62) + 'px Overpass, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(L, s / 2, s / 2 + 1); }
+  function letter(c, s, L) { c.fillStyle = '#fff'; c.font = '800 ' + Math.round(s * 0.62) + 'px -apple-system, BlinkMacSystemFont, Roboto, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(L, s / 2, s / 2 + 1); }
   function iconCanvas(name, s) {
     var cv = document.createElement('canvas'); cv.width = cv.height = s; var c = cv.getContext('2d');
     c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineWidth = Math.max(1.5, s / 14); c.lineJoin = 'round'; ICONS[name](c, s); return cv;
@@ -797,6 +1582,34 @@
   document.querySelectorAll('.ico').forEach(function (el) { var cv = iconCanvas(el.dataset.ico, 32); cv.setAttribute('aria-hidden', 'true'); el.appendChild(cv); });
 
   function fc(rows, fn) { return { type: 'FeatureCollection', features: rows.map(function (r, i) { var p = fn(r); return { type: 'Feature', id: i, properties: p, geometry: { type: 'Point', coordinates: [r[0], r[1]] } }; }) }; }
+  // reports cluster (40 px) until street zoom: a purple bubble with the count; tap to zoom in
+  function addClusters(key) {
+    var on = document.querySelector('input[data-ref="' + key + '"]').checked ? 'visible' : 'none';
+    map.addLayer({ id: 'c-' + key, type: 'circle', source: 's-' + key, filter: ['has', 'point_count'], minzoom: 11, layout: { visibility: on },
+      paint: { 'circle-color': '#1F2328', 'circle-radius': ['interpolate', ['linear'], ['get', 'point_count'], 2, 8, 30, 13], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5, 'circle-opacity': 0.8 } });
+    map.addLayer({ id: 'c-' + key + '-n', type: 'symbol', source: 's-' + key, filter: ['has', 'point_count'], minzoom: 11,
+      layout: { visibility: on, 'text-field': ['to-string', ['get', 'point_count']], 'text-font': ['Noto Sans Bold'], 'text-size': 10.5, 'text-allow-overlap': true }, paint: { 'text-color': '#fff' } });
+    map.on('click', 'c-' + key, function (e) { map.easeTo({ center: e.features[0].geometry.coordinates, zoom: Math.min(15.5, map.getZoom() + 2) }); });
+    map.on('mouseenter', 'c-' + key, function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'c-' + key, function () { map.getCanvas().style.cursor = ''; });
+  }
+  function addCrowd() {
+    if (map.getSource('s-crowd')) return;
+    var data = fc(refs.crowd, function (r) { return { k: WHATIF ? 'pin' : r[6] >= 3 ? 'pinHit' : 'pinMiss', type: r[2], text: r[3], road: r[4], town: r[5], c: r[6] }; });
+    if (!map.hasImage('i-pin')) Object.keys(ICONS).forEach(function (k) { if (!map.hasImage('i-' + k)) { var cv = iconCanvas(k, 40); map.addImage('i-' + k, cv.getContext('2d').getImageData(0, 0, 40, 40), { pixelRatio: 2 }); } });
+    map.addSource('s-crowd', { type: 'geojson', data: data, cluster: true, clusterRadius: 40, clusterMaxZoom: 14 });
+    addClusters('crowd');
+    var on = document.querySelector('input[data-ref="crowd"]').checked;
+    map.addLayer({ id: 'r-crowd', type: 'symbol', source: 's-crowd', minzoom: 11, filter: ['!', ['has', 'point_count']], layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': 0.62, 'icon-allow-overlap': true, visibility: on ? 'visible' : 'none' } });
+    document.querySelector('label[data-ref="crowd"]').hidden = false;
+    map.on('mouseenter', 'r-crowd', function (e) {
+      map.getCanvas().style.cursor = 'pointer'; if (small()) return; if (hover) hover.remove();
+      hover = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'tip' }).setLngLat(e.features[0].geometry.coordinates).setHTML(refTip('crowd', e.features[0].properties)).addTo(map);
+    });
+    map.on('mouseleave', 'r-crowd', function () { map.getCanvas().style.cursor = ''; if (hover) { hover.remove(); hover = null; } });
+    map.on('click', 'r-crowd', function (e) { showPopup(e.features[0].geometry.coordinates, refHtml('crowd', e.features[0].properties)); });
+    if (!WHATIF) refVis('reports', true);
+  }
   function addRefs() {
     var R = refs;
     Object.keys(ICONS).forEach(function (k) { var cv = iconCanvas(k, 40); map.addImage('i-' + k, cv.getContext('2d').getImageData(0, 0, 40, 40), { pixelRatio: 2 }); });
@@ -809,16 +1622,19 @@
         (R.facilities.hospital || []).map(function (r) { return r.concat('hospital'); }),
         (R.facilities.fire_station || []).map(function (r) { return r.concat('fire'); }),
         (R.facilities.police || []).map(function (r) { return r.concat('police'); })), function (r) { return { k: r[3], name: r[2] }; }) : null,
-      reports: R.reports && R.reports.length ? fc(R.reports, function (r) { return { k: 'report', src: r[2], text: r[3], t: r[4], m: r[5], hit: r[6] }; }) : null
+      reports: R.reports && R.reports.length ? fc(R.reports, function (r) { return { k: r[6] ? 'repHit' : 'repMiss', src: r[2], text: r[3], t: r[4], m: r[5], hit: r[6] }; }) : null,
+      crowd: null // added later with the evidence file (addCrowd)
     };
-    var minz = { crossings: 11, bridges: 11.5, dams: 9, facilities: 10, reports: 8, gauges: 6 };
-    ['crossings', 'bridges', 'dams', 'facilities', 'reports', 'gauges'].forEach(function (key) {
+    var minz = { crossings: 11, bridges: 11.5, dams: 9, facilities: 10, reports: 12, crowd: 12, gauges: 6 };
+    ['crossings', 'bridges', 'dams', 'facilities', 'crowd', 'reports', 'gauges'].forEach(function (key) {
       if (!sets[key]) return;
       document.querySelector('label[data-ref="' + key + '"]').hidden = false;
-      map.addSource('s-' + key, { type: 'geojson', data: sets[key] });
-      map.addLayer({ id: 'r-' + key, type: 'symbol', source: 's-' + key, minzoom: runKey === 'd3_sep2023' ? minz[key] + 1 : minz[key] - 1,
+      var clu = key === 'reports';
+      map.addSource('s-' + key, clu ? { type: 'geojson', data: sets[key], cluster: true, clusterRadius: 40, clusterMaxZoom: 14 } : { type: 'geojson', data: sets[key] });
+      if (clu) addClusters(key);
+      map.addLayer({ id: 'r-' + key, type: 'symbol', source: 's-' + key, filter: clu ? ['!', ['has', 'point_count']] : ['==', 1, 1], minzoom: runKey === 'd3_sep2023' ? minz[key] + 1 : minz[key] - 1,
         layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': key === 'gauges' ? 1.15 : key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.85, 0.65] : 0.8,
-          'icon-allow-overlap': key === 'gauges' || key === 'reports', 'icon-ignore-placement': key !== 'crossings', 'symbol-sort-key': key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0, 1] : 0,
+          'icon-allow-overlap': key === 'gauges' || key === 'reports' || key === 'crowd', 'icon-ignore-placement': key !== 'crossings', 'symbol-sort-key': key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0, 1] : 0,
           visibility: document.querySelector('input[data-ref="' + key + '"]').checked ? 'visible' : 'none' } });
       map.on('mouseenter', 'r-' + key, function (e) {
         map.getCanvas().style.cursor = 'pointer';
@@ -842,7 +1658,7 @@
         if (mx > bv) { bv = mx; best = i; }
       });
       sel.value = best;
-      $('gaugeBand').hidden = false;
+      $('gaugeBand').hidden = WHATIF && small(); // phones: the what-if panel needs the room
       drawChart();
     }
   }
@@ -854,8 +1670,11 @@
     if (key === 'bridges') return '<b>Bridge ' + esc(p.id) + '</b>' + (p.year ? ', built ' + p.year : '');
     if (key === 'dams') return '<b>' + esc(title(p.name)) + '</b><br>Dam' + (p.hazard ? ', ' + esc(p.hazard.toLowerCase()) + ' hazard' : '');
     if (key === 'facilities') return '<b>' + esc(p.name || { hospital: 'Hospital', fire: 'Fire station', police: 'Police station' }[p.k]) + '</b>';
-    return '<b>' + esc(KIND.report[p.src] || p.src) + '</b><br>' + esc((p.text || '').slice(0, 80));
+    if (key === 'crowd') return '<b>Resident report: ' + esc(CROWD[p.type] || p.type) + '</b><br>' + esc((p.text || '').slice(0, 90)) + (WHATIF ? '' : '<br>' + crowdVerdict(p.c));
+    return '<b>' + esc(KIND.report[p.src] || p.src) + '</b><br>' + esc((p.text || '').slice(0, 80)) + (WHATIF ? '' : '<br>' + (p.hit ? '<span class="ok">Model: 30 cm or more nearby</span>' : '<span class="miss">Model: under 30 cm here</span>'));
   }
+  var CROWD = { washout: 'washout or roadway damage', flooded: 'high or deep water', impassable: 'road impassable', swift: 'swift water', closed: 'road closed', other_damage: 'damage' };
+  function crowdVerdict(c) { return c >= 3 ? '<span class="ok">Model: 30 cm or more within 50 m</span>' : c >= 1 ? '<span class="miss">Model: some water nearby, under 30 cm</span>' : '<span class="miss">Model: dry here</span>'; }
   function refHtml(key, p) {
     var h = '<div class="pp">';
     if (key === 'gauges') {
@@ -885,6 +1704,9 @@
       h += '</dl>';
     } else if (key === 'facilities') {
       h += '<h3>' + esc(p.name || 'Unnamed') + '</h3><p class="sub">' + { hospital: 'Hospital', fire: 'Fire station', police: 'Police station' }[p.k] + '</p><p class="why">Used to count residents who lose access when roads close (OpenStreetMap).</p>';
+    } else if (key === 'crowd') {
+      h += '<h3>' + esc(p.road || p.town || 'Resident report') + '</h3><p class="sub">Resident report, ' + esc(CROWD[p.type] || p.type) + ', Sept 11, 2023</p><p>' + esc(p.text) + '</p>' +
+        (WHATIF ? '' : '<p>' + crowdVerdict(p.c) + '</p>') + '<p class="why">MRPC / BSC Group Leominster crowdsource map. Pins are placed by residents, so positions are approximate.</p>';
     } else {
       h += '<h3>' + esc(KIND.report[p.src] || p.src) + '</h3><p class="sub">' + (p.t ? fmtShort.format(new Date(String(p.t).replace(/Z$/, ':00Z'))) : '') + '</p><p>' + esc(p.text) + '</p><dl>';
       if (p.m != null) h += '<dt>Modelled water nearby</dt><dd>' + Math.round(p.m * 100) + ' cm at peak' + (p.hit ? ' (30 cm or more: caught)' : '') + '</dd>';
@@ -944,6 +1766,14 @@
     views.push({ name: 'Whole area', bounds: bb, hint: 'the full model box' });
     var idToView = {}; views.forEach(function (v, i) { (v.ids || []).forEach(function (id) { idToView[id] = i; }); });
     segs.forEach(function (s) { s.view = idToView[s.id]; });
+    if (map && !map.getSource('hot')) { // overview zooms: one quiet label per hotspot instead of every road
+      map.addSource('hot', { type: 'geojson', data: { type: 'FeatureCollection', features: hs.map(function (h) {
+        // one line, placed just above the hotspot (not on its roads); it gives way to place labels and other hotspots instead of overlapping
+        return { type: 'Feature', properties: { t: h.name + ' · ' + h.count + ' roads close', k: -h.count }, geometry: { type: 'Point', coordinates: [(h.bounds[0][0] + h.bounds[1][0]) / 2, Math.max(h.bounds[0][1], h.bounds[1][1])] } }; }) } });
+      map.addLayer({ id: 'hot', type: 'symbol', source: 'hot', maxzoom: 12.8, layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-allow-overlap': false, 'text-ignore-placement': false,
+        'symbol-sort-key': ['get', 'k'], 'text-variable-anchor': ['bottom', 'top', 'left', 'right'], 'text-radial-offset': 0.5, 'text-padding': 4 },
+        paint: { 'text-color': css('--ink') || '#1F2328', 'text-halo-color': css('--solid') || '#fff', 'text-halo-width': 2, 'text-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0] } });
+    }
     var el = $('views'); el.innerHTML = '';
     views.forEach(function (v, i) {
       var b = document.createElement('button'); b.type = 'button'; b.dataset.view = i;
@@ -957,10 +1787,37 @@
     lab.innerHTML = '<input type="checkbox" id="follow"><span>Follow the storm</span>';
     el.appendChild(lab);
     $('follow').addEventListener('change', function (e) { if (story.on) storyEnd(); setFollow(e.target.checked); });
-    if (!story.on) fitView(0, false);
+    if (!story.on) workView();
   }
+  // the opening camera: a working zoom (about z13.8 desktop, z13.4 phone) on the hotspot where most roads close, so the streets and
+  // the flooded streets among them read at once; 'Overview' (one tap, or zoom out) frames the whole story
+  var workOn = false;
+  var linkView = false;
+  function refit() { if (linkView) return; if (workOn) workView(); else fitView(currentView, false); }
+  function workView() {
+    var lc = (params.get('c') || '').split(',').map(Number), lz = +params.get('z');
+    if (lc.length === 2 && isFinite(lc[0]) && isFinite(lc[1]) && lz > 3 && !linkView) { // a shared link: its own view
+      linkView = true; userMoved = true; map.jumpTo({ center: lc, zoom: lz });
+      var rid = params.get('road'); if (rid && segById[rid]) setTimeout(function () { openPlace(segById[rid].f); }, 400);
+      return;
+    }
+    if (linkView) return;
+    workOn = true;
+    var bi = -1; views.forEach(function (v, i) { if (v.count && (bi < 0 || v.count > views[bi].count)) bi = i; });
+    if (!map || bi < 0) { fitView(0, false); return; }
+    currentView = bi; userMoved = false;
+    document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === bi ? 'true' : 'false'); });
+    var ids = {}; (views[bi].ids || []).forEach(function (id) { ids[id] = 1; });
+    var sx = 0, sy = 0, sn = 0; // centre on the closing roads themselves, not the middle of the cluster box
+    segs.forEach(function (s) { if (!ids[s.id]) return; var g = s.f.geometry, c = g.type === 'LineString' ? g.coordinates : g.coordinates[0]; var m = c[Math.floor(c.length / 2)]; sx += m[0]; sy += m[1]; sn++; });
+    var b = views[bi].bounds, ctr = sn ? [sx / sn, sy / sn] : [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2];
+    var p = framePadding(); // centre the roads in the part of the map the panels leave clear (without leaving a persistent map padding)
+    map.jumpTo({ center: ctr, zoom: small() ? 13.4 : 13.8 }); map.panBy([-(p.left - p.right) / 2, -(p.top - p.bottom) / 2], { duration: 0 });
+  }
+  if (params.get('debug') === '1') window.__mfwView = function (i) { if (i === 'work') workView(); else fitView(i, false); };
   function fitView(i, animate) {
     if (!map || !views[i]) return;
+    workOn = false;
     currentView = i; userMoved = false;
     document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === i ? 'true' : 'false'); });
     map.fitBounds(views[i].bounds, { padding: framePadding(), maxZoom: 15.5, duration: animate && !reduced ? 1400 : 0, essential: true });
@@ -1090,7 +1947,7 @@
   // ---------- story mode ----------
   // six scenes on the real timeline; each plays a stretch of storm time, moves the camera, and sets which layers speak
   var story = { on: false, i: 0, sc: [], start: 0, paused: false, pausedAt: 0, hold: 0, raf: 0 };
-  function storyWanted() { return params.get('story') !== '0' && !document.documentElement.classList.contains('embed'); }
+  function storyWanted() { return !WHATIF && params.get('story') !== '0' && !document.documentElement.classList.contains('embed'); }
   function sum(a, n) { var s0 = 0; for (var i = 0; i < Math.min(a.length, Math.floor(n)); i++) s0 += a[i] || 0; if (n % 1 && a[Math.floor(n)]) s0 += a[Math.floor(n)] * (n % 1); return s0; }
   function buildScenes() {
     var M = meta, per = 60 / M.frame_min, N = nf - 1, r = M.rain_hourly_mean_mm || [], cp = M.closed_per_frame || [];
@@ -1106,7 +1963,7 @@
     var s1a = cl(hS * per - 1.5 * per), s1b = cl(hS * per + 0.5 * per);
     var s2b = cl(Math.max(s1b + 0.5 * per, Math.min((hP + 0.5) * per, fq(0.06))));
     var s3b = cl(Math.max(s2b + 0.25 * per, fq(0.15))), s4b = cl(Math.max(s3b + 0.25 * per, fq(0.55))), s5b = cl(Math.max(s4b + 0.25 * per, fP));
-    var place = RUNS[runKey].title.split(',')[0].replace(/^All of /, ''), hot = views[1] && views[1].count ? views[1] : null;
+    var place = RUNS[runKey].title.split(' · ')[0].replace(/^What if\? ?/, 'Leominster'), hot = views[1] && views[1].count ? views[1] : null;
     var big = function (v) { return '<b>' + n(v) + '</b>'; };
     var rep_ = (refs && refs.reports) || [], hits = rep_.filter(function (x) { return x[6]; }).length;
     var C = cascade && cascade.summary;
@@ -1116,8 +1973,8 @@
         text: function () { return '<b>' + fmtShort.format(timeAt(s1b)) + '.</b> Radar rain from NOAA MRMS sweeps across central Massachusetts toward ' + esc(place) + '. The dashed outline is the area the flood model covers.'; }, live: rainLive },
       { title: 'Rain intensifies', a: s1b, b: s2b, dur: 7500, rain: 1, cam: 'box',
         text: function () { return 'Up to ' + (M.rain_peak1h_max_mm != null ? '<b>' + M.rain_peak1h_max_mm + ' mm</b>' : 'a month’s rain') + ' falls on one spot in a single hour' + (M.rain_max_total_mm != null ? ', and the wettest place in the area collects <b>' + M.rain_max_total_mm + ' mm</b> over the storm.' : '.'); }, live: rainLive },
-      { title: 'Water collects', a: s2b, b: s3b, dur: 7000, rain: 0.55, cam: 0,
-        text: function () { return 'Runoff gathers in streams, ponds and low ground. Blue is water at least 5 cm deep, darker is deeper' + (meta.flow ? '; the ripples move with the modelled current.' : '.'); },
+      { title: 'Runoff and rising brooks', a: s2b, b: s3b, dur: 8000, rain: 0.55, cam: hot ? 1 : 0,
+        text: function () { return 'Rain the ground cannot take runs off down streets and slopes into the brooks' + (meta.flow ? ' (the moving particles follow the modelled current)' : '') + '. Brooks and rivers swell and ponds fill: their outlines thicken as the river rises. Blue is water at least 5 cm deep, darker is deeper.'; },
         live: function () { return '<b class="blue">' + n(nWet + nClosedNow) + '</b><span>road segments with water on them</span>'; } },
       { title: 'Streets flood', a: s3b, b: s4b, dur: 7500, rain: 0.3, cam: hot ? 1 : 0,
         text: function () { return 'Where water reaches a road it turns <b>amber</b>: water on the road, still under 30 cm.' + (hot ? ' Around ' + esc(hot.name) + ', ' + big(hot.count) + ' road segments flood during the storm.' : ''); },
@@ -1140,7 +1997,12 @@
           var list = bits.length > 1 ? bits.slice(0, -1).join('; ') + '; and ' + bits[bits.length - 1] : bits.join('');
           return 'Closed roads cut routes around them. ' + (list ? list + '.' : '') + ' Faint red lines mark every road that closes at some point.';
         },
-        live: function () { return M.segments_p_ge_50 != null ? '<b class="shut">' + n(M.segments_p_ge_50) + '</b><span>roads close at some point</span>' + (knock.fac ? '<b class="shut">' + knock.fac + '</b><span>stations near them</span>' : '') : ''; } }
+        live: function () { return M.segments_p_ge_50 != null ? '<b class="shut">' + n(M.segments_p_ge_50) + '</b><span>roads close at some point</span>' + (knock.fac ? '<b class="shut">' + knock.fac + '</b><span>stations near them</span>' : '') : ''; } },
+      { title: 'Draining and soaking in', a: s5b, b: cl(s5b + 8 * per), dur: 9000, rain: 0, cam: hot ? 1 : 0,
+        text: function () { return 'The rain stops. Water runs down the brooks to the river and soaks into the ground; <b>slate-grey</b> water is going down, and roads reopen as it drops below 26 cm.' +
+          (meta.surface_mm ? ' Of the rain that fell, most has soaked in or drained away (estimate: rain fallen minus the water still drawn on the land).' : ''); },
+        live: function () { var per_ = 60 / meta.frame_min, tot = sum(r, t / per_), sf = meta.surface_mm ? meta.surface_mm[Math.round(t)] || 0 : null;
+          return sf != null ? '<b class="blue">' + Math.max(0, tot - sf).toFixed(0) + ' mm</b><span>of ' + tot.toFixed(0) + ' mm soaked in or drained</span><b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>' : '<b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>'; } }
     ];
     return S;
   }
@@ -1170,7 +2032,7 @@
     if (playing) setPlaying(false);
     if (popup) popup.remove(); hideTip();
     if (follow) setFollow(false);
-    story.on = true; document.documentElement.classList.add('story-on');
+    story.on = true; document.documentElement.classList.add('story-on'); $('caption').hidden = true;
     $('story').hidden = false; $('replayStory').hidden = true;
     var ol = $('stSteps'); ol.innerHTML = ''; ol.style.setProperty('--n', story.sc.length);
     story.sc.forEach(function (sc, k) {
@@ -1219,6 +2081,7 @@
   function storyEnd() {
     if (!story.on) return;
     story.on = false; document.documentElement.classList.remove('story-on');
+    phNow = -9; setTimeout(function () { phaseCaption(); }, 0);
     $('story').hidden = true; $('replayStory').hidden = false;
     rainOp = 1; applyToggles(); map.triggerRepaint();
     document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === currentView ? 'true' : 'false'); });
@@ -1226,6 +2089,7 @@
   function placeStory() { // desktop: under the identity card, in the same left column the framing already keeps clear
     var c = $('card').getBoundingClientRect();
     document.documentElement.style.setProperty('--story-top', Math.round(c.bottom + 10) + 'px');
+    document.documentElement.style.setProperty('--cap-top', Math.round(c.bottom + 8) + 'px');
   }
   $('stNext').addEventListener('click', function () { storyGo(story.i + 1); });
   $('stPrev').addEventListener('click', function () { storyGo(story.i - 1); });
@@ -1237,26 +2101,35 @@
   function applyTheme() {
     if (!map || !map.getLayer('b-lgt')) return;
     var b = basemap(), L = BASEMAPS[b].layers, P = pal();
-    ['b-hill', 'b-lgt', 'b-sat', 'b-dark', 'l-voy', 'l-dark'].forEach(function (id) {
-      map.setLayoutProperty(id, 'visibility', L[id] ? 'visible' : 'none');
-      if (L[id]) map.setPaintProperty(id, 'raster-opacity', L[id]);
+    ['b-hill', 'b-lgt', 'b-sat', 'b-dark', 'l-voy', 'l-dark', 'b-hshade'].forEach(function (id) {
+      if (!map.getLayer(id)) return;
+      var on = L[id] && !(/^l-/.test(id) && map.getLayer('lb-place')); // vector street, water and place labels replace the raster ones
+      map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+      if (on && id !== 'b-hshade') map.setPaintProperty(id, 'raster-opacity', L[id]);
     });
+    if (map.getLayer('bg')) map.setPaintProperty('bg', 'background-color', b === 'night' || b === 'dark' ? '#1E2124' : '#F2F2EF');
+    wiTheme(b);
     document.querySelectorAll('#basemaps button').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.bm === b ? 'true' : 'false'); });
     var root = document.documentElement.style;
     ['d1', 'd2', 'd3', 'd4'].forEach(function (k, i) { root.setProperty('--' + k, P.d[i]); });
     root.setProperty('--closed', P.closed); root.setProperty('--amber', P.amber); root.setProperty('--orange', P.orange); root.setProperty('--grey', P.grey);
     root.setProperty('--peak', P.peak); root.setProperty('--peak-op', P.peakOp); root.setProperty('--may', P.may);
-    flowRGB = b === 'dark' ? { hi: [0.9, 0.97, 1], dk: 0.24 } : b === 'satellite' ? { hi: [0.92, 0.98, 1], dk: 0.26 } : { hi: [1, 1, 1], dk: 0.2 };
-    depth.setRamp(P.d.map(rgba));
+    flowRGB = b === 'dark' || b === 'night' ? { hi: [0.78, 0.95, 1], dk: 0.24 } : b === 'satellite' ? { hi: [0.85, 0.97, 1], dk: 0.26 } : { hi: [1, 1, 1], dk: 0.2 };
+    depth.setRamp(P.d.map(rgba)); depth.setDrain(b === 'dark' || b === 'night' ? [0.5, 0.58, 0.68, 0.72] : [0.48, 0.54, 0.6, 0.62]);
     if (map.getLayer('net-case')) {
       map.setPaintProperty('net-case', 'line-color', ['match', NET_RANK, 0, P.net[0], 1, P.net[1], 2, P.net[2], P.net[3]]);
       map.setPaintProperty('net-fill', 'line-color', P.fill);
     }
     if (map.getLayer('box')) map.setPaintProperty('box', 'line-color', P.box);
     if (map.getLayer('wet')) {
-      var D = ['coalesce', ['feature-state', 'd'], 0];
-      map.setPaintProperty('wet', 'line-color', ['interpolate', ['linear'], D, 3, P.grey, 10, P.amber, 22, P.orange, 30, P.closed]);
-      map.setPaintProperty('wetcase', 'line-color', P.cas);
+      var D = RD || ['coalesce', ['feature-state', 'd'], 0];
+      // under 15 cm water on road (amber, dark casing), 15-30 cm at risk (vermillion), 30 cm and more closed (dark red, white stripes)
+      map.setPaintProperty('wet', 'line-color', ['step', D, P.amber, 15, P.orange, 30, P.closed]);
+      map.setPaintProperty('wetcase', 'line-color', P.cas); // a casing in the background colour: 'this street, flooded'
+      var dkT = b === 'dark' || b === 'night';
+      ['rlab-w', 'rlab-r', 'rlab-c'].forEach(function (id) { if (!map.getLayer(id)) return;
+        map.setPaintProperty(id, 'text-color', ['step', ['get', 'd'], dkT ? '#F2F2EF' : '#1F2328', 15, dkT ? P.orange : '#A33F00', 30, P.closed]);
+        map.setPaintProperty(id, 'text-halo-color', dkT ? '#1E2124' : '#FFFFFF'); });
       map.setPaintProperty('bar', 'line-color', '#ffffff');
       map.setPaintProperty('halo', 'line-color', P.halo);
       map.setPaintProperty('peak', 'line-color', P.peak); map.setPaintProperty('peak', 'line-opacity', P.peakOp);
@@ -1268,7 +2141,7 @@
     drawChart();
   }
   document.querySelectorAll('#basemaps button').forEach(function (x) {
-    x.addEventListener('click', function () { bm = x.dataset.bm; store('mfw-basemap', bm); applyTheme(); });
+    x.addEventListener('click', function () { bm = x.dataset.bm; store(BMKEY, bm); applyTheme(); });
   });
   (function () { // legend ramps that do not depend on the basemap
     var stops = [1, 3, 8, 15, 30, 50, 80].map(function (mm, i, a) { var c = rainColor(mm); return 'rgba(' + c.slice(0, 3).map(Math.round).join(',') + ',' + Math.min(1, c[3] * 1.6 + 0.12).toFixed(2) + ') ' + Math.round(100 * i / (a.length - 1)) + '%'; });
@@ -1289,7 +2162,7 @@
   function drawChart() {
     if (!meta) return;
     var svg = $('chart'), W = nf - 1, r = meta.rain_hourly_mean_mm || [], cp = meta.closed_per_frame || [];
-    var bands = Array.prototype.filter.call(document.querySelectorAll('#timeline .band'), function (b) { return !b.hidden; });
+    var bands = Array.prototype.filter.call(document.querySelectorAll('#timeline .band'), function (b) { return !b.hidden && b.offsetParent !== null; });
     var BH = (bands[0] && bands[0].offsetHeight) || 30, H = BH * bands.length, s = '', per = 60 / meta.frame_min, y0;
     bands.forEach(function (b, k) {
       y0 = k * BH;
@@ -1331,18 +2204,131 @@
     svg.innerHTML = s;
     setCursor();
   }
-  $('gaugeSel').addEventListener('change', drawChart);
+  $('gaugeSel').addEventListener('change', function () { drawChart(); instInit(); });
   function setCursor() { var c = $('cursor'); if (c && nf > 1) c.style.left = (100 * t / (nf - 1)) + '%'; }
 
+  // pieces: a piece shows its segment's state while the map draws water on it
+  var PCS = null;
+  function inIv(w) { for (var j = 0; j < w.length; j++) if (t >= w[j][0] - 0.5 && t <= w[j][1] + 0.5) return true; return false; }
+  function pieceWet(i) {
+    return inIv(WION && wi && wi.dj && wi.dj.pw ? ((wi.dj.pw[PCS.seg[i]] || [])[PCS.k[i]] || []) : PCS.w[i]);
+  }
+  function pieceNear(i) { // drawn water in the cell beside the piece (published packs only)
+    return !WION && PCS.n && PCS.n[i] ? inIv(PCS.n[i]) : false;
+  }
+  // merged runs: consecutive painted pieces of a segment joined into one line (a single unpainted piece between two painted ones is
+  // bridged), so a flooded street reads as one continuous line, plus one name label per segment at the middle of its longest run
+  var RD = null, runsKey = '', runsAt = 0, runsT = 0;
+  var ABBR = [[/\bStreet\b/g, 'St'], [/\bAvenue\b/g, 'Ave'], [/\bRoad\b/g, 'Rd'], [/\bDrive\b/g, 'Dr'], [/\bBoulevard\b/g, 'Blvd'], [/\bLane\b/g, 'Ln'], [/\bPlace\b/g, 'Pl'], [/\bParkway\b/g, 'Pkwy'], [/\bHighway\b/g, 'Hwy']];
+  function shortName(nm) { ABBR.forEach(function (a) { nm = nm.replace(a[0], a[1]); }); return nm; }
+  // street labels sit above the report and culvert markers: drawn over them, and placed first so a marker never pushes a name off
+  function raiseLabels() { ['hot', 'rlab-w', 'rlab-r', 'rlab-c'].forEach(function (id) { if (map.getLayer(id)) map.moveLayer(id); }); }
+  function runsBuild() {
+    runsAt = Date.now(); runsT = 0;
+    var feats = [], labs = [], same = function (a, b) { return Math.abs(a[0] - b[0]) < 2e-5 && Math.abs(a[1] - b[1]) < 2e-5; };
+    Object.keys(PCS.bySeg).forEach(function (sid) {
+      var ix = PCS.bySeg[sid], d = 0, k, runs = [], cur = null;
+      for (k = 0; k < ix.length; k++) if (PCS.v[ix[k]] > 0) { d = PCS.v[ix[k]]; break; }
+      if (!d) return;
+      for (k = 0; k < ix.length; k++) {
+        var i = ix[k], on = PCS.v[i] > 0 || (k > 0 && k < ix.length - 1 && PCS.v[ix[k - 1]] > 0 && PCS.v[ix[k + 1]] > 0), ln = PCS.lines[i];
+        if (!on) { cur = null; continue; }
+        if (cur && same(cur[cur.length - 1], ln[0])) { for (var j = 1; j < ln.length; j++) cur.push(ln[j]); } else { cur = ln.slice(); runs.push(cur); }
+      }
+      if (!runs.length) return;
+      feats.push({ type: 'Feature', properties: { d: d }, geometry: { type: 'MultiLineString', coordinates: runs } });
+      var sg = segById[sid], nm = sg && sg.f && sg.f.properties.n;
+      if (!nm) return;
+      var best = runs[0], bl = -1;
+      runs.forEach(function (r) { var L = 0; for (var q = 1; q < r.length; q++) L += Math.hypot(r[q][0] - r[q - 1][0], r[q][1] - r[q - 1][1]); if (L > bl) { bl = L; best = r; } });
+      var mid = best[Math.floor((best.length - 1) / 2)], mid2 = best[Math.ceil((best.length - 1) / 2)];
+      var kk = meta.kofn && sg.f.properties.k, lt = kk ? (kk >= 2 ? 'Likely' : 'Possible') + ' · ' + kk + ' of ' + meta.kofn.n + ' runs' : d >= 30 ? 'closed' : Math.round(d) + ' cm';
+      labs.push({ type: 'Feature', properties: { d: d, nm: nm, t: shortName(nm) + ' · ' + lt }, geometry: { type: 'Point', coordinates: [(mid[0] + mid2[0]) / 2, (mid[1] + mid2[1]) / 2] } });
+    });
+    // one label per street name within about 800 m, keeping the most severe (several segments of one street flood together)
+    labs.sort(function (a, b) { return b.properties.d - a.properties.d; });
+    var kept = [], kx = 1 / (111320 * Math.cos(meta.corners[0][1] * Math.PI / 180)), ky = 1 / 110540;
+    labs.forEach(function (f) {
+      var nm = f.properties.nm, c = f.geometry.coordinates;
+      if (kept.some(function (o) { return o.properties.nm === nm && Math.hypot((o.geometry.coordinates[0] - c[0]) / kx, (o.geometry.coordinates[1] - c[1]) / ky) < 800; })) return;
+      kept.push(f);
+    });
+    map.getSource('runs').setData({ type: 'FeatureCollection', features: feats });
+    map.getSource('rlab').setData({ type: 'FeatureCollection', features: kept });
+  }
+  function runsUpdate() {
+    var k = []; for (var i = 0; i < PCS.seg.length; i++) if (PCS.v[i] > 0) k.push(i + ':' + PCS.v[i]);
+    k = k.join(','); if (k === runsKey) return; runsKey = k;
+    if (runsT) return; var dt = Date.now() - runsAt; // at most four rebuilds a second while the storm plays
+    if (dt >= 250) runsBuild(); else runsT = setTimeout(runsBuild, 250 - dt);
+  }
+  function piecesTime() {
+    var any = {}, i, wet = new Uint8Array(PCS.seg.length), anyN = {};
+    for (i = 0; i < PCS.seg.length; i++) if (pieceWet(i)) { wet[i] = 1; any[PCS.seg[i]] = 1; }
+    for (i = 0; i < PCS.seg.length; i++) if (!any[PCS.seg[i]] && pieceNear(i)) { var sq = segById[PCS.seg[i]]; if (sq && sq.v >= 30) { wet[i] = 2; anyN[PCS.seg[i]] = 1; } }
+    for (i = 0; i < PCS.seg.length; i++) {
+      var sg = segById[PCS.seg[i]], q = sg ? Math.max(0, sg.v) : 0, d, e;
+      // the depth layer starts at 5 cm, so road states do too: water on road = 5-15 cm, and only on pieces where the map draws water.
+      // A wet piece whose road water is under 5 cm shows 'water at the edge'. A closure is never hidden (whole-segment fallback).
+      // a closed segment with no water on its own pieces is drawn on the pieces with water beside them (wet = 2), and only failing
+      // that along the whole segment.
+      if (wet[i]) { d = q >= 5 ? q : 0; e = q < 5 ? 1 : 0; } else { d = q >= 30 && !any[PCS.seg[i]] && !anyN[PCS.seg[i]] ? q : 0; e = 0; }
+      if (d !== PCS.v[i] || e !== PCS.e[i]) { PCS.v[i] = d; PCS.e[i] = e; map.setFeatureState({ source: 'pieces', id: i }, { d: d, e: e }); }
+    }
+    if (map.getSource('runs')) runsUpdate();
+    var r = 0, w = 0; // counts as drawn: segments with water on the road where the map shows it
+    Object.keys(any).forEach(function (sid) { var sg = segById[sid], q = sg ? sg.v : 0; if (q >= 30) return; if (q >= 15) r++; else if (q >= 5) w++; });
+    return [r, w];
+  }
+  // status line: what the map shows right now, in words, and which kind of run it is
+  var slLast = '';
+  function statusLine(c, r, w) {
+    var cp = meta.closed_per_frame || [], pk = 0; for (var i = 0; i < cp.length; i++) if (cp[i] > cp[pk]) pk = i;
+    var txt = n(c) + ' closed · ' + n(r) + ' at risk' + (small() ? '' : ' · ' + n(w) + ' with water on the road') + (cp.length ? ' · peak ' + fmtCap.format(timeAt(pk)).replace(/^\w+ /, '') : '');
+    if (txt === slLast) return; slLast = txt;
+    $('slNow').textContent = txt;
+  }
+  function rankBuild() {
+    var rows = [];
+    segs.forEach(function (s) {
+      var d = s.d || [], mx = 0, pk = 0; for (var i = 0; i < d.length; i++) if (d[i] > mx) { mx = d[i]; pk = i; }
+      if (mx < 3) return;
+      var iv = s.iv || [], sev = iv.length ? 3 : mx >= 15 ? 2 : 1, st = iv.length ? iv[0][0] : d.findIndex(function (v) { return v >= 3; });
+      rows.push({ s: s, mx: mx, pk: pk, sev: sev, st: st, end: iv.length ? iv[iv.length - 1][1] : null });
+    });
+    rows.sort(function (a, b) { return b.sev - a.sev || a.st - b.st; });
+    rankRows = rows;
+    var ol = $('rankList'); ol.innerHTML = '';
+    rows.slice(0, 40).forEach(function (r) {
+      var p = r.s.f.properties, li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
+      var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : '<span class="chip-st wet">Water on road</span>';
+      b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
+        '<span class="rt">' + (r.sev === 3 ? 'Closes ' + fmtCap.format(timeAt(r.st)).replace(/^\w+ /, '') + ' · ' : 'From ' + fmtCap.format(timeAt(r.st)).replace(/^\w+ /, '') + ' · ') +
+        'Peak ' + fmtCap.format(timeAt(r.pk)).replace(/^\w+ /, '') + (r.end != null ? ' · Reopens ' + (r.end >= nf - 1 ? 'after the run' : fmtCap.format(timeAt(r.end)).replace(/^\w+ /, '')) : '') +
+        ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + '</span>';
+      b.addEventListener('click', function () {
+        var g = r.s.f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
+        cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
+        if (playing) setPlaying(false); played = true; setTime(r.pk);
+        map.fitBounds(bb, { padding: framePadding(), maxZoom: 15.5, duration: reduced ? 0 : 900 });
+        if (small()) sheetDetent('peek');
+        map.once('moveend', function () { openPlace(r.s.f, cs[Math.floor(cs.length / 2)]); });
+      });
+      li.appendChild(b); ol.appendChild(li);
+    });
+    $('rank').hidden = !rows.length;
+    $('rank').querySelector('summary').textContent = 'Roads, most severe first (' + rows.length + ')';
+  }
   var lastClock = '';
   function setTime(v) {
     t = Math.max(0, Math.min(nf - 1, v));
-    var fa = Math.min(Math.floor(t), nf - 1), fr = t - fa, closed = 0, wet = 0;
+    var fa = Math.min(Math.floor(t), nf - 1), fr = t - fa, closed = 0, wet = 0, risk = 0;
     for (var i = 0; i < segs.length; i++) {
       var s = segs[i], d = s.d, val;
       if (d) {
         var a = d[fa] || 0, b = d[fa + 1] || 0;
         val = a + (b - a) * fr;
+        if (s.dp && wi && wi.x < 1) { var pa = s.dp[fa] || 0, pb = s.dp[fa + 1] || 0; val = (pa + (pb - pa) * fr) * (1 - wi.x) + val * wi.x; }
       } else { // no depth series: ramp up over the hour before each closure and drain over the hour after
         val = 0;
         for (var j = 0; j < s.iv.length; j++) {
@@ -1351,10 +2337,16 @@
           val = Math.max(val, u > 0 ? (t >= x0 && t <= x1 ? 40 : 30 * u) : 0);
         }
       }
-      if (val >= 30) closed++; else if (val >= 3) wet++;
+      // a closed road reopens below 26 cm, not 30, so a depth hovering at the threshold does not flicker between states
+      if (s.cl) { if (val < 26) s.cl = false; } else if (val >= 30) s.cl = true;
+      if (s.cl) { closed++; val = Math.max(val, 30); } else { val = Math.min(val, 29); if (val >= 3) wet++; if (val >= 15) risk++; }
       var q = val < 2 ? 0 : 2 * Math.round(val / 2);
-      if (q !== s.v) { s.v = q; map.setFeatureState({ source: 'roads', id: s.id }, { d: q }); }
+      // water drawn across the road while the road surface stays above it (embankments, crowned roads): 'water at the road edge'
+      var eg = 0;
+      if (q < 3 && s.e) for (var k = 0; k < s.e.length; k++) if (t >= s.e[k][0] - 0.5 && t <= s.e[k][1] + 0.5) { eg = 1; break; }
+      if (q !== s.v || eg !== s.eg) { s.v = q; s.eg = eg; if (!PCS) map.setFeatureState({ source: 'roads', id: s.id }, { d: q, e: eg }); else s.v2 = 1; }
     }
+    if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else statusLine(closed, risk, wet - risk);
     var mins = Math.round(t * meta.frame_min / 5) * 5, label = fmtClock.format(new Date(t0.getTime() + mins * 60000));
     if (label !== lastClock) {
       lastClock = label;
@@ -1373,6 +2365,9 @@
     if (pn) { var cm = segDepth(+pn.dataset.id); pn.textContent = cm >= 3 ? cm + ' cm' : 'dry'; }
     if (story.on) storyLive();
     if (cascade) cascadeTime();
+    if (WHATIF) { wiCulvertTime(); wiLive(); }
+    phaseCaption(); wiSwell(); capClock();
+    instNow(); appTick();
     if (map) map.triggerRepaint();
   }
 
@@ -1390,11 +2385,12 @@
     $('playIcon').setAttribute('d', on ? 'M5 3h3.5v14H5zM11.5 3H15v14h-3.5z' : 'M5 3l12 7-12 7z');
     $('play').setAttribute('aria-label', on ? 'Pause' : 'Play storm');
     if (on) {
-      if (!played || t >= nf - 1.01) t = 0;
+      if (!played || t >= nf - 1.01) t = WHATIF && PH.length ? Math.max(0, PH[0].a - 60 / meta.frame_min) : 0;
       played = true;
       last = performance.now();
       if (follow) followTick(true);
       requestAnimationFrame(tick);
+      requestAnimationFrame(dashTick); phNow = -1; phaseCaption();
     }
   }
   $('play').addEventListener('click', function () { if (!ready) return; if (story.on) { storyEnd(); played = true; } setPlaying(!playing); });
@@ -1441,10 +2437,11 @@
     $('lyPeak').checked = !on; vis('peak', !on);
     $('lyMay').checked = !on; vis('may', !on);
   });
-  function refVis(key, on) { if (key === 'knock') ['knock', 'knock-ring'].concat(CX_LAYERS).forEach(function (l) { vis(l, on); }); else vis('r-' + key, on); }
+  function refVis(key, on) { if (key === 'knock') ['knock', 'knock-ring'].concat(CX_LAYERS).forEach(function (l) { vis(l, on); }); else { vis('r-' + key, on); vis('c-' + key, on); vis('c-' + key + '-n', on); } }
   document.querySelectorAll('input[data-ref]').forEach(function (x) { x.addEventListener('change', function () { refVis(x.dataset.ref, x.checked); }); });
+  sheetPlace(); sheetToggle(false);
   var pl = document.querySelector('.player');
-  function ph() { document.documentElement.style.setProperty('--player-h', pl.offsetHeight + 'px'); }
+  function ph() { if (small()) return; document.documentElement.style.setProperty('--player-h', pl.offsetHeight + 'px'); }
   if (window.ResizeObserver) new ResizeObserver(ph).observe(pl); ph();
   // the key is always on screen; the layer panel opens on demand (remembered on desktop)
   var lg = $('legend'), lgOpen = !small() && store('mfw-layers') === '1';
@@ -1458,6 +2455,406 @@
   var rz = 0;
   window.addEventListener('resize', function () {
     clearTimeout(rz);
-    rz = setTimeout(function () { placeStory(); if (story.on) storyCam(story.sc[story.i], true); else if (!userMoved && !follow && views.length) fitView(currentView, false); }, 200);
+    rz = setTimeout(function () { sheetPlace(); placeStory(); if (story.on) storyCam(story.sc[story.i], true); else if (!userMoved && !follow && views.length) refit(); }, 200);
   });
+
+  // ======================================================================================================================
+  // Round 4: app shell. Tabs (Map · Roads · What-if · Live · About), phone sheet detents, floating buttons, place card,
+  // share links and CSV, the Live tab, and the water journey on the map (rain, runoff particles, swelling streams, drying).
+  // ======================================================================================================================
+  var TAB_OF = { whatif: 'whatif', forecast: 'live' }, curTab = TAB_OF[runKey] || 'map';
+  function setTabOn(k) { document.querySelectorAll('#tabs a').forEach(function (a) { if (a.dataset.tab === k) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }); }
+  (function tabsInit() {
+    var lastMap = store('mfw-lastmap') || 'leominster_sep2023';
+    if (curTab === 'map') store('mfw-lastmap', runKey);
+    document.querySelectorAll('#tabs a').forEach(function (a) {
+      var k = a.dataset.tab;
+      if (k === 'map') a.href = '?run=' + (curTab === 'map' ? runKey : lastMap);
+      if (k === 'roads') {
+        a.href = curTab === 'live' ? '?run=' + lastMap + '#roads' : '#roads';
+        if (curTab !== 'live') a.addEventListener('click', function (e) { e.preventDefault(); openRoads(); });
+      }
+      if (k === 'map' && curTab === 'map') a.addEventListener('click', function (e) {
+        e.preventDefault(); closePlace(); setTabOn('map');
+        if (small()) sheetDetent('peek'); else { $('rank').open = false; if (document.documentElement.classList.contains('side-off')) sideSet(true); }
+      });
+    });
+    setTabOn(curTab);
+    if (location.hash === '#roads') { var tries = 0, iv = setInterval(function () { if (ready && rankRows.length || ++tries > 60) { clearInterval(iv); if (rankRows.length) openRoads(); } }, 250); }
+  })();
+  function openRoads() {
+    if ($('rank').hidden) { toast('No road gets water in this run'); return; }
+    closePlace(); setTabOn('roads'); $('rank').open = true;
+    if (small()) { sheetDetent('full'); setTimeout(function () { var pl = document.querySelector('.player'); pl.scrollTo({ top: $('rank').offsetTop - 44, behavior: reduced ? 'auto' : 'smooth' }); }, 60); }
+    else { sideSet(true); $('rank').scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' }); }
+  }
+
+  // ---------- desktop sidebar: collapsible ----------
+  function sideSet(on) {
+    document.documentElement.classList.toggle('side-off', !on);
+    $('sideToggle').setAttribute('aria-expanded', on ? 'true' : 'false'); $('sideToggle').setAttribute('aria-label', on ? 'Hide the side panel' : 'Show the side panel');
+    store('mfw-side', on ? '1' : '0');
+    setTimeout(function () { drawChart(); if (map) map.resize(); }, 420);
+  }
+  $('sideToggle').addEventListener('click', function () { sideSet(document.documentElement.classList.contains('side-off')); });
+  if (!small() && store('mfw-side') === '0') sideSet(false);
+
+  // ---------- phone: bottom sheet with three detents ----------
+  var detent = 'peek', dragged = false;
+  function sheetMetrics() {
+    var pl = document.querySelector('.player'), vh = window.innerHeight, tabs = $('tabs'), tab = tabs && tabs.parentNode === document.body ? tabs.offsetHeight : 0;
+    var top = $('card').getBoundingClientRect().bottom + 8, full = Math.max(200, vh - tab - top);
+    var tl = $('timeline'), peek;
+    if (document.documentElement.classList.contains('no-replay')) peek = Math.min(full, Math.round(vh * 0.2));
+    else peek = Math.min(full, (tl && tl.offsetParent ? tl.offsetTop : 120) + 48);
+    var half = Math.max(peek + 90, Math.min(full, Math.round(vh * 0.52)));
+    return { full: full, peek: Math.max(96, peek), half: half };
+  }
+  function sheetDetent(d) {
+    if (!small()) return;
+    var pl = document.querySelector('.player'); detent = d;
+    pl.dataset.detent = d; pl.dataset.open = d === 'peek' ? 'false' : 'true';
+    $('grab').setAttribute('aria-expanded', d === 'peek' ? 'false' : 'true');
+    document.documentElement.classList.toggle('sheet-open', d !== 'peek');
+    var m = sheetMetrics(), vis_ = m[d];
+    pl.style.setProperty('--sheet-h', m.full + 'px'); pl.style.setProperty('--sheet-off', (m.full - vis_) + 'px'); pl.style.transform = '';
+    if (d !== 'full') pl.scrollTop = 0;
+    document.documentElement.style.setProperty('--player-h', vis_ + 'px');
+    $('grabL').textContent = d === 'peek' ? 'More' : 'Less';
+    drawChart();
+  }
+  (function sheetDrag() {
+    var pl = document.querySelector('.player'), y0 = null, off0 = 0, ly = 0, lt = 0, v = 0, id = null;
+    function down(e) {
+      if (!small() || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (detent === 'full' && pl.scrollTop > 0 && e.currentTarget !== $('grab')) return;
+      var m = sheetMetrics(); y0 = e.clientY; off0 = m.full - m[detent]; ly = y0; lt = performance.now(); v = 0; id = e.pointerId; dragged = false;
+    }
+    function move(e) {
+      if (y0 === null || e.pointerId !== id) return;
+      var dy = e.clientY - y0; if (!dragged && Math.abs(dy) < 6) return;
+      if (!dragged) { dragged = true; pl.classList.add('dragging'); try { e.currentTarget.setPointerCapture(id); } catch (x) { } }
+      var m = sheetMetrics(), off = Math.max(-12, Math.min(m.full - m.peek + 24, off0 + dy));
+      pl.style.transform = 'translateY(' + off + 'px)';
+      var now = performance.now(); v = (e.clientY - ly) / Math.max(1, now - lt); ly = e.clientY; lt = now;
+    }
+    function up(e) {
+      if (y0 === null) return;
+      var dy = e.clientY - y0; y0 = null; pl.classList.remove('dragging');
+      if (!dragged) return;
+      var m = sheetMetrics(), vis_ = m.full - (off0 + dy) - v * 220, best = 'peek', bd = 1e9;
+      ['peek', 'half', 'full'].forEach(function (k) { var dd = Math.abs(m[k] - vis_); if (dd < bd) { bd = dd; best = k; } });
+      sheetDetent(best);
+      setTimeout(function () { dragged = false; }, 50);
+    }
+    ['grab', 'statusLine'].forEach(function (k) {
+      var el = $(k); el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    });
+    $('grab').addEventListener('click', function () { if (dragged) return; sheetDetent(detent === 'peek' ? 'half' : detent === 'half' ? 'full' : 'peek'); });
+    $('statusLine').addEventListener('click', function () { if (small() && !dragged && detent === 'peek') sheetDetent('half'); });
+  })();
+
+  // ---------- floating buttons ----------
+  $('fbIn').addEventListener('click', function () { if (map) map.zoomIn({ duration: reduced ? 0 : 300 }); });
+  $('fbOut').addEventListener('click', function () { if (map) map.zoomOut({ duration: reduced ? 0 : 300 }); });
+  $('fbShare').addEventListener('click', function () { shareView(); });
+  $('shareBtn2').addEventListener('click', function () { shareView(); });
+  $('csvBtn').addEventListener('click', function () { rankCsv(); });
+  $('fbLayers').addEventListener('click', function () {
+    var lg = $('legend');
+    if (small()) { var on = lg.dataset.pop !== 'on'; lg.dataset.pop = on ? 'on' : 'off'; this.setAttribute('aria-expanded', on ? 'true' : 'false'); if (on) closePlace(); }
+    else $('legendToggle').click();
+  });
+  var meMark = null;
+  $('fbLocate').addEventListener('click', function () {
+    if (!navigator.geolocation || !map) { toast('Location is not available in this browser'); return; }
+    var btn = this; btn.setAttribute('aria-pressed', 'true');
+    navigator.geolocation.getCurrentPosition(function (p) {
+      var ll = [p.coords.longitude, p.coords.latitude];
+      if (!meMark) { var el = document.createElement('div'); el.className = 'me'; meMark = new maplibregl.Marker({ element: el }); }
+      meMark.setLngLat(ll).addTo(map);
+      map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), 14), duration: reduced ? 0 : 900 });
+      var b = meta && meta.corners ? boxBounds() : null;
+      if (b && (ll[0] < b[0][0] || ll[0] > b[1][0] || ll[1] < b[0][1] || ll[1] > b[1][1])) toast('You are outside the area this storm was modelled for');
+    }, function () { btn.removeAttribute('aria-pressed'); toast('Location permission was not given'); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  });
+
+  // ---------- toast ----------
+  var toastT = 0;
+  function toast(msg) { var el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { el.hidden = true; }, 2600); }
+
+  // ---------- share links (storm, time, view, open road) and CSV ----------
+  function viewUrl() {
+    var u = new URL(location.href), q = u.searchParams;
+    ['debug', 'story', 'embed', 'c', 'z', 't', 'road', 's'].forEach(function (k) { q.delete(k); });
+    q.set('run', runKey);
+    if (map) { var c = map.getCenter(); q.set('c', c.lng.toFixed(5) + ',' + c.lat.toFixed(5)); q.set('z', map.getZoom().toFixed(2)); }
+    if (meta && curTab !== 'live') q.set('t', String(Math.round(t)));
+    if (placeId != null) q.set('road', String(placeId));
+    if (WION && wi && wi.key) q.set('s', wi.key);
+    u.hash = ''; return u.toString();
+  }
+  function shareView() {
+    var url = viewUrl(), title = document.title;
+    if (navigator.share && small()) { navigator.share({ title: title, url: url }).catch(function () { }); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function () { toast('Link copied: this storm, time and view'); }, function () { window.prompt('Copy this link', url); });
+    else window.prompt('Copy this link', url);
+  }
+  var rankRows = [];
+  function rankCsv() {
+    var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var iso = function (f) { return f == null || f < 0 ? '' : new Date(timeAt(f).getTime()).toISOString().replace(/\.\d+Z$/, 'Z'); };
+    var L = [['segment_id', 'road', 'town', 'road_class', 'state', 'first_water_utc', 'closes_utc', 'peak_utc', 'peak_depth_cm', 'reopens_utc', 'chance_of_closing'].join(',')];
+    rankRows.forEach(function (r) {
+      var p = r.s.f.properties;
+      L.push([r.s.id, p.n || '', p.t || '', CLS[p.c || 0], r.sev === 3 ? 'closed' : r.sev === 2 ? 'at risk (15-30 cm)' : 'water on road (5-15 cm)', iso(r.st), r.sev === 3 ? iso(r.st) : '',
+        iso(r.pk), r.mx, r.end != null ? (r.end >= nf - 1 ? 'after the run' : iso(r.end)) : '', p.p != null ? p.p : ''].map(q).join(','));
+    });
+    var blob = new Blob([L.join('\n') + '\n'], { type: 'text/csv' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'mass-flood-watch_' + runKey + '_roads.csv'; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast(rankRows.length + ' roads saved as CSV');
+  }
+
+  // ---------- place card: a tapped road, with its cross streets and nearby open streets ----------
+  var placeId = null;
+  function midOf(f) { var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates); return cs[Math.floor(cs.length / 2)]; }
+  function altStreets(f, ends) {
+    if (!map.getLayer('net-q')) return [];
+    var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), own = String(f.properties.n || '').toLowerCase();
+    var pts = cs.map(function (c) { return map.project(c); }), x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    pts.forEach(function (p) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); });
+    var M = 170, hits = map.queryRenderedFeatures([[x0 - M, y0 - M], [x1 + M, y1 + M]], { layers: ['net-q'] });
+    var wetNames = {}; segs.forEach(function (s) { if (s.v >= 15 && s.f.properties.n) wetNames[String(s.f.properties.n).toLowerCase().replace(/\bstreet\b/, 'st')] = 1; });
+    var mid = map.project(midOf(f)), best = {};
+    hits.forEach(function (h) {
+      var nm = h.properties.name; if (!nm) return;
+      var l = nm.toLowerCase(); if (l === own || (own && (own.indexOf(l) >= 0 || l.indexOf(own) >= 0)) || ends.indexOf(nm) >= 0) return;
+      if (wetNames[l.replace(/\bstreet\b/, 'st')]) return;
+      var gg = h.geometry, cc = gg.type === 'LineString' ? gg.coordinates : gg.type === 'MultiLineString' ? [].concat.apply([], gg.coordinates) : [];
+      cc.forEach(function (c) { var p = map.project(c), d = Math.hypot(p.x - mid.x, p.y - mid.y); if (best[nm] == null || d < best[nm]) best[nm] = d; });
+    });
+    return Object.keys(best).sort(function (a, b) { return best[a] - best[b]; }).slice(0, 3);
+  }
+  function openPlace(f, ll) {
+    if (!f || !map) return;
+    hideTip(); if (popup) popup.remove();
+    placeId = f.id;
+    var ends = crossStreets(f), alt = altStreets(f, ends), cm = segDepth(f.id), st = status(cm, f.id);
+    var stc = cm >= 30 ? 'shut' : cm >= 15 ? 'risk' : cm >= 5 ? 'wet' : '';
+    var h = popupHtml(f, ends).replace(/<dt>Water on it now<\/dt><dd id="ppNow"[^<]*<\/dd>/, '');
+    h = h.replace('</p>', '</p><div class="pl-state"><b id="plNow" data-id="' + f.id + '">' + (cm >= 5 ? cm + ' cm' : 'Dry') + '</b>' +
+      (stc ? '<span class="chip-st ' + stc + '" id="plChip">' + (stc === 'shut' ? 'Closed' : stc === 'risk' ? 'At risk' : 'Water on road') + '</span>' : '<span class="chip-st" id="plChip" style="background:var(--surface-2);color:var(--muted)">' + esc(st[1].split(';')[0]) + '</span>') + '</div>');
+    var dt = '<div class="detour"><b>Getting around it</b><br>' +
+      (ends.length ? 'It runs between <b>' + ends.map(esc).join('</b> and <b>') + '</b> (outlined on the map). ' : '') +
+      (alt.length ? 'Nearby streets with no flooding now: <span class="alt">' + alt.map(esc).join(', ') + '</span> (green).' : 'No nearby named street is clear of water in this view.') +
+      '<small>Streets near the road that the model keeps open, not a routed detour.</small></div>';
+    var act = '<div class="pl-act"><button type="button" class="primary" id="plZoom">Zoom to road</button><button type="button" id="plShare">Share</button></div>';
+    $('placeBody').innerHTML = h + dt + act;
+    $('place').hidden = false; $('place').classList.remove('tall'); document.documentElement.classList.add('place-on');
+    if (small()) { var lg = $('legend'); lg.dataset.pop = 'off'; $('fbLayers').setAttribute('aria-expanded', 'false'); }
+    if (map.getLayer('net-hl')) map.setFilter('net-hl', ['in', ['get', 'name'], ['literal', ends]]);
+    if (map.getLayer('net-alt')) map.setFilter('net-alt', ['in', ['get', 'name'], ['literal', alt]]);
+    $('plZoom').addEventListener('click', function () {
+      var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
+      cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
+      var p = framePadding(); if (small()) p.bottom = Math.round($('place').getBoundingClientRect().height) + 20 + (p.bottom > 0 ? 0 : 0);
+      map.fitBounds(bb, { padding: p, maxZoom: 16, duration: reduced ? 0 : 800 });
+    });
+    $('plShare').addEventListener('click', shareView);
+    if (small()) { // keep the road above the card
+      var pt = map.project(ll || midOf(f)), lim = window.innerHeight - $('place').getBoundingClientRect().height - 40;
+      if (pt.y > lim) map.panBy([0, pt.y - lim + 60], { duration: reduced ? 0 : 400 });
+    }
+  }
+  function closePlace() {
+    if ($('place').hidden) return;
+    $('place').hidden = true; placeId = null; document.documentElement.classList.remove('place-on');
+    if (map && map.getLayer('net-hl')) map.setFilter('net-hl', ['in', ['get', 'name'], ['literal', []]]);
+    if (map && map.getLayer('net-alt')) map.setFilter('net-alt', ['in', ['get', 'name'], ['literal', []]]);
+  }
+  $('placeX').addEventListener('click', closePlace);
+  $('placeGrab').addEventListener('click', function () { $('place').classList.toggle('tall'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePlace(); $('hsheet').hidden = true; } });
+  function placeTime() { // live depth on the open card
+    var el = document.getElementById('plNow'); if (!el) return;
+    var cm = segDepth(+el.dataset.id); el.textContent = cm >= 5 ? cm + ' cm' : 'Dry';
+    var c = document.getElementById('plChip'), k = cm >= 30 ? 'shut' : cm >= 15 ? 'risk' : cm >= 5 ? 'wet' : '';
+    if (c) { c.className = 'chip-st ' + k; c.textContent = k === 'shut' ? 'Closed' : k === 'risk' ? 'At risk' : k === 'wet' ? 'Water on road' : 'Dry'; c.style.cssText = k ? '' : 'background:var(--surface-2);color:var(--muted)'; }
+  }
+
+  // ---------- the water journey on the map ----------
+  // rain: light streaks over the map while it rains (intensity from the area-mean radar rain), gone once it stops
+  var rfx = (function () {
+    var cv = $('rainfx'), cx = cv.getContext('2d'), drops = [], on = false, raf = 0, rate = 0, W = 0, H = 0, dpr = 1, lastF = 0;
+    function size() { dpr = Math.min(2, window.devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; }
+    function frame(now) {
+      raf = 0; if (!on) return;
+      var dt = Math.min(0.05, (now - lastF) / 1000 || 0.016); lastF = now;
+      var want = Math.round(Math.min(small() ? 140 : 260, rate * (small() ? 5 : 9)));
+      while (drops.length < want) drops.push({ x: Math.random() * W, y: Math.random() * H, v: 700 + Math.random() * 500, l: 10 + Math.random() * 14 });
+      if (drops.length > want) drops.length = want;
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+      cx.strokeStyle = document.documentElement.dataset.theme === 'dark' ? 'rgba(200,190,255,.5)' : 'rgba(90,74,170,.42)'; cx.lineWidth = 1.4; cx.beginPath();
+      drops.forEach(function (d) { d.y += d.v * dt; d.x -= d.v * dt * 0.12; if (d.y > H + 20) { d.y = -20; d.x = Math.random() * (W + 60); } cx.moveTo(d.x, d.y); cx.lineTo(d.x + d.l * 0.12, d.y - d.l); });
+      cx.stroke();
+      if (playing && !document.hidden) raf = requestAnimationFrame(frame);
+    }
+    window.addEventListener('resize', function () { if (on) size(); });
+    return {
+      set: function (mmh) {
+        var want = !reduced && mmh >= 0.5 && curTab !== 'live';
+        rate = mmh;
+        if (want !== on) { on = want; cv.classList.toggle('on', on); if (on) { size(); } else { drops.length = 0; cx.clearRect(0, 0, cv.width, cv.height); } }
+        if (on && !raf) { lastF = performance.now(); raf = requestAnimationFrame(frame); }
+      }
+    };
+  })();
+  // runoff: moving-water particles switch on by themselves at street zoom during runoff, rising streams and street flooding,
+  // unless the reader has set the layer by hand
+  var rainUser = false, rainAutoOn = null;
+  $('lyRain').addEventListener('change', function () { rainUser = true; rainOp = 1; if (map) map.triggerRepaint(); });
+  function rainAuto(mmh) {
+    if (rainUser || story.on || !map || !map.getLayer('rain') || $('rainRow').hidden) return;
+    var want = mmh >= 0.5; if (want === rainAutoOn) return; rainAutoOn = want;
+    $('lyRain').checked = want; vis('rain', want); $('rainKey').hidden = !want;
+    rainOp = 0.4; // shown by itself: a light wash, the streets stay readable
+  }
+  var flowUser = false, flowAutoOn = false;
+  $('lyFlow').addEventListener('change', function () { flowUser = true; });
+  function flowAuto() {
+    if (flowUser || !map || !map.getLayer('flow') || $('flowRow').hidden) return;
+    var k = PH.length ? phaseAt(t) : -1, want = k >= 1 && k <= 3 && map.getZoom() >= 13.4;
+    if (want === flowAutoOn) return; flowAutoOn = want;
+    $('lyFlow').checked = want; vis('flow', want); $('flowKey').hidden = !want;
+  }
+  // streams and ponds swell with the river: the gauge's modelled flow (or the observed one) scaled to its storm peak
+  var stageSer = null;
+  function stageAt() {
+    if (stageSer === null) {
+      stageSer = false;
+      var g = refs && refs.gauges && refs.gauges.filter(function (x) { return (x.model_q && x.model_q.length) || (x.obs_q && x.obs_q.length); })
+        .sort(function (a, b) { return (b.km2 || 0) - (a.km2 || 0); })[0];
+      if (g) { var a = (g.model_q && g.model_q.length ? g.model_q : g.obs_q).map(function (v) { return v == null ? 0 : v; }), mn = Math.min.apply(0, a), mx = Math.max.apply(0, a); if (mx > mn) stageSer = a.map(function (v) { return (v - mn) / (mx - mn); }); }
+    }
+    if (!stageSer) return null;
+    var i = Math.max(0, Math.min(stageSer.length - 1, Math.round(t))); return stageSer[i];
+  }
+  var pondLast = -1;
+  function pondSwell(v) {
+    if (!map || !map.getLayer('h-water')) return;
+    v = Math.round(v * 20) / 20; if (v === pondLast) return; pondLast = v;
+    var dk = basemap() === 'dark' || basemap() === 'night';
+    map.setPaintProperty('h-water', 'fill-color', dk ? 'rgb(' + Math.round(40 + 20 * v) + ',' + Math.round(62 + 40 * v) + ',' + Math.round(82 + 60 * v) + ')'
+      : 'rgb(' + Math.round(213 - 60 * v) + ',' + Math.round(221 - 30 * v) + ',' + Math.round(227 - 5 * v) + ')');
+    if (map.getLayer('h-water-ol')) { map.setPaintProperty('h-water-ol', 'line-opacity', 0.15 + 0.75 * v); map.setPaintProperty('h-water-ol', 'line-width', 0.6 + 1.8 * v); }
+  }
+  // soaked in or drained: rain fallen so far (area mean) minus the water still drawn on the land (area mean)
+  function soakNow() {
+    if (!meta || !meta.surface_mm || !meta.rain_hourly_mean_mm) return;
+    var per = 60 / meta.frame_min, tot = sum(meta.rain_hourly_mean_mm, t / per), s = meta.surface_mm[Math.max(0, Math.min(meta.surface_mm.length - 1, Math.round(t)))] || 0;
+    var g = Math.max(0, tot - s);
+    $('inSoakBox').hidden = false;
+    $('inSoak').textContent = (g >= 10 ? Math.round(g) : g.toFixed(1)) + ' mm';
+    $('inSoakS').textContent = (s >= 1 ? s.toFixed(1) : s.toFixed(2)) + ' mm still on the land (area average)';
+  }
+  function appTick() {
+    if (!meta) return;
+    var per = 60 / meta.frame_min, r = meta.rain_hourly_mean_mm || [], hr = r[Math.floor(t / per)] || 0;
+    rfx.set(hr); rainAuto(hr);
+    flowAuto();
+    var v = stageAt(); if (v != null) pondSwell(v);
+    soakNow(); placeTime();
+  }
+
+  // ---------- the Live tab: the week ahead, storms coming, forecast health ----------
+  var REPO = 'https://github.com/Horus331/mass-flood-watch/blob/main/';
+  var fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }), fmtMD = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  var fmtHM = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  function ago(d) { var m = Math.round((Date.now() - d.getTime()) / 60000); return m < 2 ? 'just now' : m < 90 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; }
+  function zt(x) { return x ? new Date(String(x).replace(/Z?$/, 'Z').replace(/:00ZZ$/, ':00Z')) : null; }
+  var ERO = ['none', 'marginal', 'slight', 'moderate', 'high'], ERO_L = { none: 'No risk area', marginal: 'Marginal', slight: 'Slight', moderate: 'Moderate', high: 'High' };
+  function liveInit(s) {
+    if (curTab !== 'live') return;
+    document.documentElement.classList.add('live-mode');
+    $('forecastCard').hidden = true; $('live').hidden = false;
+    if (small()) { sheetPlace(); setTimeout(function () { sheetDetent('half'); }, 50); }
+    var oc = getJson('site/data/' + (params.get('outlook') === 'sample' ? 'outlook_sample.json' : 'outlook.json')).catch(function () { return null; });
+    oc.then(function (o) { liveRender(s, o); });
+  }
+  // docs/proto/forecast/OUTLOOK.md (schema outlook/1): health chip rule, day levels and verdicts come from the feed itself
+  function health(s, o) {
+    var h = (o && o.health) || {}, issued = zt(h.issued || (o && o.issued)) || zt(s && s.built), next = zt(h.next_update);
+    var staleH = h.stale_after_h || 7, cyc = h.forecast_cycle || {};
+    var st = !o && !s ? 'fail' : issued && Date.now() - issued.getTime() > staleH * 3600e3 ? 'stale' : h.status === 'failed' ? 'fail' : h.status === 'partial' ? 'partial' : 'ok';
+    if (!next && issued) { next = new Date(issued.getTime() + 6 * 3600e3); }
+    var running = (cyc.state || (s && s.state)) === 'run';
+    return { st: st, issued: issued, next: next, cyc: cyc, h: h, label: { ok: running ? 'OK · flood model running' : 'OK', partial: 'Partial', stale: 'Stale', fail: 'Broken' }[st] };
+  }
+  function liveRender(s, o) {
+    var H = health(s, o), O = o && o.health && o.health.status === 'failed' && o.previous ? o.previous : o;
+    $('hdot').className = 'dot ' + (H.st === 'partial' ? 'stale' : H.st);
+    $('hchipT').textContent = (H.issued ? 'Updated ' + ago(H.issued) : 'Not updated yet') + (H.next ? ' · next ' + fmtHM.format(H.next) : '') + ' · ' + H.label;
+    var days = (O && O.days) || [];
+    $('lvTitle').textContent = 'Next 7 days' + (O && O.headline ? '' : '');
+    var mx = Math.max.apply(0, days.map(function (d) { return (d.rain && d.rain.town_max_mm) || 0; }).concat([25]));
+    var ol = $('week'); ol.innerHTML = '';
+    if (O && O.headline) { var hl = document.createElement('li'); hl.className = 'wk-head'; hl.textContent = O.headline; ol.appendChild(hl); }
+    for (var i = 0; i < 7; i++) {
+      var d = days[i] || null, dd = d && d.date ? new Date(d.date + 'T12:00:00Z') : new Date(Date.now() + i * 864e5);
+      var R = d && d.rain, mean = R ? R.d3_mean_mm : null, mxv = R ? R.town_max_mm : null;
+      var ero = d && d.ero && ERO.indexOf(d.ero.category) >= 0 ? d.ero.category : null, lv = d ? d.level : null;
+      var vc = lv === 4 ? 'run' : lv === 3 ? 'hot' : '', txt = d ? d.verdict || '' : 'Week-ahead feed not published yet';
+      var det = d && d.detail && lv != null && lv >= 1 ? d.detail : '';
+      var li = document.createElement('li'); li.className = 'day' + (mean == null ? ' na' : '');
+      li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) + '<small>' + (d ? esc(d.label.split(' ').slice(1).join(' ')) : fmtMD.format(dd)) + (d && d.partial ? ' (rest)' : '') + '</small></span>' +
+        '<i class="ero ' + (ero || 'na') + '" title="NOAA WPC excessive rainfall risk: ' + (ero ? ERO_L[ero] : 'no outlook for this day') + '"></i>' +
+        '<span class="rbar" role="img" aria-label="' + (mean != null ? 'district mean ' + mean.toFixed(1) + ' mm, wettest town ' + (mxv || 0).toFixed(0) + ' mm' : 'no rain figure') + '">' +
+        (mean != null ? '<i style="width:' + Math.min(100, 100 * mean / mx).toFixed(1) + '%"></i><u style="left:' + Math.min(99, 100 * (mxv || 0) / mx).toFixed(1) + '%"></u>' : '') + '</span>' +
+        '<span class="mm">' + (mean != null ? (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm' : '–') + (mxv != null ? '<small title="wettest town">max ' + Math.round(mxv) + '</small>' : '') + '</span>' +
+        '<span class="vd ' + vc + '">' + esc(txt) + (det ? ' <span class="tw">· ' + esc(det) + '</span>' : '') + (d && d.alerts && d.alerts.length ? ' <span class="al">' + esc(d.alerts.join(', ')) + '</span>' : '') + '</span>';
+      ol.appendChild(li);
+    }
+    var key = document.createElement('li'); key.className = 'ero-key';
+    key.innerHTML = '<span><i class="rbar" style="width:16px;display:inline-block"><i style="width:100%"></i></i>district mean</span><span><i style="display:inline-block;width:2px;height:10px;background:var(--ink)"></i>wettest town</span>' +
+      '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
+    ol.appendChild(key);
+    // storms coming (runs of days at level 2 or more)
+    var sb = $('storms'), list = (O && O.storms) || [];
+    sb.innerHTML = list.length ? '<h2>Storms coming</h2>' : '';
+    list.forEach(function (x) {
+      var a = zt(x.start), b = zt(x.end), tw = x.towns_over || [];
+      var c = document.createElement('div'); c.className = 'storm lv' + (x.level || 0);
+      c.innerHTML = '<h3>' + esc(x.verdict || 'Rain') + '</h3>' +
+        '<p>' + (a ? fmtShort.format(a) : esc(x.start_date || '')) + ' – ' + (b ? fmtShort.format(b) : esc(x.end_date || '')) + (x.peak_date ? ' · peak day ' + esc(x.peak_date) : '') + '</p>' +
+        '<p><b>' + (x.d3_mean_mm != null ? Math.round(x.d3_mean_mm) + ' mm' : '–') + '</b> district average, <b>' + (x.town_max_mm != null ? Math.round(x.town_max_mm) + ' mm' : '–') + '</b> in ' + esc(x.town_max || 'the wettest town') +
+        (x.max6h_mm != null ? ' (' + Math.round(x.max6h_mm) + ' mm in 6 h)' : '') + '</p>' +
+        (tw.length ? '<p class="tw">Over the flood-model threshold: ' + tw.map(function (t_) { return esc(t_.town || t_); }).join(', ') + '</p>' : '') +
+        (x.ero_max && x.ero_max !== 'none' ? '<p class="tw">WPC excessive rain: ' + esc(ERO_L[x.ero_max] || x.ero_max) + '</p>' : '') +
+        (x.alerts && x.alerts.length ? '<p class="tw">NWS: ' + esc(x.alerts.join(', ')) + '</p>' : '');
+      sb.appendChild(c);
+    });
+    var fc = (s && s.headline) || (H.cyc && H.cyc.headline);
+    if (fc) sb.insertAdjacentHTML('beforeend', '<h2>Next 48 hours</h2><div class="storm"><h3>' + esc(fc) + '</h3><p>Road closures are modelled only here: the flood model runs when a town is forecast ' +
+      (((s && s.gate && s.gate.thresholds) || {}).max6h_mm || 25) + ' mm in 6 h or ' + (((s && s.gate && s.gate.thresholds) || {}).max24h_mm || 40) + ' mm in 24 h (NOAA HRRR).</p></div>');
+    // health sheet
+    var src = (o && o.sources) || {}, rows = [
+      ['Week outlook', H.issued ? 'built ' + fmtShort.format(H.issued) + ' (' + ago(H.issued) + ')' : '–'],
+      ['Next update', H.next ? fmtShort.format(H.next) + ' (results usually 10–60 min later)' : '–'],
+      ['Rain, days 1–7', src.rain ? (src.rain.ok ? 'NOAA ' + (src.rain.model || '') + ' run ' + (zt(src.rain.run) ? fmtShort.format(zt(src.rain.run)) : src.rain.run || '') : 'missing: ' + (src.rain.error || '')) : '–'],
+      ['Excessive rain outlook', src.ero ? (src.ero.ok ? 'NWS WPC, days 1–5' + (src.ero.partial ? ' (some days missing)' : '') : 'missing') : '–'],
+      ['NWS alerts', src.alerts ? (src.alerts.ok ? 'fetched ' + (zt(src.alerts.fetched) ? fmtShort.format(zt(src.alerts.fetched)) : '') : 'missing') : '–'],
+      ['Flood forecast (HRRR, 48 h)', H.cyc && H.cyc.issued ? 'cycle ' + fmtShort.format(zt(H.cyc.issued)) + ', built ' + (zt(H.cyc.built) ? fmtShort.format(zt(H.cyc.built)) : '–') : (s && s.issued ? 'cycle ' + fmtShort.format(zt(s.issued)) : '–')],
+      ['Flood model', (H.cyc.state || (s && s.state)) === 'run' ? 'ran for this cycle: the map shows its closures' : (H.cyc.state || (s && s.state)) === 'error' ? 'run failed' : 'not needed: no town over the rain gate']];
+    $('hsBody').innerHTML = '<p><i class="dot ' + (H.st === 'partial' ? 'stale' : H.st) + '" style="display:inline-block;vertical-align:1px;margin-right:6px"></i><b>' + esc(H.label) + '</b>: ' +
+      ({ ok: 'every source answered and the six-hourly update is on time.', partial: 'the rain forecast is in; the excessive-rain outlook or the alerts are missing.', stale: 'the last update is more than ' + ((H.h && H.h.stale_after_h) || 7) + ' hours old.', fail: 'the last update has no rain forecast; the previous outlook is shown.' }[H.st]) + '</p>' +
+      ((H.h.problems || []).length ? '<p class="tw">' + H.h.problems.map(esc).join('<br>') + '</p>' : '') +
+      '<table class="hs-t">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
+      '<p>' + (H.h.run_url ? '<a href="' + esc(H.h.run_url) + '" target="_blank" rel="noopener">The run that built it</a> · ' : '') + '<a href="' + REPO + 'docs/proto/forecast/HINDCAST.md" target="_blank" rel="noopener">How the forecast scores on past storms</a> · <a href="' + REPO + 'docs/proto/forecast/OUTLOOK.md" target="_blank" rel="noopener">How the week view works</a></p>';
+  }
+  $('hchip').addEventListener('click', function () { $('hsheet').hidden = !$('hsheet').hidden; });
+  $('hsX').addEventListener('click', function () { $('hsheet').hidden = true; });
+  if (params.get('debug') === '1') window.__mfwApp = { openPlace: function (id) { var s = segById[id]; if (s) openPlace(s.f); }, closedIds: function () { return segs.filter(function (s) { return s.v >= 30; }).map(function (s) { return s.id; }); },
+    detent: function (d) { sheetDetent(d); }, health: function () { $('hsheet').hidden = false; }, roads: function () { openRoads(); } };
+
 })();

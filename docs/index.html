@@ -210,6 +210,8 @@ footer .disc{color:var(--ink);font-weight:600}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
 <header class="top">
@@ -217,7 +219,7 @@ html{scroll-behavior:smooth}
     <img class="logo" src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="105" height="34">
     <div class="ident"><b>Mass Flood Watch</b><span>PhD dissertation research by Mohab Eldokla, WPI</span></div>
     <nav class="nav" aria-label="Sections">
-      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a><a href="#next">What comes next</a>
+      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a><a href="#next">What comes next</a><a href="about.html">About</a>
       <button class="theme" id="theme" type="button" aria-label="Colour theme">Auto</button>
     </nav>
   </div>
@@ -261,7 +263,7 @@ html{scroll-behavior:smooth}
         <h2>Storm replay</h2>
         <p class="muted">Press play to watch the radar rain arrive, the modelled water rise and roads close through the storm. Click a road for when it closes, why, and who loses access; click a river gauge to compare observed and modelled flow. Switch storms at the top of the map.</p>
       </div>
-      <a class="open" href="viewer.html?run=leominster_sep2023">Open the replay full screen</a>
+      <span class="open"><a href="viewer.html?run=leominster_sep2023">Open the replay full screen</a><br><a href="viewer.html?run=whatif">What if the storm were heavier, or the ground frozen?</a></span>
     </div>
     <div class="frame"><iframe id="viewer" title="Storm replay map" src="viewer.html?run=leominster_sep2023&amp;embed=1" loading="lazy" allow="fullscreen"></iframe></div>
   </div>
@@ -480,7 +482,7 @@ html{scroll-behavior:smooth}
   <div class="wrap">
     <div>
       <h3>Data</h3>
-      <p>Rain: NOAA MRMS. Terrain and river gauges: USGS 3DEP and NWIS. Roads, traffic counts and repeat flood sites: MassGIS and MassDOT. Culverts: North Atlantic Aquatic Connectivity Collaborative (NAACC). Bridges: FHWA National Bridge Inventory. Residents: US Census 2020. Hospitals, fire and police stations: © OpenStreetMap contributors. Storm reports: NOAA National Weather Service. Flood model: LISFLOOD-FP 8.2, University of Bristol. Basemaps: CARTO and Esri, © OpenStreetMap contributors.</p>
+      <p>Rain: NOAA MRMS. Terrain and river gauges: USGS 3DEP and NWIS. Roads, traffic counts and repeat flood sites: MassGIS and MassDOT. Culverts: North Atlantic Aquatic Connectivity Collaborative (NAACC). Bridges: FHWA National Bridge Inventory. Residents: US Census 2020. Hospitals, fire and police stations: © OpenStreetMap contributors. Storm reports: NOAA National Weather Service. Flood model: LISFLOOD-FP 8.2, University of Bristol. Basemaps: OpenFreeMap and Esri, © OpenStreetMap contributors; terrain: AWS Terrain Tiles.</p>
       <p><a href="proto/advisors/pipeline.html">Pipeline diagram</a> · <a href="proto/advisors/datasets.md">Dataset list</a></p>
     </div>
     <div>
@@ -514,5 +516,7 @@ html{scroll-behavior:smooth}
   }).catch(function(){});
 })();
 </script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
+<script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>

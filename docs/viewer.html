@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Storm Replay · Mass Flood Watch</title>
 <meta name="description" content="Replay of a modelled flash flood and the road segments it closes in MassDOT Highway District 3. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
 <link rel="icon" href="wpi-logo.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1F2328">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <link href="site/viewer.css" rel="stylesheet">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
@@ -22,16 +25,63 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <img src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="62" height="20">
     <span class="who"><b>Mohab Eldokla</b><span class="long">PhD dissertation research · Worcester Polytechnic Institute</span><span class="short">PhD dissertation research · WPI</span></span>
   </a>
-  <div class="runs" role="tablist" aria-label="Storm">
-    <a role="tab" data-run="leominster_sep2023" href="?run=leominster_sep2023">Leominster</a>
-    <a role="tab" data-run="worcester_aug2021" href="?run=worcester_aug2021">Worcester</a>
-    <a role="tab" data-run="d3_sep2023" href="?run=d3_sep2023">District 3</a>
-    <a role="tab" data-run="forecast" href="?run=forecast">Forecast</a>
+  <nav class="tabs" id="tabs" aria-label="Sections"><a data-tab="map" href="?run=leominster_sep2023"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z"/><path d="M9 4v14M15 6v14"/></svg><span>Map</span></a><a data-tab="roads" href="#roads"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3 5 21M15.5 3 19 21"/><path d="M12 4v2.5M12 10v3M12 17v3"/></svg><span>Roads</span></a><a data-tab="whatif" href="?run=whatif"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>What-if</span></a><a data-tab="live" href="?run=forecast"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.8"/><path d="M8.3 8.3a5.2 5.2 0 0 0 0 7.4M15.7 8.3a5.2 5.2 0 0 1 0 7.4M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/></svg><span>Live</span></a><a data-tab="about" href="about.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 11v5.5M12 7.6v.4"/></svg><span>About</span></a></nav>
+  <div class="pick">
+    <details class="picker" id="picker">
+      <summary aria-label="Choose a storm"><h1 id="runTitle"></h1><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg></summary>
+      <div class="pk-body">
+        <div class="runs" role="list" aria-label="Storm">
+          <a role="listitem" data-run="leominster_sep2023" href="?run=leominster_sep2023"><b>Leominster · Sept 11, 2023</b><span>Replay of the storm the settings were checked against</span></a>
+          <a role="listitem" data-run="worcester_aug2021" href="?run=worcester_aug2021"><b>Worcester · Aug 19, 2021</b><span>Replay of a storm the model was not tuned on</span></a>
+          <a role="listitem" data-run="d3_sep2023" href="?run=d3_sep2023"><b>District 3 · Sept 11, 2023</b><span>The whole district in one GPU run</span></a>
+          <a role="listitem" data-run="whatif" href="?run=whatif"><b>What if? · Leominster storm</b><span>More or less rain, wet or frozen ground, blocked culverts</span></a>
+          <a role="listitem" data-run="forecast" href="?run=forecast"><b>Live forecast · District 3</b><span>The next 48 hours, rerun every 6 hours</span></a>
+        </div>
+        <p class="kind" id="runKind"></p>
+        <p class="stats" id="runStats"></p>
+      </div>
+    </details>
+    <a class="about-link" href="about.html">About</a>
   </div>
-  <h1 id="runTitle"></h1>
-  <p class="kind" id="runKind"></p>
-  <p class="stats" id="runStats"></p>
+  <p class="statusline" id="statusLine"><span id="slMode"></span><b id="slNow"></b></p>
+  <section class="live" id="live" hidden aria-labelledby="lvTitle">
+    <button type="button" class="hchip" id="hchip" aria-haspopup="dialog"><i class="dot" id="hdot"></i><span id="hchipT">Checking the forecast…</span></button>
+    <h2 id="lvTitle">Next 7 days</h2>
+    <ol class="week" id="week" aria-label="Rain and flood outlook, today and the next 6 days"></ol>
+    <div class="storms" id="storms"></div>
+    <p class="caveat">Week-ahead rain is uncertain. Road closures are only modelled within 48 hours of a storm.</p>
+  </section>
+  <details class="rank" id="rank" hidden><summary>Roads, most severe first</summary><div class="rank-act"><button type="button" id="csvBtn">Download CSV</button><button type="button" id="shareBtn2">Share this view</button></div><ol id="rankList"></ol></details>
+  <details class="evid" id="evid" hidden><summary>Checked against real reports</summary><div id="evidBody"></div></details>
 </section>
+
+<button type="button" class="side-toggle" id="sideToggle" aria-label="Hide the side panel" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
+
+<div class="fabs" id="fabs" role="toolbar" aria-label="Map controls">
+  <div class="fgrp">
+    <button type="button" id="fbLayers" aria-label="Layers and map key" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 3 8l9 4.5L21 8z"/><path d="m3 12 9 4.5 9-4.5M3 16l9 4.5 9-4.5"/></svg></button>
+    <button type="button" id="fbShare" aria-label="Share this view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.5M8 7.2 12 3.5l4 3.7"/><path d="M8.5 10.5H6v10h12v-10h-2.5"/></svg></button>
+  </div>
+  <div class="fgrp">
+    <button type="button" id="fbIn" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button type="button" id="fbOut" aria-label="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+  </div>
+  <div class="fgrp"><button type="button" id="fbLocate" aria-label="Show my location"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5 3.5 10.6l7.2 2.7 2.7 7.2z"/></svg></button></div>
+</div>
+
+<section class="place" id="place" hidden aria-labelledby="placeTitle" aria-live="polite">
+  <button type="button" class="pl-grab" id="placeGrab" aria-label="Expand or shrink"><i></i></button>
+  <button type="button" class="pl-x" id="placeX" aria-label="Close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15"/></svg></button>
+  <div class="pl-body" id="placeBody"></div>
+</section>
+
+<section class="hsheet" id="hsheet" hidden role="dialog" aria-labelledby="hsTitle">
+  <button type="button" class="pl-x" id="hsX" aria-label="Close"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15"/></svg></button>
+  <h2 id="hsTitle">Forecast health</h2>
+  <div id="hsBody"></div>
+</section>
+<p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+<canvas class="rainfx" id="rainfx" aria-hidden="true"></canvas>
 
 <section class="story" id="story" hidden aria-labelledby="stTitle">
   <ol class="steps" id="stSteps" aria-label="Story scenes"></ol>
@@ -50,7 +100,8 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   <div class="key" id="key" aria-label="Map key">
     <div class="k" id="rainKey" hidden><span class="kl">Rain</span><span class="kr"><i class="kramp" id="rainRamp"></i><span class="kt"><span>1</span><span>10</span><span>50+ mm/h</span></span></span></div>
     <div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp depth"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></i><span class="kt"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span></span></div>
-    <div class="k"><span class="kl">Roads</span><span class="kr kroads"><span><i class="kw wet"></i>water on road</span><span><i class="kw shut"></i>closed, 30 cm+</span></span></div>
+    <div class="k kdrn" id="drnKey"><span class="kl">Receding</span><span class="kr kroads"><span><i class="kw drn"></i>water going down</span></span></div>
+    <div class="k"><span class="kl">Roads</span><span class="kr kroads"><span><i class="kw wet"></i>water on road, under 15 cm</span><span><i class="kw risk"></i>15–30 cm</span><span><i class="kw shut"></i>closed, 30 cm+</span><span><i class="kw edge"></i>water at the edge</span></span></div>
   </div>
   <button class="legend-toggle" id="legendToggle" type="button" aria-expanded="false" aria-controls="legendBody"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 1.5 6.5 10 11l8.5-4.5zM3.6 9.6 1.5 10.7 10 15.2l8.5-4.5-2.1-1.1L10 13zM3.6 13.8l-2.1 1.1L10 19.4l8.5-4.5-2.1-1.1-6.4 3.4z"/></svg>Layers</button>
   <div id="legendBody" class="panel">
@@ -62,17 +113,17 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     </div>
     <div class="grp">
       <h2>Storm and flood</h2>
-      <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain" checked><span>Radar rain <small>NOAA MRMS</small></span></label>
+      <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain"><span>Radar rain <small>NOAA MRMS</small></span></label>
       <label class="row"><input type="checkbox" id="lyDepth" checked><span>Water depth</span></label>
-      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow" checked><span>Moving water <small>ripples follow the modelled current</small></span></label>
+      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow"><span>Moving water <small>particles follow the modelled current; zoom in to street level</small></span></label>
       <div id="flowKey" hidden></div>
       <p class="soon" id="flowSoon" hidden>Moving-water animation comes with the 5-minute GPU runs.</p>
     </div>
     <div class="grp">
       <h2>Roads</h2>
       <label class="row"><input type="checkbox" id="lyClosed" checked><span>Water on roads, closures</span></label>
-      <label class="row"><input type="checkbox" id="lyPeak" checked><span><i class="sw peak"></i>Closes at some point</span></label>
-      <label class="row"><input type="checkbox" id="lyMay" checked><span><i class="sw may"></i>May close <small>stream reaches road level</small></span></label>
+      <label class="row"><input type="checkbox" id="lyPeak"><span><i class="sw peak"></i>Closes at some point</span></label>
+      <label class="row"><input type="checkbox" id="lyMay"><span><i class="sw may"></i>May close <small>stream reaches road level</small></span></label>
       <label class="row" id="riskRow" hidden><input type="checkbox" id="lyRisk"><span>Risk class</span></label>
       <div class="riskkey" id="riskKey" hidden><span><i class="sw rx"></i>Extreme</span><span><i class="sw rh"></i>High</span><span><i class="sw rm"></i>Medium</span><span><i class="sw rl"></i>Low</span></div>
     </div>
@@ -82,6 +133,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
         <label class="chip" data-ref="knock" hidden><input type="checkbox" data-ref="knock"><span><i class="ico" data-ico="ring"></i>Near closed roads</span></label>
         <label class="chip" data-ref="gauges" hidden><input type="checkbox" data-ref="gauges" checked><span><i class="ico" data-ico="gauge"></i>River gauges</span></label>
         <label class="chip" data-ref="reports" hidden><input type="checkbox" data-ref="reports"><span><i class="ico" data-ico="report"></i>Storm reports</span></label>
+        <label class="chip" data-ref="crowd" hidden><input type="checkbox" data-ref="crowd" checked><span><i class="ico" data-ico="pin"></i>Residents’ flood reports</span></label>
         <label class="chip" data-ref="crossings" hidden><input type="checkbox" data-ref="crossings"><span><i class="ico" data-ico="culvert"></i>Culverts</span></label>
         <label class="chip" data-ref="bridges" hidden><input type="checkbox" data-ref="bridges"><span><i class="ico" data-ico="bridge"></i>Bridges</span></label>
         <label class="chip" data-ref="dams" hidden><input type="checkbox" data-ref="dams"><span><i class="ico" data-ico="dam"></i>Dams</span></label>
@@ -92,7 +144,46 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 </section>
 
 <section class="player" aria-label="Storm timeline">
+  <button type="button" class="grab" id="grab" aria-expanded="false" aria-controls="sheetBody"><i></i><span id="grabL">Timeline, layers and more</span></button>
+  <div class="wi" id="wi" hidden>
+    <div class="wi-ctl" role="group" aria-label="Storm set-up">
+      <div class="wi-sl" id="wiRainBox">
+        <label for="wiRain"><b>Rain</b><span id="wiRainV"></span></label>
+        <input type="range" id="wiRain" min="0" max="3" step="1" value="2" aria-describedby="wiRainH">
+        <div class="ticks" aria-hidden="true"><span>½</span><span>¾</span><span>actual</span><span>1¼</span></div>
+        <p class="wi-h" id="wiRainH">The real radar storm, every hour scaled</p>
+      </div>
+      <div class="wi-sl" id="wiSoilBox">
+        <label for="wiSoil"><b>Ground before the storm</b><span id="wiSoilV"></span></label>
+        <input type="range" id="wiSoil" min="0" max="3" step="1" value="1" aria-describedby="wiSoilH">
+        <div class="ticks" aria-hidden="true"><span>dry</span><span>normal</span><span>soaked</span><span>frozen</span></div>
+        <p class="wi-h" id="wiSoilH"></p>
+      </div>
+      <div class="wi-sl wi-sw" id="wiCulvBox">
+        <label for="wiCulv"><b>Culverts</b><span id="wiCulvV"></span></label>
+        <input type="range" id="wiCulv" min="0" max="1" step="1" value="0" aria-describedby="wiCulvH">
+        <div class="ticks" aria-hidden="true"><span>clear</span><span>blocked</span></div>
+        <p class="wi-h" id="wiCulvH"></p>
+      </div>
+      <button type="button" class="wi-play" id="wiPlay"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3l12 7-12 7z"/></svg>Play the storm</button>
+    </div>
+    <div class="wi-out" aria-live="polite">
+      <div class="wi-n"><b id="wiNRain">–</b><span>rain on the area</span></div>
+      <div class="wi-n"><b id="wiNClosed" class="shut">–</b><span id="wiNClosedL">roads closed</span></div>
+      <div class="wi-n"><b id="wiNPeople">–</b><span>people cut off from help at the worst moment</span></div>
+      <div class="wi-n"><b id="wiNCulv">–</b><span>culverts overtopped</span></div>
+      <p class="wi-note" id="wiNote"></p>
+    </div>
+  </div>
   <div class="loading" id="loading" role="status" aria-live="polite"><div class="bar"><i id="loadBar"></i></div><span id="loadText">Loading storm…</span></div>
+  <div class="inst" id="inst" role="group" aria-label="Inputs and state at this moment">
+    <div class="in in-rain"><span class="il"><span class="lg">Rain now</span><span class="sm">Rain</span></span><b id="inRain">–</b><span class="is" id="inRainS"></span></div>
+    <div class="in in-river" id="inRiverBox" hidden><span class="il" id="inRiverL">River flow</span><b id="inRiver">–</b><svg id="inRiverSp" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+    <div class="in in-ground"><span class="il">Ground</span><b id="inGround">as it was</b><span class="is" id="inGroundS">normal wetness</span></div>
+    <div class="in in-culv"><span class="il"><span class="lg">Culverts overtopped</span><span class="sm">Culverts over</span></span><b id="inCulv">–</b><span class="is" id="inCulvS"></span></div>
+    <div class="in in-soak" id="inSoakBox" hidden><span class="il"><span class="lg">Soaked in or drained</span><span class="sm">Soaked in</span></span><b id="inSoak">–</b><span class="is" id="inSoakS"></span></div>
+    <div class="in in-roads"><span class="il"><span class="lg">Roads closed now</span><span class="sm">Closed</span></span><b id="inRoads" class="shut">–</b><svg id="inRoadsSp" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+  </div>
   <div class="controls">
     <button id="play" class="play" disabled aria-label="Play storm"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="playIcon" d="M5 3l12 7-12 7z"/></svg></button>
     <div class="speeds" role="group" aria-label="Playback speed, storm hours per second">
@@ -103,7 +194,9 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <div class="now"><b id="nClosed">–</b><span>roads closed</span></div>
   </div>
   <div class="views" id="views" role="group" aria-label="Map view"></div>
+  <ol class="phsteps" id="phsteps" hidden aria-label="The water's journey through the storm"></ol>
   <div class="timeline" id="timeline">
+    <div class="phases" id="phases" hidden aria-label="Phases of the water's journey"></div>
     <div class="band" data-band="rain"><span class="blabel"><b>Input</b> radar rain, NOAA MRMS (box mean, mm/h)</span></div>
     <div class="band" data-band="closed"><span class="blabel"><b>Output</b> roads closed</span></div>
     <div class="band" data-band="gauge" id="gaugeBand" hidden><span class="blabel"><b>Check</b> <span class="gl">river flow at </span><select id="gaugeSel" aria-label="River gauge"></select><i class="sw obs"></i><span class="gl">observed</span> <i class="sw mod" id="modKey"></i><span id="modLabel">modelled</span></span></div>
@@ -111,7 +204,10 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <div class="cursor" id="cursor" aria-hidden="true"></div>
     <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="Storm time">
   </div>
+  <div class="sheet-body" id="sheetBody"></div>
 </section>
+
+<p class="caption" id="caption" hidden aria-live="polite"><span class="cap1"><span id="capC"></span><b id="capT"></b></span><span class="cap2" id="capS"></span></p>
 
 <section class="soon-card" id="forecastCard" hidden aria-labelledby="fcTitle">
   <span class="tag-dev">In development</span>
@@ -123,5 +219,8 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="site/viewer.js"></script>
+<script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
+<script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>

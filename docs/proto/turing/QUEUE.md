@@ -36,6 +36,9 @@ Turing has no `scrontab` (checked 29 Oct 2026: "scrontab is disabled on this clu
 
 An id is submitted once; to rerun, add a new id. `after` becomes Slurm `afterok` on those requests' jobs.
 
+What-if explorer (docs/proto/whatif/WHATIF.md), one request runs all 32 scenarios and publishes once:
+`{"id": "whatif_v1", "kind": "whatif_pipeline", "env": {"CONC": "8", "PART": "short"}}`
+
 ## Where results go (no Google Drive)
 
 - Small results (scores, site packs, RESULTS.md): the job scripts push them to `main` through the deploy key (`proto/turing/publish.sh`).

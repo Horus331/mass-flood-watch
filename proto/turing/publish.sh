@@ -12,5 +12,6 @@ for NAME in "$@"; do
 done
 for X in ${PUBLISH_EXTRA:-}; do git add -A "$X"; done     # extra paths written in place (run_forecast.slurm: viewer pack + status)
 git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Turing results: $*" || { echo "nothing to commit"; exit 0; }
-for i in 1 2 3 4 5; do git pull -q --rebase --autostash origin main && git push -q origin HEAD:main && echo "published: $*" && exit 0; sleep 10; done
+R=$(git remote get-url --push origin)     # the deploy-key ssh URL: compute nodes cannot fetch over https (queue_runner.slurm)
+for i in 1 2 3 4 5; do git pull -q --rebase --autostash "$R" main && git push -q "$R" HEAD:main && echo "published: $*" && exit 0; sleep 10; done
 echo "push failed"; exit 1
