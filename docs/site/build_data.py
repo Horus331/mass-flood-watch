@@ -58,6 +58,37 @@ def pool(c, f):
     return c
 
 
+def despeckle(c):
+    """drop isolated shallow cells: a 5-15 cm cell (class 1) with fewer than 3 wet cells in its 3 x 3 neighbourhood (itself included) is
+    dried for display. Deeper water and every connected patch stay; the viewer's road pieces read the same cleaned surface."""
+    w = (c >= 1).astype(np.uint8); n = w.copy()
+    n[1:] += w[:-1]; n[:-1] += w[1:]
+    m = n.copy(); m[:, 1:] += n[:, :-1]; m[:, :-1] += n[:, 1:]
+    c = c.copy(); c[(c == 1) & (m < 3)] = 0
+    return c
+
+
+# surface water left on the land, box mean in mm per frame, from the published depth classes (class mid-depths 0, 10, 22, 65, 130 cm). The
+# viewer's 'soaked in or drained' readout is the rain fallen so far (rain_hourly_mean_mm) minus this; both are box means, so it is an
+# estimate of where the rain went, not a water balance.
+CLASS_MID_MM = np.array([0, 100, 220, 650, 1300], dtype=np.float64)
+
+
+def surface_mm(od, meta):
+    return [round(float(CLASS_MID_MM[f].mean()), 2) for f in sheet_frames(od, meta)]
+
+
+def despeckle_pack(od, meta):
+    """rewrite a published pack's depth sheets with despeckle() (same packing: 9 frames per image, base 5)"""
+    for i, s in enumerate(meta['sheets']):
+        a = np.asarray(Image.open(os.path.join(od, s))).astype(np.int32); out = np.zeros(a.shape, np.uint8)
+        for j in range(9):
+            if i * 9 + j >= meta['nf']: break
+            k = (1, 5, 25)[j % 3]; c = ((a[..., j // 3] // k) % 5).astype(np.uint8)
+            out[..., j // 3] += despeckle(c) * k
+        Image.fromarray(out, 'RGB').save(os.path.join(od, s), optimize=True)
+
+
 def classes_png(png, f):
     a = np.asarray(Image.open(png).convert('RGBA'))
     c = np.zeros(a.shape[:2], np.uint8)
@@ -120,6 +151,121 @@ def clean(x):
 
 def jload(p):
     return json.load(open(p)) if os.path.exists(p) else None
+
+
+# ---------------------------------------------------------------- water at the road edge
+# The road state (d) is the modelled water ON the road (second-highest road point, minus the road crown above the 20 m cell mean), so a road
+# on an embankment through a flooded 20 m cell can stay open while the map draws water across it. The viewer then shows such a road as
+# 'water at the road edge' instead of nothing: e = frame intervals when >= EDGE_SHARE of the road line lies under drawn water (>= 5 cm,
+# land cells; channels and ponds are not drawn).
+EDGE_SHARE = 0.25
+
+
+def road_cells(geom, box, res, shape):
+    from pyproj import Transformer
+    tf = road_cells.tf = getattr(road_cells, 'tf', None) or Transformer.from_crs(4326, 26986, always_xy=True)
+    lines = [geom['coordinates']] if geom['type'] == 'LineString' else geom['coordinates']
+    pts = []
+    for l in lines:
+        x, y = tf.transform([c[0] for c in l], [c[1] for c in l])
+        for a in range(len(x) - 1):
+            n = max(1, int(math.hypot(x[a + 1] - x[a], y[a + 1] - y[a]) / (res / 2)))
+            for t in np.linspace(0, 1, n, endpoint=False):
+                pts.append((x[a] + t * (x[a + 1] - x[a]), y[a] + t * (y[a + 1] - y[a])))
+    if not pts:
+        return None
+    P_ = np.array(pts); c = ((P_[:, 0] - box[0]) // res).astype(int); r = ((box[3] - P_[:, 1]) // res).astype(int)
+    ok = (c >= 0) & (c < shape[1]) & (r >= 0) & (r < shape[0])
+    return (r[ok], c[ok]) if ok.any() else None
+
+
+def edge_intervals(frame_iter, cells, land=None):
+    """frame_iter yields class grids (0 dry .. 4); cells {sid: (r, c)} -> {sid: [[a, b], ...]} in frame units"""
+    W = {k: [] for k in cells}
+    for f in frame_iter:
+        for k, (r, c) in cells.items():
+            v = f[r, c] >= 1
+            if land is not None: v = v & land[r, c]
+            W[k].append(bool(v.mean() >= EDGE_SHARE))
+    out = {}
+    for k, w in W.items():
+        iv, st = [], None
+        for i, on in enumerate(w + [False]):
+            if on and st is None: st = i
+            if not on and st is not None: iv.append([st, i - 1]); st = None
+        if iv: out[k] = iv
+    return out
+
+
+# ---------------------------------------------------------------- road pieces
+# A road segment runs from junction to junction (often 300 m to 1 km); its state (water on road / at risk / closed) comes from its two
+# wettest road points. Drawing that state along the whole segment paints dry road. pieces.json splits every segment into ~PIECE_M pieces
+# and records, per piece, the frames when the map draws water on the piece itself (>= 5 cm, the depth layer's floor, in the cells under at
+# least half of its samples; water in the next cell over does not count). The viewer colours a piece with its segment's state only while
+# the piece itself is wet.
+PIECE_M = 40.0
+
+
+def split_pieces(geom, piece_m=PIECE_M):
+    from pyproj import Transformer
+    tf = getattr(split_pieces, 'tf', None) or Transformer.from_crs(4326, 26986, always_xy=True); split_pieces.tf = tf
+    inv = getattr(split_pieces, 'inv', None) or Transformer.from_crs(26986, 4326, always_xy=True); split_pieces.inv = inv
+    lines = [geom['coordinates']] if geom['type'] == 'LineString' else geom['coordinates']
+    out = []
+    for l in lines:
+        if len(l) < 2: continue
+        x, y = tf.transform([c[0] for c in l], [c[1] for c in l]); x = np.array(x); y = np.array(y)
+        d = np.r_[0, np.cumsum(np.hypot(np.diff(x), np.diff(y)))]; L = d[-1]
+        if L <= 0: continue
+        n = max(1, int(round(L / piece_m))); cuts = np.linspace(0, L, n + 1)
+        for a, b in zip(cuts[:-1], cuts[1:]):
+            inner = [i for i in range(len(d)) if a < d[i] < b]
+            ds = [a] + [d[i] for i in inner] + [b]
+            px = np.interp(ds, d, x); py = np.interp(ds, d, y)
+            out.append((px, py))
+    return out
+
+
+def pieces_build(features, box, res, shape, frame_iter, land=None):
+    """features: [(sid, geometry)] -> (pieces json: seg ids, lon/lat lines, per-piece wet frame intervals)"""
+    segs, lines, samp = [], [], []
+    inv = None
+    for sid, geom in features:
+        for px, py in split_pieces(geom):
+            if inv is None: inv = split_pieces.inv
+            lo, la = inv.transform(px, py)
+            L = np.hypot(np.diff(px), np.diff(py)).sum(); n = max(2, int(L / (res / 2)))
+            t = np.linspace(0, 1, n); dd = np.r_[0, np.cumsum(np.hypot(np.diff(px), np.diff(py)))]
+            sx = np.interp(t * dd[-1], dd, px); sy = np.interp(t * dd[-1], dd, py)
+            c = np.clip(((sx - box[0]) // res).astype(int), 0, shape[1] - 1); r = np.clip(((box[3] - sy) // res).astype(int), 0, shape[0] - 1)
+            segs.append(int(sid)); lines.append([[round(a, 5), round(b, 5)] for a, b in zip(lo, la)]); samp.append((r, c))
+    W = [[] for _ in segs]; N = [[] for _ in segs]
+    for f in frame_iter:
+        m = f >= 1
+        if land is not None: m &= land
+        g = m.copy(); g[1:] |= m[:-1]; g[:-1] |= m[1:]; g2 = g.copy(); g2[:, 1:] |= g[:, :-1]; g2[:, :-1] |= g[:, 1:]
+        for i, (r, c) in enumerate(samp):
+            W[i].append(bool(m[r, c].mean() >= 0.5)); N[i].append(bool(g2[r, c].mean() >= 0.5))
+
+    def ivs(w):
+        iv, st = [], None
+        for i, on in enumerate(w + [False]):
+            if on and st is None: st = i
+            if not on and st is not None: iv.append([st, i - 1]); st = None
+        return iv
+    wet = [ivs(w) for w in W]
+    # n: water drawn on the piece or in the cell beside it (3 x 3), only where it adds to w. The viewer uses it for one case: a closed
+    # segment with no drawn water on any of its own pieces (the water sits in the ditch or on the embankment cell beside the road).
+    near = [ivs([b and not a for a, b in zip(w, nn)]) for w, nn in zip(W, N)]
+    return dict(about='road segments split into ~%d m pieces; w = frame intervals when the map draws water (>= 5 cm) on the piece '
+                      '(docs/site/build_data.py pieces_build)' % PIECE_M, seg=segs, lines=lines, w=wet, n=near)
+
+
+def sheet_frames(od, meta):
+    for i, s in enumerate(meta['sheets']):
+        a = np.asarray(Image.open(os.path.join(od, s)))
+        for j in range(9):
+            if i * 9 + j < meta['nf']: yield ((a[..., j // 3] // (1, 5, 25)[j % 3]) % 5).astype(np.uint8)
 
 
 # ---------------------------------------------------------------- reference layers
@@ -249,6 +395,18 @@ def flow(run_dir, keep, f_out, od, cn, step_min):
 
 
 # ---------------------------------------------------------------- build one run
+def edge_for(g, S, frames, wm, f):
+    box = S.get('box_epsg26986'); res = S['resolution_m'] * f
+    if not box or not frames:
+        return {}
+    shape = frames[0].shape; cells = {}
+    for ft in g['features']:
+        rc = road_cells(ft['geometry'], box, res, shape)
+        if rc is not None: cells[int(ft['properties']['segment'])] = rc
+    land = None if wm is None else ~pool(wm.astype(np.uint8), f).astype(bool)
+    return edge_intervals(iter(frames), cells, land)
+
+
 def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=None):
     od = os.path.join(OUT, key)
     os.makedirs(od, exist_ok=True)
@@ -258,12 +416,13 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
     step = max(1, int(round((frame_min or snap_min) / snap_min)))
     keep = list(range(0, len(fh), step))
     nf, fmin = len(keep), snap_min * step
+    wm = None
     if run_dir:
         D = np.load(os.path.join(run_dir, 'frames_cm.npz'))
         wm = np.load(os.path.join(run_dir, 'watermask.npy')).astype(bool) if os.path.exists(os.path.join(run_dir, 'watermask.npy')) else None
-        frames = [classes_cm(np.where(wm, 0, D['depth_cm'][k]) if wm is not None else D['depth_cm'][k], f) for k in keep]
+        frames = [despeckle(classes_cm(np.where(wm, 0, D['depth_cm'][k]) if wm is not None else D['depth_cm'][k], f)) for k in keep]
     else:
-        frames = [classes_png(os.path.join(src, 'frames', 'f%03d.png' % k), f) for k in keep]
+        frames = [despeckle(classes_png(os.path.join(src, 'frames', 'f%03d.png' % k), f)) for k in keep]
     for old in os.listdir(od):
         if re.match(r'depth_\d+\.png$', old):
             os.remove(os.path.join(od, old))
@@ -284,6 +443,8 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
         if rp and os.path.exists(rp):
             risk = json.load(open(rp))['segments']; break
     g = json.load(open(os.path.join(src, 'segments.geojson')))
+    edge = edge_for(g, S, frames, wm if run_dir else None, f)
+    edge_cells = edge
     feats = []
     closed = np.zeros(nf, int)
     for ft in g['features']:
@@ -294,7 +455,7 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
         sid = str(q['segment'])
         e = risk.get(sid, {})
         may = (q.get('p_may_close') or 0) >= 0.5 and q['p_close'] < 0.5
-        if not (q['p_close'] >= 0.5 or may or iv or 'r' in e):
+        if not (q['p_close'] >= 0.5 or may or iv or 'r' in e or (d and max(d) >= 3) or int(q['segment']) in edge_cells):
             continue
         geom = shape(ft['geometry'])
         if geom.geom_type == 'MultiLineString':
@@ -316,6 +477,8 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
             pr['iv'] = iv
             for a, b in iv:
                 closed[int(math.ceil(a)):int(min(nf, math.ceil(b)))] += 1
+        if int(q['segment']) in edge:
+            pr['e'] = edge[int(q['segment'])]
         if d and max(d) >= 3:
             # depth on the road (cm, capped at 255) every frame; trailing zeros dropped
             dd = [int(min(255, v)) for v in d]
@@ -332,6 +495,10 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
         feats.append({'type': 'Feature', 'id': int(q['segment']), 'properties': pr, 'geometry': gm})
     json.dump({'type': 'FeatureCollection', 'features': feats}, open(os.path.join(od, 'roads.json'), 'w'),
               separators=(',', ':'))
+    if S.get('box_epsg26986'):
+        PC = pieces_build([(ft['id'], ft['geometry']) for ft in feats], S['box_epsg26986'], S['resolution_m'] * f, frames[0].shape, iter(frames),
+                          None if wm is None else ~pool(wm.astype(np.uint8), f).astype(bool))
+        json.dump(PC, open(os.path.join(od, 'pieces.json'), 'w'), separators=(',', ':'))
 
     cn = corners(src)
     keep_k = ['segments_in_box', 'segments_p_ge_50', 'km_p_ge_50', 'segments_may_close', 'km_may_close',
@@ -358,6 +525,51 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
           'crossings', len(R['crossings']['rows']), 'reports', len(R['reports']), '%.1f MB' % size)
 
 
+def roads_only(key, src):
+    """rebuild roads.json of a published pack from its prototype folder (segments.geojson, summary.json) and its own depth sheets"""
+    od = os.path.join(OUT, key); meta = json.load(open(os.path.join(od, 'meta.json')))
+    S = json.load(open(os.path.join(src, 'summary.json'))); fh = S['frame_hours']
+    snap = int(round((fh[1] - fh[0]) * 60)) if len(fh) > 1 else 30; step = max(1, int(round(meta['frame_min'] / snap)))
+    keep = list(range(0, len(fh), step))[:meta['nf']]; f = int(round(meta['pixel_m'] / S['resolution_m']))
+    g = json.load(open(os.path.join(src, 'segments.geojson')))
+    box = S['box_epsg26986']; cells = {}
+    for ft in g['features']:
+        rc = road_cells(ft['geometry'], box, S['resolution_m'] * f, (meta['h'], meta['w']))
+        if rc is not None: cells[int(ft['properties']['segment'])] = rc
+    edge = edge_intervals(sheet_frames(od, meta), cells)
+    old = {ft['id']: ft for ft in json.load(open(os.path.join(od, 'roads.json')))['features']}
+    feats = []
+    for ft in g['features']:
+        q = ft['properties']; sid = int(q['segment']); d = q.get('d') or []
+        if isinstance(d, str): d = json.loads(d)
+        d = [d[k] for k in keep if k < len(d)]
+        if sid in old:
+            o = old[sid]
+            if sid in edge: o['properties']['e'] = edge[sid]
+            else: o['properties'].pop('e', None)
+            feats.append(o); continue
+        if not ((d and max(d) >= 3) or sid in edge): continue
+        geom = shape(ft['geometry'])
+        if geom.geom_type == 'MultiLineString': geom = linemerge(geom)
+        gm = mapping(geom.simplify(0.00003, preserve_topology=False))
+        r5 = lambda c: [round(c[0], 5), round(c[1], 5)]
+        if gm['type'] == 'LineString': gm = {'type': 'LineString', 'coordinates': [r5(c) for c in gm['coordinates']]}
+        elif gm['type'] == 'MultiLineString': gm = {'type': 'MultiLineString', 'coordinates': [[r5(c) for c in l] for l in gm['coordinates']]}
+        else: continue
+        pr = {'n': q.get('road') or '', 't': q.get('town') or '', 'c': CLS.get(q.get('road_class'), 0), 'p': round(float(q['p_close']), 2), 'm': 0, 'w': q.get('why') or ''}
+        if d and max(d) >= 3:
+            dd = [int(min(255, v)) for v in d]
+            while dd and dd[-1] == 0: dd.pop()
+            pr['d'] = dd
+        if sid in edge: pr['e'] = edge[sid]
+        feats.append({'type': 'Feature', 'id': sid, 'properties': pr, 'geometry': gm})
+    json.dump({'type': 'FeatureCollection', 'features': feats}, open(os.path.join(od, 'roads.json'), 'w'), separators=(',', ':'))
+    PC = pieces_build([(ft['id'], ft['geometry']) for ft in feats], box, S['resolution_m'] * f, (meta['h'], meta['w']), sheet_frames(od, meta))
+    json.dump(PC, open(os.path.join(od, 'pieces.json'), 'w'), separators=(',', ':'))
+    print(key, 'pieces', len(PC['seg']), round(os.path.getsize(os.path.join(od, 'pieces.json')) / 1e6, 2), 'MB')
+    print(key, 'roads', len(old), '->', len(feats), 'segments,', len(edge), 'with water at the road edge,', round(os.path.getsize(os.path.join(od, 'roads.json')) / 1e6, 2), 'MB')
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--run', help='site key, e.g. leominster_sep2023 (default: all published runs)')
@@ -366,8 +578,19 @@ if __name__ == '__main__':
     ap.add_argument('--frame-min', type=int, help='minutes between frames (default: every snapshot)')
     ap.add_argument('--flow', action='store_true', help='also write the flow field (needs --run-dir)')
     ap.add_argument('--pool', type=int, help='spatial max-pool factor for the depth sheets (default per run: 1, District 3: 4)')
+    ap.add_argument('--roads-only', action='store_true', help='rewrite roads.json only (depth sheets read back from the published pack)')
+    ap.add_argument('--surface', action='store_true', help='with --run: add surface_mm (box-mean water left on the land per frame) to meta.json')
+    ap.add_argument('--despeckle', action='store_true', help='with --roads-only: first clean the published depth sheets (despeckle)')
     a = ap.parse_args()
-    if a.run:
+    if a.surface:
+        mp = os.path.join(OUT, a.run, 'meta.json'); m = json.load(open(mp))
+        m['surface_mm'] = surface_mm(os.path.join(OUT, a.run), m)
+        json.dump(m, open(mp, 'w'), separators=(',', ':')); print(a.run, 'surface_mm max', max(m['surface_mm'])); raise SystemExit
+    if a.roads_only and a.despeckle:
+        despeckle_pack(os.path.join(OUT, a.run), json.load(open(os.path.join(OUT, a.run, 'meta.json'))))
+    if a.roads_only:
+        roads_only(a.run, a.src or os.path.join(P, RUNS[a.run][0]))
+    elif a.run:
         dsrc, df = RUNS.get(a.run, (None, 1))
         build(a.run, a.src or os.path.join(P, dsrc), a.pool or df, a.run_dir, a.frame_min, a.flow,
               risk_src=os.path.join(P, dsrc) if dsrc else None)

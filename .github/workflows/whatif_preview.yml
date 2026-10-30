@@ -1,0 +1,57 @@
+name: whatif preview screenshots
+# preview branch only (never on main): placeholder what-if packs + screenshots of the viewer with the real basemap tiles
+on:
+  push:
+    branches: [whatif-preview]
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -q numpy pillow shapely pyproj scipy
+      - run: python preview/make_placeholders.py r100_normal_open,r125_frozen_blocked,r050_normal_open
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: cd preview && npm i -q playwright@1.47.2 && npx playwright install --with-deps chromium
+      - name: shots
+        run: |
+          Z='m=window.__map;'
+          node preview/shoot_ci.js shots \
+            "01_desk_work_peak|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "02_desk_rain|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.getElementById('scrub').value=55;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "03_desk_runoff|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.getElementById('scrub').value=72;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "04_desk_overflow_z146|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||window.__mfwZoom([-71.762,42.535],14.6);document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "05_desk_recession|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.getElementById('scrub').value=165;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "06_desk_place|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'));setTimeout(function(){var a=window.__mfwApp,ids=a.closedIds();a.openPlace(ids[Math.min(3,ids.length-1)])},500)" \
+            "07_desk_overview|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||window.__mfwView(0);document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "08_desk_dark|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.querySelector('[data-bm=dark]').click();document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "09_desk_story|viewer.html?run=leominster_sep2023&debug=1|1440|900|22000||" \
+            "10_desk_side_off|viewer.html?run=leominster_sep2023&story=0&debug=1|1440|900|20000||document.getElementById('sideToggle').click();document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "11_phone_peek|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "12_phone_half|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'));window.__mfwApp.detent('half')" \
+            "13_phone_roads_full|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'));window.__mfwApp.roads()" \
+            "14_phone_place|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'));setTimeout(function(){var a=window.__mfwApp,ids=a.closedIds();a.openPlace(ids[Math.min(3,ids.length-1)])},500)" \
+            "15_phone_layers|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'));document.getElementById('fbLayers').click()" \
+            "16_phone_rain|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=55;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "17_phone_recession|viewer.html?run=leominster_sep2023&story=0&debug=1|390|844|20000||document.getElementById('scrub').value=165;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "18_wi_desk|viewer.html?run=whatif&debug=1|1440|900|25000||" \
+            "19_wi_phone_half|viewer.html?run=whatif&debug=1|390|844|25000||window.__mfwApp.detent('half')" \
+            "20_live_desk|viewer.html?run=forecast&debug=1|1440|900|12000||" \
+            "21_live_phone|viewer.html?run=forecast&debug=1|390|844|12000||" \
+            "22_live_health_desk|viewer.html?run=forecast&debug=1|1440|900|12000||window.__mfwApp.health()" \
+            "23_about_desk|about.html|1440|900|6000||" \
+            "24_about_phone|about.html|390|844|6000||" \
+            "25_worcester_desk|viewer.html?run=worcester_aug2021&story=0&debug=1|1440|900|20000||" \
+            "26_phone360_peek|viewer.html?run=leominster_sep2023&story=0&debug=1|360|780|20000||document.getElementById('scrub').value=90;document.getElementById('scrub').dispatchEvent(new Event('input'))" \
+            "27_live_sample_desk|viewer.html?run=forecast&debug=1&outlook=sample|1440|900|12000||" \
+            "28_live_sample_phone|viewer.html?run=forecast&debug=1&outlook=sample|390|844|12000||window.__mfwApp.detent('full')"
+      - name: commit the screenshots to the branch whatif-shots (artifact downloads are blocked where they are reviewed)
+        run: |
+          cd shots && git init -q && git checkout -q -b whatif-shots && git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "screenshots ${GITHUB_SHA::8}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:whatif-shots
