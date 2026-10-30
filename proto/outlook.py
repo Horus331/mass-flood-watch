@@ -390,21 +390,27 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
         G = raw['grid']; TP = [np.asarray(ix, int) for ix in G['town_pts']]; names = G['towns']
         B = [(parse_utc(a), parse_utc(b)) for a, b in rain['buckets']]
         mid_date = [to_local(a + (b - a) / 2).date() for a, b in B]
-        R24 = np.stack([R[max(0, i - 3):i + 1].sum(0) for i in range(len(B))])     # running 24 h (4 buckets) ending with bucket i
+        R24 = np.stack([R[max(0, i - 3):i + 1].sum(0) for i in range(len(B))])     # running 24 h (4 buckets, fewer at the start) ending with bucket i
         def tmax(v): return np.array([float(v[ix].max()) for ix in TP])
         T6 = np.stack([tmax(R[i]) for i in range(len(B))]); T24 = np.stack([tmax(R24[i]) for i in range(len(B))])
+        # each running 24 h window (buckets i-3..i) counts, per town, in the local day of its wettest 6 h bucket for that town
+        W24 = np.array([[mid_date[max(0, i - 3) + int(np.argmax(T6[max(0, i - 3):i + 1, t]))] for t in range(len(names))] for i in range(len(B))], dtype=object)
+        def max24(dset):
+            v = [T24[i, t] for i in range(len(B)) for t in range(len(names)) if W24[i, t] in dset]
+            return round(float(max(v)), 1) if v else 0.0
     for k, d in enumerate(dates):
         s, e = local_midnight_utc(d), local_midnight_utc(d + dt.timedelta(days=1))
         day = dict(day=k + 1, date=d.isoformat(), label=d.strftime('%a %-d %b'), start=iso(s), end=iso(e))
         if R is not None:
             ib = [i for i, md in enumerate(mid_date) if md == d]
-            day['hours'] = 6 * len(ib); day['partial'] = len(ib) < 4
+            hrs = sum((B[i][1] - B[i][0] for i in ib), dt.timedelta(0))                 # bucket lengths (the first NBM bucket can be 3 h)
+            day['hours'] = int(round(hrs.total_seconds() / 3600)) if ib else 0; day['partial'] = day['hours'] < 22   # 23 / 25 h on DST days
             if ib:
                 tot = R[ib].sum(0); tt = tmax(tot); j = int(np.argmax(tt))
                 o6 = sorted({names[t] for i in ib for t in np.nonzero(T6[i] >= GATE_6H_MM)[0]})
-                o24 = sorted({names[t] for i in ib if i >= 3 for t in np.nonzero(T24[i] >= GATE_24H_MM)[0]})
-                day['rain'] = dict(d3_mean_mm=round(float(tot.mean()), 1), town_max_mm=round(float(tt[j]), 1), town_max=names[j],
-                                   max6h_mm=round(float(T6[ib].max()), 1), max24h_mm=round(float(max(T24[i].max() for i in ib)), 1),
+                o24 = sorted({names[t] for i in range(len(B)) for t in np.nonzero(T24[i] >= GATE_24H_MM)[0] if W24[i, t] == d})
+                day['rain'] = dict(d3_mean_mm=round(float(tot.mean()), 1), town_max_mm=round(float(tt[j]), 1), town_max=names[j] if tt[j] >= 0.1 else None,
+                                   max6h_mm=round(float(T6[ib].max()), 1), max24h_mm=max24({d}),
                                    six_hourly_mean_mm=[round(float(R[i].mean()), 1) for i in ib], six_hourly_max_mm=[round(float(T6[i].max()), 1) for i in ib],
                                    six_hourly_start=[rain['buckets'][i][0] for i in ib])
                 day['towns_over'] = sorted(set(o6) | set(o24)); day['towns_over_6h'] = o6; day['towns_over_24h'] = o24
@@ -459,7 +465,8 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                 if ib:
                     tot = R[ib].sum(0); tt = tmax(tot); j = int(np.argmax(tt)); wet = [i for i in ib if T6[i].max() >= 1.0] or ib
                     st.update(start=rain['buckets'][wet[0]][0], end=rain['buckets'][wet[-1]][1], d3_mean_mm=round(float(tot.mean()), 1), town_max_mm=round(float(tt[j]), 1),
-                              town_max=names[j], max6h_mm=round(float(T6[ib].max()), 1), max24h_mm=round(float(T24[ib].max()), 1))
+                              town_max=names[j], max6h_mm=round(float(T6[ib].max()), 1),
+                              max24h_mm=max24({dt.date.fromisoformat(x['date']) for x in cur}))
             else: st.update(start=cur[0]['start'], end=cur[-1]['end'])
             storms.append(st); cur = []
     # ---- headline
@@ -543,6 +550,13 @@ def selftest():
     assert o30['ero']['category'] == 'slight', o30['ero']
     assert o30['flood_model']['in_window'] and o30['verdict'].startswith('Heavy rain possible, below'), o30['verdict']
     assert D['2026-11-02']['level'] == 1 and D['2026-11-03']['level'] == 0
+    R2 = np.zeros_like(R); R2[9:11, 0] = 25.0                     # 50 mm on Oct 31 (06-18Z), 0 after: only Oct 31 is over 24 h
+    O2 = build(dict(raw, rain_mm=R2.tolist(), ero=dict(ok=True, days=[]), alerts=dict(ok=True, alerts=[])), dict(S, valid=None), now=now)
+    D2 = {d['date']: d for d in O2['days']}
+    R3 = np.zeros_like(R); R3[10, 0] = 30.0; R3[11, 0] = 15.0         # 45 mm Oct 31 12-24Z (18-24Z mid-point 17 EDT): Nov 1 stays clear
+    D3_ = {d['date']: d for d in build(dict(raw, rain_mm=R3.tolist(), ero=dict(ok=True, days=[]), alerts=dict(ok=True, alerts=[])), dict(S, valid=None), now=now)['days']}
+    assert D3_['2026-10-31']['towns_over_24h'] == ['Worcester'] and D3_['2026-11-01']['level'] == 0, D3_['2026-11-01']
+    assert D2['2026-10-31']['towns_over_24h'] == ['Worcester'] and D2['2026-11-01']['towns_over'] == [] and D2['2026-11-01']['level'] == 0, (D2['2026-10-31'], D2['2026-11-01'])
     assert len(O['storms']) == 1 and O['storms'][0]['days'] == [3, 4] and O['storms'][0]['peak_date'] == '2026-10-31', O['storms']
     assert O['health']['status'] == 'ok' and O['health']['next_update'] == '2026-10-29T08:40Z', O['health']
     S2 = dict(S, state='run', gate=dict(trigger=True), headline='3 road segments likely closed')
