@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>About Mass Flood Watch</title>
+<meta name="description" content="What Mass Flood Watch does, how it works, how well it matches real floods, the data behind it, and who is behind it. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<link rel="icon" href="wpi-logo.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1F2328">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{--bg:#F2F2EF;--surface:#fff;--ink:#1F2328;--muted:#5F6368;--rule:#D0D0CC;--accent:#1F2328;--closed:#c8102e;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1E2124;--surface:#2A2E33;--ink:#E8EAED;--muted:#9AA0A6;--rule:#41464D;--accent:#E8EAED;--closed:#ff5a6e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1E2124;--surface:#2A2E33;--ink:#E8EAED;--muted:#9AA0A6;--rule:#41464D;--accent:#E8EAED;--closed:#ff5a6e;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+a{color:var(--accent)}
+.bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
+.bar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:none;font-weight:600}
+.bar b{margin-left:auto;font-size:15px}
+main{max-width:760px;margin:0 auto;padding:8px 16px 64px}
+h1{font-size:30px;line-height:1.15;margin:28px 0 10px;letter-spacing:-.015em}
+h2{font-size:21px;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--rule)}
+h3{font-size:16px;margin:0 0 4px}
+p{margin:0 0 12px}
+.lede{font-size:18px}
+.muted,.src,.small{color:var(--muted)}
+.small,.src{font-size:13px}
+.who{display:flex;flex-direction:column;gap:2px;margin:14px 0 4px;font-size:15px}
+.who span{color:var(--muted)}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0 0 12px;display:grid;gap:10px}
+.steps li{counter-increment:s;position:relative;padding:12px 14px 10px 50px;background:var(--surface);border:1px solid var(--rule);border-radius:12px}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:12px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-weight:800;font-size:13px;display:grid;place-items:center}
+.steps p{margin:0;color:var(--muted);font-size:15px}
+.loop p{font-size:15px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:12px 0}
+.fact{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 14px}
+.fact .v{display:block;font-size:28px;font-weight:800;letter-spacing:-.01em}
+.fact .v small{font-size:15px;color:var(--muted);font-weight:600}
+.fact p{font-size:14.5px;margin:4px 0 6px}
+.fact .src{display:block}
+.res{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.res li{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 14px}
+.res li p{margin:0 0 4px;font-size:15px}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;font-size:13.5px;min-width:720px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--rule)}
+tr.grp th{background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:12.5px}
+.limits{padding-left:18px}.limits li{margin:0 0 8px;font-size:15px}
+.rq{padding-left:20px}.rq li{margin:0 0 8px}
+.check{display:inline-block;font-size:12px;font-weight:800;color:#7a4b00;background:#fff1d6;border-radius:4px;padding:2px 7px 1px;margin-left:6px;vertical-align:2px}
+.datatable h3{display:none}
+.disc{margin:20px 0 0;padding:12px 14px;border:1px solid var(--rule);border-left:4px solid #E69F00;border-radius:10px;background:var(--surface);font-size:15px}
+.tag-dev{font-size:12px;font-weight:700;color:var(--muted)}
+footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="bar"><a href="viewer.html?run=leominster_sep2023">&#8249; Map</a><b>About</b><a href="./">Project page</a></div>
+<main>
+<p class="disc"><b>WPI research prototype, not an official MassDOT warning.</b> Confirm closures with MassDOT District 3 operations. Replays and what-if runs are past storms; only the Forecast mode looks ahead.</p>
+<h1>Which roads a flash flood will close, when, and why</h1>
+<p class="lede">Mass Flood Watch turns radar rainfall into a road-by-road picture of flash-flood closures for MassDOT Highway District 3 in central Massachusetts: where water reaches the road, when each segment closes and reopens, and who loses access to a hospital, fire station or police station while it is shut.</p>
+<div class="who"><b>Mohab Eldokla</b><span>PhD dissertation research, Department of Civil, Environmental and Architectural Engineering (CEAE), Worcester Polytechnic Institute</span><span>Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff</span></div>
+
+<h2>What it does</h2>
+<p>For a storm that happened (a replay), a storm that is forecast (the live forecast, rerun every six hours from NOAA HRRR) or a storm with changed inputs (the what-if explorer), the app shows the water as the flood model moves it across the terrain, every road segment as it gets wet, risky and closed, the culverts it overtops, and the people cut off from emergency services. Every map is one physics run; nothing on it is drawn by hand.</p>
+
+<h2>How it works</h2>
+<ol class="steps">
+          <li><h3>Rain</h3><p>NOAA MRMS radar-and-gauge rainfall, 1 km, every hour of the storm.</p></li>
+          <li><h3>Flood model</h3><p>LISFLOOD-FP 8.2 spreads the rain over USGS 3DEP lidar terrain at 20 m. Soils and land cover set how much soaks in. Validated runs use one converged solver setting for every storm.</p></li>
+          <li><h3>Water on every road</h3><p>Depth on each road segment every 5 to 30 minutes: when water arrives, how deep, and for how long.</p></li>
+          <li><h3>Closure rules</h3><p>30 cm of water stops an ordinary car, so the chance of closing rises steeply past 30 cm. A stream reaching road level marks a road that may close. Culverts are checked against FHWA HDS-5.</p></li>
+          <li><h3>Network impact</h3><p>Residents from the 2020 Census who lose a hospital within 30 min, a fire station within 8 min or police within 10 min; detour delay; risk class and repair cost.</p></li>
+        </ol>
+<div class="loop"><p>Every run is scored against what happened: USGS river gauges, NWS storm reports, NOAA Storm Events, and documented city and MassDOT closure and damage sites, each compared with random road points.</p></div>
+
+<h2>How well it matches real floods</h2>
+<p class="muted">Honest numbers first: what the model does on storms it was never tuned on. The project's status page is the single source of truth for these figures (<a href="proto/STATUS.md">STATUS.md</a>).</p>
+<div class="facts" role="list">
+      <div class="fact" role="listitem">
+        <span class="v num">35<small> of 89</small></span>
+        <p>documented closure and damage sites caught in Leominster–Fitchburg while flagging 1.97% of road segments: 12.8 times better than flagging at random.</p>
+        <span class="src">Sept 11, 2023, the tuned storm. Sites matched within 30 m.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">15<small> of 90</small></span>
+        <p>sites on 23 held-out storms fall in the model’s top 3% of road segments: 0.17 [0.08, 0.26] against 0.064 by chance. The fixed alert rule alone catches 5 of 90.</p>
+        <span class="src">Storms never used for tuning, 2018–2026. 90% bootstrap interval.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">0.46<small> m</small></span>
+        <p>mean error in river rise at USGS gauges, down from 0.82 m once every storm ran with the same converged solver settings. Gauges with no modelled rise: 9 of 16 down to 3 of 16.</p>
+        <span class="src">9 catalogue storms, 16 gauge-storm pairs.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">9–10<small> h</small></span>
+        <p>of lead time from the live 8-member HRRR forecast ensemble. Out of sample, its 2-of-8 rule beat the single newest forecast in 7 of 14 storm-lead cases and never did worse.</p>
+        <span class="src">7 out-of-sample storms, each at a long and a short lead.</span>
+      </div>
+    
+<ul class="res">
+<li><h3>New districts, no retuning</h3><p>On 81 storms in MassDOT Districts 4, 5 and 6 (498 documented sites), run once with the frozen District 3 settings, the top 3% of road segments catch <b>21%</b> of the sites (104 of 498) against 8.6% by chance: a lift of <b>2.5</b>. The 30 cm alert rule rarely fires there (18 of 498).</p><span class="src"><a href="proto/transfer/TRANSFER.md">Transfer test</a></span></li>
+<li><h3>Against FEMA flood maps</h3><p>On the 23 held-out storms, FEMA's 100-year flood zones flag 7.0% of roads and catch 32 of 98 sites; the model's riskiest roads at the same share catch 36 of 98. The difference (−0.04, 90% CI −0.18 to +0.11) is not detectable, so a static map is a fair benchmark for where; the model adds when each road closes and a sharper alert rule (lift 6.4 against 2.2).</p><span class="src"><a href="proto/static/STATIC.md">Static flood maps vs the event model</a></span></li>
+<li><h3>Residents' flood reports, Leominster</h3><p>The MRPC / BSC Group crowdsource map has 70 road-related pins from residents. 27 of them are new sites, more than 150 m from any other report, and were never used to build the model: it catches <b>6</b> of them (22%) while flagging 2.2% of roads, about 5 times chance.</p><span class="src"><a href="proto/obs/CROWD.md">Crowdsource check</a></span></li>
+</ul>
+
+<h2>The research <span class="check" title="Wording of the research questions to be confirmed by Mohab">Draft: Mo to check</span></h2>
+<p>The dissertation builds a practical framework for cascading water hazards on infrastructure: heavy rain becomes flooding, flooding closes and damages roads and culverts, and those failures cut people off from help. The questions it asks:</p>
+<ol class="rq">
+<li>Can a physics flood model driven by radar rain say which road segments close, and when, well enough to beat chance on storms it was never tuned on?</li>
+<li>How do the consequences cascade through the network: culverts overtopped, detours, and residents cut off from hospitals, fire and police?</li>
+<li>Can forecast rain give useful hours of warning, and can machine learning (a learned closure model, a fast surrogate of the flood model) add skill or speed without hiding what the physics says?</li>
+<li>Which inputs matter most: rain, how wet the ground was, and whether culverts pass water (the what-if explorer)?</li>
+</ol>
+
+<h2>Data behind the model</h2>
+<p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p>
+<div class="datatable"><h3>Data behind the model</h3><p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p><div class="tablewrap"><table><thead><tr><th>Data</th><th>Source</th><th>What it describes</th><th>Units and resolution</th><th>How the model uses it</th></tr></thead><tbody>
+<tr class="grp"><th colspan="5">Model inputs</th></tr>
+<tr><td><b>Radar rainfall</b></td><td>NOAA MRMS MultiSensor QPE Pass2 (radar corrected with rain gauges); before Oct 2020 the GaugeCorr QPE from the Iowa State (IEM) archive</td><td>Rain that fell, per hour</td><td>mm per hour, 1 km grid, hourly</td><td>Fed into the flood model as rain on every 20 m cell; also gives each road its storm total, peak 1 h and 3 h rain</td></tr>
+<tr><td><b>Forecast rainfall</b></td><td>NOAA HRRR (High-Resolution Rapid Refresh)</td><td>Rain forecast for the next 48 h</td><td>mm per hour, 3 km grid, hourly; new run every 6 h</td><td>Drives the live forecast; the last 8 forecast runs form the ensemble (likely closed = closed in ≥ 2 of 8)</td></tr>
+<tr><td><b>Ground elevation</b></td><td>USGS 3DEP elevation, 1/3 arc-second (≈ 10 m, lidar-based in Massachusetts)</td><td>Height of the ground surface</td><td>metres above sea level (NAVD88)</td><td>Averaged to the 20 m model grid that water flows over; the highest 10 m cell is kept as the road-surface height</td></tr>
+<tr><td><b>Streams</b></td><td>USGS NHDPlus HR flowlines</td><td>Where streams and rivers run</td><td>lines, with drainage area (km²)</td><td>Carved into the terrain so rivers carry water downstream</td></tr>
+<tr><td><b>Soils</b></td><td>USDA NRCS SSURGO, hydrologic soil group A–D</td><td>How fast the ground absorbs water</td><td>class A (sandy, fast) to D (clay, slow)</td><td>With land cover, sets the NRCS curve number: how much rain soaks in vs runs off</td></tr>
+<tr><td><b>Land cover</b></td><td>USGS NLCD 2021 land cover and imperviousness</td><td>What covers the ground; share that is paved</td><td>% paved per 30 m cell</td><td>Runoff (curve number) and surface roughness (Manning's n, 0.035–0.10 s/m<sup>1/3</sup>)</td></tr>
+<tr><td><b>Roads</b></td><td>MassDOT Road Inventory</td><td>Every road segment: class, town, traffic</td><td>segments; traffic in vehicles per day (AADT)</td><td>Water depth is read along each segment every half cell; traffic weights detour delay</td></tr>
+<tr><td><b>Stream crossings and culverts</b></td><td>USGS national stream crossings, MA Stream Crossings Project (NAACC surveys), MassDOT structures</td><td>Where roads cross streams; culvert size and type</td><td>location; dimensions in m</td><td>Culvert capacity (FHWA HDS-5, m³/s) compared with modelled flow: overtopping and damage risk</td></tr>
+<tr><td><b>Bridges</b></td><td>MassDOT bridge layer, FHWA National Bridge Inventory</td><td>Bridge decks over water</td><td>location, deck extent</td><td>Water under a bridge is not water on the road, so decks are skipped and their approaches are checked</td></tr>
+<tr><td><b>Population</b></td><td>2020 US Census blocks</td><td>Where people live</td><td>residents per block</td><td>People who lose timely access to emergency services when roads close</td></tr>
+<tr><td><b>Emergency facilities</b></td><td>OpenStreetMap (hospitals, fire, police)</td><td>Where help comes from</td><td>locations</td><td>Access standards: hospital within 30 min, fire within 8 min, police within 10 min</td></tr>
+<tr class="grp"><th colspan="5">Checked against</th></tr>
+<tr><td><b>River gauges</b></td><td>USGS water data (NWIS)</td><td>Observed river level and flow</td><td>m and m³/s, every 15 min</td><td>Modelled river rise and peak time compared with observed at every gauge in the area</td></tr>
+<tr><td><b>Storm reports</b></td><td>NWS Local Storm Reports, NOAA Storm Events database, news and agency reports</td><td>Roads reported flooded, closed or washed out</td><td>location and time of each report</td><td>Scoring: how many reported sites the model catches vs random road points</td></tr>
+<tr><td><b>City damage inventory and drains</b></td><td>City of Leominster DPW (Sept 2023), shared for this research</td><td>Complete list of damaged roads and culverts; storm-drain pipe network</td><td>points; pipe size in m</td><td>A complete city record to score against; drain capacity test</td></tr>
+<tr><td><b>Repeat flood sites</b></td><td>MassDOT District 3</td><td>Road spots that flood again and again</td><td>locations, no dates</td><td>Sanity check that the model finds known trouble spots</td></tr>
+</tbody></table></div>
+<p class="muted small">Model output: water depth (m) on every 20 m cell and road segment every 5–30 minutes, river flow (m³/s) at crossings and gauges, and each road's chance of closing (0–100 %).</p>
+
+<h2>Limitations</h2>
+<ul class="limits">
+      <li><b>Light storms are under-predicted.</b> The runoff setting tuned on Leominster leaves summer thunderstorms too dry: the alert rule catches 1 of 58 sites on the 16 newer storms. Drains, 5-minute rain and connected-pavement runoff were each tested and none fixed it.</li>
+      <li><b>Spatial skill outside the development storms is at chance.</b> On held-out storms the model ranks roads better than chance but does not place the flooded area (FSS at 300 m: 0.019 against 0.234 on the development storms).</li>
+      <li><b>Labels follow who reported.</b> Outside Leominster, closure sites come from news, NWS and agency reports, which favour named main roads and towns that report. An unreported road is not proof it stayed open, so a flagged road with no report is not necessarily a false alarm, and storms with 2 to 7 sites carry wide uncertainty.</li>
+      <li><b>20 m grid.</b> Curbs, gutters and narrow ditches are smaller than one cell, so water on city streets is smoothed out.</li>
+      <li><b>River floods need basin-scale runs.</b> Large rivers drain land outside the model and peak after the 48-hour window (see the gauge table).</li>
+      <li><b>Forecast tested on few sites.</b> The ensemble’s out-of-sample test rests on 29 sites across 7 storms, so one site moves a storm’s recall by 0.2 to 0.5.</li>
+    </ul>
+
+<h2>Contact</h2>
+<p>Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Email: <a href="mailto:mgeldokla@wpi.edu">mgeldokla@wpi.edu</a>. Code, data and every result: <a href="https://github.com/Horus331/mass-flood-watch">github.com/Horus331/mass-flood-watch</a>.</p>
+<p class="small">Dissertation research; not an official WPI or MassDOT product. Page version: 2026-10-29; model settings and runs: <a href="proto/STATUS.md">STATUS.md</a>.</p>
+</main>
+<footer>Flood model: LISFLOOD-FP 8.2, University of Bristol. Rain: NOAA MRMS and HRRR. Terrain and gauges: USGS. Roads: MassDOT. Basemap: © OpenStreetMap contributors, OpenFreeMap, Esri.</footer>
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
