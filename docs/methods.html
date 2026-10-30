@@ -65,4 +65,5 @@ code{background:#eaf1f8;padding:1px 5px;border-radius:4px;font-size:13px}a{color
 <h2>7. Compute and team</h2>
 <p>Flood runs are organised as a <b>shared job queue</b>. Jobs are defined in <code>docs/queue/jobs.json</code> in the repository (edited with git, so the queue has history and review) and run by <code>sim/colab/worker.py</code> on any GPU machine: at the moment two Google Colab L4 sessions and one Kaggle 2 × T4 session. A worker reads the queue, picks the highest-priority job whose dependencies are done and whose memory need fits its card, and claims it with a commit to Hugging Face made against the revision it read, so two workers cannot take the same job; a heartbeat lets a dead worker's job be re-queued. Each job's log is uploaded under <code>queue/logs/</code> next to the data. Data jobs that need no GPU (soils, land cover, gauges, high-water marks, drainage) run on GitHub Actions.</p>
 <p>The engine's physics, validation and cascade logic are reviewed by independent reviewer agents (hydrology, ML and cascade, geotechnical and groundwater); their reviews and the decisions taken from them are recorded in <code>docs/reviews/</code>.</p>
-</main></body></html>
+</main><script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body></html>
