@@ -10,6 +10,9 @@ name: forecast (HRRR rain -> gate -> LISFLOOD-FP -> road closures, District 3)
 # STORM ARCHIVE (proto/storm_archive.py, docs/proto/archive/README.md): every cycle also checks api.weather.gov for Flash Flood Warnings / Flood
 # Advisories touching a District 3 town; when the gate fires or such an alert exists, the cycle's forecast is kept under docs/proto/archive/
 # (in the same commit) and .github/workflows/archive_followup.yml later adds labels, the radar-driven run and the verification.
+# WEEK OUTLOOK (proto/outlook.py, docs/proto/forecast/OUTLOOK.md): a parallel job fetches the 7-day rain (NBM, fallback GFS), the WPC Excessive
+# Rainfall Outlook and the NWS alerts for District 3; publish writes docs/site/data/outlook.json (<prefix>_outlook.json for test prefixes) in the
+# same commit as the status.  Rain/risk only: the flood model still runs only on the 48 h HRRR.  Never fails the forecast.
 on:
   schedule:
     - cron: '40 2,8,14,20 * * *'
@@ -63,6 +66,17 @@ jobs:
         run: python proto/storm_archive.py reports --out gate/reports.json 2>&1 | tail -3
       - uses: actions/upload-artifact@v4
         with: {name: gate, path: gate}
+  outlook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy requests pygrib pyproj matplotlib shapely
+      - name: 7-day rain (NBM / GFS), WPC Excessive Rainfall Outlook, NWS alerts over District 3
+        run: python proto/outlook.py fetch --out outlook/raw.json
+      - uses: actions/upload-artifact@v4
+        with: {name: outlook, path: outlook, if-no-files-found: ignore}
   flood:
     needs: gate
     if: needs.gate.outputs.trigger == 'true'
@@ -120,7 +134,7 @@ jobs:
         if: always()
         with: {name: 'proto_${{ matrix.b.m }}_${{ matrix.b.id }}', path: art, if-no-files-found: ignore}
   publish:
-    needs: [gate, flood]
+    needs: [gate, flood, outlook]
     if: always() && needs.gate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -152,6 +166,15 @@ jobs:
           python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out $ST
           head -c 1500 $ST; echo
           du -sh docs/site/data/${PFX}* || true
+      - name: 7-day storm outlook (outlook.json beside the status, same commit; a missing fetch is written as status failed)
+        continue-on-error: true
+        env:
+          PFX: ${{ inputs.prefix || 'forecast_latest' }}
+        run: |
+          ST=docs/site/data/forecast_status.json; OL=docs/site/data/outlook.json
+          [ "$PFX" = "forecast_latest" ] || { ST=docs/site/data/${PFX}_status.json; OL=docs/site/data/${PFX}_outlook.json; }
+          python proto/outlook.py build --raw arts/outlook/raw.json --status $ST --prev $OL --out $OL 2>&1 | tee outlook.log
+          echo "::notice title=outlook::$(cut -c1-200 outlook.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
       - name: storm archive (gate fired or NWS flood alert in District 3; quiet cycles write nothing)
         continue-on-error: true
         env:

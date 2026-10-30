@@ -1,0 +1,37 @@
+name: outlook test (7-day storm outlook, run by hand; never commits)
+# Runs proto/outlook.py fetch + build against the live forecast_status.json and prints outlook.json into the job summary and annotations.
+# The live outlook is written by forecast.yml (docs/proto/forecast/OUTLOOK.md); this workflow only checks the sources.
+on:
+  workflow_dispatch:
+    inputs:
+      model: {description: 'rain model NBM or GFS (empty = NBM, GFS fallback)', default: ''}
+      code: {description: 'development only: gzip + base64 of a replacement proto/outlook.py (empty = the committed file)', default: ''}
+permissions:
+  contents: read
+jobs:
+  outlook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy requests pygrib pyproj matplotlib shapely
+      - name: replacement code (development only)
+        if: inputs.code != ''
+        env:
+          CODE: ${{ inputs.code }}
+        run: printf '%s' "$CODE" | base64 -d | gunzip > proto/outlook.py
+      - name: outlook
+        env:
+          MODEL: ${{ inputs.model }}
+        run: |
+          python proto/outlook.py selftest
+          M=""; [ -n "$MODEL" ] && M="--model $MODEL"
+          python proto/outlook.py run --raw raw.json --out outlook.json --status docs/site/data/forecast_status.json --prev docs/site/data/outlook.json $M 2>&1 | tee log.txt
+          { echo '### outlook.json'; echo '```json'; python -m json.tool outlook.json; echo '```'; echo '### log'; echo '```'; tail -n 80 log.txt; echo '```'; } >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=log::$(tail -n 40 log.txt | cut -c1-220 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
+          python - <<'EOF'
+          import json
+          s = json.dumps(json.load(open('outlook.json')), separators=(',', ':'))
+          for i in range(0, min(len(s), 9 * 3800), 3800):
+              print(f"::notice title=outlook {i // 3800 + 1}/{-(-len(s) // 3800)}::" + s[i:i + 3800].replace('%', '%25').replace('\n', '%0A'))
+          EOF
