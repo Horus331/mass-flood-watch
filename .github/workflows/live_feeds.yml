@@ -1,0 +1,46 @@
+name: Live feeds, District 3 (MRMS rain + nowcast + FLASH, NWM at culverts, SNODAS, validation reports)
+# proto/live_feeds.py, docs/proto/live/LIVE_FEEDS.md.  Hourly at :26 (off the :00 rush, the :40 forecast and the 15-min events logger).
+# Every feed fails on its own (status in docs/site/data/live/status.json).  Commits at most once per run and only when proto/live_feeds.py decides
+# so (alert level change now; other material change after >= 3 h since the last commit; 24 h heartbeat) -- quiet hours make no commit.
+on:
+  schedule:
+    - cron: '26 * * * *'
+  workflow_dispatch:
+    inputs:
+      feeds: {description: 'comma list of rain,nowcast,flash,nwm,snow,validation', default: 'rain,nowcast,flash,nwm,snow,validation'}
+      force: {description: 'commit even if nothing material changed', type: boolean, default: false}
+      map_comids: {description: 'first (re)build the culvert -> NHDPlus COMID map (USGS NLDI, ~10 min)', type: boolean, default: false}
+permissions:
+  contents: write
+concurrency: {group: live-feeds, cancel-in-progress: false}
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -q numpy scipy requests pygrib pyproj pillow netCDF4 matplotlib
+      - name: pysteps (optional; the nowcast falls back to phase correlation without it)
+        continue-on-error: true
+        run: pip install -q pysteps opencv-python-headless && python -c "import pysteps; print('pysteps', pysteps.__version__)"
+      - name: culvert -> COMID map
+        if: inputs.map_comids
+        run: python -u proto/live_feeds.py map-comids 2>&1 | tail -30
+      - id: run
+        run: |
+          set -o pipefail
+          python -u proto/live_feeds.py run --feeds "${{ inputs.feeds || 'rain,nowcast,flash,nwm,snow,validation' }}" ${{ inputs.force && '--force' || '' }} \
+            --github-output $GITHUB_OUTPUT 2>&1 | tee live.log
+          python - <<'EOF'
+          import json; S = json.load(open('docs/site/data/live/status.json'))
+          print('::notice title=live feeds::' + ' | '.join(f"{k}: {v.get('state')}" + (f" ({(v.get('error') or '')[:120]})" if v.get('state') == 'failed' else '') for k, v in S['feeds'].items()))
+          EOF
+      - name: commit (only when decided)
+        if: steps.run.outputs.commit == 'true' || inputs.map_comids
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/site/data/live docs/proto/live
+          git commit -qm "Live feeds $(date -u +%Y-%m-%dT%H:%MZ): ${{ steps.run.outputs.reason }}" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
