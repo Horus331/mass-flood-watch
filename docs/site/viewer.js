@@ -2936,7 +2936,7 @@
     var per = 60 / meta.frame_min, r = meta.rain_hourly_mean_mm || [], hr = r[Math.floor(t / per)] || 0;
     rainAuto(hr);
     flowAuto();
-    var v = stageAt(); if (v != null) pondSwell(v);
+    // (mapped ponds are no longer re-coloured from one gauge's flow: only water the model computes is drawn)
     soakNow(); placeTime();
   }
 
