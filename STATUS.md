@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-10-31T23:00:05Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-10-31T23:30:22Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -31,10 +31,10 @@ Updated 2026-10-31T23:00:05Z by `proto/turing/queue_runner.py` on Turing. Reques
 | amcnwm_base_aug2020b | run_storm | completed | 2439670 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T19:58:11Z |  |
 | amcnwm_nwm_aug2020b | run_storm | completed | 2439671 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T20:28:36Z |  |
 | amcnwm_base_aug2021 | run_storm | completed | 2439672 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T19:27:55Z |  |
-| amcnwm_nwm_aug2021 | run_storm | pending | 2439673 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
+| amcnwm_nwm_aug2021 | run_storm | completed | 2439673 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T23:30:22Z |  |
 | amcnwm_base_aug2023 | run_storm | completed | 2439674 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:44Z |  |
 | amcnwm_nwm_aug2023 | run_storm | completed | 2439675 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:44Z |  |
-| amcnwm_collect_1 | collect_group | pending | 2439676 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
+| amcnwm_collect_1 | collect_group | failed | 2439676 | 0 / 1 | 2026-10-31T16:25:37Z | 2026-10-31T23:30:22Z |  |
 | amcnwm_base_aug2023b | run_storm | completed | 2439677 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:45Z |  |
 | amcnwm_nwm_aug2023b | run_storm | completed | 2439678 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:45Z |  |
 | amcnwm_base_aug2026 | run_storm | completed | 2439679 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:45Z |  |
@@ -117,7 +117,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_collect_5 |  | rejected |  |  /  | 2026-10-31T16:25:38Z |  | a dependency failed or was rejected |
 | inl1_runs | run_inlets | failed | 2439813 | 0 / 50 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z |  |
 | inl1_collect | collect_scores | completed | 2439814 | 1 / 0 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z |  |
-| amcnwm_v1_b1 | run_plan_gpu | running | 2439815 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
+| amcnwm_v1_b1 | run_plan_gpu | completed | 2439815 | 1 / 0 | 2026-10-31T16:55:56Z | 2026-10-31T23:30:22Z |  |
 | amcnwm_v1_b2 | run_plan_gpu | failed |  |  /  | 2026-10-31T16:55:56Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_v1_b3 | run_plan_gpu | failed |  |  /  | 2026-10-31T16:55:56Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
@@ -129,4 +129,4 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_v1_collect | collect_scores | running | 2439816 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
 | amcnwm_v1_arr | run_plan_gpu | failed |  |  /  | 2026-10-31T17:26:27Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
-| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-10-31T23:00:05Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
+| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-10-31T23:30:22Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
