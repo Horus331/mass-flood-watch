@@ -1,7 +1,8 @@
 name: Live feeds, District 3 (MRMS rain + nowcast + FLASH, NWM at culverts, SNODAS, validation reports)
 # proto/live_feeds.py, docs/proto/live/LIVE_FEEDS.md.  Hourly at :26 (off the :00 rush, the :40 forecast and the 15-min events logger).
-# Every feed fails on its own (status in docs/site/data/live/status.json).  Commits at most once per run and only when proto/live_feeds.py decides
-# so (alert level change now; other material change after >= 3 h since the last commit; 24 h heartbeat) -- quiet hours make no commit.
+# Every feed runs in its own process and fails on its own (status in docs/site/data/live/status.json).  Commits at most once per run and only
+# when proto/live_feeds.py decides so (alert level change now; other material change after >= 3 h since the last commit; 24 h heartbeat):
+# quiet hours make no commit.  Run logs are summarised as ::notice annotations.
 on:
   schedule:
     - cron: '26 * * * *'
@@ -10,6 +11,7 @@ on:
       feeds: {description: 'comma list of rain,nowcast,flash,nwm,snow,validation', default: 'rain,nowcast,flash,nwm,snow,validation'}
       force: {description: 'commit even if nothing material changed', type: boolean, default: false}
       map_comids: {description: 'first (re)build the culvert -> NHDPlus COMID map (USGS NLDI; resumable, 12 min budget per run)', type: boolean, default: false}
+      nowcast_check: {description: 'comma list of past UTC times YYYY-MM-DDTHH:MMZ: nowcast vs the radar rain that followed', default: ''}
 permissions:
   contents: write
 concurrency: {group: live-feeds, cancel-in-progress: false}
@@ -24,10 +26,18 @@ jobs:
       - run: pip install -q numpy scipy requests pygrib pyproj pillow netCDF4 matplotlib
       - name: pysteps (optional; the nowcast falls back to phase correlation without it)
         continue-on-error: true
-        run: pip install -q pysteps opencv-python-headless && python -c "import pysteps; print('pysteps', pysteps.__version__)"
+        run: |
+          set +e
+          pip install -q pysteps opencv-python-headless > pysteps.log 2>&1
+          python -c "import pysteps; print('pysteps', pysteps.__version__)" >> pysteps.log 2>&1
+          S=$?; tail -c 600 pysteps.log > p.tail; mv p.tail pysteps.log; cat pysteps.log; exit $S
       - name: culvert -> COMID map
         if: inputs.map_comids
         run: python -u proto/live_feeds.py map-comids --max-minutes 12 2>&1 | tee map.log | tail -40
+      - name: nowcast spot check on past rain
+        if: inputs.nowcast_check != '' && inputs.nowcast_check != null
+        continue-on-error: true
+        run: python -u proto/live_feeds.py nowcast-check --at "${{ inputs.nowcast_check }}" 2>&1 | tee check.log | tail -30
       - id: run
         run: |
           set -o pipefail
@@ -40,14 +50,15 @@ jobs:
       - name: log summary as annotations (run logs are not readable from every client)
         if: always()
         run: |
-          for f in map.log live.log; do [ -f $f ] || continue
-            grep -E "culverts|mapped|== |   ok|FAILED|commit:|pysteps|Fatal|segfault|Traceback|Error|File \"|  rain|  flash|  nwm|  archive|  nowcast" $f | cut -c1-300 | head -40 > s.txt || true
+          [ -f pysteps.log ] && echo "::notice title=pysteps.log::$(sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' pysteps.log)"
+          for f in map.log check.log live.log; do [ -f $f ] || continue
+            grep -E "culverts|mapped|== |   ok|FAILED|commit:|pysteps|Fatal|segfault|Traceback|Error|error|File \"|Z \{|  rain|  flash|  nwm|  archive|  nowcast" $f | cut -c1-400 | head -40 > s.txt || true
             echo "::notice title=$f::$(sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' s.txt)"
           done
       - name: commit (only when decided)
-        if: always() && (steps.run.outputs.commit == 'true' || inputs.map_comids)
+        if: always() && (steps.run.outputs.commit == 'true' || inputs.map_comids || (inputs.nowcast_check != '' && inputs.nowcast_check != null))
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           for d in docs/site/data/live docs/proto/live; do [ -e $d ] && git add $d; done
-          git commit -qm "Live feeds $(date -u +%Y-%m-%dT%H:%MZ): ${{ steps.run.outputs.reason }}" || exit 0
+          git commit -qm "Live feeds $(date -u +%Y-%m-%dT%H:%MZ): ${{ steps.run.outputs.reason || 'manual' }}" || exit 0
           for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
