@@ -1,0 +1,26 @@
+name: MassDOT inlet / conveyance tables for LF_INLETS (docs/proto/drains/INLETS_PREREG.md)
+# Manual. Reads the 2026-10-29 MassDOT Stormwater snapshot from HF and commits the compact tables proto/data/inlets/ (lon/lat/type, small),
+# so Turing and Actions runs read the inlets without network (proto/inlets_table.py fetch).
+on:
+  workflow_dispatch:
+    inputs:
+      date: {description: 'snapshot folder', default: '2026-10-29'}
+permissions:
+  contents: write
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy pyproj huggingface_hub
+      - name: fetch
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python proto/inlets_table.py selftest && python proto/inlets_table.py fetch --date "${{ inputs.date }}"
+      - name: commit
+        run: |
+          ls -la proto/data/inlets
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add proto/data/inlets; git commit -qm "LF_INLETS: compact MassDOT inlet / conveyance tables (snapshot ${{ inputs.date }})" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
