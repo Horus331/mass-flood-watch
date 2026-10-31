@@ -44,6 +44,14 @@
       title: 'Northbridge · June 28, 2020',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 94 mm of rain in the box (70 mm on average), up to 54 mm in the wettest hour.'
     },
+    aug2023_metrowest: {
+      title: 'MetroWest · Aug 8, 2023',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 96 mm of rain in the box (63 mm on average), up to 64 mm in the wettest hour.'
+    },
+    jul2023_worcester: {
+      title: 'Worcester · July 14, 2023',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 32 mm of rain in the box (23 mm on average), up to 26 mm in the wettest hour.'
+    },
     forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
@@ -2485,7 +2493,8 @@
     if (!IMP || !map || !map.getSource('imp')) return;
     var on = [], sig = '';
     var gate = meta && meta.spin_k0 != null && t < meta.spin_k0; // start-up water (spinup): nothing impassable before 5 mm of rain, as on the segments
-    if (!gate) for (var i = 0; i < IMP.seg.length; i++) if (IMP.w30[i].length && inIv(IMP.w30[i])) { on.push(i); sig += i + ','; }
+    // only on segments counted closed now: start-up water that never rose (ponds, stream crossings at t = 0) is not drawn as impassable
+    if (!gate) for (var i = 0; i < IMP.seg.length; i++) if (IMP.w30[i].length && segById[IMP.seg[i]] && segById[IMP.seg[i]].cl && inIv(IMP.w30[i])) { on.push(i); sig += i + ','; }
     if (sig === impSig) return; impSig = sig;
     var by = {}; on.forEach(function (i) { (by[IMP.seg[i]] = by[IMP.seg[i]] || []).push(IMP.lines[i]); });
     var feats = Object.keys(by).map(function (sid) { return { type: 'Feature', properties: { s: +sid }, geometry: { type: 'MultiLineString', coordinates: by[sid] } }; });
