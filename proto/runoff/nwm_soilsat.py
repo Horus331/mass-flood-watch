@@ -15,7 +15,7 @@
 SOILSAT_TOP: NWM v2.1+/v3 land output, fraction of saturation of the top soil (the upper two Noah-MP layers, 0-40 cm), 1 km, hourly in
 the operational analysis.  Box means are over the 1 km cells whose centre falls inside the box (the cell grid is the NWM Lambert grid).
 """
-import os, sys, io, json, time, argparse, datetime as dt, re
+import os, sys, json, time, argparse, datetime as dt
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
@@ -90,54 +90,74 @@ def stats(a):
     return dict(mean=round(float(a.mean()), 4), n_cells=int(a.size), **{f'p{p}': round(float(np.percentile(a, p)), 4) for p in PCTS})
 
 
-def read_soilsat(content, bxy, var='SOILSAT_TOP'):
-    """netCDF bytes -> (cell values inside the box, variable list)."""
+LAYER_M = (0.1, 0.3)       # Noah-MP layer thicknesses of the top 40 cm (SOILSAT_TOP's depth)
+
+
+def read_box(content, bxy, var, layer=None):
+    """netCDF bytes -> 2-D array of `var` (layer `layer` if it has a soil-layer dimension) on the NWM cells of the box, NaN outside the box
+    polygon / missing; plus the window's (x, y) coordinates.  None if the file lacks `var`.  Works for the operational land files and the
+    retrospective LDASOUT files (both carry x, y)."""
     import netCDF4
     ds = netCDF4.Dataset('mem.nc', memory=content)
     try:
-        names = list(ds.variables)
-        if var not in ds.variables: return None, names
+        if var not in ds.variables: return None, list(ds.variables)
         x = ds['x'][:].astype(np.float64); y = ds['y'][:].astype(np.float64)
         sy, sx, inside = cell_mask(x, y, bxy)
-        V = ds[var]; sl = tuple(sy if d == 'y' else sx if d == 'x' else 0 for d in V.dimensions)
-        a = np.ma.filled(V[sl].astype(np.float64), np.nan)
-        if 'south_north' in V.dimensions: raise RuntimeError('unexpected dims ' + str(V.dimensions))
-        if y[1] < y[0]: pass   # slices were taken on y as stored; inside mask built on the same order
+        V = ds[var]; sl = []
+        for d in V.dimensions:
+            if d == 'y': sl.append(sy)
+            elif d == 'x': sl.append(sx)
+            elif 'soil' in d: sl.append(layer if layer is not None else 0)
+            else: sl.append(0)
+        a = np.ma.filled(V[tuple(sl)].astype(np.float64), np.nan)
         a = np.where(inside, a, np.nan); a[(a < 0) | (a > 1.5)] = np.nan
-        return a[np.isfinite(a)], names
+        return (a, x[sx], y[sy]), list(ds.variables)
     finally: ds.close()
 
 
-def read_ldasout(content, bxy, var='SOILSAT_TOP'):
-    """Retrospective LDASOUT (WRF-Hydro, dims time, y, x or time, south_north, west_east; may lack coordinate variables)."""
-    import netCDF4
-    ds = netCDF4.Dataset('mem.nc', memory=content)
-    try:
-        names = list(ds.variables)
-        if var not in ds.variables: return None, names
-        V = ds[var]; dims = V.dimensions
-        if 'x' in ds.variables and 'y' in ds.variables:
-            x = ds['x'][:].astype(np.float64); y = ds['y'][:].astype(np.float64)
-        else:   # the NWM 1 km CONUS land grid: 4608 x 3840, 1000 m, lower-left cell centre (-2303499.25, -1919499.375)
-            nx_ = V.shape[dims.index('west_east' if 'west_east' in dims else 'x')]; ny_ = V.shape[dims.index('south_north' if 'south_north' in dims else 'y')]
-            x = -2303499.25 + 1000.0 * np.arange(nx_); y = -1919499.375 + 1000.0 * np.arange(ny_)
-        sy, sx, inside = cell_mask(x, y, bxy)
-        sl = tuple(sy if d in ('y', 'south_north') else sx if d in ('x', 'west_east') else 0 for d in dims)
-        a = np.ma.filled(V[sl].astype(np.float64), np.nan)
-        a = np.where(inside, a, np.nan); a[(a < 0) | (a > 1.5)] = np.nan
-        return a[np.isfinite(a)], names
-    finally: ds.close()
+def top_water(content, bxy):
+    """Thickness-weighted volumetric water of the top 40 cm (m3/m3) from SOIL_M layers 1-2, or None."""
+    A, _ = read_box(content, bxy, 'SOIL_M', 0)
+    if A is None: return None
+    B, _ = read_box(content, bxy, 'SOIL_M', 1)
+    return ((LAYER_M[0] * A[0] + LAYER_M[1] * B[0]) / sum(LAYER_M), A[1], A[2])
 
 
-def operational(t, bxy, urls=OPER):
+_CACHE = {}
+
+
+def operational(t, bxy, urls=OPER, keep=False):
     ymd, hh = t.strftime('%Y%m%d'), t.strftime('%H')
     for u in urls:
-        url = u.format(ymd=ymd, hh=hh); r = get(url)
+        url = u.format(ymd=ymd, hh=hh)
+        r = _CACHE.get(url) or get(url)
+        if keep and r is not None: _CACHE[url] = r       # the porosity files are reused for every storm box
         if r is None: log('  oper missing', url); continue
-        a, names = read_soilsat(r.content, bxy)
-        if a is None: log('  oper: no SOILSAT_TOP in', url, names[:12]); continue
-        return dict(source=url, valid=t.strftime('%Y-%m-%dT%H:%MZ'), mb=round(len(r.content) / 1e6, 1), **(stats(a) or {}))
+        A, names = read_box(r.content, bxy, 'SOILSAT_TOP')
+        if A is None: log('  oper: no SOILSAT_TOP in', url, names[:12]); continue
+        out = dict(source=url, valid=t.strftime('%Y-%m-%dT%H:%MZ'), mb=round(len(r.content) / 1e6, 1), **(stats(A[0]) or {}))
+        if keep: out['_grid'] = A; out['_top_water'] = top_water(r.content, bxy)
+        return out
     return None
+
+
+def porosity(bxy, dates=('2023-09-11T16:00', '2021-07-09T08:00')):
+    """Effective porosity of the top 40 cm per NWM cell, from operational files carrying both SOILSAT_TOP and SOIL_M:
+    smcmax = top_water / SOILSAT_TOP (SOILSAT_TOP = top-40-cm water / porosity).  Two dates; their agreement is reported (a static soil
+    property must come out the same)."""
+    P = []
+    for d in dates:
+        o = operational(dt.datetime.fromisoformat(d), bxy, keep=True)
+        if not o or o.get('_top_water') is None: continue
+        sat, x, y = o['_grid']; tw = o['_top_water'][0]
+        with np.errstate(invalid='ignore', divide='ignore'): P.append((np.where(sat > 0.05, tw / sat, np.nan), x, y))
+    if not P: return None, dict(error='no operational file with SOIL_M and SOILSAT_TOP')
+    por = np.nanmean([p[0] for p in P], axis=0)
+    info = dict(dates=list(dates[:len(P)]), mean=round(float(np.nanmean(por)), 4))
+    if len(P) > 1:
+        info['max_abs_diff_between_dates'] = round(float(np.nanmax(np.abs(P[0][0] - P[1][0]))), 5)
+        info['median_abs_diff_between_dates'] = round(float(np.nanmedian(np.abs(P[0][0] - P[1][0]))), 5)
+    return (por, P[0][1], P[0][2]), info
 
 
 def retro_time(t):
@@ -145,13 +165,18 @@ def retro_time(t):
     return t.replace(hour=(t.hour // 3) * 3, minute=0, second=0, microsecond=0)
 
 
-def retrospective(t, bxy):
+def retrospective(t, bxy, por):
+    """NWM v3.0 retrospective has no SOILSAT_TOP: rebuild it as top-40-cm SOIL_M water / the operational porosity of the same cells."""
     tr = retro_time(t); url = RETRO_NC.format(y=tr.year, ymdh=tr.strftime('%Y%m%d%H'))
     r = get(url, timeout=900)
     if r is None: return None
-    a, names = read_ldasout(r.content, bxy)
-    if a is None: return dict(source=url, error='no SOILSAT_TOP', variables=names[:40])
-    return dict(source=url, valid=tr.strftime('%Y-%m-%dT%H:%MZ'), mb=round(len(r.content) / 1e6, 1), **(stats(a) or {}))
+    tw = top_water(r.content, bxy)
+    if tw is None: return dict(source=url, error='no SOIL_M')
+    if por is None: return dict(source=url, error='no porosity')
+    if not (np.array_equal(tw[1], por[1]) and np.array_equal(tw[2], por[2])): return dict(source=url, error='grid differs from the operational grid')
+    with np.errstate(invalid='ignore', divide='ignore'): sat = np.clip(tw[0] / por[0], 0, 1.2)
+    return dict(source=url, valid=tr.strftime('%Y-%m-%dT%H:%MZ'), mb=round(len(r.content) / 1e6, 1),
+                method='SOIL_M layers 1-2 (0.1 / 0.3 m weights) / operational porosity of the same cell', **(stats(sat) or {}))
 
 
 # ------------------------------------------------------------------------------------------------ commands
@@ -217,7 +242,8 @@ def cmd_storms(a):
         try: r['operational'] = operational(t, bxy)
         except Exception as e: r['operational'] = dict(error=repr(e)[:200])
         if t <= dt.datetime.fromisoformat(retro_end):
-            try: r['retrospective'] = retrospective(t, bxy)
+            try:
+                por, pinfo = porosity(bxy); r['porosity'] = pinfo; r['retrospective'] = retrospective(t, bxy, por)
             except Exception as e: r['retrospective'] = dict(error=repr(e)[:200])
         else: r['retrospective'] = None
         op, rt = r.get('operational') or {}, r.get('retrospective') or {}
@@ -234,31 +260,74 @@ def cmd_storms(a):
     for r in rows: log(f"{r['storm']:9s} {r['t0']}  used {r['soilsat_top']} ({r['soilsat_source']})  oper {(r.get('operational') or {}).get('mean')}  retro {(r.get('retrospective') or {}).get('mean')}")
 
 
+ZARR = RETRO + '/CONUS/zarr/ldasout.zarr'
+
+
+def zarr_chunk(var, key, shape, dtype, attrs=None):
+    """One raw zarr v2 chunk (zstd) -> numpy array (scaled; fill -> NaN); all-fill if the chunk object is absent."""
+    import zstandard
+    r = get(f'{ZARR}/{var}/{key}', timeout=300)
+    if r is None: return np.full(shape, np.nan)
+    a = np.frombuffer(zstandard.ZstdDecompressor().decompress(r.content, max_output_size=int(np.prod(shape)) * np.dtype(dtype).itemsize), dtype)
+    a = a.reshape(shape)
+    if attrs is None: return a
+    out = a.astype(np.float64); out[a == attrs['fill']] = np.nan
+    return out * attrs['scale'] + attrs['offset']
+
+
 def cmd_clim(a):
-    """Climatology of the District 3 mean from the retrospective netCDF (one file per day at 12Z: ~ 365 x years downloads; parallel)."""
+    """Daily District 3 mean top-40-cm saturation 1979-2023 from the NWM v3.0 retrospective zarr (SOIL_M layers 1-2, 3-hourly), divided by
+    the operational porosity of each cell (porosity()), so it is on the SOILSAT_TOP scale.  ~2300 chunks of < 1 MB."""
     from concurrent.futures import ThreadPoolExecutor
-    bxy = box_xy_lonlat(D3_LAT, D3_LON)
-    y0, y1 = a.years.split('-'); days = []
-    d = dt.date(int(y0), 1, 1)
-    while d <= dt.date(int(y1), 12, 31):
-        if (d.timetuple().tm_yday - 1) % a.every == 0: days.append(d)
-        d += dt.timedelta(days=1)
-    def one(day):
-        url = RETRO_NC.format(y=day.year, ymdh=day.strftime('%Y%m%d') + '12'); r = get(url, timeout=900)
-        if r is None: return day, None
+    import pandas as pd
+    M = get(f'{ZARR}/.zmetadata', timeout=120).json()['metadata']
+    za = M["SOIL_M/.zarray"]; zt = M["SOIL_M/.zattrs"]; ta = M["time/.zattrs"]
+    attrs = dict(scale=float(zt.get('scale_factor', 1.0)), offset=float(zt.get('add_offset', 0.0)), fill=int(za['fill_value']))
+    nt, ny, nl, nx = za['shape']; ct, cy, cl, cx = za['chunks']
+    x = zarr_chunk('x', '0', (nx,), '<f8'); y = zarr_chunk('y', '0', (ny,), '<f8')
+    bxy = box_xy_lonlat(D3_LAT, D3_LON); sy, sx, inside = cell_mask(x, y, bxy)
+    por, pinfo = porosity(bxy)
+    if por is None or not (np.array_equal(por[1], x[sx]) and np.array_equal(por[2], y[sy])): raise SystemExit(f'porosity grid mismatch {pinfo}')
+    P = np.where(inside, por[0], np.nan)
+    ycs = range(sy.start // cy, (sy.stop - 1) // cy + 1); xcs = range(sx.start // cx, (sx.stop - 1) // cx + 1)
+    log('zarr', za['shape'], za['chunks'], 'attrs', attrs, 'y chunks', list(ycs), 'x chunks', list(xcs), 'porosity', pinfo, 'time units', ta.get('units'))
+    t_units = ta['units']; t_origin = pd.Timestamp(t_units.split('since')[1].strip())
+    nchunks = (nt + ct - 1) // ct
+    if a.max_chunks: nchunks = min(nchunks, a.max_chunks)
+
+    def one(k):
+        n = min(ct, nt - k * ct)
         try:
-            v, _ = read_ldasout(r.content, bxy); return day, (float(np.mean(v)) if v is not None and len(v) else None)
-        except Exception as e: log('  ', day, repr(e)[:120]); return day, None
-    vals = {}
-    t_ = time.time()
+            T = zarr_chunk('time', str(k), (n,), '<i8')
+            L = []
+            for l in (0, 1):
+                big = np.full((n, len(ycs) * cy, len(xcs) * cx), np.nan)
+                for i, yc in enumerate(ycs):
+                    for j, xc in enumerate(xcs):
+                        hy = min(cy, ny - yc * cy); hx = min(cx, nx - xc * cx)
+                        c = zarr_chunk('SOIL_M', f'{k}.{yc}.{l}.{xc}', (ct, cy, 1, cx), za['dtype'], attrs)[:n, :hy, 0, :hx]
+                        big[:, i * cy:i * cy + hy, j * cx:j * cx + hx] = c
+                y0_, x0_ = ycs[0] * cy, xcs[0] * cx
+                L.append(big[:, sy.start - y0_:sy.stop - y0_, sx.start - x0_:sx.stop - x0_])
+            tw = (LAYER_M[0] * L[0] + LAYER_M[1] * L[1]) / sum(LAYER_M)
+            with np.errstate(invalid='ignore', divide='ignore'): sat = np.clip(tw / P[None], 0, 1.2)
+            m = np.nanmean(np.where(inside[None], sat, np.nan).reshape(n, -1), axis=1)
+            return k, [(t_origin + pd.Timedelta(hours=int(h)), float(v)) for h, v in zip(T, m) if np.isfinite(v)]
+        except Exception as e:
+            log('  chunk', k, repr(e)[:160]); return k, []
+    rows = []; t_ = time.time()
     with ThreadPoolExecutor(a.workers) as ex:
-        for i, (day, v) in enumerate(ex.map(one, days)):
-            if v is not None: vals[day.isoformat()] = round(v, 4)
-            if i % 100 == 0: log(f'  {i}/{len(days)} {day} {v} ({time.time() - t_:.0f} s)')
+        for i, (k, r) in enumerate(ex.map(one, range(nchunks))):
+            rows += r
+            if i % 25 == 0: log(f'  chunk {k}/{nchunks} {r[0] if r else None} ({time.time() - t_:.0f} s)')
+    S = pd.Series([v for _, v in rows], index=pd.DatetimeIndex([t for t, _ in rows])).sort_index()
+    D = S.groupby(S.index.date).mean()
     res = dict(made=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'), made_by='proto/runoff/nwm_soilsat.py clim',
-               source='NWM v3.0 retrospective (AWS noaa-nwm-retrospective-3-0-pds, CONUS/netcdf/LDASOUT), SOILSAT_TOP at 12Z, District 3 box mean '
-                      f'(lat {D3_LAT}, lon {D3_LON})', years=a.years, every_days=a.every, n=len(vals), daily=vals)
-    json.dump(res, open(a.out, 'w'), indent=0); log('wrote', a.out, len(vals), 'days')
+               source='NWM v3.0 retrospective (AWS noaa-nwm-retrospective-3-0-pds, CONUS/zarr/ldasout.zarr), SOIL_M layers 1-2 (0.1 / 0.3 m) '
+                      '/ operational porosity per cell (= SOILSAT_TOP scale), daily mean of the 3-hourly District 3 box mean '
+                      f'(lat {D3_LAT}, lon {D3_LON})', porosity=pinfo, years=f'{D.index[0]}..{D.index[-1]}', n=int(len(D)),
+               daily={str(k): round(float(v), 4) for k, v in D.items()})
+    json.dump(res, open(a.out, 'w'), indent=0); log('wrote', a.out, len(D), 'days', res['years'])
 
 
 def clim_percentile(value, when, clim, half_window=15):
@@ -310,8 +379,8 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser(); sp = ap.add_subparsers(dest='cmd', required=True)
     sp.add_parser('probe'); sp.add_parser('selftest'); sp.add_parser('live')
     p = sp.add_parser('storms'); p.add_argument('--out', default=os.path.join(OUT, 'nwm_soilsat.json')); p.add_argument('--retro-end', default='2023-02-01T00:00')
-    p = sp.add_parser('clim'); p.add_argument('--out', default=os.path.join(OUT, 'nwm_soilsat_clim.json')); p.add_argument('--years', default='1993-2022')
-    p.add_argument('--every', type=int, default=1); p.add_argument('--workers', type=int, default=16)
+    p = sp.add_parser('clim'); p.add_argument('--out', default=os.path.join(OUT, 'nwm_soilsat_clim.json'))
+    p.add_argument('--max-chunks', type=int, default=0, help='test: only the first N time chunks'); p.add_argument('--workers', type=int, default=16)
     a = ap.parse_args()
     if a.cmd == 'probe': cmd_probe(a)
     elif a.cmd == 'storms': cmd_storms(a)
