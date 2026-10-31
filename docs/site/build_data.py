@@ -355,6 +355,45 @@ def refs(src, cn, storm, t0, frame_min, nf, run_dir=None):
 
 
 # ---------------------------------------------------------------- flow field
+def flow_solver(run_dir, keep, f_out, od, cn, step_min, per_sheet=49):
+    """Water velocity straight from the flood solver (out/vel_frames.npz, LF_VFRAMES=1: LISFLOOD-FP .Vx/.Vy snapshots), on blocks of f_out
+    cells, one frame per kept snapshot. Block velocity = depth-weighted mean of the wet cells (h >= 5 cm), i.e. block discharge per unit width
+    over block depth, so a fast thin sheet does not outweigh the channel that carries the water. Packed like flow(): R, G = east / north
+    speed (128 = 0, +-VMAX, square-root scaled so slow street flow keeps resolution), B = wet share; several atlas sheets of per_sheet frames."""
+    V = np.load(os.path.join(run_dir, 'vel_frames.npz')); D = np.load(os.path.join(run_dir, 'frames_cm.npz'))
+    meta = jload(os.path.join(run_dir, 'meta.json')) or {}
+    res = float(meta.get('res_m') or 20.0); VMAX = 4.0
+    vh = np.asarray(V['hours'], float); dh = np.asarray(D['hours'], float)
+    ny, nx = V['u_ms'].shape[1:]; h2, w2 = ny // f_out, nx // f_out
+    frames = []; vpk = 0.0
+    for k in keep:
+        j = int(np.argmin(np.abs(vh - dh[k])))
+        if abs(vh[j] - dh[k]) > 0.05: frames.append(None); continue       # no velocity snapshot at this depth frame
+        h = D['depth_cm'][k].astype(np.float32)[:h2 * f_out, :w2 * f_out] / 100.0
+        u = V['u_ms'][j].astype(np.float32)[:h2 * f_out, :w2 * f_out]; v = V['v_ms'][j].astype(np.float32)[:h2 * f_out, :w2 * f_out]
+        w = np.where(h >= 0.05, h, 0.0)
+        r = lambda a: a.reshape(h2, f_out, w2, f_out).sum(axis=(1, 3))
+        hs = r(w) + 1e-6; U = r(u * w) / hs; Vn = r(v * w) / hs; wet = r((h >= 0.05).astype(np.float32)) / (f_out * f_out)
+        vpk = max(vpk, float(np.hypot(U, Vn)[wet > 0].max()) if (wet > 0).any() else 0.0)
+        sp = np.hypot(U, Vn); g = np.sqrt(np.minimum(sp, VMAX) / VMAX) / np.maximum(sp, 1e-6)   # unit vector x sqrt(speed / VMAX)
+        frames.append(np.stack([np.clip(np.round(128 + U * g * 127), 1, 255), np.clip(np.round(128 + Vn * g * 127), 1, 255),
+                                np.round(np.clip(wet, 0, 1) * 255)], -1).astype(np.uint8))
+    blank = np.zeros((h2, w2, 3), np.uint8); blank[..., :2] = 128
+    frames = [a if a is not None else blank for a in frames]
+    n = len(frames); sheets = []
+    cols = max(1, int(math.ceil(math.sqrt(min(n, per_sheet) * h2 / w2)))); rows = (min(n, per_sheet) + cols - 1) // cols
+    for s0 in range(0, n, per_sheet):
+        atlas = np.zeros((rows * h2, cols * w2, 3), np.uint8); atlas[..., :2] = 128
+        for i, a in enumerate(frames[s0:s0 + per_sheet]):
+            cy, cx = divmod(i, cols); atlas[cy * h2:(cy + 1) * h2, cx * w2:(cx + 1) * w2] = a
+        nm = 'flow_%02d.png' % len(sheets); Image.fromarray(atlas, 'RGB').save(os.path.join(od, nm), optimize=True); sheets.append(nm)
+    json.dump({'n': n, 'frame_min': step_min, 'w': w2, 'h': h2, 'cols': cols, 'rows': rows, 'per_sheet': per_sheet, 'sheets': sheets,
+               'vmax_ms': VMAX, 'enc': 'sqrt', 'peak_ms': round(vpk, 2), 'cell_m': res * f_out, 'corners': cn,
+               'method': 'LISFLOOD-FP solver velocity (.Vx/.Vy snapshots), depth-weighted over %d m blocks' % int(res * f_out)},
+              open(os.path.join(od, 'flow.json'), 'w'), separators=(',', ':'))
+    print('  flow (solver)', n, 'frames', '%dx%d' % (w2, h2), len(sheets), 'sheets, peak block speed %.2f m/s' % vpk)
+
+
 def flow(run_dir, keep, f_out, od, cn, step_min):
     """Water velocity from the modelled water surface (diffusive-wave estimate, Manning n 0.05) on blocks of f_out cells,
     one frame per kept snapshot, packed 1 frame per atlas cell: R, G = east / north speed (128 = 0, +-VMAX), B = wet share."""
@@ -516,8 +555,12 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
     R = refs(src, cn, storm, t0, fmin, nf, run_dir)
     json.dump(clean(R), open(os.path.join(od, 'refs.json'), 'w'), separators=(',', ':'), allow_nan=False)
     if do_flow and run_dir:
-        fk = max(1, int(round(15 / fmin)))           # the flow field changes slowly: one field every 15 min keeps flow.png small
-        flow(run_dir, keep[::fk], max(2, int(round(100 / S['resolution_m']))), od, cn, fmin * fk)
+        if os.path.exists(os.path.join(run_dir, 'vel_frames.npz')):   # the solver's own velocity, 60 m blocks, every 10 min
+            fk = max(1, int(round(10 / fmin)))
+            flow_solver(run_dir, keep[::fk], max(1, int(round(60 / S['resolution_m']))), od, cn, fmin * fk)
+        else:
+            fk = max(1, int(round(15 / fmin)))           # the flow field changes slowly: one field every 15 min keeps flow.png small
+            flow(run_dir, keep[::fk], max(2, int(round(100 / S['resolution_m']))), od, cn, fmin * fk)
         meta['flow'] = 'flow.json'
     json.dump(meta, open(os.path.join(od, 'meta.json'), 'w'), separators=(',', ':'))
     size = sum(os.path.getsize(os.path.join(od, x)) for x in os.listdir(od)) / 1e6

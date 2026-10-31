@@ -776,6 +776,7 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
     d = f'{wd}/{dirroot}'; ny, nx = shape; info = {}
     vmax = np.zeros(shape, np.float32); dv = np.zeros(shape, np.float32); vsnap = np.zeros(shape, np.float32); n = 0
     vthr = [float(t) for t in os.environ.get('LF_VDUR', '').split(',') if t.strip()]; vcnt = np.zeros((len(vthr), ny, nx), np.uint16); dvs = np.zeros(shape, np.float32)
+    VFR = [] if os.environ.get('LF_VFRAMES', '0') == '1' else None
     for fx in sorted(glob.glob(f'{d}/{resroot}-*.Vx')):
         fy = fx[:-3] + '.Vy'; fh = fx[:-3] + '.wd'
         if not os.path.exists(fy): continue
@@ -783,6 +784,11 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
         except Exception as e: log('velocity file unreadable', fx, repr(e)[:80]); continue
         if Vx.shape != (ny, nx + 1) or Vy.shape != (ny + 1, nx): log('unexpected velocity grid shapes', Vx.shape, Vy.shape); break
         v = cell_speed(Vx, Vy); vsnap = np.maximum(vsnap, v); hs = None
+        if VFR is not None:   # LF_VFRAMES=1: the solver's own signed velocity at every snapshot, cell centre = mean of the two faces
+            m_ = re.search(r'-(\d+)\.Vx$', fx)
+            VFR.append((int(m_.group(1)) if m_ else len(VFR),
+                        (0.5 * (np.nan_to_num(Vx[:, :-1]) + np.nan_to_num(Vx[:, 1:]))).astype(np.float16),      # +east
+                        (-0.5 * (np.nan_to_num(Vy[:-1, :]) + np.nan_to_num(Vy[1:, :]))).astype(np.float16)))    # +north (rows run north -> south)
         if os.path.exists(fh): hs = np.nan_to_num(read_asc(fh)[0]); dv = np.maximum(dv, hs * v); dvs = np.maximum(dvs, hs * v)
         for k_, t_ in enumerate(vthr): vcnt[k_] += (v >= t_) & ((hs >= 0.02) if hs is not None else True)
         n += 1
@@ -797,6 +803,8 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
     info.setdefault('dv_source', 'snapshot h x speed')
     if vthr: info['_vdur'] = dict(vdur_thr=np.array(vthr, np.float32), vdur_count=vcnt, vdur_snapshots=np.array(n), vsnap_max=vsnap.astype(np.float32),
                                   dvsnap_max=dvs.astype(np.float32))   # snapshot-only peaks: free of the single-time-step spikes in .maxVc
+    if VFR: VFR.sort(key=lambda r: r[0]); info['_vframes'] = dict(snap=np.array([r[0] for r in VFR], np.int32), u_ms=np.stack([r[1] for r in VFR]),
+                                                                 v_ms=np.stack([r[2] for r in VFR]))
     return vmax.astype(np.float32), dv.astype(np.float32), info
 
 
@@ -1302,7 +1310,12 @@ def main():
     VEL = None
     if VOUT:
         try:
-            t_ = time.time(); vmx, dvmx, vinfo = velocity_peaks(wd, 'res', (ny, nx)); vdur = vinfo.pop('_vdur', {})
+            t_ = time.time(); vmx, dvmx, vinfo = velocity_peaks(wd, 'res', (ny, nx)); vdur = vinfo.pop('_vdur', {}); vfr = vinfo.pop('_vframes', None)
+            if vfr is not None:   # read by docs/site/build_data.py (flow field from the solver, not a slope estimate)
+                os.makedirs(f'{wd}/out', exist_ok=True)
+                np.savez_compressed(f'{wd}/out/vel_frames.npz', hours=(vfr['snap'] * SAVEINT / 3600.0).astype(np.float32), u_ms=vfr['u_ms'], v_ms=vfr['v_ms'],
+                                    note='LISFLOOD-FP .Vx/.Vy snapshots (voutput), cell centre = mean of the two faces; u +east, v +north, m/s')
+                log(f"velocity frames: {len(vfr['snap'])} snapshots -> out/vel_frames.npz")
             VEL = dict(vmax=vmx, dvmax=dvmx, **{k: str(v) for k, v in vinfo.items()}, **vdur)
             if vdur: VEL['vdur_saveint_s'] = np.array(SAVEINT)
             wetv = hmax >= 0.1
