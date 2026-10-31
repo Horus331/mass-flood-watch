@@ -1,5 +1,6 @@
 name: NWM soil saturation (SOILSAT_TOP) for the CN antecedent test and the ground state (docs/proto/runoff/NWM_AMC.md)
 # proto/runoff/nwm_soilsat.py: probe | storms (-> docs/proto/runoff/nwm_soilsat.json) | clim (-> nwm_soilsat_clim.json) | live (ground_state soil block test)
+# The run log is committed to docs/proto/runoff/nwm_logs/<mode>.txt (Actions log downloads are not reachable from every client).
 on:
   workflow_dispatch:
     inputs:
@@ -16,20 +17,29 @@ permissions:
 jobs:
   nwm:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q numpy pandas requests pyproj netCDF4 matplotlib
+      - run: pip install -q numpy pandas requests pyproj netCDF4 matplotlib pygrib
       - run: python proto/runoff/nwm_soilsat.py selftest
       - name: run
+        env:
+          MODE: ${{ inputs.mode }}
+          ARGS: ${{ inputs.args }}
         run: |
-          case "${{ inputs.mode }}" in
-            probe|storms|clim) python proto/runoff/nwm_soilsat.py ${{ inputs.mode }} ${{ inputs.args }} 2>&1 | tail -200 ;;
-            live) python proto/ground_state.py run --out ground_test.json 2>&1 | tail -5; python -c "import json; d=json.load(open('ground_test.json')); print(json.dumps({k: d[k] for k in d if k != 'frost'}, indent=1)[:4000])" ;;
+          case "$MODE" in
+            probe|storms|clim) python proto/runoff/nwm_soilsat.py $MODE $ARGS > nwm_log.txt 2>&1 || true ;;
+            live) { python proto/ground_state.py selftest; python proto/ground_state.py run --out ground_test.json; cat ground_test.json; } > nwm_log.txt 2>&1 || true ;;
           esac
+          tail -300 nwm_log.txt
       - name: commit
-        if: inputs.mode == 'storms' || inputs.mode == 'clim'
+        if: always()
+        env:
+          MODE: ${{ inputs.mode }}
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add docs/proto/runoff/nwm_soilsat*.json; git commit -qm "runoff: NWM SOILSAT_TOP (${{ inputs.mode }})" || exit 0
+          mkdir -p docs/proto/runoff/nwm_logs; tail -400 nwm_log.txt > docs/proto/runoff/nwm_logs/$MODE.txt || true
+          git add docs/proto/runoff/nwm_logs
+          if [ "$MODE" = storms ] || [ "$MODE" = clim ]; then git add docs/proto/runoff/nwm_soilsat*.json || true; fi
+          git commit -qm "runoff: NWM SOILSAT_TOP ($MODE)" || exit 0
           for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
