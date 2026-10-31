@@ -5,6 +5,8 @@
 # then the scorers -> small files in $LF_WORK/<results_root>/<NAME>/ (DONE or FAILED); proto/turing/collect_scores.slurm pushes them to main.
 #   queue: {"id": "amcnwm_b1", "kind": "run_plan_gpu", "env": {"PLAN": "proto/turing/plans/amcnwm_v1.json", "PIN": "<sha on main>", "IDXS": "0-9"},
 #           "sbatch": {"partition": "quick", "time": "08:00:00"}}
+#   array mode (one submitted job for many runs): "env": {..., "IDXS": "10-49"}, "sbatch": {"array": "0-39%4", "time": "02:00:00"}
+#           -> array task j runs the j-th index of IDXS only
 # First used by docs/proto/runoff/NWM_AMC_PREREG.md.  Modelled on run_inlets.slurm (CPU), with the GPU build and a task loop.
 #SBATCH -J planGPU
 #SBATCH -p quick
@@ -32,6 +34,10 @@ out = []
 for part in sys.argv[1].split(','):
     a, _, b = part.partition('-'); out += range(int(a), int(b or a) + 1)
 print(' '.join(map(str, out)))" "$IDXS")
+if [ -n "${SLURM_ARRAY_TASK_ID:-}" ]; then   # array mode: array task j runs only the j-th index of IDXS (a pending array is one submitted job)
+  set -- $LIST; J=$((SLURM_ARRAY_TASK_ID + 1)); [ $J -le $# ] || { echo "array task $SLURM_ARRAY_TASK_ID: beyond IDXS"; exit 0; }
+  LIST=${!J}
+fi
 run_task() {   # one task in a subshell: its env cannot leak into the next one
   IDX=$1
   unset $(env | grep -oE '^LF_[A-Z0-9_]+' | grep -vE '^LF_WORK$') 2>/dev/null || true
