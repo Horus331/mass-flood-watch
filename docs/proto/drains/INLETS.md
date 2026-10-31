@@ -1,71 +1,76 @@
-# Catch basins as a capped, clogging-aware sink (`LF_INLETS=1`): status and how to score
+# Catch basins as a capped, clogging-aware sink (`LF_INLETS=1`): result
 
-**Status (31 Oct 2026): queued on Turing. No verdict yet.** The pre-registration is `INLETS_PREREG.md`, committed before any run. This page
-records what was built, what is running, and the exact steps that turn the results into a verdict. When the scores land, the verdict section at
-the end is filled in from `inlets_v1/eval.md`, whatever it says.
+**Verdict: not adopted.** This is the pre-registered rule (`INLETS_PREREG.md`, PROTOCOL v2 §5a, k = 1, all 23 held-out storms scored).
+
+- **Ranking is unchanged.** Pooled site recall at the 3 % flag budget is 0.194 with and without inlets: 19 of 98 sites on 98 sites. The gain is
+  +0.000, against the required +0.04. Its lower bound is −0.033. FSS at 300 m drops by 0.0009.
+- **Per storm, the sink swaps one site for another and nothing more.** sep2018w gains 1 site and jul2023c loses 1. No other held-out storm
+  changes at 3 %.
+- **At the rule (`p_close ≥ 0.5`), the sink trims flags.**
+  - Mean flagged share falls from 0.43 % to 0.36 %.
+  - Lift rises from 6.27 to 6.62.
+  - Site recall falls from 0.082 to 0.071 (8 rule-hit sites → 7).
+- **The failure mode from DRAINS.md is weaker but not gone.** Pooled over the held-out storms, flags drop 18 % and rule-hit sites drop 12.5 %,
+  a ratio of 0.68. The pre-registered "in proportion" threshold is 0.8, so the check is negative.
+- **On sep2023 in Leominster city the failure mode is clearer.** City flags fall from 58 to 37 (−36 %) and the city's rule-hit sites from 29 to
+  26 (−10 %), a ratio of 0.29.
+  - At an equal 3 % budget, sep2023 goes from 30 to 29 sites. That is within the 2-site limit, so no explanation is required.
+  - The Leominster gauges get worse: mean absolute rise error goes from 0.23 m to 0.49 m. As in DRAINS, drained water is not returned at
+    the outfalls.
+
+**What this means.** A physically capped inlet sink still behaves like a slightly higher depth threshold. It removes flags (and with them a
+smaller share of documented sites), and it does not reorder segments. Most documented sites are not served by MassDOT inlets: those inlets sit
+on state highways, and municipal inlets are known only in Leominster. Where a site did flood, the real inlets were overwhelmed or blocked anyway.
+
+`LF_INLETS` stays **opt-in and off by default**. It is a "drains working" sensitivity layer that is more physical than `LF_DRAINS`. The leaf-season
+clog value (0.65) was not tested, because no catalogue storm falls in 15 Oct – 30 Nov.
+
+## Numbers (`inlets_v1a/eval.md`, `compare.json`, `eval.json`)
+
+| PROTOCOL v2 §5a | value | pass |
+|---|---|---|
+| 1. 3 % site recall gain ≥ +0.04 | +0.000 (98 sites) | no |
+| 2. one-sided 5 % lower bound > 0 | −0.033 | no |
+| 3. FSS 300 m at 3 % not lower | −0.0009 | no |
+| 4. no ≥ 3-site storm loses > 1 site | worst −1 (jul2023c) | yes |
+| 5. rule lift ≥ 0.8 × base | 6.62 vs 6.27 | yes |
+
+| sep2023 (calibration, report only) | box 3 % hits / 79 | box rule hits / share | Leominster city rule hits / flagged segments | sink m³/s | gauge mean abs rise error (m) |
+|---|---|---|---|---|---|
+| base | 30 | 29 / 2.16 % | 29 / 58 | – | 0.23 |
+| inlets (clog 0.50) | 29 | 26 / 1.65 % | 26 / 37 | 582 | 0.49 |
+| clog 0 (sensitivity) | 27 | 25 / 1.56 % | 25 / 34 | 919 | 0.53 |
+| clog 0.65 (sensitivity) | 29 | 26 / 1.67 % | 26 / 38 | 447 | 0.47 |
+
+Sink size on the held-out boxes:
+- MassDOT inlets only: 1,386–5,607 inlets, 111–434 m³/s, on 1,085–4,049 cells;
+- Leominster and Fitchburg boxes, with the DPW network: 13,800–14,400 inlet points, 526–582 m³/s.
+
+The base arm agrees with the published parity catalogue; for example, sep2021's rule share is 2.41 % in both.
+
+Reproduce: `python proto/inlets_eval.py --dir docs/proto/drains/inlets_v1a`.
 
 ## What was built
 
 | file | what |
 |---|---|
-| `sim/colab/lf_inlets.py` | The sink. Each inlet removes water from its 20 m cell at most at the HEC-22 sag-grate capacity at 0.15 m ponding (0.174 m³/s) × (1 − clog). Clog is 0.50, or 0.65 from 15 Oct to 30 Nov. The summed capacity of a pipe network is limited to the full-flow capacity of its largest known pipe. `python sim/colab/lf_inlets.py` runs the selftest. |
-| `sim/colab/w9_lisflood.py` | Three blocks, marked `LF_INLETS (begin)` / `(end)`, plus one meta line. They reuse the `mfw-drains` infilfile sink and its probe, and force a CPU build. Off by default; the default path is unchanged (w9 `--selftest` passes). |
-| `proto/inlets_table.py`, `.github/workflows/inlets_table.yml` | Compact inlet and conveyance tables from the MassDOT stormwater snapshot on HF, committed to `proto/data/inlets/` (250 kB) so Turing needs no network for them. |
-| `proto/turing/run_inlets.slurm` + `plans/inlets_v1.json` (`inlets_plan.py`) | One array task = one storm × one arm, on the CPU, at a pinned commit. Each task gets its own `LF_WORK`, then runs the scorers (`prototype`, `score.py`, `validate_points`, `closure_ml extract`, `score_v2`). Queue kind `run_inlets`. |
-| `proto/turing/collect_scores.slurm` | Generic. It waits for a plan's tasks, then pushes only small whitelisted json (each ≤ 400 kB) to the plan's `docs/proto/<area>/<dir>` in one commit. Queue kind `collect_scores`; reusable by any plan in the same format. |
-| `proto/inlets_eval.py` | The scorer for this test: `BASE.json` / `CAND.json`, then `score_v2.compare` (PROTOCOL v2 §5a, k = 1). It also runs the DRAINS failure-mode check and reports the sep2023 calibration storm and the clog sensitivity. |
+| `sim/colab/lf_inlets.py` | The sink. Each inlet removes water from its 20 m cell at most at the HEC-22 sag-grate capacity at 0.15 m ponding (0.174 m³/s) × (1 − clog). Clog is 0.50, or 0.65 from 15 Oct to 30 Nov. A pipe network's summed capacity is limited to the full-flow capacity of its largest known pipe. Inlets are MassDOT inventory inlets plus Leominster DPW pipe nodes × 0.587. Selftest included. |
+| `sim/colab/w9_lisflood.py` | Blocks marked `LF_INLETS (begin)` / `(end)`, plus one meta line. They reuse the `mfw-drains` infilfile sink and its probe (volume ratio 1.00 in every run), on the CPU. The default path is unchanged. |
+| `proto/inlets_table.py`, `.github/workflows/inlets_table.yml` | Compact MassDOT inlet and conveyance tables in `proto/data/inlets/` (250 kB, `inventory.json` = counts). |
+| `.github/workflows/inlets_test.yml` | The plan's tasks on Actions CPU at a pinned commit. Each job uploads an artifact, and one collect job makes a single commit to main. |
+| `proto/turing/run_inlets.slurm`, `collect_scores.slurm`, `inlets_plan.py`, `plans/inlets_v1.json` | The Turing path, with queue kinds `run_inlets` and `collect_scores`. `collect_scores` is generic and also used by the NWM AMC test. |
+| `proto/inlets_eval.py` | The pre-registered scorer. |
+
+**Turing.**
+- The `inl1_runs` array ran every w9 (LISFLOOD-FP CPU), but 49 of 50 tasks then failed at the `score_v2` step, and one failed in w9 (see
+  `inlets_v1/manifest.json` and the `w9_tail.txt` files).
+- The Slurm stdout with the `score_v2` error stays on Turing (`~/mass-flood-watch/inlets_*.out`). The same step passes on Actions, so the
+  cause is in the Turing environment, not the scorer.
+- Per amendment A1, the decision runs are the Actions runs in `inlets_v1a/`. `inlets_v1/` holds only the failure markers.
 
 Sources:
 - FHWA HEC-22, *Urban Drainage Design Manual*, 3rd ed. (FHWA-NHI-10-009), §4.4.6.
-- Poirier, Rahman & van Duin 2025, "The Impact of Leaf Litter on the Performance of Catch Basin Inlets" (ASCE EWRI Congress; https://trid.trb.org/View/2553879).
-- Hao, Mu & Shi 2021, *Water* 13(6) 826 (https://www.mdpi.com/2073-4441/13/6/826).
+- [Poirier, Rahman & van Duin 2025](https://trid.trb.org/View/2553879) (leaf litter: 35 % of the clean-inlet conveyance).
+- [Hao, Mu & Shi 2021, *Water* 13(6) 826](https://www.mdpi.com/2073-4441/13/6/826).
 - MassDOT Stormwater Asset Database snapshot 2026-10-29 (`docs/proto/stormwater/SNAPSHOT.md`).
-- City of Leominster DPW Drain_Pipe (`proto/data/drains/`).
-
-## Tested so far
-
-- `lf_inlets` selftest:
-  - the HEC-22 numbers;
-  - type and status mapping;
-  - clog season;
-  - network cap to the largest known pipe;
-  - culverts and abandoned inlets dropped;
-  - water cells blocked;
-  - DPW nodes counted as inlets.
-- The other selftests: `inlets_eval`, `inlets_plan`, `queue_runner`, and w9 `--selftest` (33 checks).
-- LISFLOOD-FP 8.2 CPU built locally from `tools/lisflood_src` with the `mfw-drains` patch: sink probe volume ratio **1.00**.
-- Preview of the sink on the real data (flat-DEM slopes, so the network caps are approximate):
-  - **Leominster sep2023 box:** 14,389 inlets (3,141 MassDOT + 11,248 DPW nodes × 0.587). 847 m³/s after clogging, 495 m³/s after the network limit (865 of 1,312 networks capped), on 9,466 cells. For comparison, the DRAINS pipe sink was 440 m³/s on 13,492 cells.
-  - **Worcester sep2021 box:** 4,727 MassDOT inlets, 413 m³/s, 3,822 cells. There are no municipal pipes, so no network limit applies.
-- Actions smoke test of the w9 path: sep2023 truncated to 6 h, `LF_INLETS=1`, `parity_test.yml` → `docs/proto/drains/inlets_smoke/`. It is not a scored arm; see the result below.
-
-## What is queued (branch `turing-queue`, `jobs.json`)
-
-| id | kind | env | sbatch |
-|---|---|---|---|
-| `inl1_runs` | `run_inlets` | `PLAN=proto/turing/plans/inlets_v1.json`, `PIN=<commit>` | array `0-49%10`, partition long, 08:00:00 |
-| `inl1_collect` | `collect_scores` | same `PLAN`, `WAIT_H=34` | partition long, 1-12:00:00 |
-
-50 runs:
-- sep2023: base, inlets, inlets_clog0, inlets_clog065 (report only);
-- held-out 23: base and inlets for each storm.
-
-Each run is about 15–40 min on 16 CPU cores. Watch progress in `STATUS.md` on `turing-queue`. Results arrive in
-`docs/proto/drains/inlets_v1/<name>/` plus `manifest.json`.
-
-## How to score (when `inlets_v1/manifest.json` is on main)
-
-```bash
-git pull
-python proto/inlets_eval.py            # -> docs/proto/drains/inlets_v1/{BASE,CAND,compare,eval}.json + eval.md (2000 bootstrap replicates)
-```
-
-- Check `manifest.json` first. Every decision storm needs both arms `done`.
-- If some failed (see `FAILED` and `w9_tail.txt`), rerun them **unchanged** under a new queue id. Use a one-off plan holding only the missing
-  tasks, with the same names and the same `PIN`, then queue `collect_scores` again with `WAIT_H=0` or more. Do not change any setting.
-- When all are there, copy the verdict line, the five conditions, the failure-mode check and the sep2023 table from `eval.md` below.
-  Explain any sep2023 loss of more than 2 sites at 3 %.
-
-## Verdict
-
-Pending. Fill in from `inlets_v1/eval.md`.
+- City of Leominster DPW Drain_Pipe.
