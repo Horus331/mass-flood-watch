@@ -56,6 +56,10 @@
       title: 'Fitchburg · Sept 18, 2018',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 85 mm of rain in the box (71 mm on average), up to 24 mm in the wettest hour.'
     },
+    sep2022_webster: {
+      title: 'Webster · Sept 5, 2022',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 148 mm of rain in the box (90 mm on average), up to 86 mm in the wettest hour.'
+    },
     forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
