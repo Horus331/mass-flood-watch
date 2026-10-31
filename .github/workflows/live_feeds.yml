@@ -29,7 +29,7 @@ jobs:
         run: |
           set +e
           pip install -q pysteps opencv-python-headless > pysteps.log 2>&1
-          python -c "import pysteps; print('pysteps', pysteps.__version__)" >> pysteps.log 2>&1
+          python -c "import pysteps; print('pysteps import ok')" >> pysteps.log 2>&1
           S=$?; tail -c 600 pysteps.log > p.tail; mv p.tail pysteps.log; cat pysteps.log; exit $S
       - name: culvert -> COMID map
         if: inputs.map_comids

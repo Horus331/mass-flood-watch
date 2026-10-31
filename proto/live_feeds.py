@@ -288,7 +288,7 @@ def feed_nowcast(now=None, method=None, archive=True, keep=None):
         V, lat, lon = mrms_box(u, NC_LAT, NC_LON); frames.append(np.nan_to_num(V, nan=0.0))
     dlat = abs(lat[1] - lat[0]); dlon = abs(lon[1] - lon[0])
     out = dict(made=iso(now), made_by='proto/live_feeds.py nowcast', experimental=True, issued=iso(t0), frames=[iso(t) for t, _ in pick],
-               skill='UNVERIFIED: no verification against observed rain yet (archived for later scoring). Advection only: storms that form, '
+               skill='EXPERIMENTAL, NOT VERIFIED: a 4-case spot check (docs/proto/live/nowcast_check.json) showed some 0-1 h skill over persistence and little beyond 1 h; issued nowcasts are archived for later scoring. Advection only: storms that form, '
                      'grow or decay in the next 2 h are missed. Treat as a guide to where existing rain is heading, not a forecast.',
                source='NOAA MRMS PrecipRate (2-min, AWS s3://noaa-mrms-pds/CONUS/PrecipRate_00.00/), District 3 + upstream margin')
     if max(f.max() for f in frames) < 0.1:
