@@ -188,6 +188,21 @@
       var k = f % 9, m = [0, 0, 0]; m[Math.floor(k / 3)] = 1;
       return { tex: tex[Math.floor(f / 9)], m: m, d: [1, 5, 25][k % 3] };
     }
+    // continuous depth (meta.depthc): h = 3 m x v^2, linear filtering is fine on depth. Colour follows depth continuously from 1 cm
+    // (faint) so water is seen gathering, not appearing at 5 cm; the trend is the real rate of rise over the last 15 minutes:
+    // rising faster than 2 cm/h reads as filling (saturated), falling faster than 2 cm/h as draining (slate).
+    var texC = [], queueC = [], progC = null, locC = {};
+    var FSC = 'precision highp float;varying vec2 vUv;uniform sampler2D uA;uniform sampler2D uB;uniform sampler2D uR;uniform vec3 uMa;uniform vec3 uMb;uniform vec3 uMr;' +
+      'uniform float uT;uniform float uDtH;uniform vec4 uC[4];uniform vec4 uDrn;' +
+      'float hd(sampler2D s,vec3 m){float v=dot(texture2D(s,vUv).rgb,m);return 3.0*v*v;}' +
+      'vec4 ramp(float h){vec4 c0=vec4(0.776,0.859,0.937,0.0);if(h<0.05)return mix(c0,vec4(uC[0].rgb,uC[0].a*0.75),smoothstep(0.01,0.05,h));' +
+      'if(h<0.15)return mix(vec4(uC[0].rgb,uC[0].a*0.75),uC[0],(h-0.05)/0.10);if(h<0.30)return mix(uC[0],uC[1],(h-0.15)/0.15);' +
+      'if(h<1.0)return mix(uC[1],uC[2],(h-0.30)/0.70);return mix(uC[2],uC[3],clamp((h-1.0)/1.0,0.0,1.0));}' +
+      'void main(){float h=mix(hd(uA,uMa),hd(uB,uMb),uT);if(h<0.01)discard;vec4 c=ramp(h);' +
+      'if(uDtH>0.0){float r=(h-hd(uR,uMr))/uDtH;float fl=smoothstep(0.02,0.10,r);float dr=smoothstep(0.02,0.10,-r);' +
+      'c=vec4(mix(c.rgb,vec3(0.05,0.28,0.85),fl*0.5),min(1.0,c.a+fl*0.1));c=vec4(mix(c.rgb,uDrn.rgb,dr*0.7),c.a*mix(1.0,uDrn.a,dr));}' +
+      'gl_FragColor=vec4(c.rgb*c.a,c.a);}';
+    function slotC(f) { var m = [0, 0, 0]; m[f % 3] = 1; return { tex: texC[Math.floor(f / 3)], m: m }; }
     return {
       layer: {
         id: 'depth', type: 'custom', renderingMode: '2d',
@@ -199,7 +214,27 @@
         },
         render: function (g, matrix) {
           while (queue.length) { var q = queue.shift(); tex[q.i] = texture(gl, q.img, gl.NEAREST); if (q.img.close) q.img.close(); }
+          while (queueC.length) { var qc = queueC.shift(); texC[qc.i] = texture(gl, qc.img, gl.LINEAR); if (qc.img.close) qc.img.close(); }
           var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1);
+          var CA = slotC(fa), CB = slotC(fb), back = Math.round(15 / meta.frame_min), CR = slotC(Math.max(0, fa - back));
+          if (CA.tex && CB.tex && ramp) {   // continuous path
+            if (!progC) { progC = program(gl, VS, FSC); ['aPos', 'aUv'].forEach(function (k) { locC[k] = gl.getAttribLocation(progC, k); });
+              ['uM', 'uA', 'uB', 'uR', 'uMa', 'uMb', 'uMr', 'uT', 'uDtH', 'uC', 'uDrn'].forEach(function (k) { locC[k] = gl.getUniformLocation(progC, k); }); }
+            gl.useProgram(progC); gl.uniformMatrix4fv(locC.uM, false, matrix);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, CA.tex); gl.uniform1i(locC.uA, 0);
+            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, CB.tex); gl.uniform1i(locC.uB, 1);
+            var hasR = !!CR.tex && fa >= back;
+            gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, hasR ? CR.tex : CA.tex); gl.uniform1i(locC.uR, 2);
+            gl.uniform3fv(locC.uMa, CA.m); gl.uniform3fv(locC.uMb, CB.m); gl.uniform3fv(locC.uMr, hasR ? CR.m : CA.m);
+            gl.uniform1f(locC.uT, fb === fa ? 0 : t - fa); gl.uniform1f(locC.uDtH, hasR ? back * meta.frame_min / 60 : 0);
+            gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.enableVertexAttribArray(locC.aPos); gl.vertexAttribPointer(locC.aPos, 2, gl.FLOAT, false, 16, 0);
+            gl.enableVertexAttribArray(locC.aUv); gl.vertexAttribPointer(locC.aUv, 2, gl.FLOAT, false, 16, 8);
+            gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            gl.disableVertexAttribArray(locC.aPos); gl.disableVertexAttribArray(locC.aUv); gl.activeTexture(gl.TEXTURE0);
+            return;
+          }
           var A = slot(fa), B = slot(fb);
           if (!A.tex || !B.tex || !ramp) return;
           gl.useProgram(prog);
@@ -224,6 +259,7 @@
         }
       },
       add: function (i, img) { queue.push({ i: i, img: img }); },
+      addC: function (i, img) { queueC.push({ i: i, img: img }); },
       setRamp: function (cols) { ramp = new Float32Array([].concat.apply([], cols)); },
       setDrain: function (c) { drnCol = new Float32Array(c); },
       // the two depth frames around t, for the flow layer's wet mask (null until both are on the GPU)
@@ -1487,7 +1523,10 @@
     var jobs = WION ? wiLoadJobs() : meta.sheets.map(function (s, i) {
       return getBitmap(base + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
     });
-    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').catch(function () { return null; })]).then(function (a) {
+    if (!WION && meta.depthc) meta.depthc.sheets.forEach(function (s, i) {   // continuous depth: drawn once both frames around t are here
+      getBitmap(base + s).then(function (img) { depth.addC(i, img); if (styleOk) map.triggerRepaint(); }).catch(function () { });
+    });
+    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), Promise.resolve(null)]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));

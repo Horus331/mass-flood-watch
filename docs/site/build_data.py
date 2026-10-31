@@ -475,6 +475,31 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
         name = 'depth_%02d.png' % (s // 9)
         Image.fromarray(rgb, 'RGB').save(os.path.join(od, name), optimize=True)
         sheets.append(name)
+    # continuous depth (with --run-dir): 3 frames per RGB image, v = round(255 * sqrt(h / 3 m)), from 1 cm (v ~ 15), permanent water 0.
+    # Lets the map show water gathering from the first centimetre and the true rate of rise or fall, not 4 classes.
+    depthc = None
+    if run_dir:
+        for old in os.listdir(od):
+            if re.match(r'depthc_\d+\.png$', old):
+                os.remove(os.path.join(od, old))
+        dsheets = []
+        for s0 in range(0, nf, 3):
+            rgb = np.zeros((h, w, 3), np.uint8)
+            for j in range(3):
+                if s0 + j >= nf:
+                    continue
+                hm = D['depth_cm'][keep[s0 + j]].astype(np.float32) / 100.0
+                if wm is not None:
+                    hm = np.where(wm, 0, hm)
+                if f > 1:
+                    hh, ww = (hm.shape[0] // f) * f, (hm.shape[1] // f) * f
+                    hm = hm[:hh, :ww].reshape(hh // f, f, ww // f, f).max(axis=(1, 3))
+                v = np.where(hm >= 0.01, np.round(255 * np.sqrt(np.minimum(hm, 3.0) / 3.0)), 0).astype(np.uint8)
+                rgb[:v.shape[0], :v.shape[1], j] = v
+            name = 'depthc_%03d.png' % (s0 // 3)
+            Image.fromarray(rgb, 'RGB').save(os.path.join(od, name), optimize=True)
+            dsheets.append(name)
+        depthc = {'sheets': dsheets, 'per': 3, 'enc': 'v = 255 * sqrt(depth_m / 3), 1 cm floor, permanent water 0'}
 
     risk = {}
     for rsrc in (src, risk_src):
@@ -550,6 +575,8 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
                  'w': w, 'h': h, 'pixel_m': S['resolution_m'] * f, 'sheets': sheets,
                  'rain_hourly_mean_mm': S.get('rain_hourly_mean_mm', []),
                  'closed_per_frame': cpf})
+    if depthc:
+        meta['depthc'] = depthc
     storm = S['run'].split('_')[0]
     t0 = utc(S['storm_start'])
     R = refs(src, cn, storm, t0, fmin, nf, run_dir)
