@@ -2995,8 +2995,54 @@
     var oc = getJson('site/data/' + (params.get('outlook') === 'sample' ? 'outlook_sample.json' : 'outlook.json')).catch(function () { return null; });
     oc.then(function (o) { liveRender(s, o); });
     getJson('site/data/ground.json').then(groundRender).catch(function () { });
+    nowLoad();
   }
   // ground before the next storm (proto/ground_state.py): 5-day rain wetness (NRCS NEH-4) and the frozen-ground index (CFGI)
+  // Right now: docs/proto/live/LIVE_FEEDS.md (hourly MRMS rain, 0-2 h nowcast, FLASH, NWM at culverts, SNODAS, reports) + USGS gauges
+  function nowLoad() {
+    var B = 'site/data/live/', names = ['status', 'rain', 'nowcast', 'flash', 'nwm', 'snow', 'validation', 'gauges'];
+    Promise.all(names.map(function (n) { return getJson(B + n + '.json').catch(function () { return null; }); })).then(function (r) {
+      var L = {}; names.forEach(function (n, i) { L[n] = r[i]; }); nowRender(L);
+    });
+  }
+  function nowRender(L) {
+    var el = $('nowPanel'); if (!el || !L.status) return;
+    var S = L.status.feeds || {}, rows = [], f1 = function (v) { return v == null ? '–' : (+v).toFixed(v < 10 ? 1 : 0); };
+    var when = function (z) { var d = zt(z); return d ? ago(d) : ''; };
+    var row = function (feed, lab, val, note, alert, link) {
+      var st = feed && S[feed] ? S[feed].state : 'ok', bad = st !== 'ok';
+      rows.push('<tr class="' + (alert ? 'al' : '') + (bad ? ' bad' : '') + '"><th>' + lab + '</th><td>' + (bad ? 'feed ' + esc(st) + (S[feed].last_success ? ', last good ' + esc(when(S[feed].last_success)) : '') : val) +
+        (note ? '<small>' + note + '</small>' : '') + '</td></tr>');
+    };
+    var R = L.rain, P = R && R.products || {};
+    if (R) {
+      var wet = (R.towns || []).filter(function (t) { return t[1] >= 1; }).sort(function (a, b) { return b[1] - a[1]; });
+      row('rain', 'Rain, last hour', '<b>' + f1(R.max_1h) + ' mm</b> wettest spot' + (wet.length ? ' (' + esc(wet[0][0].toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); })) + ')' : '') + ' · ' + f1(R.max_3h) + ' mm in 3 h',
+        'NOAA MRMS radar, ' + esc(when(P.radar_1h && P.radar_1h.valid)), R.level >= 2);
+    }
+    var N = L.nowcast;
+    if (N && N.district) row('nowcast', 'Next 2 hours', N.district.max_0_2h > 0 ? '<b>' + f1(N.district.max_0_2h) + ' mm</b> heaviest spot · rain moving ' + Math.round(N.motion.speed_kmh) + ' km/h' : 'No rain heading into the district',
+      'Experimental radar extrapolation; not yet verified', N.level >= 2);
+    var F = L.flash;
+    if (F) row('flash', 'Flash-flood guidance', F.flagged && F.flagged.length ? '<b>' + F.flagged.length + ' towns</b> at or over guidance: ' + F.flagged.slice(0, 5).map(function (t) { return esc(String(t.town || t).toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); })); }).join(', ') : 'No town over guidance',
+      'NOAA MRMS FLASH, rain vs flash-flood guidance', F.flagged && F.flagged.length);
+    var G = L.gauges;
+    if (G && G.gauges) {
+      var fs = G.gauges.filter(function (g) { return g.nwps && g.nwps.ft_below_flood_stage != null; }).sort(function (a, b) { return a.nwps.ft_below_flood_stage - b.nwps.ft_below_flood_stage; });
+      var over = fs.filter(function (g) { return g.nwps.ft_below_flood_stage <= 0; }), g0 = fs[0];
+      row(null, 'Rivers', over.length ? '<b>' + over.length + ' gauges at or above flood stage</b>' : (g0 ? 'All below flood stage; closest: <a href="' + esc(g0.url) + '" target="_blank" rel="noopener">' + esc(g0.name) + '</a>, ' + g0.nwps.ft_below_flood_stage.toFixed(1) + ' ft below' : G.n + ' gauges reporting'),
+        G.n + ' USGS gauges, ' + fs.length + ' with an NWS flood stage, ' + esc(when(G.generated)), over.length);
+    }
+    var W = L.nwm;
+    if (W) row('nwm', 'Culverts', W.exceed && W.exceed.length ? '<b>' + W.exceed.length + ' may overtop</b>: ' + W.exceed.slice(0, 3).map(function (c) { return esc(c.road); }).join('; ') : 'None forecast over capacity in the next 18 h' + (W.top && W.top[0] ? '; highest ' + Math.round(100 * W.top[0].ratio) + '% (' + esc(W.top[0].road) + ')' : ''),
+      'NOAA National Water Model at ' + (W.n_culverts || 0) + ' mapped culverts; reach flow is an upper bound', W.exceed && W.exceed.length);
+    var Sn = L.snow;
+    if (Sn && Sn.depth_cm) row('snow', 'Snow on the ground', Sn.depth_cm.district_max > 0 ? '<b>' + f1(Sn.depth_cm.district_mean) + ' cm</b> average, ' + f1(Sn.depth_cm.district_max) + ' cm deepest' : 'None', 'NOAA SNODAS, ' + esc(Sn.date || ''));
+    var V = L.validation;
+    if (V) row('validation', 'Flooding reports, 48 h', V.recent_48h && V.recent_48h.length ? '<b>' + V.recent_48h.length + '</b> (MassDOT events, SeeClickFix)' : 'None', 'Not verified; kept to score the forecast');
+    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Observations and short-range products, refreshed hourly. Updated ' + esc(when(L.status.made)) + '. Sources and limits: <a href="https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/live/LIVE_FEEDS.md" target="_blank" rel="noopener">live feeds</a>.</p>';
+    el.hidden = false;
+  }
   function groundRender(g) {
     var el = $('ground'); if (!el || !g || !g.ground || g.ground === 'unknown') return;
     var W = g.wetness || {}, F = g.frost || {}, lab = { dry: 'Dry', normal: 'Normal', wet: 'Wet', frozen: 'Frozen' }[g.ground] || g.ground;
