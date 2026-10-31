@@ -239,13 +239,13 @@ def pieces_build(features, box, res, shape, frame_iter, land=None):
             sx = np.interp(t * dd[-1], dd, px); sy = np.interp(t * dd[-1], dd, py)
             c = np.clip(((sx - box[0]) // res).astype(int), 0, shape[1] - 1); r = np.clip(((box[3] - sy) // res).astype(int), 0, shape[0] - 1)
             segs.append(int(sid)); lines.append([[round(a, 5), round(b, 5)] for a, b in zip(lo, la)]); samp.append((r, c))
-    W = [[] for _ in segs]; N = [[] for _ in segs]
+    W = [[] for _ in segs]; N = [[] for _ in segs]; W30 = [[] for _ in segs]
     for f in frame_iter:
-        m = f >= 1
-        if land is not None: m &= land
+        m = f >= 1; m3 = f >= 3
+        if land is not None: m &= land; m3 &= land
         g = m.copy(); g[1:] |= m[:-1]; g[:-1] |= m[1:]; g2 = g.copy(); g2[:, 1:] |= g[:, :-1]; g2[:, :-1] |= g[:, 1:]
         for i, (r, c) in enumerate(samp):
-            W[i].append(bool(m[r, c].mean() >= 0.5)); N[i].append(bool(g2[r, c].mean() >= 0.5))
+            W[i].append(bool(m[r, c].mean() >= 0.5)); N[i].append(bool(g2[r, c].mean() >= 0.5)); W30[i].append(bool(m3[r, c].mean() >= 0.5))
 
     def ivs(w):
         iv, st = [], None
@@ -258,7 +258,8 @@ def pieces_build(features, box, res, shape, frame_iter, land=None):
     # segment with no drawn water on any of its own pieces (the water sits in the ditch or on the embankment cell beside the road).
     near = [ivs([b and not a for a, b in zip(w, nn)]) for w, nn in zip(W, N)]
     return dict(about='road segments split into ~%d m pieces; w = frame intervals when the map draws water (>= 5 cm) on the piece '
-                      '(docs/site/build_data.py pieces_build)' % PIECE_M, seg=segs, lines=lines, w=wet, n=near)
+                      '(docs/site/build_data.py pieces_build); w30 = frame intervals with 30 cm or more on the piece (impassable)' % PIECE_M,
+                seg=segs, lines=lines, w=wet, n=near, w30=[ivs(w) for w in W30])
 
 
 def sheet_frames(od, meta):

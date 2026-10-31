@@ -100,13 +100,13 @@
   // blindness: water and road status sit on the blue-yellow axis, and closed roads add stripes, not just hue.
   var PAL = {
     light: { d: ['rgba(158,202,225,.78)', 'rgba(107,174,214,.82)', 'rgba(33,113,181,.86)', 'rgba(8,48,107,.9)'], // ColorBrewer Blues, single hue: lighter = shallower
-      grey: '#8a959e', amber: '#E69F00', orange: '#E8590C', closed: '#B3261E', cas: '#FFFFFF', casDark: '#1F2328', peak: '#7A0019', peakOp: 0.45, may: '#D55E00', halo: '#7A0019',
+      grey: '#8a959e', amber: '#F2C14E', orange: '#F0A202', closed: '#E8590C', cas: '#FFFFFF', casDark: '#1F2328', peak: '#7A0019', peakOp: 0.45, may: '#D55E00', halo: '#7A0019',
       net: ['#7C7C77', '#878782', '#9A9A95', '#A4A49F'], fill: '#ffffff', netOp: 1, box: '#5F6368' }, // streets readable from z11
     satellite: { d: ['rgba(198,219,239,.82)', 'rgba(107,174,214,.86)', 'rgba(33,113,181,.9)', 'rgba(8,48,107,.92)'],
-      grey: '#c9d1d6', amber: '#F5B400', orange: '#FF8A3D', closed: '#FF5C6C', cas: 'rgba(20,20,20,.85)', casDark: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
+      grey: '#c9d1d6', amber: '#FFE08A', orange: '#F5B400', closed: '#FF8A3D', cas: 'rgba(20,20,20,.85)', casDark: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
       net: ['rgba(255,255,255,.9)', 'rgba(255,255,255,.75)', 'rgba(255,255,255,.55)', 'rgba(255,255,255,.45)'], fill: 'rgba(30,30,30,.35)', netOp: 0.85, box: '#ffffff' },
     dark: { d: ['rgba(212,236,244,.85)', 'rgba(151,203,228,.85)', 'rgba(100,166,214,.85)', 'rgba(69,128,194,.85)'],
-      grey: '#8796a3', amber: '#F5B400', orange: '#FF8A3D', closed: '#FF5C6C', cas: '#1E2124', casDark: '#1E2124', peak: '#FF5C6C', peakOp: 0.55, may: '#FF8A3D', halo: '#FF5C6C',
+      grey: '#8796a3', amber: '#FFE08A', orange: '#F5B400', closed: '#FF8A3D', cas: '#1E2124', casDark: '#1E2124', peak: '#FF5C6C', peakOp: 0.55, may: '#FF8A3D', halo: '#FF5C6C',
       net: ['#7d848c', '#646a72', '#50565d', '#474c53'], fill: '#2f3439', netOp: 1, box: '#9AA0A6' }
   };
   var BMKEY = WHATIF ? 'mfw-basemap-wi' : 'mfw-basemap', bm = store(BMKEY);
@@ -116,6 +116,7 @@
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
   var flowRGB = { hi: [0.216, 0.278, 0.31], dk: 0.2 }; // flow lines: blue-grey #37474F on light maps, pale on dark and satellite
+  var IMP = null; // pieces.json: ~40 m pieces with the frames when 30 cm or more covers the piece (impassable stretch)
   var NETP = {}; // segment id -> { a: AADT veh/day, l: length m, c: class } from network.json
   var segs = [], segById = {}, ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null, cascade = null;
   var nWet = 0, nClosedNow = 0, sparkRange = [0, 1], rtip = null, rtipId = null, rtipLL = null;
@@ -1471,7 +1472,7 @@
     if (!WION && meta.depthc) meta.depthc.sheets.forEach(function (s, i) {   // continuous depth: drawn once both frames around t are here
       getBitmap(base + s).then(function (img) { depth.addC(i, img); if (styleOk) map.triggerRepaint(); }).catch(function () { });
     });
-    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), Promise.resolve(null)]).then(function (a) {
+    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) IMP = p; return null; }).catch(function () { return null; })]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));
@@ -1576,6 +1577,11 @@
       paint: { 'line-width': byD([3.2, 4.2, 5], [6.4, 8.6, 9.6]), 'line-opacity': ZOP } });
     map.addLayer({ id: 'wet', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': byD([1.8, 2.6, 3.2], [4, 6, 7]), 'line-opacity': ZOP } });
+    // impassable stretches: red only where 30 cm or more of modelled water covers the road itself (40 m pieces), on top of the
+    // orange closed segment, so one deep spot does not paint a whole kilometre red
+    map.addSource('imp', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 });
+    map.addLayer({ id: 'imp-case', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(4.4, 11), 'line-color': '#FFFFFF', 'line-opacity': 0.9 } });
+    map.addLayer({ id: 'imp', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(3, 8), 'line-color': '#C62828' } });
     // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
     map.addLayer({ id: 'bar', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': 0 } });   // barricade stripes retired: solid colour reads cleaner
@@ -2436,6 +2442,16 @@
     map.getSource('runs').setData({ type: 'FeatureCollection', features: feats });
     map.getSource('rlab').setData({ type: 'FeatureCollection', features: kept });
   }
+  var impSig = '';
+  function impUpdate() {
+    if (!IMP || !map || !map.getSource('imp')) return;
+    var on = [], sig = '';
+    for (var i = 0; i < IMP.seg.length; i++) if (IMP.w30[i].length && inIv(IMP.w30[i])) { on.push(i); sig += i + ','; }
+    if (sig === impSig) return; impSig = sig;
+    var by = {}; on.forEach(function (i) { (by[IMP.seg[i]] = by[IMP.seg[i]] || []).push(IMP.lines[i]); });
+    var feats = Object.keys(by).map(function (sid) { return { type: 'Feature', properties: { s: +sid }, geometry: { type: 'MultiLineString', coordinates: by[sid] } }; });
+    map.getSource('imp').setData({ type: 'FeatureCollection', features: feats });
+  }
   var segLabSig = '';
   function segLabels() { // street-name labels on whole segments: one per street name within ~800 m, the most severe kept
     if (!map || !map.getSource('rlab')) return;
@@ -2546,7 +2562,7 @@
       if (q < 3 && s.e) for (var k = 0; k < s.e.length; k++) if (t >= s.e[k][0] - 0.5 && t <= s.e[k][1] + 0.5) { eg = 1; break; }
       if (q !== s.v || eg !== s.eg) { s.v = q; s.eg = eg; if (!PCS) map.setFeatureState({ source: 'roads', id: s.id }, { d: q, e: eg }); else s.v2 = 1; }
     }
-    if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else { statusLine(closed, risk, wet - risk); segLabels(); }
+    if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else { statusLine(closed, risk, wet - risk); segLabels(); impUpdate(); }
     var mins = Math.round(t * meta.frame_min / 5) * 5, label = fmtClock.format(new Date(t0.getTime() + mins * 60000));
     if (label !== lastClock) {
       lastClock = label;
