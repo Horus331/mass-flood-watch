@@ -97,8 +97,9 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 
 <section class="legend" id="legend" aria-label="Map key and layers">
   <div class="key" id="key" aria-label="Map key">
-    <div class="k" id="rainKey" hidden><span class="kl">Rain</span><span class="kr"><i class="kramp" id="rainRamp"></i><span class="kt"><span>1</span><span>10</span><span>50+ mm/h</span></span></span></div>
-    <div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp depth"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></i><span class="kt"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span></span></div>
+    <div class="k" id="rainKey" hidden><span class="kl">Rain</span><span class="kr"><i class="kramp" id="rainRamp"></i><span class="kt kt5"><span>0.5</span><span>2.5</span><span>10</span><span>25</span><span>50 mm/h</span></span><span class="ksub">light · moderate · heavy · very heavy · violent (radar, NOAA MRMS)</span></span></div>
+    <div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp depth"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></i><span class="kt kt4"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span><span class="ksub">15 cm reaches a car floor · 30 cm floats a small car · 1 m+ deep (modelled)</span></span></div>
+    <div class="k" id="covKey" hidden><span class="kl">Coverage</span><span class="kr kroads"><span><i class="kw cov-d3"></i>forecast area (District 3)</span><span><i class="kw cov-t"></i>tested on past storms only</span><span><i class="kw cov-o"></i>not modelled</span></span></div>
     <div class="k kdrn" id="drnKey"><span class="kl">Receding</span><span class="kr kroads"><span><i class="kw drn"></i>water going down</span></span></div>
     <div class="k"><span class="kl">Roads</span><span class="kr kroads"><span><i class="kw wet"></i>water on road, under 15 cm</span><span><i class="kw risk"></i>15–30 cm</span><span><i class="kw shut"></i>closed, 30 cm+</span><span><i class="kw edge"></i>water at the edge</span></span></div>
   </div>
@@ -114,7 +115,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
       <h2>Storm and flood</h2>
       <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain"><span>Radar rain <small>NOAA MRMS</small></span></label>
       <label class="row"><input type="checkbox" id="lyDepth" checked><span>Water depth</span></label>
-      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow"><span>Moving water <small>particles follow the modelled current; zoom in to street level</small></span></label>
+      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow"><span>Moving water <small>direction and speed of the modelled current; zoom in to street level</small></span></label>
       <div id="flowKey" hidden></div>
       <p class="soon" id="flowSoon" hidden>Moving-water animation comes with the 5-minute GPU runs.</p>
     </div>

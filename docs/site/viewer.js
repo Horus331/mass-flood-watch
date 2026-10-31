@@ -99,10 +99,10 @@
   // street zoom, and how strongly it shows. Blue water / amber-red roads stay distinguishable with red-green colour
   // blindness: water and road status sit on the blue-yellow axis, and closed roads add stripes, not just hue.
   var PAL = {
-    light: { d: ['rgba(181,226,238,.85)', 'rgba(109,185,221,.85)', 'rgba(53,134,196,.85)', 'rgba(26,85,160,.85)'], // tested depth ramp, 85 %
+    light: { d: ['rgba(158,202,225,.78)', 'rgba(107,174,214,.82)', 'rgba(33,113,181,.86)', 'rgba(8,48,107,.9)'], // ColorBrewer Blues, single hue: lighter = shallower
       grey: '#8a959e', amber: '#E69F00', orange: '#D55E00', closed: '#7A0019', cas: '#FFFFFF', casDark: '#1F2328', peak: '#7A0019', peakOp: 0.45, may: '#D55E00', halo: '#7A0019',
       net: ['#7C7C77', '#878782', '#9A9A95', '#A4A49F'], fill: '#ffffff', netOp: 1, box: '#5F6368' }, // streets readable from z11
-    satellite: { d: ['rgba(181,226,238,.8)', 'rgba(109,185,221,.85)', 'rgba(53,134,196,.88)', 'rgba(26,85,160,.9)'],
+    satellite: { d: ['rgba(198,219,239,.82)', 'rgba(107,174,214,.86)', 'rgba(33,113,181,.9)', 'rgba(8,48,107,.92)'],
       grey: '#c9d1d6', amber: '#F5B400', orange: '#FF8A3D', closed: '#FF5C6C', cas: 'rgba(20,20,20,.85)', casDark: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
       net: ['rgba(255,255,255,.9)', 'rgba(255,255,255,.75)', 'rgba(255,255,255,.55)', 'rgba(255,255,255,.45)'], fill: 'rgba(30,30,30,.35)', netOp: 0.85, box: '#ffffff' },
     dark: { d: ['rgba(212,236,244,.85)', 'rgba(151,203,228,.85)', 'rgba(100,166,214,.85)', 'rgba(69,128,194,.85)'],
@@ -115,7 +115,7 @@
 
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
-  var flowRGB = { hi: [1, 1, 1], dk: 0.2 }; // flow layer: glint colour and trough shading, per basemap
+  var flowRGB = { hi: [0.216, 0.278, 0.31], dk: 0.2 }; // flow lines: blue-grey #37474F on light maps, pale on dark and satellite
   var segs = [], segById = {}, ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null, cascade = null;
   var nWet = 0, nClosedNow = 0, sparkRange = [0, 1], rtip = null, rtipId = null, rtipLL = null;
   var fmtClock = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
@@ -232,22 +232,18 @@
   })();
 
   // ---------- rain layer (radar loop) ----------
-  // mm/h stops: colour and opacity, classic radar greens -> yellow -> red -> magenta, kept clear of the blue depth ramp
-  // one violet family, light and translucent: reads as a storm shadow sweeping over the map, never as water (blue)
-  // or as road status (amber, red), and heavy cells darken and saturate instead of switching hue
-  var RAIN_STOPS = [[0.4, [150, 140, 200, 0]], [1, [150, 140, 200, 0.06]], [3, [136, 122, 204, 0.11]], [8, [122, 102, 204, 0.16]], [15, [112, 84, 200, 0.22]],
-    [30, [110, 66, 192, 0.28]], [50, [112, 50, 180, 0.34]], [80, [100, 34, 160, 0.39]], [150, [80, 20, 130, 0.45]]];
-  var rainOp = 1; // story fades the radar back once the rain has done its work
+  // Radar rain rate, MRMS. Stepped classes at standard rain-intensity breaks (light < 2.5 mm/h, moderate 2.5-10, heavy 10-25,
+  // very heavy 25-50, violent 50+; AMS / MANOBS / ICAO), single-hue ColorBrewer Purples: a lightness ramp that is colour-blind safe and
+  // stays clear of the blue water and the amber-red roads. The 1 km field is interpolated in space and between radar frames, then classed,
+  // so class edges are smooth contours rather than 1 km blocks. Below 0.5 mm/h nothing is drawn.
+  var RAIN_CLASSES = [[0.5, [188, 189, 220], 'light'], [2.5, [158, 154, 200], 'moderate'], [10, [128, 125, 186], 'heavy'],
+    [25, [106, 81, 163], 'very heavy'], [50, [63, 0, 125], 'violent']];
+  var RAIN_ALPHA = 0.5;
   function rainColor(mm) {
-    if (mm <= RAIN_STOPS[0][0]) return [0, 0, 0, 0];
-    for (var i = 1; i < RAIN_STOPS.length; i++) {
-      if (mm <= RAIN_STOPS[i][0]) {
-        var a = RAIN_STOPS[i - 1], b = RAIN_STOPS[i], k = (Math.log(mm) - Math.log(a[0])) / (Math.log(b[0]) - Math.log(a[0]));
-        return a[1].map(function (v, j) { return v + (b[1][j] - v) * k; });
-      }
-    }
-    return RAIN_STOPS[RAIN_STOPS.length - 1][1];
+    var c = null; for (var i = 0; i < RAIN_CLASSES.length; i++) if (mm >= RAIN_CLASSES[i][0]) c = RAIN_CLASSES[i];
+    return c ? c[1].concat([RAIN_ALPHA]) : [0, 0, 0, 0];
   }
+  var rainOp = 1; // story fades the radar back once the rain has done its work
   var rainLayer = (function () {
     var gl, prog, buf, loc = {}, tex = null, lut = null, pending = null, K = 1;
     var VS = 'attribute vec2 aPos;uniform mat4 uM;varying vec2 vM;void main(){vM=aPos;gl_Position=uM*vec4(aPos,0.0,1.0);}';
@@ -304,145 +300,226 @@
     };
   })();
 
-  // ---------- flow layer: particles advected along the modelled velocity field (wind-map style) ----------
-  // flow.png holds the water velocity of each 100 m block per frame (east / north speed, wet share), from the modelled water surface.
-  // Particles live only where water moves (wet share >= 0.5, speed >= 0.2 m/s), are seeded in proportion to speed, drift along the
-  // field (interpolated in space and between frames), and leave short fading trails: faster water draws longer, brighter streaks.
-  // Paused, the trails stay where they are as still streamlines; scrubbing recomputes them. Off by default (Layers), street zoom only
-  // (14.5 and closer), paused while the map moves or the page is hidden.
-  var mapMoving = false; // particles pause while the map pans or zooms
+  // ---------- flow layer: the modelled current as evenly spaced streamlines ----------
+  // flow.json + flow sheet(s): the water velocity of each block (60 m from the solver's own .Vx/.Vy, or 100 m from the water-surface slope
+  // on older runs) per frame: east / north speed and the wet share of the block.
+  // Drawing (Jobard & Lefer 1997 evenly spaced streamlines; Laidlaw et al. 2005 found streamlines read direction better than arrows or LIC):
+  //   street zoom (15+): thin blue-grey streamlines about 24 px apart, traced through the field in both directions from seeds, only on water
+  //     the map shows (5 cm+), where the current is at least 0.1 m/s. Opacity steps with speed (0.25 / 0.5 / 1 / 2 m/s, EA speed bands).
+  //     A short dash slides along each line at 30 px per second per m/s: direction and relative speed, not to time scale.
+  //   closer than town zoom (13.4-15): a static arrow at block centres, length proportional to speed (capped at 2 m/s), so the
+  //     coarseness of the field is visible.
+  // Recomputed when the view settles or the field moves on by half a frame; nothing moves with prefers-reduced-motion.
+  var mapMoving = false;
   var flowLayer = (function () {
-    var gl, prog, buf, loc = {}, F = null, A = null, Wd = 0, Ht = 0, C = null, N = 0, K = 10, P, H, age, life, spd, verts, lastT = -1, lastNow = 0, warm = false;
-    var VS = 'attribute vec2 aPos;attribute float aA;uniform mat4 uM;varying float vA;void main(){vA=aA;gl_Position=uM*vec4(aPos,0.0,1.0);}';
-    var FS = 'precision mediump float;varying float vA;uniform vec3 uC;void main(){gl_FragColor=vec4(uC*vA,vA);}';
-    function rnd() { return Math.random(); }
-    function tex(fi, x, y, o) { // one atlas texel of flow frame fi at block (x, y)
-      var cx = fi % F.cols, cy = Math.floor(fi / F.cols); x = Math.max(0, Math.min(F.w - 1, x)); y = Math.max(0, Math.min(F.h - 1, y));
-      var i = ((cy * F.h + y) * Wd + cx * F.w + x) * 4, w = A[i + 2] / 255;
-      o[0] += (A[i] - 128) / 127 * F.vmax_ms * w * o[3]; o[1] += (A[i + 1] - 128) / 127 * F.vmax_ms * w * o[3]; o[2] += w * o[3];
+    var gl, prog, buf, loc = {}, F = null, DIR = '', SH = {}, SHL = {}, n_ = 0, verts = null, nv = 0, built = null, t0 = performance.now(), mode = 0;
+    var VS = 'attribute vec2 aPos;attribute vec2 aD;uniform mat4 uM;varying vec2 vD;void main(){vD=aD;gl_Position=uM*vec4(aPos,0.0,1.0);}';
+    // aD = (alpha, tau). tau < 0: no dash (arrows). Dash: 25 % of a 1.6 s period, smooth edges; the line itself at 45 % of the dash.
+    var FS = 'precision mediump float;varying vec2 vD;uniform vec3 uC;uniform float uT;uniform float uF;void main(){float a=vD.x*uF;' +
+      'if(vD.y>=0.0){float d=fract((vD.y-uT)/1.6);float k=smoothstep(0.0,0.05,d)*(1.0-smoothstep(0.2,0.3,d));a*=0.55+0.45*k;}' +
+      'gl_FragColor=vec4(uC*a,a);}';
+    var SPEED_A = [[0.1, 0.35], [0.25, 0.5], [0.5, 0.65], [1, 0.8], [2, 0.95]];
+    function alphaFor(v) { var a = 0; for (var i = 0; i < SPEED_A.length; i++) if (v >= SPEED_A[i][0]) a = SPEED_A[i][1]; return a; }
+    function sheetOf(f) { var per = F.per_sheet || F.n; return Math.floor(f / per); }
+    function need(si) {
+      if (SH[si] || SHL[si] || !F.sheets || si >= F.sheets.length) return;
+      SHL[si] = 1;
+      getBitmap(DIR + F.sheets[si]).then(function (img) { SH[si] = pix(img); delete SHL[si]; built = null; if (map) map.triggerRepaint(); })
+        .catch(function () { delete SHL[si]; });
     }
-    var tmp = [0, 0, 0, 0];
-    function vel(fi, u, v, out) { // bilinear, weighted by wet share: [east m/s, north m/s, wet share]
+    function pix(img) {
+      var cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+      var cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0); if (img.close) img.close();
+      return { d: cx.getImageData(0, 0, cv.width, cv.height).data, w: cv.width };
+    }
+    function texel(f, x, y, o, wt) { // one block of frame f, decoded to m/s, added into o with weight wt x wet share
+      var S = SH[sheetOf(f)]; if (!S) return;
+      var li = f % (F.per_sheet || F.n), cx = li % F.cols, cy = Math.floor(li / F.cols);
+      x = Math.max(0, Math.min(F.w - 1, x)); y = Math.max(0, Math.min(F.h - 1, y));
+      var i = ((cy * F.h + y) * S.w + cx * F.w + x) * 4, w = S.d[i + 2] / 255 * wt;
+      var ex = (S.d[i] - 128) / 127, ny = (S.d[i + 1] - 128) / 127, ue, vn;
+      if (F.enc === 'sqrt') { var m = Math.hypot(ex, ny), sp = m * m * F.vmax_ms; ue = m > 0 ? ex / m * sp : 0; vn = m > 0 ? ny / m * sp : 0; }
+      else { ue = ex * F.vmax_ms; vn = ny * F.vmax_ms; }
+      o[0] += ue * w; o[1] += vn * w; o[2] += w;
+    }
+    var acc = [0, 0, 0];
+    function vel(f, u, v, out) { // bilinear in space, weighted by wet share -> [east m/s, north m/s, wet share]
       var px = u * F.w - 0.5, py = v * F.h - 0.5, x = Math.floor(px), y = Math.floor(py), fx = px - x, fy = py - y;
-      tmp[0] = tmp[1] = tmp[2] = 0;
-      tmp[3] = (1 - fx) * (1 - fy); tex(fi, x, y, tmp); tmp[3] = fx * (1 - fy); tex(fi, x + 1, y, tmp);
-      tmp[3] = (1 - fx) * fy; tex(fi, x, y + 1, tmp); tmp[3] = fx * fy; tex(fi, x + 1, y + 1, tmp);
-      var w = Math.max(tmp[2], 1e-3); out[0] = tmp[0] / w; out[1] = tmp[1] / w; out[2] = tmp[2];
+      acc[0] = acc[1] = acc[2] = 0;
+      texel(f, x, y, acc, (1 - fx) * (1 - fy)); texel(f, x + 1, y, acc, fx * (1 - fy)); texel(f, x, y + 1, acc, (1 - fx) * fy); texel(f, x + 1, y + 1, acc, fx * fy);
+      var w = Math.max(acc[2], 1e-3); out[0] = acc[0] / w; out[1] = acc[1] / w; out[2] = acc[2];
     }
-    var va = [0, 0, 0], vb = [0, 0, 0];
-    function field(u, v, out) {
-      var fi = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min)), f0 = Math.floor(fi), f1 = Math.min(f0 + 1, F.n - 1), k = fi - f0;
-      vel(f0, u, v, va); vel(f1, u, v, vb);
+    var va = [0, 0, 0], vb = [0, 0, 0], FI = 0;
+    function field(u, v, out) { // linear in time between the two flow frames around the replay time
+      var f0 = Math.floor(FI), f1 = Math.min(f0 + 1, F.n - 1), k = FI - f0;
+      vel(f0, u, v, va); if (!SH[sheetOf(f1)]) { out[0] = va[0]; out[1] = va[1]; out[2] = va[2]; return; }
+      vel(f1, u, v, vb);
       out[0] = va[0] + (vb[0] - va[0]) * k; out[1] = va[1] + (vb[1] - va[1]) * k; out[2] = va[2] + (vb[2] - va[2]) * k;
     }
-    // drawn-water mask: the depth sheet of the current frame, read back on the CPU, so particles move only on water the map shows
+    // drawn-water mask: the depth sheet of the current frame, so lines run only on water the map shows (5 cm and more)
     var SD = null, sdIdx = -1, sdLoading = -1;
     function maskSheet() {
       var k = Math.max(0, Math.min(nf - 1, Math.round(t))), si = Math.floor(k / 9);
       if (si === sdIdx || si === sdLoading || !meta.sheets) return;
       sdLoading = si;
       var url = (WION && wi ? WI + wi.key + '/' : base) + meta.sheets[si];
-      getBitmap(url).then(function (img) {
-        var cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
-        var cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0); if (img.close) img.close();
-        SD = { d: cx.getImageData(0, 0, cv.width, cv.height).data, w: cv.width, h: cv.height }; sdIdx = si; sdLoading = -1; warm = false; map.triggerRepaint();
-      }).catch(function () { sdLoading = -1; });
+      getBitmap(url).then(function (img) { var P = pix(img); SD = { d: P.d, w: P.w, h: img.height || (P.d.length / 4 / P.w) }; sdIdx = si; sdLoading = -1; built = null; map.triggerRepaint(); })
+        .catch(function () { sdLoading = -1; });
     }
+    var CH = null; // mapped streams, rivers and ponds of the box (terrain.png G): the current runs there too, though the depth layer shows the rise
+    function chan(u, v) { if (!CH) return false; var x = Math.min(CH.w - 1, Math.max(0, Math.floor(u * CH.w))), y = Math.min(CH.h - 1, Math.max(0, Math.floor(v * CH.h))); return CH.d[(y * CH.w + x) * 4 + 1] > 128; }
     function drawn(u, v) {
+      if (chan(u, v)) return true;
       if (!SD) return false;
-      var k = Math.max(0, Math.min(nf - 1, Math.round(t))); if (Math.floor(k / 9) !== sdIdx) return true;   // next sheet still loading
-      var j = k % 9, x = Math.min(SD.w - 1, Math.floor(u * SD.w)), y = Math.min(SD.h - 1, Math.floor(v * SD.h));
+      var k = Math.max(0, Math.min(nf - 1, Math.round(t))); if (Math.floor(k / 9) !== sdIdx) return true;
+      var j = k % 9, x = Math.min(SD.w - 1, Math.max(0, Math.floor(u * SD.w))), y = Math.min(SD.h - 1, Math.max(0, Math.floor(v * SD.h)));
       return Math.floor(SD.d[(y * SD.w + x) * 4 + Math.floor(j / 3)] / [1, 5, 25][j % 3]) % 5 >= 1;
     }
-    var fv = [0, 0, 0];
-    function spawn(i) {
-      for (var tries = 0; tries < 14; tries++) {
-        var u = rnd(), v = rnd(); field(u, v, fv);
-        var s = Math.hypot(fv[0], fv[1]);
-        if (fv[2] >= 0.3 && s >= 0.2 && rnd() < Math.min(1, s / 0.9) && drawn(u, v)) {
-          P[i * 2] = u; P[i * 2 + 1] = v; for (var j = 0; j < K; j++) { H[(i * K + j) * 2] = u; H[(i * K + j) * 2 + 1] = v; }
-          age[i] = 0; life[i] = 40 + rnd() * 80; spd[i] = s; return;
+    // screen <-> box uv: the box is a near-parallelogram on screen (20 km of Web Mercator), so an affine map from three corners is exact to
+    // well under a pixel; east and north on screen come from the same corners, so a rotated map stays right
+    var Ax = null;
+    function frame() {
+      var P = F.corners.map(function (c) { return map.project(c); });
+      var ux = P[1].x - P[0].x, uy = P[1].y - P[0].y, vx = P[3].x - P[0].x, vy = P[3].y - P[0].y, det = ux * vy - uy * vx;
+      var lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+      Ax = { ox: P[0].x, oy: P[0].y, ux: ux, uy: uy, vx: vx, vy: vy, det: det, ex: [ux / lu, uy / lu], nx: [-vx / lv, -vy / lv],
+             mpp: F.w * F.cell_m / lu };   // metres per screen px
+    }
+    function toUV(x, y, o) { var dx = x - Ax.ox, dy = y - Ax.oy; o[0] = (dx * Ax.vy - dy * Ax.vx) / Ax.det; o[1] = (Ax.ux * dy - Ax.uy * dx) / Ax.det; }
+    var uv = [0, 0], fv = [0, 0, 0];
+    function sv(x, y, out) { // screen velocity (px direction, unit) and speed m/s at screen point; false where no moving drawn water
+      toUV(x, y, uv); if (uv[0] < 0 || uv[0] > 1 || uv[1] < 0 || uv[1] > 1) return false;
+      field(uv[0], uv[1], fv); var s = Math.hypot(fv[0], fv[1]);
+      if (fv[2] < 0.3 || s < 0.1 || !drawn(uv[0], uv[1])) return false;
+      var dx = fv[0] * Ax.ex[0] + fv[1] * Ax.nx[0], dy = fv[0] * Ax.ex[1] + fv[1] * Ax.nx[1], L = Math.hypot(dx, dy) || 1;
+      out[0] = dx / L; out[1] = dy / L; out[2] = s; return true;
+    }
+    function streamlines(W, H) {
+      var dsep = small() ? 28 : 24, dtest = dsep * 0.5, cs = dtest, gw = Math.ceil(W / cs) + 1, gh = Math.ceil(H / cs) + 1;
+      var occ = new Int32Array(gw * gh).fill(-1), lines = [], step = 2.5, maxPts = 260, o = [0, 0, 0], o2 = [0, 0, 0];
+      function free(x, y, id, r) {
+        var gx = Math.floor(x / cs), gy = Math.floor(y / cs);
+        for (var j = gy - r; j <= gy + r; j++) for (var i = gx - r; i <= gx + r; i++) {
+          if (i < 0 || j < 0 || i >= gw || j >= gh) continue; var q = occ[j * gw + i]; if (q >= 0 && q !== id) return false;
         }
+        return true;
       }
-      age[i] = -1; spd[i] = 0;   // nothing found this time: idle
-    }
-    function step(scale) { // move every particle; scale = box-uv per (m/s) for this step
-      for (var i = 0; i < N; i++) {
-        if (age[i] < 0 || age[i] > life[i]) { spawn(i); if (age[i] < 0) continue; }
-        var u = P[i * 2], v = P[i * 2 + 1]; field(u, v, fv);
-        var s = Math.hypot(fv[0], fv[1]);
-        if (fv[2] < 0.3 || s < 0.15) { age[i] = life[i] + 1; continue; }
-        u += fv[0] * scale; v -= fv[1] * scale;
-        if (u < 0 || u > 1 || v < 0 || v > 1 || !drawn(u, v)) { age[i] = life[i] + 1; continue; }
-        for (var j = K - 1; j > 0; j--) { H[(i * K + j) * 2] = H[(i * K + j - 1) * 2]; H[(i * K + j) * 2 + 1] = H[(i * K + j - 1) * 2 + 1]; }
-        H[i * K * 2] = u; H[i * K * 2 + 1] = v; P[i * 2] = u; P[i * 2 + 1] = v; spd[i] = s; age[i]++;
+      function trace(x, y, dir, id) { // RK2 (midpoint) in screen px
+        var pts = [];
+        for (var k = 0; k < maxPts; k++) {
+          if (!sv(x, y, o)) break;
+          var mx = x + dir * o[0] * step * 0.5, my = y + dir * o[1] * step * 0.5;
+          if (!sv(mx, my, o2)) break;
+          var nx = x + dir * o2[0] * step, ny = y + dir * o2[1] * step;
+          if (nx < -20 || ny < -20 || nx > W + 20 || ny > H + 20 || !free(nx, ny, id, 0)) break;
+          // stop at a sharp turn (a stagnation point or a flip between frames)
+          if (k > 0 && o[0] * o2[0] + o[1] * o2[1] < 0.5) break;
+          pts.push([nx, ny, o2[2]]); x = nx; y = ny;
+        }
+        return pts;
       }
+      for (var sy = dsep * 0.5; sy < H; sy += dsep) for (var sx = dsep * 0.5 + ((sy / dsep) % 2) * dsep * 0.5; sx < W; sx += dsep) {
+        if (!free(sx, sy, -2, 1) || !sv(sx, sy, o)) continue;
+        var id = lines.length, s0 = o[2];
+        var fw = trace(sx, sy, 1, id), bw = trace(sx, sy, -1, id);
+        var pts = bw.reverse().concat([[sx, sy, s0]], fw);
+        if (pts.length < 6) continue;
+        pts.forEach(function (p) { var gx = Math.floor(p[0] / cs), gy = Math.floor(p[1] / cs); if (gx >= 0 && gy >= 0 && gx < gw && gy < gh) occ[gy * gw + gx] = id; });
+        lines.push(pts);
+      }
+      return lines;
     }
-    function uvScale() { // uv per (m/s) per step: ~22 px per second per m/s on screen at 60 steps a second
-      var lat = map.getCenter().lat, mpp = 40075016.7 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, map.getZoom()));
-      return 55 * mpp / 60 / (F.w * F.cell_m);
+    function arrows(W, H) { // one arrow per block centre (thinned to >= 30 px apart): [x0, y0, x1, y1, speed]
+      var out = [], bpx = F.cell_m / Ax.mpp, k = Math.max(1, Math.ceil(30 / bpx)), o = [0, 0, 0], P = [0, 0];
+      for (var by = Math.floor(k / 2); by < F.h; by += k) for (var bx = Math.floor(k / 2); bx < F.w; bx += k) {
+        var u = (bx + 0.5) / F.w, v = (by + 0.5) / F.h, x = Ax.ox + u * Ax.ux + v * Ax.vx, y = Ax.oy + u * Ax.uy + v * Ax.vy;
+        if (x < -10 || y < -10 || x > W + 10 || y > H + 10 || !sv(x, y, o)) continue;
+        var L = Math.max(7, Math.min(o[2], 2) / 2 * Math.min(26, bpx * k * 0.85));
+        out.push([x - o[0] * L / 2, y - o[1] * L / 2, x + o[0] * L / 2, y + o[1] * L / 2, o[2]]);
+      }
+      return out;
     }
-    function warmUp() { var sc = uvScale(); for (var k = 0; k < K + 2; k++) step(sc * 2.2); warm = true; }
-    function mercUV(u, v, o, j) { // bilinear between the four corners of the box (TL, TR, BR, BL)
-      var x = (C[0].x * (1 - u) + C[1].x * u) * (1 - v) + (C[3].x * (1 - u) + C[2].x * u) * v;
-      var y = (C[0].y * (1 - u) + C[1].y * u) * (1 - v) + (C[3].y * (1 - u) + C[2].y * u) * v;
-      o[j] = x; o[j + 1] = y;
+    function build() {
+      var cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, z = map.getZoom();
+      frame(); mode = z >= 15 ? 1 : 2;
+      var segs = [], hw = 0.65; // half width in css px (1.3 px line)
+      if (mode === 1) {
+        streamlines(W, H).forEach(function (L) {
+          var tau = 0, n = L.length;
+          for (var i = 0; i < n - 1; i++) {
+            var a = L[i], b = L[i + 1], ds = Math.hypot(b[0] - a[0], b[1] - a[1]), ta = tau; tau += ds / (30 * Math.max(0.1, (a[2] + b[2]) / 2));
+            var e = Math.min(1, Math.min(i, n - 2 - i) / 5 + 0.15);   // ends fade in and out
+            segs.push([a[0], a[1], b[0], b[1], alphaFor(a[2]) * e, alphaFor(b[2]) * e, ta, tau]);
+          }
+        });
+      } else {
+        arrows(W, H).forEach(function (A) {
+          var al = alphaFor(A[4]), dx = A[2] - A[0], dy = A[3] - A[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, hl = Math.min(6, L * 0.45);
+          segs.push([A[0], A[1], A[2], A[3], al, al, -1, -1]);
+          segs.push([A[2], A[3], A[2] - ux * hl - uy * hl * 0.6, A[3] - uy * hl + ux * hl * 0.6, al, al, -1, -1]);
+          segs.push([A[2], A[3], A[2] - ux * hl + uy * hl * 0.6, A[3] - uy * hl - ux * hl * 0.6, al, al, -1, -1]);
+        });
+      }
+      var need_ = segs.length * 6 * 4; if (!verts || verts.length < need_) verts = new Float32Array(Math.max(need_, 4096));
+      nv = 0;
+      // screen -> Web Mercator is affine for a flat (unpitched) map: three reference points give it exactly
+      var m0 = maplibregl.MercatorCoordinate.fromLngLat(map.unproject([0, 0])), m1 = maplibregl.MercatorCoordinate.fromLngLat(map.unproject([1000, 0])),
+        m2 = maplibregl.MercatorCoordinate.fromLngLat(map.unproject([0, 1000]));
+      var ax = (m1.x - m0.x) / 1000, ay = (m1.y - m0.y) / 1000, bx = (m2.x - m0.x) / 1000, by = (m2.y - m0.y) / 1000;
+      var M = function (x, y) { return { x: m0.x + ax * x + bx * y, y: m0.y + ay * x + by * y }; };
+      segs.forEach(function (s) {
+        var dx = s[2] - s[0], dy = s[3] - s[1], L = Math.hypot(dx, dy); if (L < 1e-6) return;
+        var nx = -dy / L * hw, ny = dx / L * hw;
+        var p = [M(s[0] + nx, s[1] + ny), M(s[0] - nx, s[1] - ny), M(s[2] + nx, s[3] + ny), M(s[2] - nx, s[3] - ny)];
+        var q = [[p[0], s[4], s[6]], [p[1], s[4], s[6]], [p[2], s[5], s[7]], [p[1], s[4], s[6]], [p[3], s[5], s[7]], [p[2], s[5], s[7]]];
+        q.forEach(function (r) { var o = nv * 4; verts[o] = r[0].x; verts[o + 1] = r[0].y; verts[o + 2] = r[1]; verts[o + 3] = r[2]; nv++; });
+      });
+      built = { fi: FI, z: z };
     }
     return {
       layer: {
         id: 'flow', type: 'custom', renderingMode: '2d',
         onAdd: function (m, g) {
           gl = g; prog = program(gl, VS, FS);
-          loc.aPos = gl.getAttribLocation(prog, 'aPos'); loc.aA = gl.getAttribLocation(prog, 'aA'); loc.uM = gl.getUniformLocation(prog, 'uM'); loc.uC = gl.getUniformLocation(prog, 'uC');
-          buf = gl.createBuffer(); lastNow = performance.now();
+          loc.aPos = gl.getAttribLocation(prog, 'aPos'); loc.aD = gl.getAttribLocation(prog, 'aD');
+          loc.uM = gl.getUniformLocation(prog, 'uM'); loc.uC = gl.getUniformLocation(prog, 'uC'); loc.uT = gl.getUniformLocation(prog, 'uT'); loc.uF = gl.getUniformLocation(prog, 'uF');
+          buf = gl.createBuffer();
         },
         render: function (g, matrix) {
-          if (!F || !A || !N) return;
+          if (!F) return;
           var z = map.getZoom(); if (z < 13.4) return;
           maskSheet(); if (!SD) return;
-          var now = performance.now(), dt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
-          if (!warm || (!playing && Math.abs(t - lastT) > 0.6)) warmUp();
-          else if (playing && !reduced && !mapMoving && !document.hidden) { var sc = uvScale(), n_ = Math.max(1, Math.round(dt * 60)); for (var k = 0; k < Math.min(n_, 3); k++) step(sc); }
-          lastT = t;
-          var fade = Math.min(1, (z - 13.4) / 0.6), nv = 0, hw = 0.8 * (window.devicePixelRatio || 1) / (512 * Math.pow(2, z)) / (window.devicePixelRatio || 1) * 1.6;
-          var P0 = [0, 0], P1 = [0, 0];
-          for (var i = 0; i < N; i++) {
-            if (age[i] < 0) continue;
-            var a0 = Math.min(1, age[i] / 4) * Math.min(1, (life[i] - age[i]) / 10 + 0.001) * Math.min(0.95, 0.45 + spd[i] / 1.2) * fade;
-            if (a0 <= 0.02) continue;
-            for (var j = 0; j < K - 1; j++) { // each trail step as a quad (two triangles), about 1.6 px wide, fading towards the tail
-              var a = a0 * (1 - j / (K - 1)), b = a0 * (1 - (j + 1) / (K - 1));
-              mercUV(H[(i * K + j) * 2], H[(i * K + j) * 2 + 1], P0, 0); mercUV(H[(i * K + j + 1) * 2], H[(i * K + j + 1) * 2 + 1], P1, 0);
-              var dx = P1[0] - P0[0], dy = P1[1] - P0[1], L = Math.hypot(dx, dy); if (L < 1e-12) continue;
-              var nx = -dy / L * hw, ny = dx / L * hw, o = nv * 3;
-              verts[o] = P0[0] + nx; verts[o + 1] = P0[1] + ny; verts[o + 2] = a; verts[o + 3] = P0[0] - nx; verts[o + 4] = P0[1] - ny; verts[o + 5] = a;
-              verts[o + 6] = P1[0] + nx; verts[o + 7] = P1[1] + ny; verts[o + 8] = b; verts[o + 9] = P0[0] - nx; verts[o + 10] = P0[1] - ny; verts[o + 11] = a;
-              verts[o + 12] = P1[0] - nx; verts[o + 13] = P1[1] - ny; verts[o + 14] = b; verts[o + 15] = P1[0] + nx; verts[o + 16] = P1[1] + ny; verts[o + 17] = b; nv += 6;
-            }
-          }
+          FI = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min));
+          var f0 = Math.floor(FI); need(sheetOf(f0)); need(sheetOf(Math.min(f0 + 1, F.n - 1))); need(sheetOf(Math.min(f0 + (F.per_sheet || 1), F.n - 1)));
+          if (!SH[sheetOf(f0)]) return;
+          if (!mapMoving && (!built || Math.abs(built.fi - FI) > 0.5 || (built.z >= 15) !== (z >= 15))) build();
           if (!nv) return;
-          gl.useProgram(prog); gl.uniformMatrix4fv(loc.uM, false, matrix); gl.uniform3fv(loc.uC, flowRGB.hi);
-          gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * 3), gl.DYNAMIC_DRAW);
-          gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 12, 0);
-          gl.enableVertexAttribArray(loc.aA); gl.vertexAttribPointer(loc.aA, 1, gl.FLOAT, false, 12, 8);
-          gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+          var fade = Math.min(1, (z - 13.4) / 0.6);
+          gl.useProgram(prog); gl.uniformMatrix4fv(loc.uM, false, matrix);
+          gl.uniform3fv(loc.uC, flowRGB.hi);
+          gl.uniform1f(loc.uT, reduced ? 0 : (performance.now() - t0) / 1000);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, nv * 4), gl.DYNAMIC_DRAW);
+          gl.enableVertexAttribArray(loc.aPos); gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 16, 0);
+          gl.enableVertexAttribArray(loc.aD); gl.vertexAttribPointer(loc.aD, 2, gl.FLOAT, false, 16, 8);
+          gl.uniform1f(loc.uF, fade); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           gl.drawArrays(gl.TRIANGLES, 0, nv);
-          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aA);
-          if (playing && !reduced) map.triggerRepaint();
+          gl.disableVertexAttribArray(loc.aPos); gl.disableVertexAttribArray(loc.aD);
+          if (mode === 1 && !reduced && !document.hidden) map.triggerRepaint();
         }
       },
-      stat: function () { var a = 0; for (var i = 0; i < N; i++) if (age && age[i] >= 0) a++; return { N: N, alive: a, sd: sdIdx, F: !!F }; },
-      set: function (info, image) {
+      stat: function () { return { F: !!F, nv: nv, mode: mode, sheets: Object.keys(SH).length, sd: sdIdx }; },
+      set: function (info, image, dir) {
         F = info; F.frame_min = info.frame_min || (meta.nf - 1) * meta.frame_min / Math.max(1, info.n - 1);
-        var cv = document.createElement('canvas'); cv.width = image.width; cv.height = image.height;
-        var cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(image, 0, 0); A = cx.getImageData(0, 0, cv.width, cv.height).data; Wd = cv.width; Ht = cv.height;
-        if (image.close) image.close();
-        C = info.corners.map(function (p) { return maplibregl.MercatorCoordinate.fromLngLat(p); });
-        N = small() ? 1200 : 4000;
-        P = new Float32Array(N * 2); H = new Float32Array(N * K * 2); age = new Float32Array(N).fill(-1); life = new Float32Array(N); spd = new Float32Array(N);
-        verts = new Float32Array(N * (K - 1) * 6 * 3); warm = false; lastT = -1;
+        if (!F.sheets) F.sheets = [F.sheet];
+        DIR = dir || ''; SH = {}; SHL = {}; built = null; nv = 0;
+        if (image) SH[0] = pix(image);
+        var k = $('flowKey'); if (k) k.innerHTML = '<div class="fkey"><svg width="34" height="12" viewBox="0 0 34 12" aria-hidden="true"><path d="M1 9 C10 2 22 2 33 6" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".45"/><path d="M14 4.2 L22 3.6" stroke="currentColor" stroke-width="1.6"/></svg>' +
+          '<span>Lines follow the modelled current; darker is faster (0.25, 0.5, 1, 2 m/s). Dashes move 30 px a second per m/s: direction and relative speed, not to time scale. ' +
+          'Arrows when zoomed out. Source: ' + (/solver/.test(F.method || '') ? 'the flood solver’s own velocity' : 'the modelled water-surface slope') + ', ' + Math.round(F.cell_m) + ' m blocks.</span></div>';
         if (map) map.triggerRepaint();
-      }
+      },
+      reset: function () { built = null; },
+      setChannels: function (img) { var P = pix(img); CH = { d: P.d, w: P.w, h: P.d.length / 4 / P.w }; built = null; if (map) map.triggerRepaint(); }
     };
   })();
 
@@ -578,7 +655,7 @@
       WPAL.chan = [].concat([0.16, 0.86, 0.76, 0.55], [0.22, 0.95, 0.8, 0.72], [0.55, 1.0, 0.88, 0.86], [0.85, 1.0, 0.95, 0.95]);
       WPAL.drain = [0.5, 0.58, 0.68, 0.72];
     } else { // light / terrain / satellite
-      WPAL.land = [].concat([0.71, 0.886, 0.933, 0.85], [0.427, 0.725, 0.867, 0.85], [0.208, 0.525, 0.769, 0.85], [0.102, 0.333, 0.627, 0.85]);
+      WPAL.land = [].concat([0.62, 0.792, 0.882, 0.8], [0.42, 0.682, 0.839, 0.84], [0.129, 0.443, 0.71, 0.88], [0.031, 0.188, 0.42, 0.92]);
       WPAL.chan = [].concat([0.0, 0.66, 0.62, 0.55], [0.0, 0.58, 0.55, 0.72], [0.0, 0.48, 0.46, 0.85], [0.0, 0.34, 0.33, 0.94]);
       WPAL.drain = [0.48, 0.54, 0.6, 0.7];
     }
@@ -632,7 +709,7 @@
     });
     if (map.getSource('roads')) map.getSource('roads').setData(wi.roads);
     wdepth.show(key);
-    if (dj._flow) { flowLayer.set(dj._flow.info, dj._flow.img); dj._flow = null; }
+    if (dj._flow) { flowLayer.set(dj._flow.info, dj._flow.img, WI + key + '/'); dj._flow = null; }
     rainLayer.scale(wiScale());
     wiCulverts();
     wiNumbers(); wiPhases(); drawChart(); if (ready) { instInit(); rankBuild(); }
@@ -657,7 +734,7 @@
     var want = key;
     wiLoad(key).then(function (dj) {
       return getJson(WI + key + '/flow.json').then(function (fi) {   // the bitmap is consumed by the GPU upload: fetch again (HTTP cache) on every switch
-        return getBitmap(WI + key + '/' + fi.sheet).then(function (img) { dj._flow = { info: fi, img: img }; return dj; });
+        return getBitmap(WI + key + '/' + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) { dj._flow = { info: fi, img: img }; return dj; });
       }).catch(function () { return dj; });
     }).then(function (dj) {
       if (wiKey() !== want) return;
@@ -850,13 +927,13 @@
     jobs.push(getBitmap(WI + ix.terrain.sheet).then(function (img) {
       terrainLayer.set(ix.corners, img);
       whenStyle(function () { map.addLayer(terrainLayer.layer, map.getLayer('h-water') ? 'h-water' : 'l-voy'); applyTheme(); });
-      return getBitmap(WI + ix.terrain.sheet).then(function (im2) { wdepth.setMask(im2); progress(); });
+      return getBitmap(WI + ix.terrain.sheet).then(function (im2) { wdepth.setMask(im2); progress(); return getBitmap(WI + ix.terrain.sheet); }).then(function (im3) { flowLayer.setChannels(im3); });
     }).catch(function (e) { console.warn('terrain', e); progress(); }));
     jobs.push(getJson(WI + 'culverts.json').then(function (c) { whenStyle(function () { try { wiCulvertsInit(c.rows); } catch (e) { console.error('culverts', e); } }); progress(); }).catch(function (e) { console.warn('culverts', e); progress(); }));
     jobs.push(getJson(WI + k0 + '/flow.json').then(function (fi) {
-      return getBitmap(WI + k0 + '/' + fi.sheet).then(function (img) {
-        flowLayer.set(fi, img);
-        whenStyle(function () { map.addLayer(flowLayer.layer, map.getLayer('rain') ? 'rain' : 'l-voy'); vis('flow', $('lyFlow').checked); });
+      return getBitmap(WI + k0 + '/' + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
+        flowLayer.set(fi, img, WI + k0 + '/');
+        whenStyle(function () { map.addLayer(flowLayer.layer, 'l-voy'); vis('flow', $('lyFlow').checked); });
         $('flowRow').hidden = $('flowKey').hidden = false; progress();
       });
     }).catch(function (e) { console.warn('flow', e); progress(); }));
@@ -889,7 +966,7 @@
     if (WION && $('drnKey')) $('drnKey').remove();
     if (WION) { // the key names the stages of the water's journey
       var k = document.querySelector('#key .kramp.depth'); if (k) k.closest('.k').outerHTML =
-        '<div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp wl"></i><span class="kt"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span></span></div>' +
+        '<div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp wl"></i><span class="kt kt5"><span>5</span><span>15</span><span>30</span><span>100 cm</span><span></span></span></span></div>' +
         '<div class="k kdrn"><span class="kl">Draining</span><span class="kr kroads"><span><i class="kw drn"></i>water going down</span></span></div>';
     }
     $('replayStory').hidden = true;
@@ -1304,6 +1381,23 @@
     return p;
   }
 
+  // ---------- model coverage: where the live forecast runs (MassDOT District 3) and where the model was only tested on past storms
+  // (the District 4-6 storm boxes); everything else is greyed out (docs/site/data/coverage.json, proto/build_coverage.py)
+  function addCoverage() {
+    getJson('site/data/coverage.json').then(function (C) {
+      var fc = C.features.filter(function (f) { return f.properties.k === 'forecast'; })[0], ts = C.features.filter(function (f) { return f.properties.k === 'tested'; })[0];
+      var outers = function (g) { return !g ? [] : g.type === 'Polygon' ? [g.coordinates[0]] : g.coordinates.map(function (p) { return p[0]; }); };
+      var mask = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-179, -85], [179, -85], [179, 85], [-179, 85], [-179, -85]]].concat(outers(fc.geometry), outers(ts && ts.geometry)) } };
+      map.addSource('cov', { type: 'geojson', data: C }); map.addSource('cov-mask', { type: 'geojson', data: mask });
+      var before = map.getLayer('depth') ? 'depth' : 'l-voy';
+      map.addLayer({ id: 'cov-out', type: 'fill', source: 'cov-mask', paint: { 'fill-color': '#5F6368', 'fill-opacity': 0.34 } }, before);
+      map.addLayer({ id: 'cov-test', type: 'fill', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'fill-color': '#5F6368', 'fill-opacity': 0.2 } }, before);
+      map.addLayer({ id: 'cov-test-ol', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'line-color': '#5F6368', 'line-width': 1, 'line-dasharray': [3, 2] } }, before);
+      map.addLayer({ id: 'cov-d3', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'forecast'], paint: { 'line-color': '#1F2328', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.2, 12, 2], 'line-opacity': 0.8 } }, before);
+      $('covKey').hidden = false;
+    }).catch(function (e) { console.warn('coverage', e); });
+  }
+
   function initMap() {
     map = new maplibregl.Map({
       container: 'map', bounds: boxBounds(), maxZoom: 16, minZoom: 6, dragRotate: false, pitchWithRotate: false,
@@ -1315,11 +1409,12 @@
     if (params.get('debug') === '1') { window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
     map.once('style.load', function () {
       map.addLayer(WION ? wdepth.layer : depth.layer, 'l-voy');
+      addCoverage();
       applyTheme();
       styleReady();
     });
     map.on('movestart', function () { mapMoving = true; });
-    map.on('moveend', function () { mapMoving = false; map.triggerRepaint(); });
+    map.on('moveend', function () { mapMoving = false; flowLayer.reset(); map.triggerRepaint(); });
     map.on('movestart', function (e) { if (e.originalEvent) { userMoved = true; if (follow) setFollow(false); } });
     var at = document.querySelector('.maplibregl-ctrl-attrib');
     if (at && small()) at.classList.remove('maplibregl-compact-show');
@@ -1343,7 +1438,7 @@
       return getBitmap(base + r.sheet).then(function (img) {
         r.off = (new Date(r.start.replace(/Z$/, ':00Z')) - t0) / 60000;
         rain = r; rainLayer.set(img);
-        whenStyle(function () { map.addLayer(rainLayer.layer, 'l-voy'); vis('rain', $('lyRain').checked); });
+        whenStyle(function () { map.addLayer(rainLayer.layer, map.getLayer('depth') ? 'depth' : 'l-voy'); vis('rain', $('lyRain').checked); });
         $('rainRow').hidden = $('rainKey').hidden = false;
         progress();
       });
@@ -1351,11 +1446,14 @@
     jobs.push(getJson(base + 'refs.json').then(function (r) { refs = WHATIF ? wiRefs(r) : r; whenStyle(function () { try { addRefs(); raiseLabels(); } catch (e) { console.error('refs', e); } }); }).catch(function (e) { console.warn('refs', e); }));
     // optional knock-on dataset from the cascade model (spec in the story section); absent today on most runs
     if (!WHATIF) jobs.push(getJson(base + 'cascade.json').then(function (c) { cascade = c; }).catch(function () { cascade = null; }));
+    if (!WHATIF && runKey === 'leominster_sep2023') jobs.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
+      return getBitmap(WI + ix.terrain.sheet).then(function (im) { flowLayer.setChannels(im); });
+    }).catch(function () {}));
     if (WION) { /* flow comes with each scenario (wiLoadJobs) */ } else if (meta.flow) {
       jobs.push(getJson(base + meta.flow).then(function (fi) {
-        return getBitmap(base + fi.sheet).then(function (img) {
-          flowLayer.set(fi, img);
-          whenStyle(function () { map.addLayer(flowLayer.layer, map.getLayer('rain') ? 'rain' : 'l-voy'); vis('flow', $('lyFlow').checked); });
+        return getBitmap(base + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
+          flowLayer.set(fi, img, base);
+          whenStyle(function () { map.addLayer(flowLayer.layer, 'l-voy'); vis('flow', $('lyFlow').checked); });
           $('flowRow').hidden = $('flowKey').hidden = false;
         });
       }).catch(function (e) { console.warn('flow', e); }));
@@ -1424,6 +1522,9 @@
     // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
     map.addLayer({ id: 'bar', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': ['case', ['>=', D, 30], 0.95, 0] } });
+    // the selected road: an ink outline under the road-state lines at every zoom, so the selection never disappears when zooming out
+    map.addLayer({ id: 'sel', type: 'line', source: 'roads', filter: ['==', ['id'], -1], layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-width': w(6, 14), 'line-color': '#1F2328', 'line-opacity': 0.85 } }, 'halo');
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
     if (PCS) { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z14
       [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 14], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 13], ['rlab-c', ['>=', ['get', 'd'], 30], 12]].forEach(function (a) {
@@ -2114,7 +2215,7 @@
     ['d1', 'd2', 'd3', 'd4'].forEach(function (k, i) { root.setProperty('--' + k, P.d[i]); });
     root.setProperty('--closed', P.closed); root.setProperty('--amber', P.amber); root.setProperty('--orange', P.orange); root.setProperty('--grey', P.grey);
     root.setProperty('--peak', P.peak); root.setProperty('--peak-op', P.peakOp); root.setProperty('--may', P.may);
-    flowRGB = b === 'dark' || b === 'night' ? { hi: [0.78, 0.95, 1], dk: 0.24 } : b === 'satellite' ? { hi: [0.85, 0.97, 1], dk: 0.26 } : { hi: [1, 1, 1], dk: 0.2 };
+    flowRGB = b === 'dark' || b === 'night' ? { hi: [0.86, 0.91, 0.93], dk: 0.24 } : b === 'satellite' ? { hi: [0.93, 0.95, 0.96], dk: 0.26 } : { hi: [0.216, 0.278, 0.31], dk: 0.2 };
     depth.setRamp(P.d.map(rgba)); depth.setDrain(b === 'dark' || b === 'night' ? [0.5, 0.58, 0.68, 0.72] : [0.48, 0.54, 0.6, 0.62]);
     if (map.getLayer('net-case')) {
       map.setPaintProperty('net-case', 'line-color', ['match', NET_RANK, 0, P.net[0], 1, P.net[1], 2, P.net[2], P.net[3]]);
@@ -2144,7 +2245,7 @@
     x.addEventListener('click', function () { bm = x.dataset.bm; store(BMKEY, bm); applyTheme(); });
   });
   (function () { // legend ramps that do not depend on the basemap
-    var stops = [1, 3, 8, 15, 30, 50, 80].map(function (mm, i, a) { var c = rainColor(mm); return 'rgba(' + c.slice(0, 3).map(Math.round).join(',') + ',' + Math.min(1, c[3] * 1.6 + 0.12).toFixed(2) + ') ' + Math.round(100 * i / (a.length - 1)) + '%'; });
+    var n = RAIN_CLASSES.length, stops = RAIN_CLASSES.map(function (c, i) { var col = 'rgb(' + c[1].join(',') + ')'; return col + ' ' + (100 * i / n).toFixed(1) + '% ' + (100 * (i + 1) / n).toFixed(1) + '%'; });
     $('rainRamp').style.background = 'linear-gradient(90deg,' + stops.join(',') + ')';
   })();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
@@ -2310,7 +2411,7 @@
         var g = r.s.f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
         cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
         if (playing) setPlaying(false); played = true; setTime(r.pk);
-        map.fitBounds(bb, { padding: framePadding(), maxZoom: 15.5, duration: reduced ? 0 : 900 });
+        map.fitBounds(bb, { padding: framePadding(), maxZoom: 14.5, duration: reduced ? 0 : 900 });
         if (small()) sheetDetent('peek');
         map.once('moveend', function () { openPlace(r.s.f, cs[Math.floor(cs.length / 2)]); });
       });
@@ -2640,26 +2741,23 @@
     if (!f || !map) return;
     hideTip(); if (popup) popup.remove();
     placeId = f.id;
-    var ends = crossStreets(f), alt = altStreets(f, ends), cm = segDepth(f.id), st = status(cm, f.id);
+    var ends = crossStreets(f), cm = segDepth(f.id), st = status(cm, f.id);
     var stc = cm >= 30 ? 'shut' : cm >= 15 ? 'risk' : cm >= 5 ? 'wet' : '';
     var h = popupHtml(f, ends).replace(/<dt>Water on it now<\/dt><dd id="ppNow"[^<]*<\/dd>/, '');
     h = h.replace('</p>', '</p><div class="pl-state"><b id="plNow" data-id="' + f.id + '">' + (cm >= 5 ? cm + ' cm' : 'Dry') + '</b>' +
       (stc ? '<span class="chip-st ' + stc + '" id="plChip">' + (stc === 'shut' ? 'Closed' : stc === 'risk' ? 'At risk' : 'Water on road') + '</span>' : '<span class="chip-st" id="plChip" style="background:var(--surface-2);color:var(--muted)">' + esc(st[1].split(';')[0]) + '</span>') + '</div>');
-    var dt = '<div class="detour"><b>Getting around it</b><br>' +
-      (ends.length ? 'It runs between <b>' + ends.map(esc).join('</b> and <b>') + '</b> (outlined on the map). ' : '') +
-      (alt.length ? 'Nearby streets with no flooding now: <span class="alt">' + alt.map(esc).join(', ') + '</span> (green).' : 'No nearby named street is clear of water in this view.') +
-      '<small>Streets near the road that the model keeps open, not a routed detour.</small></div>';
+    var dt = ends.length ? '<p class="pl-x">Between <b>' + ends.map(esc).join('</b> and <b>') + '</b></p>' : '';
     var act = '<div class="pl-act"><button type="button" class="primary" id="plZoom">Zoom to road</button><button type="button" id="plShare">Share</button></div>';
     $('placeBody').innerHTML = h + dt + act;
     $('place').hidden = false; $('place').classList.remove('tall'); document.documentElement.classList.add('place-on');
     if (small()) { var lg = $('legend'); lg.dataset.pop = 'off'; $('fbLayers').setAttribute('aria-expanded', 'false'); }
     if (map.getLayer('net-hl')) map.setFilter('net-hl', ['in', ['get', 'name'], ['literal', ends]]);
-    if (map.getLayer('net-alt')) map.setFilter('net-alt', ['in', ['get', 'name'], ['literal', alt]]);
+    if (map.getLayer('sel')) map.setFilter('sel', ['==', ['id'], f.id]);
     $('plZoom').addEventListener('click', function () {
       var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
       cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
       var p = framePadding(); if (small()) p.bottom = Math.round($('place').getBoundingClientRect().height) + 20 + (p.bottom > 0 ? 0 : 0);
-      map.fitBounds(bb, { padding: p, maxZoom: 16, duration: reduced ? 0 : 800 });
+      map.fitBounds(bb, { padding: p, maxZoom: 15, duration: reduced ? 0 : 800 });
     });
     $('plShare').addEventListener('click', shareView);
     if (small()) { // keep the road above the card
@@ -2671,7 +2769,7 @@
     if ($('place').hidden) return;
     $('place').hidden = true; placeId = null; document.documentElement.classList.remove('place-on');
     if (map && map.getLayer('net-hl')) map.setFilter('net-hl', ['in', ['get', 'name'], ['literal', []]]);
-    if (map && map.getLayer('net-alt')) map.setFilter('net-alt', ['in', ['get', 'name'], ['literal', []]]);
+    if (map && map.getLayer('sel')) map.setFilter('sel', ['==', ['id'], -1]);
   }
   $('placeX').addEventListener('click', closePlace);
   $('placeGrab').addEventListener('click', function () { $('place').classList.toggle('tall'); });
@@ -2692,7 +2790,7 @@
     if (rainUser || story.on || !map || !map.getLayer('rain') || $('rainRow').hidden) return;
     var want = mmh >= 0.5; if (want === rainAutoOn) return; rainAutoOn = want;
     $('lyRain').checked = want; vis('rain', want); $('rainKey').hidden = !want;
-    rainOp = 0.4; // shown by itself: a light wash, the streets stay readable
+    rainOp = 0.9; // shown by itself: about 45 % opacity, the streets stay readable
   }
   var flowUser = false, flowAutoOn = false;
   $('lyFlow').addEventListener('change', function () { flowUser = true; });
