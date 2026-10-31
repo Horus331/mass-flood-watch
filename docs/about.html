@@ -54,6 +54,30 @@ tr.grp th{background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:
 .disc{margin:20px 0 0;padding:12px 14px;border:1px solid var(--rule);border-left:4px solid #E69F00;border-radius:10px;background:var(--surface);font-size:15px}
 .tag-dev{font-size:12px;font-weight:700;color:var(--muted)}
 footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font-size:13px}
+
+/* model and data diagram */
+.mm{position:relative;margin:14px 0 22px;width:min(1180px,calc(100vw - 32px));left:50%;transform:translateX(-50%);display:grid;grid-template-columns:1fr 1fr minmax(210px,1.1fr) 1fr;grid-template-areas:"in in2 hub out" "chk chk chk chk";gap:12px 26px;align-items:start}
+.mm-in{grid-area:in}.mm-in2{grid-area:in2}.mm-out{grid-area:out}.mm-hub{grid-area:hub;align-self:center;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
+.mm-check{grid-area:chk;position:relative;z-index:1;border-top:1px dashed var(--rule);padding-top:10px;margin-top:6px}
+.mm-col{display:flex;flex-direction:column;gap:7px;position:relative;z-index:1}
+.mm h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+.mm-card{display:grid;grid-template-columns:30px 1fr;column-gap:9px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:7px 9px;font-size:12px;line-height:1.3}
+.mm-card b{font-size:12.5px;grid-column:2}.mm-card span{grid-column:2;color:var(--muted)}
+.mm-ic{grid-row:1/3;width:30px;height:30px;border-radius:7px;display:grid;place-items:center;background:var(--bg)}
+.mm-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mm-card[data-k="in"] .mm-ic{color:#2171B5}.mm-card[data-k="out"] .mm-ic{color:#B3261E}.mm-card[data-k="chk"] .mm-ic{color:#5F6368}
+.mm-core{border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;
+  background:radial-gradient(circle at 50% 40%,#2171B5,#08306B);color:#fff;box-shadow:0 6px 24px rgba(8,48,107,.28)}
+.mm-core small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}.mm-core b{font-size:18px;margin:2px 0 6px}
+.mm-core span{font-size:11.5px;line-height:1.3;opacity:.92}.mm-core .mm-run{margin-top:6px;font-size:10.5px;opacity:.75}
+.mm-rule{border:1px solid var(--rule);background:var(--surface);border-radius:8px;padding:7px 9px;font-size:12px;text-align:center}.mm-rule b{display:block;font-size:12.5px}.mm-rule span{color:var(--muted)}
+.mm-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.mm-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
+.mm-wires path{fill:none;stroke-width:1.3}
+@media (max-width:900px){
+  .mm{grid-template-columns:1fr;grid-template-areas:"hub" "in" "in2" "out" "chk"}.mm-core{max-width:260px;margin:0 auto}.mm-row{grid-template-columns:1fr 1fr}.mm-wires{display:none}
+  .mm-in::after,.mm-in2::after{content:"↓ into the model";text-align:center;color:var(--muted);font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -66,6 +90,52 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 
 <h2>What it does</h2>
 <p>For a storm that happened (a replay), a storm that is forecast (the live forecast, rerun every six hours from NOAA HRRR) or a storm with changed inputs (the what-if explorer), the app shows the water as the flood model moves it across the terrain, every road segment as it gets wet, risky and closed, the culverts it overtops, and the people cut off from emergency services. Every map is one physics run; nothing on it is drawn by hand.</p>
+
+<h2 id="modelmap">The model and its data</h2>
+<p class="muted">Everything that goes into the flood model, what comes out of it, and what it is checked against. Each card names the source and how it is used; the full table is under <a href="#data">Data behind the model</a>.</p>
+<figure class="mm" id="mm" aria-label="Diagram: data sources feeding the flood model, its outputs, and the observations used to check it">
+<svg class="mm-wires" id="mmWires" aria-hidden="true"></svg>
+<div class="mm-col mm-in">
+  <h3>Weather</h3>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M9 21a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 12a5 5 0 0 1-1 9.9z"/><path d="M12 24l-1.5 3M17 24l-1.5 3M22 24l-1.5 3"/></svg></i><b>Radar rainfall</b><span>NOAA MRMS, gauge-corrected. 1 km, hourly. Rain on every model cell for past storms.</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M9 19a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 10a5 5 0 0 1-1 9.9z"/><path d="M6 26h20M10 23v6M16 23v6M22 23v6" opacity=".7"/></svg></i><b>Forecast rainfall</b><span>NOAA HRRR, 3 km, next 48 h, new run every 6 h. Drives the live forecast (8-run ensemble).</span></div>
+  <h3>Land</h3>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 25l8-12 5 7 4-5 9 10z"/><path d="M3 28h26"/></svg></i><b>Ground elevation</b><span>USGS 3DEP lidar, 10 m, averaged to the 20 m grid the water flows over.</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M5 6c6 2 4 8 10 10s5 8 12 10"/><path d="M9 4c5 3 2 8 9 10" opacity=".55"/></svg></i><b>Streams</b><span>USGS NHDPlus HR. Carved into the terrain so rivers carry water downstream.</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M4 9h24M4 15h24M4 21h24M4 27h24"/><path d="M8 12h2M18 18h2M12 24h2" stroke-width="3"/></svg></i><b>Soils</b><span>USDA SSURGO soil groups A–D: how fast the ground absorbs rain.</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><rect x="4" y="4" width="11" height="11"/><rect x="17" y="4" width="11" height="11"/><rect x="4" y="17" width="11" height="11"/><rect x="17" y="17" width="11" height="11"/><path d="M6 6l7 7M19 19l7 7"/></svg></i><b>Land cover</b><span>USGS NLCD 2021, % paved. With soils, sets runoff (curve number) and roughness.</span></div>
+</div>
+<div class="mm-col mm-in2">
+  <h3>Infrastructure</h3>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M11 3L7 29M21 3l4 26"/><path d="M16 5v4M16 14v4M16 23v4"/></svg></i><b>Roads</b><span>MassDOT Road Inventory: every segment, class, town and traffic (AADT).</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 12h26M3 22h26"/><circle cx="16" cy="17" r="5"/><path d="M3 17h8M21 17h8" opacity=".55"/></svg></i><b>Culverts and crossings</b><span>MA Stream Crossings (NAACC), USGS crossings, MassDOT structures. Checked with FHWA HDS-5.</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M2 12h28"/><path d="M5 12v13M27 12v13M5 25c4-9 18-9 22 0"/></svg></i><b>Bridges</b><span>MassDOT bridges, FHWA National Bridge Inventory. Water under a deck is not water on the road.</span></div>
+  <h3>People</h3>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><circle cx="11" cy="10" r="4"/><circle cx="22" cy="12" r="3"/><path d="M4 27c0-6 3-10 7-10s7 4 7 10M17 27c0-4 2-8 5-8s5 4 5 8"/></svg></i><b>Population</b><span>2020 US Census blocks: where people live.</span></div>
+  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="20" rx="3"/><path d="M16 10v12M10 16h12" stroke-width="3"/></svg></i><b>Emergency services</b><span>Hospitals, fire and police (OpenStreetMap), with response-time standards.</span></div>
+</div>
+<div class="mm-hub" id="mmHub">
+  <div class="mm-core"><small>Flood model</small><b>LISFLOOD-FP 8.2</b><span>2-D shallow-water physics on a 20 m grid, every road segment read every 5 min</span><span class="mm-run">Runs on WPI’s Turing GPU cluster and GitHub Actions</span></div>
+  <div class="mm-rule"><b>Closure rule</b><span>30 cm stops an ordinary car: chance of closing = Φ((depth − 0.30 m) / 0.10 m)</span></div>
+</div>
+<div class="mm-col mm-out">
+  <h3>What comes out</h3>
+  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 20c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/><path d="M3 26c4-3 6 3 10 0s6 3 10 0 4 3 6 1" opacity=".55"/><path d="M8 5l6 6M14 5v6H8"/></svg></i><b>Water depth and speed</b><span>On every 20 m cell, every 5 min, for 48 h.</span></div>
+  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M11 3L7 29M21 3l4 26"/><rect x="9" y="13" width="14" height="6" rx="1"/><path d="M12 13l3 6M17 13l3 6"/></svg></i><b>Road closures</b><span>Each segment: when it closes and reopens, peak depth, chance of closing.</span></div>
+  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 12h26M3 22h26"/><circle cx="16" cy="17" r="5"/><path d="M12 6c2-3 6-3 8 0" stroke-width="2.4"/></svg></i><b>Culverts overtopped</b><span>Crossings where modelled flow exceeds culvert capacity.</span></div>
+  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><circle cx="9" cy="9" r="3"/><circle cx="23" cy="23" r="3"/><path d="M11 11c6 2 2 8 10 10" stroke-dasharray="3 3"/><path d="M12 22l-4 4M8 22l4 4"/></svg></i><b>Network impact</b><span>Detour delay (vehicle-hours) and residents cut off from hospital, fire and police.</span></div>
+  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12"/><path d="M16 8v8l6 4"/></svg></i><b>Live forecast</b><span>District 3, next 48 h, updated every 6 h on this site.</span></div>
+</div>
+<div class="mm-check">
+  <h3>Checked against what really happened</h3>
+  <div class="mm-row">
+    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M8 28V6l16 6-16 6"/><path d="M4 28h24"/></svg></i><b>River gauges</b><span>USGS NWIS, every 15 min: river rise and timing.</span></div>
+    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M16 3l13 24H3z"/><path d="M16 12v7M16 22v1" stroke-width="2.6"/></svg></i><b>Storm reports</b><span>NWS Local Storm Reports, NOAA Storm Events, news and agency reports.</span></div>
+    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><rect x="6" y="4" width="20" height="25" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/></svg></i><b>City and MassDOT records</b><span>Leominster DPW damage list (Sept 2023), MassDOT District 3 repeat-flood sites.</span></div>
+    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M16 29s-9-9-9-16a9 9 0 0 1 18 0c0 7-9 16-9 16z"/><circle cx="16" cy="13" r="3"/></svg></i><b>Residents’ reports</b><span>MRPC / BSC Group crowdsource map, Leominster.</span></div>
+  </div>
+</div>
+</figure>
 
 <h2 id="how">How it works</h2>
 <ol class="steps">
@@ -118,7 +188,7 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 <li>Which inputs matter most: rain, how wet the ground was, and whether culverts pass water (the what-if explorer)?</li>
 </ol>
 
-<h2>Data behind the model</h2>
+<h2 id="data">Data behind the model</h2>
 <p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p>
 <div class="datatable"><h3>Data behind the model</h3><p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p><div class="tablewrap"><table><thead><tr><th>Data</th><th>Source</th><th>What it describes</th><th>Units and resolution</th><th>How the model uses it</th></tr></thead><tbody>
 <tr class="grp"><th colspan="5">Model inputs</th></tr>
@@ -158,5 +228,25 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 <footer>Flood model: LISFLOOD-FP 8.2, University of Bristol. Rain: NOAA MRMS and HRRR. Terrain and gauges: USGS. Roads: MassDOT. Basemap: © OpenStreetMap contributors, OpenFreeMap, Esri.</footer>
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>
+(function () { // wires from every source card into the model and from the model to every output; the checks loop back
+  var fig = document.getElementById('mm'), svg = document.getElementById('mmWires'), hub = document.getElementById('mmHub');
+  function draw() {
+    if (!fig || getComputedStyle(svg).display === 'none') return;
+    var F = fig.getBoundingClientRect(), H = hub.querySelector('.mm-core').getBoundingClientRect(), cx = H.left + H.width / 2 - F.left, cy = H.top + H.height / 2 - F.top, r = H.width / 2, out = '';
+    fig.querySelectorAll('.mm-card').forEach(function (c) {
+      var B = c.getBoundingClientRect(), k = c.dataset.k, x, y, tx, ty, col;
+      if (k === 'in') { x = B.right - F.left; y = B.top + B.height / 2 - F.top; tx = cx - r * 0.96; ty = cy + (y - cy) * 0.18; col = '#6BAED6'; }
+      else if (k === 'out') { x = cx + r * 0.96; y = cy + ((B.top + B.height / 2 - F.top) - cy) * 0.18; tx = B.left - F.left; ty = B.top + B.height / 2 - F.top; col = '#E3A39F'; }
+      else { x = B.left + B.width / 2 - F.left; y = B.top - F.top; tx = cx; ty = cy + r; col = '#B7BBC0'; }
+      var mx = (x + tx) / 2;
+      out += k === 'chk' ? '<path d="M' + x + ' ' + y + ' C' + x + ' ' + (y - 40) + ' ' + tx + ' ' + (ty + 60) + ' ' + tx + ' ' + ty + '" stroke="' + col + '" stroke-dasharray="4 4"/>'
+        : '<path d="M' + x + ' ' + y + ' C' + mx + ' ' + y + ' ' + mx + ' ' + ty + ' ' + tx + ' ' + ty + '" stroke="' + col + '"/>';
+    });
+    svg.setAttribute('viewBox', '0 0 ' + F.width + ' ' + F.height); svg.innerHTML = out;
+  }
+  window.addEventListener('resize', draw); window.addEventListener('load', draw); if (document.fonts) document.fonts.ready.then(draw); draw();
+})();
+</script>
 </body>
 </html>
