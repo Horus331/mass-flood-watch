@@ -40,6 +40,10 @@
       title: 'Worcester · Sept 1–2, 2021',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 116 mm of rain in the box (102 mm on average), up to 22 mm in the wettest hour.'
     },
+    jun2020_northbridge: {
+      title: 'Northbridge · June 28, 2020',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 94 mm of rain in the box (70 mm on average), up to 54 mm in the wettest hour.'
+    },
     forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
