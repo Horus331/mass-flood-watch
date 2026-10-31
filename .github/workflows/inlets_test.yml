@@ -27,8 +27,6 @@ jobs:
           [[ "$PLAN" =~ ^proto/turing/plans/[A-Za-z0-9_]+\.json$ && "$PIN" =~ ^[0-9a-f]{7,40}$ && "$DEST" =~ ^docs/proto/[a-z0-9_]+/[A-Za-z0-9_]+$ ]] || exit 2
       - uses: actions/checkout@v4
         with: {ref: '${{ inputs.pin }}'}
-      - uses: actions/checkout@v4
-        with: {ref: main, path: _main, sparse-checkout: '${{ inputs.dest }}'}
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
       - name: run + score
@@ -57,16 +55,34 @@ jobs:
           python proto/score_v2.py --run $F --storm $STORM --out $R/score_v2.json | tail -30 || fail score_v2
           python -c "import json; m=json.load(open('$OUT/meta.json')); m.pop('frames', None); json.dump(m, open('$R/flood_meta.json', 'w'), indent=0)"
           echo ok > $R/DONE
-      - name: commit small files
+      - name: stage small files
         if: always()
-        env: {DEST: '${{ inputs.dest }}'}
         run: |
           [ -n "${NAME:-}" ] || exit 0
-          R=$RUNNER_TEMP/r/$NAME; D=_main/$DEST/$NAME; mkdir -p $D
+          R=$RUNNER_TEMP/r/$NAME; D=$RUNNER_TEMP/up/$NAME; mkdir -p $D
           for f in score_v2.json score.json points.json flood_meta.json w9_tail.txt FAILED; do
-            [ -f $R/$f ] && [ $(stat -c %s $R/$f) -le 400000 ] && cp $R/$f $D/
+            [ -f $R/$f ] && [ $(stat -c %s $R/$f) -le 400000 ] && cp $R/$f $D/ || true
           done
           [ -f $R/DONE ] || [ -f $R/FAILED ] || echo "runner: step failed or timed out" > $D/FAILED
-          cd _main; git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add $DEST/$NAME; git commit -qm "LF_INLETS test (Actions): $NAME" || exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'inl-${{ matrix.idx }}', path: '${{ runner.temp }}/up', if-no-files-found: ignore, retention-days: 30}
+  collect:
+    # ONE commit to main at the end (every push to main redeploys GitHub Pages): all task artifacts -> <dest>/<name>/
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/download-artifact@v4
+        with: {pattern: 'inl-*', path: '${{ runner.temp }}/all', merge-multiple: true}
+      - name: single commit
+        env: {DEST: '${{ inputs.dest }}'}
+        run: |
+          [[ "$DEST" =~ ^docs/proto/[a-z0-9_]+/[A-Za-z0-9_]+$ ]] || exit 2
+          ls $RUNNER_TEMP/all || exit 0
+          for d in $RUNNER_TEMP/all/inl1_*; do n=$(basename $d); [[ "$n" =~ ^[a-z0-9_]{3,80}$ ]] || continue; mkdir -p $DEST/$n; cp $d/* $DEST/$n/; done
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add $DEST; git commit -qm "LF_INLETS test (Actions): $(ls $RUNNER_TEMP/all | wc -l) task results -> $DEST" || exit 0
           for i in $(seq 1 12); do git pull --rebase -q origin main && git push -q origin HEAD:main && break; sleep $((RANDOM % 40 + 5)); done
