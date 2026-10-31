@@ -47,6 +47,11 @@ jobs:
           import json; S = json.load(open('docs/site/data/live/status.json'))
           print('::notice title=live feeds::' + ' | '.join(f"{k}: {v.get('state')}" + (f" ({(v.get('error') or '')[:120]})" if v.get('state') == 'failed' else '') for k, v in S['feeds'].items()))
           EOF
+      - name: USGS river gauges, District 3 (proto/usgs_api.py; Water Data OGC API, legacy fallback until 2027-02-22)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 8
+        run: python -u proto/usgs_api.py now --out docs/site/data/live/gauges.json 2>&1 | tail -5
       - name: log summary as annotations (run logs are not readable from every client)
         if: always()
         run: |
