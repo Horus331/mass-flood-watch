@@ -1439,7 +1439,7 @@
         r.off = (new Date(r.start.replace(/Z$/, ':00Z')) - t0) / 60000;
         rain = r; rainLayer.set(img);
         whenStyle(function () { map.addLayer(rainLayer.layer, map.getLayer('depth') ? 'depth' : 'l-voy'); vis('rain', $('lyRain').checked); });
-        $('rainRow').hidden = $('rainKey').hidden = false;
+        $('rainRow').hidden = false; $('rainKey').hidden = !$('lyRain').checked;
         progress();
       });
     }).catch(function () { progress(); }));
@@ -1469,7 +1469,8 @@
       if (WION) wiApply(wi.first, wi.dj, true); else if (WHATIF) { wiPhases(); wiSelect(); } else wiPhases();
       try { rankBuild(); } catch (e) { console.error('rank', e); }
       setTime(t);
-      if (storyWanted()) storyStart(0); else { refit(); $('replayStory').hidden = false; }
+      if (storyWanted()) storyStart(0); else refit();
+      if (!WHATIF && runKey !== 'forecast' && $('tourLink')) { $('tourLink').href = '?run=' + runKey + '&tour=1'; $('tourLink').hidden = false; }
     }).catch(function (e) { $('loadText').textContent = 'Some storm data did not load. Reload the page to try again.'; console.error(e); });
   }
 
@@ -1625,21 +1626,35 @@
     });
     return out;
   }
+  function segLen(f) { // metres along the drawn geometry
+    var g = f.geometry; if (!g) return 0; var L = g.type === 'LineString' ? [g.coordinates] : g.coordinates, m = 0;
+    L.forEach(function (cs) { for (var i = 1; i < cs.length; i++) { var a = cs[i - 1], b = cs[i], k = Math.cos((a[1] + b[1]) / 2 * Math.PI / 180);
+      m += Math.hypot((b[0] - a[0]) * 111320 * k, (b[1] - a[1]) * 110540); } });
+    return m;
+  }
   function popupHtml(f, ends) {
     var p = f.properties, iv = arr(p.iv), a = arr(p.a), rc = arr(p.rc), d = arr(p.d);
     var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] +
       (ends && ends.length ? (ends.length > 1 ? ', between ' + esc(ends[0]) + ' and ' + esc(ends[1]) : ', at ' + esc(ends[0])) : '') + '</p>' + spark(d) + '<dl>';
     if (p.k) h += '<dt>Forecast runs closing it</dt><dd><b>' + p.k + ' of ' + meta.kofn.n + '</b> (' + (p.k >= 2 ? 'likely closed' : 'possible') + ')</dd>';
-    h += '<dt>' + (p.k ? 'Closing, in the run shown' : 'Closing') + '</dt><dd><b>' + likely(p.p) + '</b></dd>';
+    h += '<dt>' + (p.k ? 'Chance of closing, run shown' : 'Chance of closing') + '</dt><dd><b>' + likely(p.p) + '</b></dd>';
     if (d) {
       var fa = Math.min(Math.floor(t), nf - 1), now = Math.round(((d[fa] || 0) * (1 - (t - fa)) + (d[fa + 1] || 0) * (t - fa)));
       h += '<dt>Water on it now</dt><dd id="ppNow" data-id="' + f.id + '">' + (now >= 3 ? now + ' cm' : 'dry') + '</dd>';
     }
-    if (iv && iv.length) {
-      var s = iv[0][0], e = iv[iv.length - 1][1];
-      h += '<dt>Closes</dt><dd>' + fmtShort.format(timeAt(s)) + '</dd>';
-      h += '<dt>Reopens</dt><dd>' + (e >= nf - 1 ? 'still closed when the modelled ' + Math.round((nf - 1) * meta.frame_min / 60) + ' h end' : fmtShort.format(timeAt(e))) + '</dd>';
+    if (d && d.length) {
+      var pk = 0; for (var q = 1; q < d.length; q++) if ((d[q] || 0) > (d[pk] || 0)) pk = q;
+      var pm = (d[pk] || 0) / 100;
+      if (pm >= 0.03) h += '<dt>Peak depth</dt><dd><b>' + (d[pk] >= 255 ? '2.5 m+' : pm.toFixed(2) + ' m') + '</b> (' + (d[pk] >= 255 ? '8 ft+' : (pm * 3.281).toFixed(1) + ' ft') + ') at ' + fmtShort.format(timeAt(pk)) + '</dd>';
     }
+    if (iv && iv.length) {
+      var s = iv[0][0], e = iv[iv.length - 1][1], dur = 0; iv.forEach(function (x) { dur += x[1] - x[0]; });
+      var hm = function (fr) { var m = Math.round(fr * meta.frame_min); return Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+      h += '<dt>Closed</dt><dd>' + fmtShort.format(timeAt(s)) + '</dd>';
+      h += '<dt>Reopens</dt><dd>' + (e >= nf - 1 ? 'still closed at the end of the ' + Math.round((nf - 1) * meta.frame_min / 60) + ' h run' : fmtShort.format(timeAt(e))) + '</dd>';
+      h += '<dt>Time closed</dt><dd>' + hm(dur) + (e >= nf - 1 ? '+' : '') + '</dd>';
+    }
+    var len = segLen(f); if (len) h += '<dt>Segment</dt><dd>' + (len / 1609.34).toFixed(2) + ' mi (' + Math.round(len) + ' m) · id ' + f.id + '</dd>';
     if (p.m === 1) h += '<dt>May close</dt><dd>stream beside the road reaches road level (not counted in the chance of closing)</dd>';
     if (a) h += '<dt>If it closes</dt><dd>residents losing access within the response standard: hospital ' + n(a[0]) + ', fire ' + n(a[1]) + ', police ' + n(a[2]) + (a[3] ? '; ' + n(a[3]) + ' with no route to any of them' : '') + '</dd>';
     if (p.rk) {
@@ -2048,7 +2063,7 @@
   // ---------- story mode ----------
   // six scenes on the real timeline; each plays a stretch of storm time, moves the camera, and sets which layers speak
   var story = { on: false, i: 0, sc: [], start: 0, paused: false, pausedAt: 0, hold: 0, raf: 0 };
-  function storyWanted() { return !WHATIF && params.get('story') !== '0' && !document.documentElement.classList.contains('embed'); }
+  function storyWanted() { return !WHATIF && (params.get('tour') === '1' || params.get('story') === '1') && !document.documentElement.classList.contains('embed'); }
   function sum(a, n) { var s0 = 0; for (var i = 0; i < Math.min(a.length, Math.floor(n)); i++) s0 += a[i] || 0; if (n % 1 && a[Math.floor(n)]) s0 += a[Math.floor(n)] * (n % 1); return s0; }
   function buildScenes() {
     var M = meta, per = 60 / M.frame_min, N = nf - 1, r = M.rain_hourly_mean_mm || [], cp = M.closed_per_frame || [];
@@ -2183,7 +2198,7 @@
     if (!story.on) return;
     story.on = false; document.documentElement.classList.remove('story-on');
     phNow = -9; setTimeout(function () { phaseCaption(); }, 0);
-    $('story').hidden = true; $('replayStory').hidden = false;
+    $('story').hidden = true;
     rainOp = 1; applyToggles(); map.triggerRepaint();
     document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === currentView ? 'true' : 'false'); });
   }
@@ -2197,6 +2212,12 @@
   $('stPause').addEventListener('click', function () { setStoryPaused(!story.paused); });
   $('stSkip').addEventListener('click', function () { storyEnd(); });
   $('replayStory').addEventListener('click', function () { storyStart(0); });
+  // timeline jumps: the start of the run and the moment the most roads are closed
+  $('jStart').addEventListener('click', function () { if (!meta) return; if (playing) setPlaying(false); played = true; setTime(0); });
+  $('jPeak').addEventListener('click', function () {
+    if (!meta) return; var cp = meta.closed_per_frame || [], k = 0; for (var i = 1; i < cp.length; i++) if (cp[i] > cp[k]) k = i;
+    if (playing) setPlaying(false); played = true; setTime(Math.min(k, nf - 1));
+  });
 
   // ---------- theme and basemap ----------
   function applyTheme() {
@@ -2746,7 +2767,7 @@
     var h = popupHtml(f, ends).replace(/<dt>Water on it now<\/dt><dd id="ppNow"[^<]*<\/dd>/, '');
     h = h.replace('</p>', '</p><div class="pl-state"><b id="plNow" data-id="' + f.id + '">' + (cm >= 5 ? cm + ' cm' : 'Dry') + '</b>' +
       (stc ? '<span class="chip-st ' + stc + '" id="plChip">' + (stc === 'shut' ? 'Closed' : stc === 'risk' ? 'At risk' : 'Water on road') + '</span>' : '<span class="chip-st" id="plChip" style="background:var(--surface-2);color:var(--muted)">' + esc(st[1].split(';')[0]) + '</span>') + '</div>');
-    var dt = ends.length ? '<p class="pl-x">Between <b>' + ends.map(esc).join('</b> and <b>') + '</b></p>' : '';
+    var dt = ends.length ? '<p class="pl-btw">Between <b>' + ends.map(esc).join('</b> and <b>') + '</b></p>' : '';
     var act = '<div class="pl-act"><button type="button" class="primary" id="plZoom">Zoom to road</button><button type="button" id="plShare">Share</button></div>';
     $('placeBody').innerHTML = h + dt + act;
     $('place').hidden = false; $('place').classList.remove('tall'); document.documentElement.classList.add('place-on');
@@ -2785,8 +2806,9 @@
   // runoff: moving-water particles switch on by themselves at street zoom during runoff, rising streams and street flooding,
   // unless the reader has set the layer by hand
   var rainUser = false, rainAutoOn = null;
-  $('lyRain').addEventListener('change', function () { rainUser = true; rainOp = 1; if (map) map.triggerRepaint(); });
+  $('lyRain').addEventListener('change', function (e) { rainUser = true; rainOp = 0.9; $('rainKey').hidden = !e.target.checked; if (map) map.triggerRepaint(); });
   function rainAuto(mmh) {
+    if (!story.on) return; // outside the guided tour the map opens on water and roads only; radar rain is one tick away in Layers
     if (rainUser || story.on || !map || !map.getLayer('rain') || $('rainRow').hidden) return;
     var want = mmh >= 0.5; if (want === rainAutoOn) return; rainAutoOn = want;
     $('lyRain').checked = want; vis('rain', want); $('rainKey').hidden = !want;
@@ -2795,6 +2817,7 @@
   var flowUser = false, flowAutoOn = false;
   $('lyFlow').addEventListener('change', function () { flowUser = true; });
   function flowAuto() {
+    if (!story.on) return; // moving water is opt-in (Layers) outside the guided tour
     if (flowUser || !map || !map.getLayer('flow') || $('flowRow').hidden) return;
     var k = PH.length ? phaseAt(t) : -1, want = k >= 1 && k <= 3 && map.getZoom() >= 13.4;
     if (want === flowAutoOn) return; flowAutoOn = want;

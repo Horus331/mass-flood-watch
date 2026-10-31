@@ -712,3 +712,30 @@ button{-webkit-tap-highlight-color:transparent}
 .fkey{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);line-height:1.3;margin:2px 0 6px}
 .fkey svg{flex:none}
 .kw.cov-d3{background:transparent;border:2px solid #1F2328;height:8px}.kw.cov-t{background:rgba(95,99,104,.2);border:1px dashed #5F6368;height:8px}.kw.cov-o{background:rgba(95,99,104,.34);height:10px}
+
+/* ---- professional layout pass (Oct 31): fewer things on the map, one job per region ---- */
+/* header: product name, three modes as a plain segmented control, text links */
+.tabs{grid-template-columns:repeat(3,1fr);margin:0 0 8px}
+.tabs a{flex-direction:row;min-height:32px;font-size:13px;font-weight:650;padding:4px 6px}
+.tabs a[aria-current="page"]{background:var(--solid);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.hlinks{display:flex;gap:14px;margin:0 0 10px;font-size:12.5px}
+.hlinks a{color:var(--muted);font-weight:600;text-decoration:none}.hlinks a:hover{color:var(--ink);text-decoration:underline}
+.caveat-foot{margin:10px 0 0;padding-top:8px;border-top:1px solid var(--rule);font-size:11px;line-height:1.35;color:var(--muted)}
+/* narrated phases and the floating phase caption belong to the guided tour only */
+html:not(.story-on) .caption,html:not(.story-on) #phases,html:not(.story-on) #phsteps{display:none!important}
+/* river-gauge check moves to the gauge's own popup and the Methods page */
+#gaugeBand{display:none!important}
+/* state at this moment: rain, culverts, roads closed (ground and soak only in Scenarios, where they are inputs) */
+html:not(.wi-on) .in-ground,html:not(.wi-on) .in-soak,.in-river{display:none!important}
+html:not(.wi-on) .inst{grid-template-columns:repeat(3,minmax(0,1fr))}
+.replay{display:none!important}
+/* selected road: a right-hand details panel on desktop; the map key steps aside while it is open */
+@media (min-width:721px){
+  .place{left:auto;right:12px;top:12px;width:360px;border-radius:10px}
+  .place-on .legend{display:none}
+  .place .pp dl{grid-template-columns:auto 1fr}
+}
+.pl-btw{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+.jumps{display:flex;gap:4px}.jumps button{border:1px solid var(--rule);background:var(--solid);border-radius:7px;font:600 12px/1 inherit;padding:7px 9px;cursor:pointer;color:var(--ink)}.jumps button:hover{background:var(--surface-2)}
+@media (max-width:720px){.jumps button{padding:7px 7px}}
+@media (max-width:720px){.caveat-foot{display:none}.hlinks{margin:0 0 4px;gap:12px}}
