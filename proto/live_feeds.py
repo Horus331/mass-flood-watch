@@ -495,21 +495,33 @@ def feed_nwm(now=None):
         if not np.isfinite(s).any(): continue
         k = int(np.nanargmax(s)); qp = float(s[k]); qc = r['q_crest']
         rec = dict(id=r['id'], road=r.get('road'), stream=r.get('stream'), lon=r['lon'], lat=r['lat'], comid=r['comid'], snap_m=r['snap_m'],
-                   q_peak=r1(qp, 2), t_peak=iso(T[k]), q_crest=r1(qc, 2) if qc else None)
+                   q_now=r1(float(s[0]), 2), q_peak=r1(qp, 2), t_peak=iso(T[k]), q_crest=r1(qc, 2) if qc else None)
         if qc:
             rec['ratio'] = r1(qp / max(qc, 1e-6), 2); rec['p_overtop'] = r1(0.5 * (1 + math.erf(math.log(max(qp, 1e-6) / max(qc, 1e-6)) / Q_SIGMA_LN / math.sqrt(2))), 3)
         if r.get('pk10'): rec['pk10'] = r['pk10']; rec['over_pk10'] = qp > r['pk10']
         rows.append(rec)
-    cap = [x for x in rows if x.get('q_crest')]; exc = sorted([x for x in cap if x['ratio'] > 1.0], key=lambda x: -x['ratio'])
+    cap = [x for x in rows if x.get('q_crest')]
+    # Low-flow baseline per reach = the lowest NWM flow seen in any run (docs/proto/live/nwm_baseline.json, first filled on a dry 31 Oct 2026).
+    # A culvert whose HDS-5 capacity is at or below that would be overtopped even at low flow: the reach (NHDPlus snap) or the barrel record
+    # is wrong for it.  Those go to `suspect`, never to `exceed`.
+    bp = os.path.join(ROOT, 'docs', 'proto', 'live', 'nwm_baseline.json'); B = json.load(open(bp)) if os.path.exists(bp) else {}
+    for c in comids:
+        v = Q[:, ci[int(c)]]
+        if np.isfinite(v).any(): B[str(int(c))] = round(min(float(np.nanmin(v)), B.get(str(int(c)), 1e9)), 3)
+    json.dump(B, open(bp, 'w'), separators=(',', ':'), sort_keys=True)
+    for x in cap: x['q_base'] = B.get(str(x['comid']))
+    sus = [x for x in cap if x['q_base'] is not None and x['q_base'] >= x['q_crest']]; sid = {x['id'] for x in sus}
+    exc = sorted([x for x in cap if x['ratio'] > 1.0 and x['id'] not in sid], key=lambda x: -x['ratio'])
     out = dict(made=iso(now), made_by='proto/live_feeds.py nwm', cycle=iso(cyc), valid=[iso(T[0]), iso(T[-1])], n_culverts=len(rows), n_with_capacity=len(cap),
-               n_reaches=int(len(comids)), mb_downloaded=round(sum(b for _, _, b in R) / 1e6, 1), exceed=exc, top=sorted(cap, key=lambda x: -x['ratio'])[:15],
+               n_reaches=int(len(comids)), mb_downloaded=round(sum(b for _, _, b in R) / 1e6, 1), exceed=exc,
+               top=sorted([x for x in cap if x['id'] not in sid], key=lambda x: -x['ratio'])[:15], suspect=sorted(sus, key=lambda x: -x['ratio']),
                over_pk10=[x for x in rows if x.get('over_pk10')],
                method=('NWM v3 short_range channel_rt (18 hourly steps) at the NHDPlus v2 reach nearest each culvert (NLDI, <= %.0f m); peak flow vs '
                        'the HDS-5 flow at which headwater reaches the road crest (sim/infra/culvert.py, NAACC barrel + blockage). The NWM flow is '
                        'the reach-outlet flow (whole reach drainage), usually larger than at the culvert: an upper bound, not a prediction of '
-                       'overtopping.' % SNAP_MAX_M),
+                       'overtopping. `suspect` = capacity at or below the reach low-flow baseline (mapping or barrel record wrong), excluded.' % SNAP_MAX_M),
                source='NOAA National Water Model on AWS (s3://noaa-nwm-pds/nwm.YYYYMMDD/short_range/)')
-    chk = (exc or out['top'])[:2]; out['nwps_check'] = []
+    chk = list({x['comid']: x for x in (exc + out['top'])}.values())[:2]; out['nwps_check'] = []
     for x in chk:
         try:
             ref, pts, units, keys = nwps_series(x['comid']); pk = max((p[1] for p in pts), default=None)
