@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-10-31T19:58:11Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-10-31T20:28:36Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ Updated 2026-10-31T19:58:11Z by `proto/turing/queue_runner.py` on Turing. Reques
 | amcnwm_base_aug2019 | run_storm | completed | 2439668 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T18:57:29Z |  |
 | amcnwm_nwm_aug2019 | run_storm | completed | 2439669 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T18:57:29Z |  |
 | amcnwm_base_aug2020b | run_storm | completed | 2439670 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T19:58:11Z |  |
-| amcnwm_nwm_aug2020b | run_storm | pending | 2439671 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
+| amcnwm_nwm_aug2020b | run_storm | completed | 2439671 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T20:28:36Z |  |
 | amcnwm_base_aug2021 | run_storm | completed | 2439672 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T19:27:55Z |  |
 | amcnwm_nwm_aug2021 | run_storm | pending | 2439673 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
 | amcnwm_base_aug2023 | run_storm | pending | 2439674 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
@@ -129,4 +129,4 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_v1_collect | collect_scores | running | 2439816 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
 | amcnwm_v1_arr | run_plan_gpu | failed |  |  /  | 2026-10-31T17:26:27Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
-| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-10-31T19:58:11Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
+| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-10-31T20:28:36Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
