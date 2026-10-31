@@ -51,7 +51,10 @@ jobs:
         if: always()
         continue-on-error: true
         timeout-minutes: 8
-        run: python -u proto/usgs_api.py now --out docs/site/data/live/gauges.json 2>&1 | tail -5
+        run: |
+          python -u proto/usgs_api.py now --out /tmp/gauges.json 2>&1 | tail -5
+          # keep the last good file if this pull came back empty (service down)
+          python -c "import json,shutil,sys; d=json.load(open('/tmp/gauges.json')); sys.exit(0 if d.get('n') else 1)" && mv /tmp/gauges.json docs/site/data/live/gauges.json || echo "::warning title=gauges::empty pull, kept last good file"
       - name: log summary as annotations (run logs are not readable from every client)
         if: always()
         run: |
