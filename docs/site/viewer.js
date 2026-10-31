@@ -31,6 +31,15 @@
       title: 'Scenarios · Leominster, Sept 2023',
       kind: 'The real storm, rerun by the flood model with heavier or lighter rain, wetter or frozen ground, and blocked culverts.'
     },
+    // held-out replays (PROTOCOL.md storm roles: decision set, no setting chosen on them); 20 x 20 km box at 20 m, 5-minute frames
+    aug2026_leominster: {
+      title: 'Leominster · Aug 3, 2026',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 118 mm of rain in the box (81 mm on average), up to 46 mm in the wettest hour.'
+    },
+    sep2021_worcester: {
+      title: 'Worcester · Sept 1–2, 2021',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 116 mm of rain in the box (102 mm on average), up to 22 mm in the wettest hour.'
+    },
     forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
@@ -55,6 +64,7 @@
     var q = new URLSearchParams(location.search); q.set('run', a.dataset.run);
     a.href = '?' + q.toString();
   });
+  if ($('moreRuns') && $('moreRuns').querySelector('a[data-run="' + runKey + '"]')) $('moreRuns').open = true;
   $('runTitle').textContent = RUNS[runKey].title;
   $('runKind').textContent = RUNS[runKey].kind;
 
@@ -2470,7 +2480,8 @@
   function impUpdate() {
     if (!IMP || !map || !map.getSource('imp')) return;
     var on = [], sig = '';
-    for (var i = 0; i < IMP.seg.length; i++) if (IMP.w30[i].length && inIv(IMP.w30[i])) { on.push(i); sig += i + ','; }
+    var gate = meta && meta.spin_k0 != null && t < meta.spin_k0; // start-up water (spinup): nothing impassable before 5 mm of rain, as on the segments
+    if (!gate) for (var i = 0; i < IMP.seg.length; i++) if (IMP.w30[i].length && inIv(IMP.w30[i])) { on.push(i); sig += i + ','; }
     if (sig === impSig) return; impSig = sig;
     var by = {}; on.forEach(function (i) { (by[IMP.seg[i]] = by[IMP.seg[i]] || []).push(IMP.lines[i]); });
     var feats = Object.keys(by).map(function (sid) { return { type: 'Feature', properties: { s: +sid }, geometry: { type: 'MultiLineString', coordinates: by[sid] } }; });
