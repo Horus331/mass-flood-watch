@@ -310,6 +310,90 @@
    "after": [
     "run_sep2018_fitchburg"
    ]
+  },
+  {
+   "id": "run_sep2022_webster",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_sep2022_webster",
+    "STORM": "sep2022",
+    "BOX": "151000,855000,171000,875000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "quick",
+    "time": "06:00:00",
+    "mem": "96G"
+   }
+  },
+  {
+   "id": "pack_sep2022_webster",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_sep2022_webster",
+    "STORM": "sep2022",
+    "SITE": "sep2022_webster",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_sep2022_webster"
+   ]
+  },
+  {
+   "id": "run_sep2018m_milford",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_sep2018m_milford",
+    "STORM": "sep2018m",
+    "BOX": "188000,863000,208000,883000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "quick",
+    "time": "06:00:00",
+    "mem": "96G"
+   }
+  },
+  {
+   "id": "pack_sep2018m_milford",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_sep2018m_milford",
+    "STORM": "sep2018m",
+    "SITE": "sep2018m_milford",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_sep2018m_milford"
+   ]
   }
  ]
 }
