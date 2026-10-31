@@ -154,8 +154,18 @@ def nldi(path, params=None):
 
 
 def gauge_q(site, t0, t1):
-    """15-min discharge (UTC pandas Series, m3/s) and drainage area (km2) from the OGC API; (None, area) if no data."""
-    import pandas as pd
+    """15-min discharge (UTC pandas Series, m3/s) and drainage area (km2) from the OGC API; (None, area) if no data.
+    Through proto/usgs_api.py when the repo's proto/ is next to sim/ (legacy WaterServices fallback until 22 Feb 2027, env USGS_SOURCE);
+    the inline OGC query below otherwise."""
+    import pandas as pd, sys
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'proto')); import usgs_api as U
+    except ImportError: U = None
+    if U is not None:
+        G, used = U.iv(sites=[site], start=t0, end=t1, params=('00060',))
+        g = G.get(site) or {}; area = g['drain_mi2'] * 2.58999 if g.get('drain_mi2') is not None else None
+        q = U.to_pandas(G, site, '00060')
+        return (None, area) if q is None else (q * CFS, area)
     area = None
     try:
         m = _get(f'{OGC}/monitoring-locations/items', dict(id=f'USGS-{site}', f='json'))

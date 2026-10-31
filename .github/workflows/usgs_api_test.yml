@@ -1,0 +1,86 @@
+name: USGS gauge migration test - new OGC API vs legacy WaterServices (run by hand)
+# docs/proto/usgs/MIGRATION.md.  Pulls the same gauges from api.waterdata.usgs.gov (proto/usgs_api.py, source=ogc) and from
+# waterservices.usgs.gov (source=legacy), reports max |difference|, re-runs the ported callers both ways, probes the v1 schema and
+# writes a sample of the live District 3 summary.  Results are committed to docs/proto/usgs/_logs/ (small json/txt only).
+on:
+  workflow_dispatch:
+    inputs:
+      sites: {description: 'USGS sites for the site-list test', default: '01094400,01094500,01109730'}
+      start: {description: 'first local day', default: '2023-09-11'}
+      end: {description: 'last local day', default: '2023-09-13'}
+      state_test: {description: 'also compare the whole-state query (MA) used by sim/gauges_fetch.py', type: boolean, default: true}
+permissions:
+  contents: write
+concurrency: {group: usgs-api-test, cancel-in-progress: false}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests pandas numpy
+      - name: probe v1 / v0 collections (schema + rate-limit headers)
+        continue-on-error: true
+        run: |
+          mkdir -p docs/proto/usgs/_logs
+          python - <<'EOF' 2>&1 | tee docs/proto/usgs/_logs/probe.txt
+          import requests, json
+          H = {'User-Agent': 'mass-flood-watch research (github.com/Horus331/mass-flood-watch)'}
+          Q = {'monitoring-locations': {'bbox': '-71.85,42.55,-71.75,42.62'},
+               'time-series-metadata': {'monitoring_location_id': 'USGS-01094400', 'parameter_code': '00060,00065'},
+               'continuous': {'monitoring_location_id': 'USGS-01094400,USGS-01094500', 'parameter_code': '00060', 'time': '2023-09-12T04:00:00Z/2023-09-12T05:00:00Z'},
+               'latest-continuous': {'monitoring_location_id': 'USGS-01094400'}}
+          for v in ('v1', 'v0'):
+              for c, p in Q.items():
+                  u = f'https://api.waterdata.usgs.gov/ogcapi/{v}/collections/{c}/items'
+                  try:
+                      r = requests.get(u, params=dict(p, f='json', limit=5), headers=H, timeout=120)
+                      j = r.json() if r.headers.get('content-type', '').startswith('application') else {}
+                      F = j.get('features', [])
+                      print(f'== {v} {c}: HTTP {r.status_code}, {len(F)} features, numberMatched={j.get("numberMatched")}, ratelimit',
+                            {k: r.headers[k] for k in r.headers if k.lower().startswith('x-ratelimit')})
+                      if F: print('  ids:', sorted({f["properties"].get("monitoring_location_id") or f.get("id") for f in F})); print('  first:', json.dumps(F[0])[:900])
+                      elif r.status_code != 200: print('  body:', r.text[:400])
+                  except Exception as e: print(f'== {v} {c}: error {e!r}'[:300])
+          r = requests.get('https://api.waterdata.usgs.gov/ogcapi/v1/collections/monitoring-locations/items/USGS-01094400', params={'f': 'json'}, headers=H, timeout=60)
+          print('== v1 single item', r.status_code, r.text[:300])
+          EOF
+      - name: site-list test (3 District 3 gauges)
+        continue-on-error: true
+        run: |
+          python proto/usgs_api.py compare --sites ${{ inputs.sites }} --start ${{ inputs.start }} --end ${{ inputs.end }} \
+            --out docs/proto/usgs/_logs/compare_sites.json 2>&1 | tee docs/proto/usgs/_logs/compare_sites.txt
+      - name: bbox test (District 3 box, as proto/transfer_d456.py / sim/colab/vt_inputs.py / proto/rain/rain_fetch.py)
+        continue-on-error: true
+        run: |
+          python proto/usgs_api.py compare --bbox -72.3796,41.9511,-71.4267,42.7646 --start ${{ inputs.start }} --end ${{ inputs.end }} \
+            --out docs/proto/usgs/_logs/compare_bbox_d3.json 2>&1 | tail -60 | tee docs/proto/usgs/_logs/compare_bbox_d3.txt
+          python proto/usgs_api.py compare --bbox -72.3796,41.9511,-71.4267,42.7646 --params 00045 --start ${{ inputs.start }} --end ${{ inputs.end }} \
+            --out docs/proto/usgs/_logs/compare_bbox_d3_rain.json 2>&1 | tail -30 | tee docs/proto/usgs/_logs/compare_bbox_d3_rain.txt
+      - name: state test (MA, as sim/gauges_fetch.py)
+        if: ${{ inputs.state_test }}
+        continue-on-error: true
+        run: |
+          python proto/usgs_api.py compare --state 25 --start ${{ inputs.start }} --end ${{ inputs.end }} \
+            --out docs/proto/usgs/_logs/compare_state_ma.json 2>&1 | tail -40 > docs/proto/usgs/_logs/compare_state_ma.txt
+          tail -3 docs/proto/usgs/_logs/compare_state_ma.txt
+      - name: ported caller proto/obs_fetch.py, both sources vs the committed sep2023 file
+        continue-on-error: true
+        run: |
+          L=docs/proto/usgs/_logs/obs_fetch_sep2023.txt
+          { for src in ogc legacy; do echo "== $src"; python proto/obs_fetch.py --storm sep2023 --out /tmp/$src --gauge-source $src --gauges-only 2>&1 | tail -5 | cut -c1-600
+              python proto/obs_compare.py docs/proto/obs/gauges_sep2023.json /tmp/$src/gauges_sep2023.json --out docs/proto/usgs/_logs/obs_fetch_sep2023_$src.json > /dev/null
+              python -c "import json;d=json.load(open('docs/proto/usgs/_logs/obs_fetch_sep2023_$src.json'));print('pass', d.get('pass'))"; done; } > $L 2>&1
+          cat $L
+      - name: live District 3 'now' sample (not the live file; docs/site/data/live/gauges.json is written by the lead's live workflow)
+        continue-on-error: true
+        run: |
+          python proto/usgs_api.py now --out docs/proto/usgs/_logs/gauges_now_sample.json 2>&1 | tail -20 | tee docs/proto/usgs/_logs/now.txt
+      - name: commit logs
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/usgs/_logs && git commit -qm "USGS API migration test: ${{ inputs.sites }} ${{ inputs.start }}..${{ inputs.end }}" || echo nothing
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push && break; sleep $((i * 7)); done

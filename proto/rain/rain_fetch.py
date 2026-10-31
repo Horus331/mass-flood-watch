@@ -89,16 +89,17 @@ def asos_hourly(sid, t0, t1):
 
 
 def usgs_rain(bb, t0, t1):
-    u = (f'https://waterservices.usgs.gov/nwis/iv/?format=json&bBox={bb[0] - BUF:.3f},{bb[1] - BUF:.3f},{bb[2] + BUF:.3f},{bb[3] + BUF:.3f}'
-         f'&parameterCd=00045&startDT={t0:%Y-%m-%dT%H:%MZ}&endDT={t1:%Y-%m-%dT%H:%MZ}&siteStatus=all')
-    r = get(u, timeout=180); out = []
-    if r is None: return out
-    for ts in r.json().get('value', {}).get('timeSeries', []):
-        si = ts['sourceInfo']; g = si['geoLocation']['geogLocation']
-        vals = [(v['dateTime'], v['value']) for v in ts['values'][0]['value']]
+    """USGS 00045 (precipitation, inches per 15-min/5-min increment) in the box + BUF, via proto/usgs_api.py (OGC API; the legacy
+    WaterServices bBox query is its fallback until 22 Feb 2027).  t0/t1: naive UTC timestamps."""
+    sys.path.insert(0, os.path.join(ROOT, 'proto')); import usgs_api as U
+    G, used = U.iv(bbox=(bb[0] - BUF, bb[1] - BUF, bb[2] + BUF, bb[3] + BUF), start=f'{t0:%Y-%m-%dT%H:%M}Z', end=f'{t1:%Y-%m-%dT%H:%M}Z',
+                   params=('00045',), meta=False)
+    out = []
+    for sid, g in sorted(G.items()):
+        vals = g['series'].get('00045') or []
         if not vals: continue
-        t = pd.to_datetime([v[0] for v in vals], utc=True).tz_convert(None); p = pd.to_numeric([v[1] for v in vals], errors='coerce') * 25.4
-        out.append(dict(id='USGS' + si['siteCode'][0]['value'], name=si['siteName'], lon=g['longitude'], lat=g['latitude'], kind='usgs_iv',
+        t = pd.to_datetime([v[0] for v in vals], utc=True).tz_convert(None); p = np.array([v[1] for v in vals], float) * 25.4
+        out.append(dict(id='USGS' + sid, name=g['name'], lon=g['lon'], lat=g['lat'], kind='usgs_iv',
                         series=[[f'{a:%Y-%m-%dT%H:%M}', None if not np.isfinite(b) else round(float(b), 2)] for a, b in zip(t, p)]))
     return out
 
