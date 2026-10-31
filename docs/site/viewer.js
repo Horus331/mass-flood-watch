@@ -52,6 +52,10 @@
       title: 'Worcester · July 14, 2023',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 32 mm of rain in the box (23 mm on average), up to 26 mm in the wettest hour.'
     },
+    sep2018_fitchburg: {
+      title: 'Fitchburg · Sept 18, 2018',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 85 mm of rain in the box (71 mm on average), up to 24 mm in the wettest hour.'
+    },
     forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
@@ -2587,6 +2591,7 @@
   function setTime(v) {
     t = Math.max(0, Math.min(nf - 1, v));
     var fa = Math.min(Math.floor(t), nf - 1), fr = t - fa, closed = 0, wet = 0, risk = 0;
+    var jump = setTime.prev == null || Math.abs(t - setTime.prev) > 1.5; setTime.prev = t; // a jump (Start, Peak, scrub) gets no hysteresis
     for (var i = 0; i < segs.length; i++) {
       var s = segs[i], d = s.d, val;
       if (d) {
@@ -2602,7 +2607,7 @@
         }
       }
       // a closed road reopens below 26 cm, not 30, so a depth hovering at the threshold does not flicker between states
-      if (s.cl) { if (val < 26) s.cl = false; } else if (val >= 30) s.cl = true;
+      if (jump) s.cl = val >= 30; else if (s.cl) { if (val < 26) s.cl = false; } else if (val >= 30) s.cl = true;
       if (s.cl) { closed++; val = Math.max(val, 30); } else { val = Math.min(val, 29); if (val >= 3) wet++; if (val >= 15) risk++; }
       var q = val < 2 ? 0 : 2 * Math.round(val / 2);
       // water drawn across the road while the road surface stays above it (embankments, crowned roads): 'water at the road edge'
