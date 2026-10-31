@@ -50,9 +50,8 @@ def main(key):
                           source='MRPC / BSC Group Leominster crowdsource map, 70 road-related resident pins (docs/proto/obs/CROWD.md)',
                           water30=n30),
                numbers=dict(
-                   heldout=dict(text='Across 23 storms the model was never tuned on, the closure rule flags 0.43 % of road segments and catches 5 of 90 '
-                                'documented flood sites (6 %, 4.8 times chance); ranking the riskiest 3 % of roads catches 15 of 90 (17 %, 2.6 times chance).',
-                                src='docs/proto/STATUS.md section 2'),
+                   heldout=dict(text='Across 23 storms the model was never tuned on, the closure rule catches 9 of 98 documented flood sites (6.4 times chance); ranking the riskiest 3 % of roads catches 20 of 98 (20 %, 3.1 times chance).',
+                                src='docs/proto/STATUS.md section 2; docs/proto/obs/LABELS_ROUND2.md section 4'),
                    tuned=dict(text='This storm is the one the settings were checked against, so it is not a fair test: here the closure rule catches 35 of 89 documented '
                               'closure and damage sites while flagging 1.97 % of road segments (12.8 times random), and 6 of the 27 new sites on the residents’ map '
                               '(22 %), which were never used to build it.',
