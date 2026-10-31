@@ -78,6 +78,11 @@ under a new id, with `WAIT_H`. Nothing else may change (PREREG §5.3).
     commit, and both arms of a storm run in the same job, on the same GPU.
   - The 14 accepted `run_storm` runs are **ignored**. The `collect_group` kind and its scripts were removed from main, so
     `amcnwm_collect_1` fails without pushing anything. Those runs stay in `results/amcnwm_*` on Turing and are never scored.
+- **31 Oct 2026, 16:55Z.** `amcnwm_v1_b1` (tasks 0–9) and `amcnwm_v1_collect` were accepted. `b2`–`b5` hit the same QOS limit:
+  31 queue jobs were active, including the 15 stale ones above, which are still pending. An array counts as one submitted job (the
+  LF_INLETS array was accepted at the same moment), so `run_plan_gpu` gained an array mode (array task j runs the j-th index of `IDXS`).
+  Tasks 10–49 are re-queued as one array, `amcnwm_v1_arr` (`IDXS` 10-49, `--array=0-39%4`, 3 h per task), same `PLAN` and `PIN`. Only the
+  Slurm wrapper changed. The model code is still the pinned b28f4b33.
 - **Scoring universe** (follows from the runner change). Each task now builds its own `features_<storm>.csv` / `matches_<storm>.json` in a
   private folder, as the LF_INLETS runner does. `score_v2` therefore uses its standard universe (the model's in-box segments) and its
   standard matching, not the `segments.geojson`-only fallback that PREREG §4 chose to avoid the shared-path race. The race no longer
