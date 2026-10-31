@@ -49,8 +49,10 @@ Branch `turing-queue`, commit c479c002 (31 Oct 2026):
 - `amcnwm_v1_b1` … `amcnwm_v1_b5` (kind `run_plan_gpu`, partition quick, 8 h, 1 GPU, 96 GB). Plan `proto/turing/plans/amcnwm_v1.json`,
   `PIN` b28f4b33fade45d188352f87e87c12eac837fac4, `IDXS` 0-9 / 10-19 / 20-29 / 30-39 / 40-49. That is 50 tasks = 25 storms × {base, nwm},
   the two arms of a storm in the same job.
-- Of these, only `amcnwm_v1_b1` (tasks 0–9) was accepted. Tasks 10–49 run as **`amcnwm_v1_arr`** (turing-queue 0411023e): `run_plan_gpu`
-  in array mode, `IDXS` 10-49, `--array=0-39%4`, 3 h per task (§3).
+- Of these, only `amcnwm_v1_b1` (tasks 0–9) was accepted. Tasks 10–49 are queued as **`amcnwm_v1_arr2`** (turing-queue 6156e4b2):
+  `run_plan_gpu` in array mode, `IDXS` 10-49, `--array=0-39%4`, 3 h per task. `amcnwm_v1_arr` was the same request and was refused at
+  17:26Z. The queue runner now keeps a request refused by the cap as `deferred` and retries it every tick, so `arr2` is submitted as soon
+  as a slot is free (§3).
 - `amcnwm_v1_collect` (kind `collect_scores`, partition long, `WAIT_H` 36). It polls every 10 min until all 50 tasks have `DONE`/`FAILED`,
   then pushes `docs/proto/runoff/amcnwm_v1/<name>/{score_v2,score,points,flood_meta}.json`, `w9_tail.txt` and `manifest.json` to main,
   in one commit.
@@ -85,6 +87,9 @@ under a new id, with `WAIT_H`. Nothing else may change (PREREG §5.3).
   LF_INLETS array was accepted at the same moment), so `run_plan_gpu` gained an array mode (array task j runs the j-th index of `IDXS`).
   Tasks 10–49 are re-queued as one array, `amcnwm_v1_arr` (`IDXS` 10-49, `--array=0-39%4`, 3 h per task), same `PLAN` and `PIN`. Only the
   Slurm wrapper changed. The model code is still the pinned b28f4b33.
+- **17:26Z.** `amcnwm_v1_arr` was refused too. All 28 tracked queue jobs were pending or running, and the LF_INLETS array tasks were
+  running. Fix in `proto/turing/queue_runner.py` (main 2d4f9a38): a request refused with `QOSMaxSubmitJobPerUserLimit` is now marked
+  `deferred` and retried every tick, in `jobs.json` order. Requests that depend on it wait. Same request, new id: `amcnwm_v1_arr2`.
 - **Scoring universe** (follows from the runner change). Each task now builds its own `features_<storm>.csv` / `matches_<storm>.json` in a
   private folder, as the LF_INLETS runner does. `score_v2` therefore uses its standard universe (the model's in-box segments) and its
   standard matching, not the `segments.geojson`-only fallback that PREREG §4 chose to avoid the shared-path race. The race no longer
