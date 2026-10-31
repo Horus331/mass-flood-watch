@@ -670,6 +670,32 @@ def decide(prev, cur, now, force=False):
     return False, f'nothing material (last commit {age:.1f} h ago)'
 
 
+TIMEOUT_S = dict(nwm=900, validation=400)
+
+
+def child(name, now):
+    """Run one feed in its own Python process (a crash -- even a segfault in a C library -- or a hang fails only that feed).
+    The child writes docs/site/data/live/<name>.json itself and returns (material, alerts) through a temp file."""
+    import subprocess, tempfile
+    res = os.path.join(tempfile.mkdtemp(), 'r.json')
+    try:
+        p = subprocess.run([sys.executable, '-u', '-X', 'faulthandler', os.path.abspath(__file__), '_child', name, '--now', iso(now), '--result', res],
+                           capture_output=True, text=True, timeout=TIMEOUT_S.get(name, 300))
+    except subprocess.TimeoutExpired as e:
+        sys.stdout.write((e.stdout or b'').decode() if isinstance(e.stdout, bytes) else (e.stdout or '')); raise RuntimeError(f'timeout after {e.timeout} s')
+    sys.stdout.write(p.stdout); sys.stdout.write(p.stderr); sys.stdout.flush()
+    if p.returncode != 0 or not os.path.exists(res):
+        tail = [l for l in (p.stderr or p.stdout).strip().splitlines() if l.strip()][-6:]
+        raise RuntimeError(f'exit {p.returncode}' + (' (segfault)' if p.returncode in (-11, 139) else '') + ': ' + ' <- '.join(reversed(tail)))
+    R = json.load(open(res)); return R['material'], R['alerts']
+
+
+def run_child(name, now, res):
+    out, mat, al = FN[name](now)
+    json.dump(out, open(os.path.join(OUT, f'{name}.json'), 'w'), indent=None, separators=(',', ':'))
+    json.dump(dict(material=mat, alerts=al), open(res, 'w'), default=str)
+
+
 def run(feeds, force=False, gh_out=None):
     os.makedirs(OUT, exist_ok=True); sp = os.path.join(OUT, 'status.json')
     prev = json.load(open(sp)) if os.path.exists(sp) else {}
@@ -681,14 +707,13 @@ def run(feeds, force=False, gh_out=None):
             continue
         t0 = time.time(); log(f'== {name}')
         try:
-            out, mat, al = FN[name](now)
-            json.dump(out, open(os.path.join(OUT, f'{name}.json'), 'w'), indent=None, separators=(',', ':'))
+            mat, al = child(name, now)
             st['feeds'][name] = dict(state='ok', last_success=iso(now), last_attempt=iso(now), seconds=round(time.time() - t0, 1), error=None, file=f'{name}.json')
             st['material'][name] = mat; st['alerts'].update(al); log(f'   ok {time.time() - t0:.0f}s', json.dumps(mat)[:300], al)
         except Exception as e:
-            traceback.print_exc()
+            log(f'   FAILED {name}: {e}'[:600])
             st['feeds'][name] = dict(state='failed', last_success=P.get('last_success'), last_attempt=iso(now), seconds=round(time.time() - t0, 1),
-                                     error=f'{type(e).__name__}: {e}'[:400], file=f'{name}.json' if P.get('last_success') else None)
+                                     error=f'{e}'[:400], file=f'{name}.json' if P.get('last_success') else None)
             st['material'][name] = 'failed'
     st['material']['_states'] = {k: v.get('state') for k, v in st['feeds'].items()}
     c, why = decide(prev, st, now, force)
@@ -738,6 +763,9 @@ def selftest():
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 2 and sys.argv[1] == '_child':
+        cp = argparse.ArgumentParser(); cp.add_argument('x'); cp.add_argument('name'); cp.add_argument('--now'); cp.add_argument('--result'); c = cp.parse_args()
+        os.makedirs(OUT, exist_ok=True); run_child(c.name, dt.datetime.strptime(c.now, '%Y-%m-%dT%H:%MZ'), c.result); sys.exit(0)
     ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=list(FEEDS) + ['run', 'map-comids', 'selftest'])
     ap.add_argument('--feeds', default=','.join(FEEDS)); ap.add_argument('--force', action='store_true'); ap.add_argument('--github-output')
     ap.add_argument('--max-minutes', type=float, default=12, help='map-comids time budget (resumable: already mapped crossings are kept)')
