@@ -3063,7 +3063,7 @@
     if (G && G.gauges) {
       var fs = G.gauges.filter(function (g) { return g.nwps && g.nwps.ft_below_flood_stage != null; }).sort(function (a, b) { return a.nwps.ft_below_flood_stage - b.nwps.ft_below_flood_stage; });
       var over = fs.filter(function (g) { return g.nwps.ft_below_flood_stage <= 0; }), g0 = fs[0];
-      row(null, 'Rivers', over.length ? '<b>' + over.length + ' gauges at or above flood stage</b>' : (g0 ? 'All below flood stage; closest: <a href="' + esc(g0.url) + '" target="_blank" rel="noopener">' + esc(g0.name) + '</a>, ' + g0.nwps.ft_below_flood_stage.toFixed(1) + ' ft below' : G.n + ' gauges reporting'),
+      row(null, 'Rivers', over.length ? '<b>' + over.length + ' gauges at or above flood stage</b>' : (g0 ? 'All below flood stage; closest: <a href="' + esc(g0.url) + '" target="_blank" rel="noopener">' + esc(g0.name.toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); }).replace(/\bMa$/, 'MA')) + '</a>, ' + g0.nwps.ft_below_flood_stage.toFixed(1) + ' ft below' : G.n + ' gauges reporting'),
         G.n + ' USGS gauges, ' + fs.length + ' with an NWS flood stage, ' + esc(when(G.generated)), over.length);
     }
     var W = L.nwm;
@@ -3073,7 +3073,7 @@
     if (Sn && Sn.depth_cm) row('snow', 'Snow on the ground', Sn.depth_cm.district_max > 0 ? '<b>' + f1(Sn.depth_cm.district_mean) + ' cm</b> average, ' + f1(Sn.depth_cm.district_max) + ' cm deepest' : 'None', 'NOAA SNODAS, ' + esc(Sn.date || ''));
     var V = L.validation;
     if (V) row('validation', 'Flooding reports, 48 h', V.recent_48h && V.recent_48h.length ? '<b>' + V.recent_48h.length + '</b> (MassDOT events, SeeClickFix)' : 'None', 'Not verified; kept to score the forecast');
-    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Observations and short-range products, refreshed hourly. Updated ' + esc(when(L.status.made)) + '. Sources and limits: <a href="https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/live/LIVE_FEEDS.md" target="_blank" rel="noopener">live feeds</a>.</p>';
+    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Observations and short-range products. Checked every hour; published when something changes (at least daily). Last published ' + esc(when(L.status.made)) + '. Sources and limits: <a href="https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/live/LIVE_FEEDS.md" target="_blank" rel="noopener">live feeds</a>.</p>';
     el.hidden = false;
   }
   function groundRender(g) {
