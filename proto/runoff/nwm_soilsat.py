@@ -298,7 +298,7 @@ def cmd_clim(a):
     def one(k):
         n = min(ct, nt - k * ct)
         try:
-            T = zarr_chunk('time', str(k), (n,), '<i8')
+            T = zarr_chunk('time', str(k), (ct,), '<i8')[:n]     # the last chunk is stored padded to the full chunk length
             L = []
             for l in (0, 1):      # only the District 3 window is kept (a few MB); each chunk is decoded, cut and dropped
                 win = np.full((n, sy.stop - sy.start, sx.stop - sx.start), np.nan, np.float32)
