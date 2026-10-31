@@ -208,6 +208,7 @@ def _iv_legacy(sites, bbox, state, params, t0, t1, meta):
             try: x = float(v['value'])
             except (TypeError, ValueError): continue
             if x > -999: vals.append((utc(v['dateTime']), x))
+        if not vals: continue                                                     # siteStatus=all lists series with no values in the window
         g = G.setdefault(s, dict(site=s, name=si['siteName'], lon=gl['longitude'], lat=gl['latitude'], datum_ft=None, vdatum=None, drain_mi2=None, series={}))
         if vals and len(vals) > len(g['series'].get(pc, [])): g['series'][pc] = sorted(set(vals))   # several methods: keep the fullest
     if meta:
