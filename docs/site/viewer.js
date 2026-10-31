@@ -116,6 +116,7 @@
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
   var flowRGB = { hi: [0.216, 0.278, 0.31], dk: 0.2 }; // flow lines: blue-grey #37474F on light maps, pale on dark and satellite
+  var NETP = {}; // segment id -> { a: AADT veh/day, l: length m, c: class } from network.json
   var segs = [], segById = {}, ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null, cascade = null;
   var nWet = 0, nClosedNow = 0, sparkRange = [0, 1], rtip = null, rtipId = null, rtipLL = null;
   var fmtClock = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
@@ -1446,6 +1447,22 @@
     jobs.push(getJson(base + 'refs.json').then(function (r) { refs = WHATIF ? wiRefs(r) : r; whenStyle(function () { try { addRefs(); raiseLabels(); } catch (e) { console.error('refs', e); } }); }).catch(function (e) { console.warn('refs', e); }));
     // optional knock-on dataset from the cascade model (spec in the story section); absent today on most runs
     if (!WHATIF) jobs.push(getJson(base + 'cascade.json').then(function (c) { cascade = c; }).catch(function () { cascade = null; }));
+    // the model's road network (every segment it evaluates): street layout at every zoom, length and AADT for the road panel
+    jobs.push(getJson(base + 'network.json').then(function (N) {
+      var feats = [];
+      N.id.forEach(function (id, k) {
+        var g = N.g[k], x = g[0], y = g[1], cs = [[x / 1e5, y / 1e5]];
+        for (var j = 2; j < g.length; j += 2) { x += g[j]; y += g[j + 1]; cs.push([x / 1e5, y / 1e5]); }
+        NETP[id] = { a: N.aadt[k], l: N.len_m[k], c: N.c[k] };
+        feats.push({ type: 'Feature', id: id, properties: { c: N.c[k] }, geometry: { type: 'LineString', coordinates: cs } });
+      });
+      whenStyle(function () {
+        map.addSource('mnet', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: 0.6 });
+        map.addLayer({ id: 'mnet', type: 'line', source: 'mnet', minzoom: 8.5, layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': (basemap() === 'dark' || basemap() === 'night') ? '#5d646c' : basemap() === 'satellite' ? 'rgba(255,255,255,.55)' : '#a7afb6', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'c'], 0, 0.35, 0.8], 12, ['match', ['get', 'c'], 0, 0.8, 1.6], 14, ['match', ['get', 'c'], 0, 1.2, 2.2]],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 0.9, 13.5, 0.9, 14.5, 0.25] } }, map.getLayer('net-case') ? 'net-case' : undefined);
+      });
+    }).catch(function () { }));
     if (!WHATIF && runKey === 'leominster_sep2023') jobs.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
       return getBitmap(WI + ix.terrain.sheet).then(function (im) { flowLayer.setChannels(im); });
     }).catch(function () {}));
@@ -1654,7 +1671,9 @@
       h += '<dt>Reopens</dt><dd>' + (e >= nf - 1 ? 'still closed at the end of the ' + Math.round((nf - 1) * meta.frame_min / 60) + ' h run' : fmtShort.format(timeAt(e))) + '</dd>';
       h += '<dt>Time closed</dt><dd>' + hm(dur) + (e >= nf - 1 ? '+' : '') + '</dd>';
     }
-    var len = segLen(f); if (len) h += '<dt>Segment</dt><dd>' + (len / 1609.34).toFixed(2) + ' mi (' + Math.round(len) + ' m) · id ' + f.id + '</dd>';
+    var np_ = NETP[f.id], len = (np_ && np_.l) || segLen(f);
+    if (len) h += '<dt>Segment</dt><dd>' + (len / 1609.34).toFixed(2) + ' mi (' + Math.round(len) + ' m) · id ' + f.id + '</dd>';
+    if (np_ && np_.a) h += '<dt>Traffic</dt><dd>' + np_.a.toLocaleString('en-US') + ' vehicles a day (AADT' + (np_.a === 1000 ? ', default where no count' : '') + ')</dd>';
     if (p.m === 1) h += '<dt>May close</dt><dd>stream beside the road reaches road level (not counted in the chance of closing)</dd>';
     if (a) h += '<dt>If it closes</dt><dd>residents losing access within the response standard: hospital ' + n(a[0]) + ', fire ' + n(a[1]) + ', police ' + n(a[2]) + (a[3] ? '; ' + n(a[3]) + ' with no route to any of them' : '') + '</dd>';
     if (p.rk) {
@@ -2243,6 +2262,7 @@
       map.setPaintProperty('net-fill', 'line-color', P.fill);
     }
     if (map.getLayer('box')) map.setPaintProperty('box', 'line-color', P.box);
+    if (map.getLayer('mnet')) map.setPaintProperty('mnet', 'line-color', b === 'dark' || b === 'night' ? '#5d646c' : b === 'satellite' ? 'rgba(255,255,255,.55)' : '#a7afb6');
     if (map.getLayer('wet')) {
       var D = RD || ['coalesce', ['feature-state', 'd'], 0];
       // under 15 cm water on road (amber, dark casing), 15-30 cm at risk (vermillion), 30 cm and more closed (dark red, white stripes)
