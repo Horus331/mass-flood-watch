@@ -86,9 +86,9 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
         <span class="src">Sept 11, 2023, the tuned storm. Sites matched within 30 m.</span>
       </div>
       <div class="fact" role="listitem">
-        <span class="v num">15<small> of 90</small></span>
-        <p>sites on 23 held-out storms fall in the model’s top 3% of road segments: 0.17 [0.08, 0.26] against 0.064 by chance. The fixed alert rule alone catches 5 of 90.</p>
-        <span class="src">Storms never used for tuning, 2018–2026. 90% bootstrap interval.</span>
+        <span class="v num">20<small> of 98</small></span>
+        <p>sites on 23 held-out storms fall in the model’s top 3% of road segments: 0.20 [0.10, 0.30] against 0.066 by chance (3.1 times). The fixed alert rule alone catches 9 of 98 (6.4 times chance).</p>
+        <span class="src">Storms never used for tuning, 2018–2026. 90% bootstrap interval. Second label round, 98 sites (the first round, 90 sites, gave 15 and 5).</span>
       </div>
       <div class="fact" role="listitem">
         <span class="v num">0.46<small> m</small></span>
@@ -104,6 +104,8 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 <ul class="res">
 <li><h3>New districts, no retuning</h3><p>On 81 storms in MassDOT Districts 4, 5 and 6 (498 documented sites), run once with the frozen District 3 settings, the top 3% of road segments catch <b>21%</b> of the sites (104 of 498) against 8.6% by chance: a lift of <b>2.5</b>. The 30 cm alert rule rarely fires there (18 of 498).</p><span class="src"><a href="proto/transfer/TRANSFER.md">Transfer test</a></span></li>
 <li><h3>Against FEMA flood maps</h3><p>On the 23 held-out storms, FEMA's 100-year flood zones flag 7.0% of roads and catch 32 of 98 sites; the model's riskiest roads at the same share catch 36 of 98. The difference (−0.04, 90% CI −0.18 to +0.11) is not detectable, so a static map is a fair benchmark for where; the model adds when each road closes and a sharper alert rule (lift 6.4 against 2.2).</p><span class="src"><a href="proto/static/STATIC.md">Static flood maps vs the event model</a></span></li>
+<li><h3>Model plus FEMA map, tested and rejected</h3><p>Adding FEMA's flood zones to the alert rule (pre-registered, Districts 4–6, 81 storms) caught more sites than the rule alone but fewer than the model's own riskiest roads at the same share, so no hybrid layer is used.</p><span class="src"><a href="proto/static/HYBRID.md">Hybrid test</a></span></li>
+<li><h3>Fast learned stand-in for the flood model</h3><p>A neural network trained on 192 flood-model runs on the WPI Turing cluster, meant to answer what-if questions in seconds. Its first validation is weak (road-level agreement 0.34 at 30 cm, against a 0.70 bar set in advance), so it is not used anywhere on this site. <span class="tag-dev">In development</span></p><span class="src"><a href="proto/surrogate/SURROGATE.md">Surrogate plan</a></span></li>
 <li><h3>Residents' flood reports, Leominster</h3><p>The MRPC / BSC Group crowdsource map has 70 road-related pins from residents. 27 of them are new sites, more than 150 m from any other report, and were never used to build the model: it catches <b>6</b> of them (22%) while flagging 2.2% of roads, about 5 times chance.</p><span class="src"><a href="proto/obs/CROWD.md">Crowdsource check</a></span></li>
 </ul>
 
