@@ -151,7 +151,7 @@ def mrms_recent(product, since, now=None):
             m = re.search(r'_(\d{8}-\d{6})\.grib2\.gz$', k)
             if m:
                 t = dt.datetime.strptime(m.group(1), '%Y%m%d-%H%M%S')
-                if t > since: out.append((t, f'{MRMS}/{k}'))
+                if since < t <= now: out.append((t, f'{MRMS}/{k}'))
         d += dt.timedelta(days=1)
     return sorted(out)
 
