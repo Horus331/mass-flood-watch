@@ -1534,7 +1534,31 @@
   }
 
   // ---------- roads ----------
+  // Model start-up: the flood model starts with streams partly full, and in the first output frames that water drains through
+  // crossings and onto a few roads before any real rain has fallen (0.5 h in, ~0.1 mm). Those are not storm closures. Until the
+  // area-mean rain reaches 5 mm nothing is drawn on roads; after that a road counts as closed only if the water on it is 30 cm or
+  // more AND at least 15 cm higher than it was at that moment (the start-up water level).
+  function spinup(g) {
+    if (WION || !meta.rain_hourly_mean_mm) return;
+    var r = meta.rain_hourly_mean_mm, per = 60 / meta.frame_min, c = 0, h = 0;
+    for (h = 0; h < r.length; h++) { c += r[h] || 0; if (c >= 5) break; }
+    var k0 = Math.round(h * per); meta.spin_k0 = k0;
+    var cp = new Array(nf).fill(0);
+    g.features.forEach(function (f) {
+      var p = f.properties; if (!p.d) return;
+      var d = p.d, base = d[Math.min(k0, d.length - 1)] || 0;
+      var nd = d.map(function (v, k) { return k < k0 ? 0 : (v >= 30 && v - base < 15 ? 29 : v); });
+      var iv = [], st = null;
+      for (var k = 0; k <= nd.length; k++) { var on = k < nd.length && nd[k] >= 30; if (on && st === null) st = k; if (!on && st !== null) { iv.push([st, k - 1]); st = null; } }
+      if (iv.length) { var last = iv[iv.length - 1]; if (last[1] >= nd.length - 1 && p.iv && p.iv.length) last[1] = Math.max(last[1], p.iv[p.iv.length - 1][1]); p.iv = iv; } else delete p.iv;
+      iv.forEach(function (x) { for (var q = x[0]; q <= Math.min(nf - 1, x[1]); q++) cp[q]++; });
+      while (nd.length && nd[nd.length - 1] === 0) nd.pop();
+      if (nd.length) p.d = nd; else delete p.d;
+    });
+    meta.closed_per_frame = cp;
+  }
   function addRoads(g) {
+    spinup(g); try { drawChart(); } catch (e) { }
     g.features.forEach(function (f) {
       var p = f.properties;
       if (p.d || p.iv || p.e || WION) { var sg = { id: f.id, d: p.d || (WION ? [] : null), iv: p.iv || [], e: p.e || null, v: -1, f: f }; segs.push(sg); segById[f.id] = sg; }
