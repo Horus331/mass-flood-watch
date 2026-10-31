@@ -104,7 +104,7 @@ def tick(qdir, dry=False, kinds_path=None, jobs_path=None, state_path=None):
     if not J.get('paused'):
         for req in J.get('jobs', []):
             rid = str(req.get('id', ''))
-            if not rid or rid in St: continue
+            if not rid or (rid in St and St[rid].get('status') != 'deferred'): continue    # 'deferred' = refused by the per-user job cap: retried
             spec, bad = validate(req, kinds)
             if bad: St[rid] = dict(status='rejected', why=bad[:5], at=now()); log('rejected', rid, bad); continue
             deps = []
@@ -113,7 +113,7 @@ def tick(qdir, dry=False, kinds_path=None, jobs_path=None, state_path=None):
                 if not d or d.get('status') in ('rejected', 'failed') or not d.get('slurm_id'): deps = None; break
                 if d.get('status') != 'completed': deps.append(str(d['slurm_id']))
             if deps is None:
-                waiting = [a for a in req.get('after') or [] if a not in St]
+                waiting = [a for a in req.get('after') or [] if a not in St or St[a].get('status') == 'deferred']
                 if waiting: continue                                   # a dependency is not submitted yet: try next tick
                 St[rid] = dict(status='rejected', why=['a dependency failed or was rejected'], at=now()); continue
             argv = list(spec['argv'])
@@ -122,6 +122,10 @@ def tick(qdir, dry=False, kinds_path=None, jobs_path=None, state_path=None):
             if dry: St[rid] = dict(status='submitted', slurm_id='DRY', argv=argv, env=spec['env'], at=now()); continue
             rc, out, err = sh(argv, env=env)
             jid = out.split(';')[0] if rc == 0 else None
+            if not jid and 'QOSMaxSubmitJobPerUserLimit' in (err or out):     # the cluster's cap on submitted jobs per user: not a failure,
+                St[rid] = dict(status='deferred', kind=req['kind'], at=now(), tries=(St.get(rid) or {}).get('tries', 0) + 1,   # retry next tick,
+                               error='QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot')                          # in jobs.json order
+                log('deferred', rid); break
             St[rid] = dict(status='submitted' if jid else 'failed', slurm_id=jid, kind=req['kind'], env=spec['env'], sbatch=req.get('sbatch') or {},
                            after=req.get('after') or [], at=now(), error=None if jid else (err or out)[:300])
             log('submit', rid, jid, err[:200])
@@ -158,6 +162,18 @@ def selftest():
     assert S['t1']['status'] == 'submitted' and any(a.startswith('--dependency=afterok:DRY') for a in S['t1']['argv']), S['t1']
     assert 't2' not in S
     assert not tick(d, dry=True, kinds_path=kp, jobs_path=jp, state_path=sp)          # nothing new -> unchanged
+    # the per-user submit cap defers (and retries) instead of failing; dependants wait
+    d2 = tempfile.mkdtemp(); kp2, jp2, sp2 = (os.path.join(d2, n) for n in ('k.json', 'j.json', 's.json')); json.dump(kinds, open(kp2, 'w'))
+    json.dump(dict(jobs=[dict(id='a', kind='surrogate_gen', env=dict(PLAN='x')), dict(id='b', kind='surrogate_gen', env=dict(PLAN='y'), after=['a'])]), open(jp2, 'w'))
+    global sh
+    real = sh; cap = [True]
+    sh = lambda argv, env=None, timeout=300: (1, '', 'sbatch: error: QOSMaxSubmitJobPerUserLimit') if cap[0] else (0, '123', '')
+    try:
+        tick(d2, kinds_path=kp2, jobs_path=jp2, state_path=sp2); S2 = json.load(open(sp2))['jobs']
+        assert S2['a']['status'] == 'deferred' and 'b' not in S2, S2
+        cap[0] = False; tick(d2, kinds_path=kp2, jobs_path=jp2, state_path=sp2); S2 = json.load(open(sp2))['jobs']
+        assert S2['a']['status'] == 'submitted' and S2['b']['status'] == 'submitted', S2
+    finally: sh = real
     print('queue_runner selftest ok')
 
 
