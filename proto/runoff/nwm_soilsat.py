@@ -179,8 +179,19 @@ def cmd_probe(a):
     try:
         P, K = s3_list(RETRO, 'CONUS/netcdf/LDASOUT/2023/', delimiter=''); log('  2023 LDASOUT last keys', K[-5:], len(K))
     except Exception as e: log('  2023 list failed', e)
-    for z in ('CONUS/zarr/ldasout.zarr/.zmetadata', 'CONUS/zarr/ldasout.zarr/SOILSAT_TOP/.zarray', 'CONUS/zarr/ldasout.zarr/time/.zarray'):
-        r = get(f'{RETRO}/{z}', timeout=120); log('== zarr', z, None if r is None else r.text[:1500])
+    r = get(f'{RETRO}/CONUS/zarr/ldasout.zarr/.zmetadata', timeout=120)
+    if r is not None:
+        M = r.json()['metadata']; arrs = sorted({k.split('/')[0] for k in M if k.endswith('.zarray')}); log('== zarr ldasout arrays', arrs)
+        for v in ('SOIL_M', 'SOILSAT_TOP', 'SOILSAT', 'time', 'x', 'y'):
+            if f'{v}/.zarray' in M: log('== zarr', v, json.dumps(M[f'{v}/.zarray']), json.dumps(M.get(f'{v}/.zattrs'))[:600])
+        r2 = get(f'{RETRO}/CONUS/zarr/ldasout.zarr/time/0', timeout=120); log('== zarr time chunk 0 bytes', None if r2 is None else len(r2.content))
+    P, K = s3_list(RETRO, 'CONUS/zarr/ldasout.zarr/SOIL_M/', delimiter='', maxkeys=20); log('== zarr SOIL_M first keys', K[:20])
+    # operational land file variables (current, and one from 2019 / 2023)
+    for t in (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=3), dt.datetime(2023, 9, 11, 16)):
+        url = OPER[0].format(ymd=t.strftime('%Y%m%d'), hh=t.strftime('%H')); rr = get(url)
+        if rr is None: log('== oper vars missing', url); continue
+        import netCDF4
+        ds = netCDF4.Dataset('mem.nc', memory=rr.content); log('== oper vars', url, {v: (ds[v].dimensions, getattr(ds[v], 'long_name', ''), getattr(ds[v], 'units', '')) for v in ds.variables}); ds.close()
     # one retrospective netCDF: size and variables
     r = get(RETRO_NC.format(y=2021, ymdh='2021090118'), timeout=900)
     if r is not None:
