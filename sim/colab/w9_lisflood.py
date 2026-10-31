@@ -15,6 +15,8 @@ env: HF_TOKEN, RUN_DIR, GIT_SHA, BOX 'x0,y0,x1,y1' (EPSG:26986), RES (m, multipl
      LF_MRMS_DIR (MRMS file cache: stage on a login node, then run offline),
      LF_DRAINS (path to a storm-drain pipe shapefile .zip/.shp; private data, read only) / LF_DRAIN_DESIGN 1 (generic design-storm drains):
      storm-drain capacity as a per-cell sink (sim/colab/lf_drains.py; CPU build, LF_FORCE_CPU 1 forces it), off by default,
+     LF_INLETS 1 (catch basins / inlets: HEC-22 sag capacity x (1 - clog), pipe-network limit; sim/colab/lf_inlets.py, same patched infilfile
+     sink and CPU rule as LF_DRAINS; docs/proto/drains/INLETS_PREREG.md), off by default,
      LF_RAIN_SHIFT_M 'dx,dy' (opt-in, metres EPSG:26986: the storm is moved by dx, dy; MRMS or HRRR; proto/surrogate),
      LF_SURR_SAVE 1 (opt-in: surr_inputs.npz = static layers + hourly rain for the flood surrogate, proto/surrogate/dataset.py; LF_SURR_OUT path,
      LF_SURR_RAIN_COARSEN cells per rain block, default 5); both unset by default, and then nothing changes
@@ -1094,6 +1096,11 @@ def main():
     DRAINS_ON = bool(os.environ.get('LF_DRAINS')) or os.environ.get('LF_DRAIN_DESIGN', '0') == '1'      # storm-drain sink (sim/colab/lf_drains.py)
     if os.environ.get('LF_FORCE_CPU') == '1' or (DRAINS_ON and want_cuda and os.environ.get('LF_DRAIN_ALLOW_CUDA', '0') != '1'):
         want_cuda = False; log('CPU build: ' + ('LF_FORCE_CPU=1' if os.environ.get('LF_FORCE_CPU') == '1' else 'the drain sink is run-tested on the CPU solver only (LF_DRAIN_ALLOW_CUDA=1 with a LF_PATCH_CUDA_SINK=1 build to try the GPU)'))
+    # ---- LF_INLETS (begin; sim/colab/lf_inlets.py, docs/proto/drains/INLETS_PREREG.md) ----
+    INLETS_ON = os.environ.get('LF_INLETS', '0') == '1'
+    if INLETS_ON and DRAINS_ON: raise SystemExit('LF_INLETS and LF_DRAINS / LF_DRAIN_DESIGN both write the infilfile sink: use one')
+    if INLETS_ON and want_cuda and os.environ.get('LF_DRAIN_ALLOW_CUDA', '0') != '1': want_cuda = False; log('CPU build: the LF_INLETS sink is run-tested on the CPU solver only')
+    # ---- LF_INLETS (end) ----
     log(f'w9 LISFLOOD-FP benchmark: {run_name} box {BOX} res {RES} m, {S["hours"]} h from {S["t0"]}; GPU {gpu}, nvcc {shutil.which("nvcc")}')
     # 1. get + build
     tb = time.time()
@@ -1234,6 +1241,20 @@ def main():
         if abs(pr_['volume_ratio'] - 1) > 0.05: raise SystemExit(f'LF_DRAINS: this LISFLOOD-FP build ignores the infilfile sink (probe {pr_}); rebuild it (patch_source applies the mfw-drains patch)')
         write_asc(f'{wd}/drains.asc', sink_, x0, y0, RES, fmt='%.2f'); extra.append('infilfile drains.asc')
         DRAINS = dict(drep_, probe=pr_, cells_m2=RES * RES, note='aggregate only; the per-cell raster is deleted after the run (pipe data shared for research only)')
+    # ---- LF_INLETS (begin): catch basins as a capped, clogging-aware per-cell sink through the same patched 'infilfile' as LF_DRAINS ----
+    INLETS = None
+    if INLETS_ON:
+        if I['SGC']: raise SystemExit('LF_INLETS needs the acceleration solver without LF_SGC (8.2 sgm_fast.cpp applies an infilfile rate per step, not per second)')
+        if is_cuda and os.environ.get('LF_DRAIN_ALLOW_CUDA', '0') != '1':
+            raise SystemExit('LF_INLETS: this is a CUDA build; the sink is tested on the CPU solver. Set LF_EXE to a CPU build (LF_EXE_CUDA=0) or LF_FORCE_CPU=1')
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_inlets
+        isink_, irep_ = lf_inlets.build(I['Z_RAW'], I['water'] | I['chan'], BOX, RES, t0=S['t0'], log=log)
+        if DOM: isink_ = np.where(MSK, isink_, 0.0).astype(np.float32)
+        ipr_ = probe_sink(exe, is_cuda)
+        if abs(ipr_['volume_ratio'] - 1) > 0.05: raise SystemExit(f'LF_INLETS: this LISFLOOD-FP build ignores the infilfile sink (probe {ipr_}); rebuild it (patch_source applies the mfw-drains patch)')
+        write_asc(f'{wd}/inlets.asc', isink_, x0, y0, RES, fmt='%.2f'); extra.append('infilfile inlets.asc')
+        INLETS = dict(irep_, probe=ipr_, cells_m2=RES * RES)
+    # ---- LF_INLETS (end) ----
     INIT_TSTEP = float(os.environ.get('LF_INIT_TSTEP', '10'))     # s; on CUDA also the cap on every step (max_dt), and the whole first step (docs/proto/parity/PARITY.md)
     par = write_par(f'{wd}/run.par', 'res', S['hours'] * 3600, saveint=SAVEINT, cuda=is_cuda, manning='n.asc', rain='rain.nc', bci='run.bci', start=start,
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra, initial_tstep=INIT_TSTEP)
@@ -1358,6 +1379,7 @@ def main():
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
                 forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours']) if S.get('rain_src') == 'hrrr' else None)
     if SUBR: meta['inputs']['rain_subhourly'] = SUBR
+    if INLETS: meta['inputs']['inlets'] = INLETS     # LF_INLETS (aggregate report only)
     if I.get('rain_products'):     # MRMS product per hour (AWS Pass2, or the IEM mtarchive fallback before Oct 2020)
         cnt_ = {}
         for v_ in I['rain_products'].values(): cnt_[v_] = cnt_.get(v_, 0) + 1

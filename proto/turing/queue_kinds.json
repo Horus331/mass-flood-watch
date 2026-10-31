@@ -155,6 +155,38 @@
     "partition",
     "time"
    ]
+  },
+  "run_inlets": {
+   "script": "proto/turing/run_inlets.slurm",
+   "env": [
+    "PLAN",
+    "PIN",
+    "IDX"
+   ],
+   "required": [
+    "PLAN",
+    "PIN"
+   ],
+   "sbatch": [
+    "array",
+    "partition",
+    "time",
+    "mem"
+   ]
+  },
+  "collect_scores": {
+   "script": "proto/turing/collect_scores.slurm",
+   "env": [
+    "PLAN",
+    "WAIT_H"
+   ],
+   "required": [
+    "PLAN"
+   ],
+   "sbatch": [
+    "partition",
+    "time"
+   ]
   }
  }
 }
