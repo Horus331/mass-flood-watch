@@ -9,14 +9,14 @@ on:
     inputs:
       feeds: {description: 'comma list of rain,nowcast,flash,nwm,snow,validation', default: 'rain,nowcast,flash,nwm,snow,validation'}
       force: {description: 'commit even if nothing material changed', type: boolean, default: false}
-      map_comids: {description: 'first (re)build the culvert -> NHDPlus COMID map (USGS NLDI, ~10 min)', type: boolean, default: false}
+      map_comids: {description: 'first (re)build the culvert -> NHDPlus COMID map (USGS NLDI; resumable, 12 min budget per run)', type: boolean, default: false}
 permissions:
   contents: write
 concurrency: {group: live-feeds, cancel-in-progress: false}
 jobs:
   live:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,7 +27,7 @@ jobs:
         run: pip install -q pysteps opencv-python-headless && python -c "import pysteps; print('pysteps', pysteps.__version__)"
       - name: culvert -> COMID map
         if: inputs.map_comids
-        run: python -u proto/live_feeds.py map-comids 2>&1 | tail -30
+        run: python -u proto/live_feeds.py map-comids --max-minutes 12 2>&1 | tail -40
       - id: run
         run: |
           set -o pipefail
