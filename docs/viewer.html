@@ -22,10 +22,10 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 
 <section class="card" id="card" aria-labelledby="runTitle">
   <a class="brand" href="./" title="Mass Flood Watch home">
-    <img src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="62" height="20">
-    <span class="who"><b>Mohab Eldokla</b><span class="long">PhD dissertation research · Worcester Polytechnic Institute</span><span class="short">PhD dissertation research · WPI</span></span>
+    <span class="who"><b>Mass Flood Watch</b><span class="long">Road flood model · MassDOT District 3 · WPI research</span><span class="short">Road flood model · District 3</span></span>
   </a>
-  <nav class="tabs" id="tabs" aria-label="Sections"><a data-tab="map" href="?run=leominster_sep2023"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z"/><path d="M9 4v14M15 6v14"/></svg><span>Map</span></a><a data-tab="roads" href="#roads"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3 5 21M15.5 3 19 21"/><path d="M12 4v2.5M12 10v3M12 17v3"/></svg><span>Roads</span></a><a data-tab="whatif" href="?run=whatif"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>What-if</span></a><a data-tab="live" href="?run=forecast"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.8"/><path d="M8.3 8.3a5.2 5.2 0 0 0 0 7.4M15.7 8.3a5.2 5.2 0 0 1 0 7.4M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/></svg><span>Live</span></a><a data-tab="about" href="about.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 11v5.5M12 7.6v.4"/></svg><span>About</span></a></nav>
+  <nav class="tabs" id="tabs" aria-label="Mode"><a data-tab="map" href="?run=leominster_sep2023">Replay</a><a data-tab="whatif" href="?run=whatif">Scenarios</a><a data-tab="live" href="?run=forecast">Forecast</a></nav>
+  <p class="hlinks"><a href="about.html#how">Methods</a><a href="about.html">About</a><a id="tourLink" href="?run=leominster_sep2023&amp;tour=1" hidden>Guided tour</a></p>
   <div class="pick">
     <details class="picker" id="picker">
       <summary aria-label="Choose a storm"><h1 id="runTitle"></h1><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg></summary>
@@ -41,7 +41,6 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
         <p class="stats" id="runStats"></p>
       </div>
     </details>
-    <a class="about-link" href="about.html">About</a>
   </div>
   <p class="statusline" id="statusLine"><span id="slMode"></span><b id="slNow"></b></p>
   <section class="live" id="live" hidden aria-labelledby="lvTitle">
@@ -51,8 +50,9 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <div class="storms" id="storms"></div>
     <p class="caveat">Week-ahead rain is uncertain. Road closures are only modelled within 48 hours of a storm.</p>
   </section>
-  <details class="rank" id="rank" hidden><summary>Roads, most severe first</summary><div class="rank-act"><button type="button" id="csvBtn">Download CSV</button><button type="button" id="shareBtn2">Share this view</button></div><ol id="rankList"></ol></details>
+  <details class="rank" id="rank" open hidden><summary>Roads, most severe first</summary><div class="rank-act"><button type="button" id="csvBtn">Download CSV</button><button type="button" id="shareBtn2">Share this view</button></div><ol id="rankList"></ol></details>
   <details class="evid" id="evid" hidden><summary>Checked against real reports</summary><div id="evidBody"></div></details>
+  <p class="caveat-foot">Modelled results, not observed conditions. Research product, not an official MassDOT or NWS forecast; do not use for real-time road decisions.</p>
 </section>
 
 <button type="button" class="side-toggle" id="sideToggle" aria-label="Hide the side panel" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
@@ -180,12 +180,13 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <div class="in in-rain"><span class="il"><span class="lg">Rain now</span><span class="sm">Rain</span></span><b id="inRain">–</b><span class="is" id="inRainS"></span></div>
     <div class="in in-river" id="inRiverBox" hidden><span class="il" id="inRiverL">River flow</span><b id="inRiver">–</b><svg id="inRiverSp" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"></svg></div>
     <div class="in in-ground"><span class="il">Ground</span><b id="inGround">as it was</b><span class="is" id="inGroundS">normal wetness</span></div>
-    <div class="in in-culv"><span class="il"><span class="lg">Culverts overtopped</span><span class="sm">Culverts over</span></span><b id="inCulv">–</b><span class="is" id="inCulvS"></span></div>
+    <div class="in in-culv"><span class="il"><span class="lg">Culverts over</span><span class="sm">Culverts over</span></span><b id="inCulv">–</b><span class="is" id="inCulvS"></span></div>
     <div class="in in-soak" id="inSoakBox" hidden><span class="il"><span class="lg">Soaked in or drained</span><span class="sm">Soaked in</span></span><b id="inSoak">–</b><span class="is" id="inSoakS"></span></div>
     <div class="in in-roads"><span class="il"><span class="lg">Roads closed now</span><span class="sm">Closed</span></span><b id="inRoads" class="shut">–</b><svg id="inRoadsSp" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"></svg></div>
   </div>
   <div class="controls">
     <button id="play" class="play" disabled aria-label="Play storm"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="playIcon" d="M5 3l12 7-12 7z"/></svg></button>
+    <div class="jumps" role="group" aria-label="Jump to"><button type="button" id="jStart">Start</button><button type="button" id="jPeak">Peak</button></div>
     <div class="speeds" role="group" aria-label="Playback speed, storm hours per second">
       <button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2" aria-pressed="true">2×</button><button data-speed="4">4×</button>
     </div>
