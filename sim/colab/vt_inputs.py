@@ -447,51 +447,20 @@ def fetch_roads(box, out):
 # ---------------------------------------------------------------- USGS gauges ----------------------------------------------------------
 def fetch_gauges(box, start, end, path, state='50'):
     """Gauges inside the box with 15-min discharge (00060) / gage height (00065), obs_fetch.py layout with UTC ISO times."""
-    API = 'https://api.waterdata.usgs.gov/ogcapi/v0/collections'
-    w, s, e, n = lonlat_bbox(box); tw = f'{start}T00:00:00Z/{end}T23:59:59Z'; ser = {}; src = 'api.waterdata.usgs.gov OGC continuous'
-    def items(coll, params):
-        feats, nxt, p = [], f'{API}/{coll}/items', dict(params, f='json', limit=10000)
-        while nxt:
-            r = get(nxt, p, tries=5)
-            if r is None: return None
-            j = r.json(); feats += j.get('features', []); nxt = next((l['href'] for l in j.get('links', []) if l.get('rel') == 'next'), None); p = None
-        return feats
-    for pc in ('00060', '00065'):
-        F = items('continuous', dict(state_code=state, parameter_code=pc, time=tw))
-        if F is None: log('OGC continuous failed', pc); continue
-        for f in F:
-            q = f['properties']
-            try: v = float(q['value'])
-            except (TypeError, ValueError): continue
-            if v <= -999: continue
-            sid = q['monitoring_location_id'].split('-', 1)[-1]
-            ser.setdefault((sid, pc), {}).setdefault(q.get('time_series_id') or '', []).append((q['time'].replace('Z', '+00:00'), v))
-    info = {}
-    ids = sorted({sid for sid, _ in ser})
-    for i in range(0, len(ids), 40):
-        for f in items('monitoring-locations', dict(id=','.join('USGS-' + x for x in ids[i:i + 40]))) or []:
-            q = f['properties']; g = (f.get('geometry') or {}).get('coordinates') or [None, None]
-            info[f['id'].split('-', 1)[-1]] = dict(name=q.get('monitoring_location_name'), lon=g[0], lat=g[1], datum_ft=q.get('altitude'), vdatum=q.get('vertical_datum'),
-                                                    drain_mi2=q.get('drainage_area'))
+    # Through proto/usgs_api.py (OGC API bbox query; legacy WaterServices bBox as the fallback until 22 Feb 2027, env USGS_SOURCE).
+    # `state` is no longer needed (the box selects the gauges) and is kept for the call signature.
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'proto')); import usgs_api as U
+    w, s, e, n = lonlat_bbox(box)
+    G, used = U.iv(bbox=(w, s, e, n), start=f'{start}T00:00:00Z', end=f'{end}T23:59:59Z')
+    src = 'legacy waterservices.usgs.gov' if used == 'legacy' else 'api.waterdata.usgs.gov OGC continuous'
     out = {}
-    for (sid, pc), by in sorted(ser.items()):
-        m = info.get(sid)
-        if not m or m['lon'] is None or not (w <= m['lon'] <= e and s <= m['lat'] <= n): continue
-        vals = sorted(max(by.values(), key=len)); g = out.setdefault(sid, dict(site=sid, name=m['name'], lon=m['lon'], lat=m['lat']))
-        k = 'q_cfs' if pc == '00060' else 'stage_ft'; g[k] = vals; g['peak_' + k] = max(vals, key=lambda x: x[1])
-        g.update(datum_ft=float(m['datum_ft']) if m['datum_ft'] is not None else None, vdatum=m['vdatum'], drain_mi2=float(m['drain_mi2']) if m['drain_mi2'] is not None else None)
-    if not out:                                     # legacy WaterServices (being retired) as a fallback
-        src = 'legacy waterservices.usgs.gov'
-        r = get('https://waterservices.usgs.gov/nwis/iv/', dict(format='json', bBox=f'{w:.4f},{s:.4f},{e:.4f},{n:.4f}', startDT=start, endDT=end, parameterCd='00060,00065', siteStatus='all'), tries=3)
-        if r is not None:
-            import datetime as dt
-            for ts in r.json()['value']['timeSeries']:
-                si = ts['sourceInfo']; sid = si['siteCode'][0]['value']; var = ts['variable']['variableCode'][0]['value']; gl = si['geoLocation']['geogLocation']
-                vals = [(dt.datetime.fromisoformat(v['dateTime']).astimezone(dt.timezone.utc).isoformat(), float(v['value'])) for v in ts['values'][0]['value']
-                        if v['value'] not in ('', None) and float(v['value']) > -999]
-                g = out.setdefault(sid, dict(site=sid, name=si['siteName'], lon=gl['longitude'], lat=gl['latitude'], datum_ft=None, vdatum=None, drain_mi2=None))
-                k = 'q_cfs' if var == '00060' else 'stage_ft'; g[k] = vals
-                if vals: g['peak_' + k] = max(vals, key=lambda x: x[1])
+    for sid, g in sorted(G.items()):
+        for pc, k in (('00060', 'q_cfs'), ('00065', 'stage_ft')):
+            vals = g['series'].get(pc) or []
+            if not vals: continue
+            r = out.setdefault(sid, dict(site=sid, name=g['name'], lon=g['lon'], lat=g['lat']))
+            r[k] = vals; r['peak_' + k] = max(vals, key=lambda x: x[1])
+            r.update(datum_ft=g['datum_ft'], vdatum=g['vdatum'], drain_mi2=g['drain_mi2'])
     os.makedirs(os.path.dirname(path), exist_ok=True)
     json.dump(dict(bbox=[w, s, e, n], start=start, end=end, source=src, times='UTC', gauges=list(out.values())), open(path, 'w'), separators=(',', ':'))
     log('gauges in box:', [(g['site'], g['name'], g.get('peak_q_cfs')) for g in out.values()])

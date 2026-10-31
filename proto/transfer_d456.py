@@ -927,16 +927,18 @@ def osm_roads(pbf, cases, out_dir):
 
 
 def gauges_fast(out_dir):
-    """USGS gauges in each catalogue box (legacy WaterServices IV, one bBox request per storm; the OGC path of obs_catalog.fetch queries the
-    whole state per storm and took hours for 81 storms) -> <out_dir>/gauges_<id>.json in the obs_fetch.py layout (local times)."""
+    """USGS gauges in each catalogue box -> <out_dir>/gauges_<id>.json in the obs_fetch.py layout (local times).  Through
+    proto/usgs_api.py: OGC API bbox query (time-series-metadata discovery, no whole-state pull), legacy WaterServices bBox as the
+    fallback until it is switched off 22 Feb 2027 (env USGS_SOURCE=legacy forces the old path)."""
     sys.path.insert(0, HERE); import obs_fetch as OF
     os.makedirs(out_dir, exist_ok=True)
     for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog_d456.json')))['events']:
         p = os.path.join(out_dir, f"gauges_{e['id']}.json")
         if os.path.exists(p): continue
         try:
-            G = OF.gauges_legacy(e['bbox_lonlat'], e['start'], e['end'])
-            json.dump(dict(bbox=e['bbox_lonlat'], start=e['start'], end=e['end'], source='legacy waterservices.usgs.gov IV (bBox)', gauges=list(G.values())), open(p, 'w'))
+            G, used = OF.gauges(e['bbox_lonlat'], e['start'], e['end'])
+            src = 'legacy waterservices.usgs.gov IV (bBox)' if used == 'legacy' else 'api.waterdata.usgs.gov OGC continuous (bbox)'
+            json.dump(dict(bbox=e['bbox_lonlat'], start=e['start'], end=e['end'], source=src, gauges=list(G.values())), open(p, 'w'))
             log('gauges', e['id'], len(G), [(g['site'], g.get('peak_stage_ft')) for g in G.values()])
         except Exception as ex: log('gauges failed', e['id'], repr(ex)[:200])
 

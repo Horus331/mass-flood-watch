@@ -20,13 +20,12 @@ def get(url, params=None, tries=4, **kw):
     return None
 
 # --- USGS gauges -------------------------------------------------------------------------------------------------------
-# Primary: USGS Water Data OGC API (api.waterdata.usgs.gov/ogcapi/v0, collections 'continuous' + 'monitoring-locations').
+# Primary: USGS Water Data OGC API (api.waterdata.usgs.gov/ogcapi/v1, collections 'continuous' + 'time-series-metadata' + 'monitoring-locations').
 # Fallback: legacy WaterServices (waterservices.usgs.gov/nwis/iv + /site), retired Nov 2026 - Q1 2027; used only if the new API
 # returns nothing.  Both paths write the same records: times in the gauge's local time with offset (e.g. 2023-09-11T21:15:00.000-04:00),
 # 15-min [time, value] lists, peak_* = first maximum, datum_ft / vdatum / drain_mi2 from the site record.
-OGC = 'https://api.waterdata.usgs.gov/ogcapi/v0/collections'
-HDR = {'User-Agent': 'mass-flood-watch research (github.com/Horus331/mass-flood-watch)'}
-if os.environ.get('API_USGS_PAT'): HDR['X-Api-Key'] = os.environ['API_USGS_PAT']        # optional key (higher rate limits); never required
+# Both are read through proto/usgs_api.py (one shared reader; env USGS_SOURCE=auto|ogc|legacy, optional key API_USGS_PAT).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 TZ = 'America/New_York'                                                                     # every MA / southern NH-VT gauge
 
 def _local(t_utc):
@@ -41,84 +40,39 @@ def _window_utc(start, end):
     f = lambda d: d.astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     return f'{f(a)}/{f(b)}'
 
-def ogc_items(coll, params):
-    """All features of an OGC API items query (follows rel=next; 429/5xx back off).  None if unreachable."""
-    feats, nxt, p = [], f'{OGC}/{coll}/items', dict(params, f='json', limit=10000)
-    while nxt:
-        for k in range(5):
-            try:
-                r = requests.get(nxt, params=p, headers=HDR, timeout=300)
-                if r.status_code in (429, 500, 502, 503, 504): raise RuntimeError(f'HTTP {r.status_code}')
-                r.raise_for_status(); j = r.json(); break
-            except Exception as e: print('  ogc retry', k, coll, repr(e)[:120]); time.sleep(10 * (k + 1))
-        else: return None
-        feats += j.get('features', []); nxt = next((l['href'] for l in j.get('links', []) if l.get('rel') == 'next'), None); p = None
-    return feats
+def _records(G, bbox=None):
+    """proto/usgs_api.iv() result -> the gauges_<storm>.json records (local times, peak_* = first maximum, legacy precision)."""
+    out = {}
+    for sid, g in sorted(G.items()):
+        if g.get('lon') is None or (bbox and not (bbox[0] <= g['lon'] <= bbox[2] and bbox[1] <= g['lat'] <= bbox[3])): continue
+        r8 = lambda v: round(float(v), 8) if v is not None else None
+        rec = out.setdefault(sid, dict(site=sid, name=g['name'], lon=r8(g['lon']), lat=r8(g['lat'])))
+        for pc, key in (('00060', 'q_cfs'), ('00065', 'stage_ft')):
+            vals = [(_local(t), v) for t, v in g['series'].get(pc) or []]
+            if not vals: continue
+            rec[key] = vals; rec['peak_' + key] = max(vals, key=lambda x: x[1])
+        rec.update(datum_ft=g.get('datum_ft'), vdatum=g.get('vdatum'), drain_mi2=g.get('drain_mi2'))
+    return out
 
 def gauges_ogc(bbox, start, end, states=('25',)):
-    """Gauges inside bbox with 00060/00065 instantaneous values, from the OGC 'continuous' collection (queried per state, the
-    pattern proven in sim/gauges_fetch.py) and site metadata from 'monitoring-locations' (altitude, vertical_datum, drainage_area)."""
-    w, s, e, n = bbox; tw = _window_utc(start, end); ser = {}
-    for st in states:
-        for pc in ('00060', '00065'):
-            F = ogc_items('continuous', dict(state_code=st, parameter_code=pc, time=tw))
-            if F is None: print('  ogc continuous failed', st, pc); continue
-            for f in F:
-                q = f['properties']
-                try: v = float(q['value'])
-                except (TypeError, ValueError): continue
-                if v <= -999: continue
-                sid = q['monitoring_location_id'].split('-', 1)[-1]
-                ser.setdefault((sid, pc), {}).setdefault(q.get('time_series_id') or '', []).append((q['time'], v))
-    if not ser: return {}
-    ids = sorted({sid for sid, _ in ser}); info = {}
-    for i in range(0, len(ids), 40):
-        F = ogc_items('monitoring-locations', dict(id=','.join('USGS-' + x for x in ids[i:i + 40])))
-        for f in F or []:
-            q = f['properties']; sid = f['id'].split('-', 1)[-1]; g = f.get('geometry') or {}
-            c_ = g.get('coordinates') or [None, None]; r8 = lambda v: round(float(v), 8) if v is not None else None     # legacy precision (~1 mm)
-            info[sid] = dict(name=q.get('monitoring_location_name'), lon=r8(c_[0]), lat=r8(c_[1]),
-                             datum_ft=q.get('altitude'), vdatum=q.get('vertical_datum'), drain_mi2=q.get('drainage_area'))
-    out = {}
-    for (sid, pc), by_ts in sorted(ser.items()):
-        m = info.get(sid)
-        if not m or m['lon'] is None or not (w <= m['lon'] <= e and s <= m['lat'] <= n): continue
-        rows = max(by_ts.values(), key=len)                                  # several series per parameter: keep the fullest (the primary)
-        vals = [(_local(t), v) for t, v in sorted(rows)]
-        g = out.setdefault(sid, dict(site=sid, name=m['name'], lon=m['lon'], lat=m['lat']))
-        key = 'q_cfs' if pc == '00060' else 'stage_ft'; g[key] = vals
-        if vals: g['peak_' + key] = max(vals, key=lambda x: x[1])
-    for sid, g in out.items():
-        m = info[sid]
-        g.update(datum_ft=float(m['datum_ft']) if m['datum_ft'] is not None else None, vdatum=m['vdatum'],
-                 drain_mi2=float(m['drain_mi2']) if m['drain_mi2'] is not None else None)
-    return out
+    """Gauges inside bbox with 00060/00065 instantaneous values from the OGC API via proto/usgs_api.py (bbox discovery through
+    'time-series-metadata'; `states` is no longer needed and kept only for the call signature)."""
+    import usgs_api as U
+    a, b = _window_utc(start, end).split('/')
+    G, used = U.iv(bbox=bbox, start=a, end=b, source='ogc')
+    return _records(G, bbox)
 
 def gauges_legacy(bbox, start, end):
-    w, s, e, n = bbox
-    r = get('https://waterservices.usgs.gov/nwis/iv/', dict(format='json', bBox=f'{w:.4f},{s:.4f},{e:.4f},{n:.4f}', startDT=start, endDT=end,
-                                                         parameterCd='00060,00065', siteStatus='all'))
-    out = {}
-    if r is None: return out
-    for ts in r.json()['value']['timeSeries']:
-        si = ts['sourceInfo']; code = si['siteCode'][0]['value']; var = ts['variable']['variableCode'][0]['value']
-        g = out.setdefault(code, dict(site=code, name=si['siteName'], lon=si['geoLocation']['geogLocation']['longitude'], lat=si['geoLocation']['geogLocation']['latitude']))
-        vals = [(v['dateTime'], float(v['value'])) for v in ts['values'][0]['value'] if v['value'] not in ('', None) and float(v['value']) > -999]
-        key = 'q_cfs' if var == '00060' else 'stage_ft'
-        g[key] = vals
-        if vals: g['peak_' + key] = max(vals, key=lambda x: x[1])
-    # site metadata: datum (ft), vertical datum, drainage area
-    for code, g in out.items():
-        m = get('https://waterservices.usgs.gov/nwis/site/', dict(format='rdb', sites=code, siteOutput='expanded'))
-        if m is None: continue
-        L = [l for l in m.text.splitlines() if l and not l.startswith('#')]
-        if len(L) >= 3:
-            H = L[0].split('\t'); V = L[2].split('\t'); d = dict(zip(H, V))
-            g.update(datum_ft=float(d['alt_va']) if d.get('alt_va') else None, vdatum=d.get('alt_datum_cd'), drain_mi2=float(d['drain_area_va']) if d.get('drain_area_va') else None)
-    return out
+    """The pre-migration WaterServices path (bBox query + /site metadata), via proto/usgs_api.py; works until 22 Feb 2027."""
+    import usgs_api as U
+    a, b = _window_utc(start, end).split('/')
+    G, used = U.iv(bbox=bbox, start=a, end=b, source='legacy')
+    return _records(G)
 
-def gauges(bbox, start, end, source='auto', states=('25',)):
-    """source: 'ogc' (new API only), 'legacy' (WaterServices only), 'auto' (OGC, then legacy if OGC gave nothing).  Returns ({site: rec}, used)."""
+def gauges(bbox, start, end, source=None, states=('25',)):
+    """source: 'ogc' (new API only), 'legacy' (WaterServices only), 'auto' (OGC, then legacy if OGC gave nothing).
+    The env switch USGS_SOURCE, when set, overrides the argument.  Returns ({site: rec}, used)."""
+    source = os.environ.get('USGS_SOURCE') or source or 'auto'
     if source in ('ogc', 'auto'):
         G = gauges_ogc(bbox, start, end, states)
         if G or source == 'ogc': return G, 'ogc'
@@ -156,7 +110,7 @@ def stormevents(year, start, end, bbox):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('--storm', default='sep2023'); ap.add_argument('--bbox', default='-72.15,42.40,-71.55,42.75')
     ap.add_argument('--start', default='2023-09-10'); ap.add_argument('--end', default='2023-09-14'); ap.add_argument('--out', default='docs/proto/obs')
-    ap.add_argument('--gauge-source', default='auto', choices=['auto', 'ogc', 'legacy']); ap.add_argument('--states', default='25', help='USGS state codes to query (25 MA, 33 NH, 50 VT, 09 CT, 44 RI, 36 NY)')
+    ap.add_argument('--gauge-source', default=os.environ.get('USGS_SOURCE') or 'auto', choices=['auto', 'ogc', 'legacy']); ap.add_argument('--states', default='25', help='USGS state codes to query (25 MA, 33 NH, 50 VT, 09 CT, 44 RI, 36 NY)')
     ap.add_argument('--gauges-only', action='store_true')
     a = ap.parse_args(); bb = [float(v) for v in a.bbox.split(',')]; os.makedirs(a.out, exist_ok=True)
     G, used = gauges(bb, a.start, a.end, a.gauge_source, tuple(a.states.split(',')))
