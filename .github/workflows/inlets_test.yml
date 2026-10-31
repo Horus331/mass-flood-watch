@@ -1,0 +1,72 @@
+name: LF_INLETS test on Actions CPU (plan tasks, pinned commit; docs/proto/drains/INLETS_PREREG.md amendment A1)
+# Same tasks as proto/turing/run_inlets.slurm (proto/turing/plans/<plan>.json via inlets_plan.py env), on the GitHub CPU runner with
+# LISFLOOD-FP 8.2 built by w9 (the parity-baseline solver). Code = the pinned commit; only small json goes back to main:
+# <dest>/<name>/{score_v2,score,points,flood_meta}.json + w9_tail.txt (or FAILED). Score with: python proto/inlets_eval.py --dir <dest>
+on:
+  workflow_dispatch:
+    inputs:
+      plan: {description: 'plan json', default: 'proto/turing/plans/inlets_v1.json'}
+      pin: {description: 'commit sha of the code to run', required: true}
+      idxs: {description: 'JSON list of task indices', required: true, default: '[0, 1]'}
+      dest: {description: 'docs/proto/<area>/<dir> on main', default: 'docs/proto/drains/inlets_v1a'}
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        idx: ${{ fromJSON(inputs.idxs) }}
+    steps:
+      - name: check inputs
+        env: {PLAN: '${{ inputs.plan }}', PIN: '${{ inputs.pin }}', DEST: '${{ inputs.dest }}'}
+        run: |
+          [[ "$PLAN" =~ ^proto/turing/plans/[A-Za-z0-9_]+\.json$ && "$PIN" =~ ^[0-9a-f]{7,40}$ && "$DEST" =~ ^docs/proto/[a-z0-9_]+/[A-Za-z0-9_]+$ ]] || exit 2
+      - uses: actions/checkout@v4
+        with: {ref: '${{ inputs.pin }}'}
+      - uses: actions/checkout@v4
+        with: {ref: main, path: _main, sparse-checkout: '${{ inputs.dest }}'}
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
+      - name: run + score
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PLAN: ${{ inputs.plan }}
+          IDX: ${{ matrix.idx }}
+        run: |
+          set -o pipefail
+          source <(python proto/turing/inlets_plan.py env $PLAN $IDX)
+          [[ "${NAME:-}" =~ ^[a-z0-9_]{3,80}$ ]] || exit 2
+          echo "NAME=$NAME" >> $GITHUB_ENV
+          R=$RUNNER_TEMP/r/$NAME; mkdir -p $R; F=$R/full; mkdir -p $F
+          fail() { echo "$1" > $R/FAILED; echo "FAILED: $1"; exit 0; }
+          export LF_WORK=$RUNNER_TEMP/lf LF_NO_UPLOAD=1 OMP_NUM_THREADS=4 GIT_SHA=$(git rev-parse HEAD) RUN_DIR=runs/${STORM}_proto_${NAME}
+          env | grep -E '^(LF_|BOX|HOURS|STORM|RES|NAME)' | sort
+          /usr/bin/time -v python sim/colab/w9_lisflood.py > $R/w9_stdout.txt 2>&1 || { tail -60 $R/w9_stdout.txt; tail -c 20000 $R/w9_stdout.txt > $R/w9_tail.txt; fail w9; }
+          tail -c 20000 $R/w9_stdout.txt > $R/w9_tail.txt; grep -E "LF_INLETS|sink probe|LISFLOOD-FP run" $R/w9_stdout.txt || true
+          OUT=$LF_WORK/run_${STORM}_proto_${NAME}/out; [ -f $OUT/meta.json ] || fail no_meta
+          python proto/prototype.py --run-dir "$OUT" --storm $STORM --out $F | tail -3 || fail prototype
+          cp $OUT/meta.json $F/flood_meta.json
+          SCORE_WINDOWS=$R/gauge_windows.npz python proto/score.py --run-dir "$OUT" --storm $STORM --out $R/score.json | tail -8 || true
+          python proto/validate_points.py --run-dir "$OUT" --storm $STORM --out $R/points.json | tail -4 || true
+          LBL=$( (ls proto/data/labels_${STORM}_*.csv proto/data/labels_${STORM}_*.geojson 2>/dev/null || true) | paste -sd, -)
+          if [ -n "$LBL" ]; then python -c "import sys; sys.path.insert(0, 'proto'); import closure_ml as C; C.extract('$OUT', '$STORM', '$LBL'.split(','), out_dir='$F')" | tail -2 || fail closure_ml; fi
+          python proto/score_v2.py --run $F --storm $STORM --out $R/score_v2.json | tail -30 || fail score_v2
+          python -c "import json; m=json.load(open('$OUT/meta.json')); m.pop('frames', None); json.dump(m, open('$R/flood_meta.json', 'w'), indent=0)"
+          echo ok > $R/DONE
+      - name: commit small files
+        if: always()
+        env: {DEST: '${{ inputs.dest }}'}
+        run: |
+          [ -n "${NAME:-}" ] || exit 0
+          R=$RUNNER_TEMP/r/$NAME; D=_main/$DEST/$NAME; mkdir -p $D
+          for f in score_v2.json score.json points.json flood_meta.json w9_tail.txt FAILED; do
+            [ -f $R/$f ] && [ $(stat -c %s $R/$f) -le 400000 ] && cp $R/$f $D/
+          done
+          [ -f $R/DONE ] || [ -f $R/FAILED ] || echo "runner: step failed or timed out" > $D/FAILED
+          cd _main; git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add $DEST/$NAME; git commit -qm "LF_INLETS test (Actions): $NAME" || exit 0
+          for i in $(seq 1 12); do git pull --rebase -q origin main && git push -q origin HEAD:main && break; sleep $((RANDOM % 40 + 5)); done

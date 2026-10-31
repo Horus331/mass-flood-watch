@@ -102,3 +102,19 @@ and calls `score_v2.compare`.
 - **MassDOT covers state highways only.** Municipal streets outside Leominster have no inlets in this sink.
 - **No outfall return.** Drained water is not put back in the receiving streams, so downstream gauges will read low, as in DRAINS.
 - **Labels are positive-only.** "False alarm" is judged by flagged share and lift, not by confirmed dry roads.
+
+## Amendment A1 (31 Oct 2026, 17:40Z, before any score of any arm existed)
+
+The Turing batch (`inl1_runs`, Slurm 2439813) failed in every task it started (11 of 11 at the 17:26Z queue tick), within minutes. No score
+was produced. The job logs are on Turing and cannot be read from here. Most likely cause: the CPU build or environment on the `long`
+partition; the CPU path had never run on Turing. **The same plan therefore runs on GitHub Actions CPU instead**: `.github/workflows/inlets_test.yml`.
+It is the solver of the parity baseline (`parity_test.yml`) and of the passing `LF_INLETS` smoke test (`inlets_smoke/`). Everything else is
+unchanged:
+- the same plan (`proto/turing/plans/inlets_v1.json`, all 50 tasks);
+- the same pinned code (`4de8398d`);
+- the same settings and scorers;
+- the same decision rule, k = 1.
+
+Results go to `docs/proto/drains/inlets_v1a/`, and are scored with `python proto/inlets_eval.py --dir docs/proto/drains/inlets_v1a`. Both arms
+of every pair run on the same Actions CPU solver, so §4's same-commit, same-solver requirement still holds. If the Turing tasks ever produce
+results in `inlets_v1/`, they are not used for the decision.
