@@ -179,6 +179,7 @@ jobs:
         if: (inputs.prefix || 'forecast_latest') == 'forecast_latest'
         continue-on-error: true
         run: |
+          pip install -q netCDF4 || true     # NWM soil saturation block ('soil', proto/runoff/nwm_soilsat.py live)
           python proto/ground_state.py run --out docs/site/data/ground.json 2>&1 | tail -3
       - name: storm archive (gate fired or NWS flood alert in District 3; quiet cycles write nothing)
         continue-on-error: true

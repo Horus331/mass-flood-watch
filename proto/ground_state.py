@@ -12,6 +12,11 @@ Two standard, data-driven indices; nothing fitted to our storms:
    Temperature and snow depth: NWS daily climate report for Worcester (KORH, 300 m, the District 3 first-order station), via the Iowa
    Environmental Mesonet JSON service, the last 120 days.
 
+3. Soil saturation ('soil' block, added 31 Oct 2026): NOAA National Water Model v3 operational analysis (analysis_assim, land, tm00),
+   SOILSAT_TOP = fraction of saturation of the top 40 cm, 1 km cells, District 3 mean and percentiles across cells; its percentile
+   among NWM v3.0 retrospective days within +-15 days of the date (docs/proto/runoff/nwm_soilsat_clim.json, when present); state
+   dry < 25th percentile < normal < 75th < wet.  Context only: it does not enter 'ground'.
+
 How the model uses it: it does NOT change the live forecast. The 5-day wetness rule was backtested on the held-out storms on 23 Oct 2026
 and lowered skill (docs/proto/runoff/AMC.md), so runs stay at the calibrated 'normal' setting. Frozen ground has no backtest yet (the
 catalogue is June-September). The state is published so a reader knows when the forecast is likely too low (wet or frozen ground), and the
@@ -93,6 +98,10 @@ def cmd_run(a):
         out['frost']['snodas'] = dict(date=S.get('date'), depth_cm_mean=S['depth_cm'].get('district_mean'), depth_cm_max=S['depth_cm'].get('district_max'),
                                       swe_mm_mean=(S.get('swe_mm') or {}).get('district_mean'), source=S.get('source'))
     except Exception: pass
+    try:     # extra block only: NWM soil saturation, context (does not change 'ground'): proto/runoff/nwm_soilsat.py live, docs/proto/runoff/NWM_AMC.md
+        sys.path.insert(0, os.path.join(HERE, 'runoff')); import nwm_soilsat
+        out['soil'] = nwm_soilsat.live(log=lambda *x: None)
+    except Exception as e: out['soil'] = dict(state='unknown', error=repr(e)[:200])
     fz =out['frost'].get('state') == 'frozen'; wt = out['wetness'].get('state')
     out['ground'] = 'frozen' if fz else (wt if wt in ('dry', 'normal', 'wet') else 'unknown')
     out['model_use'] = ('Shown for context only. The live forecast runs at the calibrated normal ground; the 5-day wetness rule lowered skill '
