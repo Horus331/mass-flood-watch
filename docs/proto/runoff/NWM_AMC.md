@@ -44,7 +44,14 @@
 
 ## 2. What is queued
 
-QUEUE_PLACEHOLDER
+Branch `turing-queue`, commit c479c002 (31 Oct 2026):
+
+- `amcnwm_v1_b1` … `amcnwm_v1_b5` (kind `run_plan_gpu`, partition quick, 8 h, 1 GPU, 96 GB). Plan `proto/turing/plans/amcnwm_v1.json`,
+  `PIN` b28f4b33fade45d188352f87e87c12eac837fac4, `IDXS` 0-9 / 10-19 / 20-29 / 30-39 / 40-49. That is 50 tasks = 25 storms × {base, nwm},
+  the two arms of a storm in the same job.
+- `amcnwm_v1_collect` (kind `collect_scores`, partition long, `WAIT_H` 36). It polls every 10 min until all 50 tasks have `DONE`/`FAILED`,
+  then pushes `docs/proto/runoff/amcnwm_v1/<name>/{score_v2,score,points,flood_meta}.json`, `w9_tail.txt` and `manifest.json` to main,
+  in one commit.
 
 **Check progress.**
 
