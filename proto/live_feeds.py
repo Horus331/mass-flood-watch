@@ -8,6 +8,7 @@
     python proto/live_feeds.py validation  # MassDOT roadway events + SeeClickFix flood-type issues -> docs/proto/live/archive/YYYY-MM.jsonl
     python proto/live_feeds.py run [--feeds rain,nowcast,...] [--force] [--github-output $GITHUB_OUTPUT]   # all feeds + commit decision
     python proto/live_feeds.py map-comids  # one-off: culverts -> NHDPlus v2 COMID (= NWM feature_id) via USGS NLDI -> docs/proto/live/crossing_comids.json
+    python proto/live_feeds.py nowcast-check --at 2023-09-11T20:00Z,...   # nowcast vs the radar rain that followed -> docs/proto/live/nowcast_check.json
     python proto/live_feeds.py selftest    # offline checks (synthetic grids)
 
 Every feed is independent: an exception in one is recorded in docs/site/data/live/status.json (state 'failed', the error, the last success)
@@ -197,7 +198,7 @@ def rain_png(V, path):
 
 def feed_rain(now=None):
     now = now or utcnow(); P = {}; err = {}
-    prods = dict(radar_1h=('RadarOnly_QPE_01H_00.00', 30), radar_3h=('RadarOnly_QPE_03H_00.00', 30), ms_1h=('MultiSensor_QPE_01H_Pass1_00.00', 180),
+    prods = dict(radar_1h=('RadarOnly_QPE_01H_00.00', 30), radar_3h=('RadarOnly_QPE_03H_00.00', 90), ms_1h=('MultiSensor_QPE_01H_Pass1_00.00', 180),
                  ms_3h=('MultiSensor_QPE_03H_Pass1_00.00', 180), rate=('PrecipRate_00.00', 20))
     for k, (prod, age) in prods.items():
         try:
@@ -273,7 +274,7 @@ def advect_pysteps(frames):
     return F, v, 'pysteps Lucas-Kanade motion field + semi-Lagrangian extrapolation (no growth/decay)'
 
 
-def feed_nowcast(now=None, method=None):
+def feed_nowcast(now=None, method=None, archive=True, keep=None):
     now = now or utcnow(); L = mrms_recent('PrecipRate_00.00', now - dt.timedelta(minutes=40), now)
     if not L: raise RuntimeError('no PrecipRate files in the last 40 min')
     t0, u0 = L[-1]; want = [t0 - dt.timedelta(minutes=STEP_MIN * k) for k in (2, 1)]; pick = []
@@ -310,7 +311,8 @@ def feed_nowcast(now=None, method=None):
     out['town_fields'] = ['town', 'max_0_1h_mm', 'mean_0_1h_mm', 'max_0_2h_mm', 'mean_0_2h_mm']
     out['towns'] = [[a[0], a[1], a[2], b[1], b[2]] for a, b in zip(T1, T2)]
     lvl = sum((m1 or 0) >= t for t in RAIN_LEVELS); out['level'] = lvl
-    if (m2 or 0) >= 1.0: append_archive([dict(id=f'nowcast:{iso(t0)}', src='nowcast', t=iso(t0), method=how, motion=out['motion'], district=out['district'],
+    if keep is not None: keep.update(t0=t0, a1=a1[np.ix_(i, j)], a2=a2[np.ix_(i, j)], rate=frames[-1][np.ix_(i, j)], lat=la, lon=lo)
+    if archive and (m2 or 0) >= 1.0: append_archive([dict(id=f'nowcast:{iso(t0)}', src='nowcast', t=iso(t0), method=how, motion=out['motion'], district=out['district'],
                                               towns=[t for t in out['towns'] if (t[3] or 0) >= 1.0])], 'nowcast')
     material = dict(m1=round(m1 or 0), m2=round(m2 or 0), wet=sorted(t[0] for t in out['towns'] if (t[3] or 0) >= 5))
     return out, material, dict(nowcast_level=lvl)
@@ -399,15 +401,29 @@ def nldi_hydrolocation(lon, lat):
         try:
             J = http_get(f'{base}/comid/position', params={'coords': f'POINT({lon} {lat})'}, timeout=60, tries=2).json()
             c = J['features'][0]['properties'].get('comid') or J['features'][0]['properties'].get('identifier')
-            if c: return int(c), None, 'nldi comid/position (catchment)'
+            if c: return int(c), flowline_dist(base, int(c), lon, lat), 'nldi comid/position (catchment) + flowline distance'
         except Exception as e: last = e
     raise RuntimeError(repr(last)[:200])
+
+
+def flowline_dist(base, comid, lon, lat):
+    """Distance (m) from the point to the NHDPlus flowline of `comid` (NLDI comid feature geometry), None if unavailable."""
+    try:
+        G = http_get(f'{base}/comid/{comid}', timeout=60, tries=2).json()
+        g = (G.get('features') or [G])[0]['geometry']; L = g['coordinates'] if g['type'] == 'LineString' else [p for part in g['coordinates'] for p in part]
+        P = np.array([p[:2] for p in L], float); kx = 111320 * math.cos(math.radians(lat)); ky = 110540
+        x = (P[:, 0] - lon) * kx; y = (P[:, 1] - lat) * ky
+        if len(P) == 1: return round(float(math.hypot(x[0], y[0])), 1)
+        ax, ay, bx, by = x[:-1], y[:-1], x[1:], y[1:]; dx, dy = bx - ax, by - ay
+        t = np.clip(-(ax * dx + ay * dy) / np.maximum(dx * dx + dy * dy, 1e-9), 0, 1)
+        return round(float(np.min(np.hypot(ax + t * dx, ay + t * dy))), 1)
+    except Exception: return None
 
 
 def cmd_map_comids(a=None):
     from concurrent.futures import ThreadPoolExecutor
     X = d3_culverts(); old = json.load(open(COMID_MAP)) if os.path.exists(COMID_MAP) else {'map': {}}
-    todo = [r for r in X if r['id'] not in old['map']]; log('culverts', len(X), 'to map', len(todo))
+    todo = [r for r in X if r['id'] not in old['map'] or old['map'][r['id']].get('snap_m') is None]; log('culverts', len(X), 'to map', len(todo))
     M = dict(old['map']); errs = 0; t_end = time.time() + 60 * float(getattr(a, 'max_minutes', None) or 12)
 
     def one(r):
@@ -439,9 +455,8 @@ def nwm_cycle(now):
     raise RuntimeError('no complete NWM short_range cycle in the last 7 h on s3://noaa-nwm-pds')
 
 
-def nwm_read(url, comids):
+def nwm_read(raw, comids):
     import netCDF4
-    raw = http_get(url, timeout=180).content
     with netCDF4.Dataset('mem.nc', memory=raw) as ds:
         fid = np.asarray(ds.variables['feature_id'][:]).astype(np.int64); q = np.ma.filled(ds.variables['streamflow'][:], np.nan).astype(np.float64)
         t = ds.variables['time']; tv = netCDF4.num2date(t[:], t.units)[0]
@@ -471,7 +486,8 @@ def feed_nwm(now=None):
         r = dict(r, comid=m['comid'], snap_m=m['snap_m'], q_crest=q_crest(r)); X.append(r)
     if not X: raise RuntimeError('no culvert mapped within %.0f m of an NHDPlus flowline' % SNAP_MAX_M)
     comids = np.array(sorted({r['comid'] for r in X}), np.int64); cyc, urls = nwm_cycle(now)
-    with ThreadPoolExecutor(6) as ex: R = list(ex.map(lambda u: nwm_read(u, comids), urls))
+    with ThreadPoolExecutor(6) as ex: RAW = list(ex.map(lambda u: http_get(u, timeout=180).content, urls))   # download in threads,
+    R = [nwm_read(raw, comids) for raw in RAW]; del RAW                                                     # parse serially (HDF5 is not thread-safe)
     T = [t for t, _, _ in R]; Q = np.stack([v for _, v, _ in R])                  # (18, n comids)
     ci = {int(c): k for k, c in enumerate(comids)}; rows = []
     for r in X:
@@ -652,6 +668,47 @@ def feed_validation(now=None):
     return out, material, {}
 
 
+# ------------------------------------------------------------------------------------------------ nowcast spot check (past rain)
+def nowcast_check(times):
+    """Nowcast issued at each past time vs the RadarOnly 1 h QPE that followed (0-1 h and 1-2 h), per-town mean rain, for every available
+    method plus two baselines (Eulerian persistence of the current rate; zero).  A small descriptive sample, not a verification study: no
+    setting of the nowcast is chosen from it.  -> docs/proto/live/nowcast_check.json"""
+    p = os.path.join(ROOT, 'docs', 'proto', 'live', 'nowcast_check.json'); R = json.load(open(p)) if os.path.exists(p) else {}
+
+    def obs_1h(t_end):
+        L = mrms_recent('RadarOnly_QPE_01H_00.00', t_end - dt.timedelta(minutes=3), t_end + dt.timedelta(minutes=3))
+        if not L: raise RuntimeError(f'no RadarOnly_QPE_01H near {iso(t_end)}')
+        t, u = min(L, key=lambda x: abs((x[0] - t_end).total_seconds())); return mrms_box(u)[0]
+
+    def towns_mean(V, la, lo): return np.array([x[1] if x[1] is not None else np.nan for x in town_stats(np.nan_to_num(V, nan=0.0), la, lo, ('mean',), d=2)[0]])
+
+    def score(f, o):
+        k = np.isfinite(f) & np.isfinite(o); f, o = f[k], o[k]
+        wet = o >= 1.0
+        return dict(mae=r1(np.mean(np.abs(f - o)), 2), bias=r1(np.mean(f - o), 2), corr=r1(np.corrcoef(f, o)[0, 1], 2) if f.std() > 0 and o.std() > 0 else None,
+                    obs_mean=r1(o.mean(), 2), fc_mean=r1(f.mean(), 2), hits_1mm=int((wet & (f >= 1)).sum()), misses_1mm=int((wet & (f < 1)).sum()),
+                    false_1mm=int((~wet & (f >= 1)).sum()))
+    for at in times:
+        t = dt.datetime.strptime(at, '%Y-%m-%dT%H:%MZ'); rec = dict(methods={})
+        try:
+            for m in ('pysteps', 'phase'):
+                K = {}; out, _, _ = feed_nowcast(t, method=m, archive=False, keep=K)
+                if m == 'pysteps' and 'pysteps_error' in out: rec['pysteps_error'] = out['pysteps_error']; continue
+                rec['issued'] = iso(K['t0']); la, lo = K['lat'], K['lon']
+                if 'obs1' not in rec:
+                    o1 = obs_1h(K['t0'] + dt.timedelta(hours=1)); o2 = obs_1h(K['t0'] + dt.timedelta(hours=2))
+                    rec['obs1'] = towns_mean(o1, la, lo); rec['obs2'] = towns_mean(o2, la, lo)
+                    pers = towns_mean(K['rate'], la, lo)
+                    rec['baselines'] = dict(persistence_0_1h=score(pers, rec['obs1']), persistence_1_2h=score(pers, rec['obs2']),
+                                            zero_0_1h=score(0 * pers, rec['obs1']))
+                rec['methods'][out['method'][:40]] = dict(motion=out['motion'], s_0_1h=score(towns_mean(K['a1'], la, lo), rec['obs1']),
+                                                          s_1_2h=score(towns_mean(K['a2'] - K['a1'], la, lo), rec['obs2']))
+            rec.pop('obs1', None); rec.pop('obs2', None)
+        except Exception as e: rec = dict(error=repr(e)[:300])
+        R[at] = rec; log(at, json.dumps(rec)[:600])
+    json.dump(R, open(p, 'w'), indent=1)
+
+
 # ------------------------------------------------------------------------------------------------ run + commit decision
 FN = dict(rain=feed_rain, nowcast=feed_nowcast, flash=feed_flash, nwm=feed_nwm, snow=feed_snow, validation=feed_validation)
 
@@ -766,13 +823,14 @@ if __name__ == '__main__':
     if len(sys.argv) > 2 and sys.argv[1] == '_child':
         cp = argparse.ArgumentParser(); cp.add_argument('x'); cp.add_argument('name'); cp.add_argument('--now'); cp.add_argument('--result'); c = cp.parse_args()
         os.makedirs(OUT, exist_ok=True); run_child(c.name, dt.datetime.strptime(c.now, '%Y-%m-%dT%H:%MZ'), c.result); sys.exit(0)
-    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=list(FEEDS) + ['run', 'map-comids', 'selftest'])
+    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=list(FEEDS) + ['run', 'map-comids', 'nowcast-check', 'selftest']); ap.add_argument('--at', default='', help='nowcast-check: comma list of UTC times YYYY-MM-DDTHH:MMZ')
     ap.add_argument('--feeds', default=','.join(FEEDS)); ap.add_argument('--force', action='store_true'); ap.add_argument('--github-output')
     ap.add_argument('--max-minutes', type=float, default=12, help='map-comids time budget (resumable: already mapped crossings are kept)')
     ap.add_argument('--method',choices=['pysteps', 'phase'], help='nowcast motion method (default: pysteps if importable)')
     a = ap.parse_args()
     if a.cmd == 'selftest': selftest()
     elif a.cmd == 'map-comids': cmd_map_comids(a)
+    elif a.cmd == 'nowcast-check': nowcast_check([x.strip() for x in a.at.split(',') if x.strip()])
     elif a.cmd == 'run': run([f.strip() for f in a.feeds.split(',') if f.strip()], a.force, a.github_output)
     else:
         os.makedirs(OUT, exist_ok=True)
