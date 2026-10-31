@@ -5,8 +5,9 @@ margin, so the rain is seen arriving), fetches NOAA MRMS rain for every STEP min
 noaa-mrms-pds bucket, crops the native 0.01 degree grid and packs all frames into one PNG atlas:
   frame f -> atlas cell f // 3 (row-major, `cols` cells per row), colour channel f % 3,
   byte v = round(255 * log1p(mm/h) / log1p(MAX)), so the viewer decodes mm/h = expm1(v / 255 * log1p(MAX)).
-Source: MRMS PrecipRate (2-min instantaneous radar rate). If a run has too many missing PrecipRate times it falls
-back to the hourly MultiSensor QPE Pass2 (the rain the flood model is driven with), interpolated in time.
+Source: MRMS PrecipRate (2-min instantaneous radar rate). Storms before 14 Oct 2020 are not in the AWS bucket: PrecipRate is then read
+from the IEM mtarchive mirror. If a run still has too many missing PrecipRate times it falls back to the hourly gauge-corrected QPE the
+flood model is driven with (AWS MultiSensor QPE Pass2, else IEM Pass2 / GaugeCorr_QPE_01H, as sim/colab/w9_lisflood.py), interpolated in time.
 Needs network access to AWS (run by .github/workflows/site_rain.yml):  python3 docs/site/build_rain.py [run ...]
 """
 import concurrent.futures as cf
@@ -70,6 +71,17 @@ def decode(job):
     return a, bounds
 
 
+IEM = 'https://mtarchive.geol.iastate.edu/{y}/{m}/{d}/mrms/ncep/{p}/{p}_00.00_{f}.grib2.gz'
+
+
+def url_iem(p, ts):
+    return IEM.format(y=ts.strftime('%Y'), m=ts.strftime('%m'), d=ts.strftime('%d'), p=p, f=ts.strftime('%Y%m%d-%H%M%S'))
+
+
+def url_rate_iem(ts):
+    return url_iem('PrecipRate', ts)
+
+
 def url_rate(ts):
     return BUCKET + 'PrecipRate_00.00/%s/MRMS_PrecipRate_00.00_%s.grib2.gz' % (ts.strftime('%Y%m%d'), ts.strftime('%Y%m%d-%H%M%S'))
 
@@ -126,11 +138,41 @@ def build(run):
             missing.append(ts)
         frames.append(a)
     source = 'NOAA MRMS PrecipRate (radar rain rate, 2-min product, sampled every %d min)' % STEP
+    if len(missing) > 0.1 * n:      # pre-Oct-2020 storms: the AWS bucket starts 2020-10-14; the IEM mtarchive mirror has older files
+        print(run, 'AWS PrecipRate missing for', len(missing), 'of', n, 'times; trying the IEM mirror')
+        alt = {ts: [url_rate_iem(x) for x in want[ts]] for ts in missing}
+        got2 = fetch_many(sorted({u[0] for u in alt.values()}), box)
+        still = []
+        for i, ts in enumerate(times):
+            if ts not in alt:
+                continue
+            a = got2.get(alt[ts][0])
+            if a is None:
+                more = fetch_many(alt[ts][1:], box)
+                a = next((more[u] for u in alt[ts][1:] if more[u] is not None), None)
+            if a is None:
+                still.append(ts)
+            frames[i] = a
+        if len(still) < len(missing):
+            source = 'NOAA MRMS PrecipRate (radar rain rate, 2-min product, sampled every %d min; %s)' % (
+                STEP, 'IEM mtarchive' if len(still) < 0.5 * n else 'AWS + IEM mtarchive')
+        missing = still
     if len(missing) > 0.1 * n or all(f is None for f in frames):
         print(run, 'PrecipRate missing for', len(missing), 'of', n, 'times; using hourly QPE')
         hrs = [t0 + dt.timedelta(hours=h) for h in range(0, minutes // 60 + 2)]
-        q = fetch_many([url_qpe(h) for h in hrs], box)
-        Q = [q[url_qpe(h)] for h in hrs]        # QPE at hour h = rain over (h-1, h], placed at h - 30 min
+        # per hour: AWS Pass2, else IEM Pass2, else IEM GaugeCorr_QPE_01H (the v11 product; what the model reads before Oct 2020)
+        chain = [('MultiSensor QPE 1-h Pass 2', url_qpe), ('MultiSensor QPE 1-h Pass 2 (IEM)', lambda h: url_iem('MultiSensor_QPE_01H_Pass2', h)),
+                 ('GaugeCorr QPE 1-h (IEM)', lambda h: url_iem('GaugeCorr_QPE_01H', h))]
+        Q, used = [None] * len(hrs), set()
+        for name, fn in chain:
+            need = [k for k in range(len(hrs)) if Q[k] is None]
+            if not need:
+                break
+            q = fetch_many([fn(hrs[k]) for k in need], box)
+            for k in need:
+                if q[fn(hrs[k])] is not None:
+                    Q[k] = q[fn(hrs[k])]; used.add(name)
+        # QPE at hour h = rain over (h-1, h], placed at h - 30 min
         ref = next(x for x in Q if x is not None)
         Q = [x if x is not None else np.zeros_like(ref) for x in Q]
         mids = [(h - t0).total_seconds() / 60 - 30 for h in hrs]
@@ -140,7 +182,9 @@ def build(run):
             k = int(np.clip(np.searchsorted(mids, m) - 1, 0, len(mids) - 2))
             w = float(np.clip((m - mids[k]) / 60, 0, 1))
             frames.append((1 - w) * Q[k] + w * Q[k + 1])
-        source = 'NOAA MRMS MultiSensor QPE 1-h Pass 2, interpolated to %d min' % STEP
+        source = 'NOAA MRMS %s, interpolated to %d min' % (' + '.join(n for n, _ in chain if n in used), STEP)
+        if any(x is None for x in Q):
+            print(run, 'hourly QPE missing for', sum(x is None for x in Q), 'of', len(Q), 'hours (drawn as no rain)')
         missing = []
     else:
         ref = next(f for f in frames if f is not None)
@@ -148,6 +192,13 @@ def build(run):
             if f is None:
                 prev = next((frames[j] for j in range(i - 1, -1, -1) if frames[j] is not None), ref)
                 frames[i] = prev
+    shapes = [f.shape for f in frames]
+    main = max(set(shapes), key=shapes.count)      # one crop size for the atlas (an archive with a shifted grid would crop differently)
+    if any(sh != main for sh in shapes):
+        print(run, sum(sh != main for sh in shapes), 'frames with a different grid crop; replaced by their neighbour')
+        for i in range(len(frames)):
+            if frames[i].shape != main:
+                frames[i] = next((frames[j] for j in list(range(i - 1, -1, -1)) + list(range(i + 1, len(frames))) if frames[j].shape == main))
     h, w = frames[0].shape
     cells = (n + 2) // 3
     cols = max(1, min(cells, int(math.ceil(math.sqrt(cells * h / w)))))
