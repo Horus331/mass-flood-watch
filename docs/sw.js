@@ -1,6 +1,6 @@
 /* Mass Flood Watch service worker: app-shell only. Every request goes to the network first, so data and pages are never stale;
    the cached shell (viewer, styles, icons) is only a fallback when the phone is offline. Model data (site/data/) is never cached. */
-var SHELL = 'mfw-shell-v2';
+var SHELL = 'mfw-shell-v3';
 var FILES = ['viewer.html', 'about.html', 'site/viewer.js', 'site/viewer.css', 'wpi-logo.svg', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(SHELL).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); })); });
 self.addEventListener('activate', function (e) {
