@@ -1,8 +1,9 @@
 """Score the pre-registered NWM antecedent-wetness test (docs/proto/runoff/NWM_AMC_PREREG.md) from the collected Turing runs.
 
-    python proto/runoff/nwm_amc_score.py [--runs docs/proto/runoff/nwm_amc/runs] [--out docs/proto/runoff/nwm_amc.json] [--boot 2000]
+    python proto/runoff/nwm_amc_score.py [--runs docs/proto/runoff/amcnwm_v1] [--out docs/proto/runoff/nwm_amc.json] [--boot 2000]
 
-Input: <runs>/amcnwm_<arm>_<storm>.score_v2.json (+ .gauges.json, .meta.json), written on Turing by proto/turing/collect_group.py.
+Input: <runs>/amcnwm_<arm>_<storm>/score_v2.json (+ score.json, flood_meta.json), made on Turing by proto/turing/run_plan_gpu.slurm (plan
+proto/turing/plans/amcnwm_v1.json) and pushed by proto/turing/collect_scores.slurm.
 Arms: base (LF_CN_AMC unset = AMC II) and nwm (LF_CN_AMC=nwm).  Output: the paired score_v2 --compare (PROTOCOL v2 §5a, k = 1) on the
 held-out 23, pooled recall / lift / FSS per arm for held-out 23, OOS-7, NEW16 and the dev storms, gauge MAE, the verdict per the
 pre-registration, and a markdown table on stdout.  Only storms present in BOTH arms are compared; missing ones are listed.
@@ -18,15 +19,15 @@ GAUGE_TOL = 0.10          # pre-registered: held-out storm-mean gauge MAE may no
 
 
 def load(runs):
+    """<runs>/amcnwm_<arm>_<storm>/{score_v2.json, score.json, flood_meta.json} as collect_scores.slurm writes them."""
     R = {a: {} for a in ARMS}; G = {a: {} for a in ARMS}; M = {a: {} for a in ARMS}
-    for f in sorted(glob.glob(os.path.join(runs, 'amcnwm_*.score_v2.json'))):
-        name = os.path.basename(f)[:-len('.score_v2.json')]; arm = name.split('_')[1]
+    for f in sorted(glob.glob(os.path.join(runs, 'amcnwm_*', 'score_v2.json'))):
+        d = os.path.dirname(f); name = os.path.basename(d); arm = name.split('_')[1]
         if arm not in ARMS: continue
-        r = json.load(open(f)); s = r['storm']; R[arm][s] = r
-        g = f[:-len('.score_v2.json')] + '.gauges.json'
-        if os.path.exists(g): G[arm][s] = json.load(open(g))
-        m = f[:-len('.score_v2.json')] + '.meta.json'
-        if os.path.exists(m): M[arm][s] = json.load(open(m))
+        r = json.load(open(f)); r['primary'] = True; s = r['storm']; R[arm][s] = r
+        if os.path.exists(os.path.join(d, 'score.json')): G[arm][s] = json.load(open(os.path.join(d, 'score.json')))
+        if os.path.exists(os.path.join(d, 'flood_meta.json')):
+            m = json.load(open(os.path.join(d, 'flood_meta.json'))); M[arm][s] = dict(git_sha=m.get('git_sha'), env=(m.get('inputs') or {}).get('env'))
     return R, G, M
 
 
@@ -38,7 +39,7 @@ def gauge_stats(G, storms):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--runs', default=os.path.join(ROOT, 'docs', 'proto', 'runoff', 'nwm_amc', 'runs'))
+    ap = argparse.ArgumentParser(); ap.add_argument('--runs', default=os.path.join(ROOT, 'docs', 'proto', 'runoff', 'amcnwm_v1'))
     ap.add_argument('--out', default=os.path.join(ROOT, 'docs', 'proto', 'runoff', 'nwm_amc.json')); ap.add_argument('--boot', type=int, default=SV.NBOOT)
     a = ap.parse_args()
     R, G, M = load(a.runs)

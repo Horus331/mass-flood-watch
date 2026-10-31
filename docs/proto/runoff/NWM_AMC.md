@@ -12,7 +12,8 @@
 | climatology | `docs/proto/runoff/nwm_soilsat_clim.json` | District 3 daily mean 1979-02-01 … 2023-02-01 (16 072 days) from the NWM v3.0 retrospective zarr, on the `SOILSAT_TOP` scale |
 | live context | `proto/ground_state.py` → `docs/site/data/ground.json`, new key **`soil`** | Latest operational analysis: District 3 mean, cell percentiles, and its percentile in the climatology for ±15 days of the date. Every other key is unchanged, and `soil` does not enter `ground`. `forecast.yml` (publish job) now installs netCDF4 for it |
 | model option | `sim/colab/lf_nwm_soil.py` + the delimited `LF_CN_AMC=nwm` block in `w9_lisflood.py` | Continuous CN between CN(I) and CN(III) from the box-mean `SOILSAT_TOP` at t0 (formula and sources in PREREG §3); reads `LF_NWM_SOILSAT_JSON` (no network on Turing) or `LF_NWM_SOILSAT` |
-| Turing scoring | `proto/turing/collect_group.{py,slurm}`, queue kind **`collect_group`** (env `GROUP`, `DEST`, `FORCE`; values pattern-checked in the script too) | Scores finished `run_storm` results `results/<GROUP>_<arm>_<storm>/` with `score_v2` and `score.py`, and pushes small json files (about 15 kB a run) to `DEST` |
+| Turing runner | `proto/turing/run_plan_gpu.slurm`, queue kind **`run_plan_gpu`** (env `PLAN`, `PIN`, `IDXS`; all pattern-checked); plan `proto/turing/plans/amcnwm_v1.json` (`proto/runoff/nwm_amc_plan.py`; plan format and checks from `inlets_plan.py`) | Runs several plan tasks one after another in ONE GPU job, at a pinned commit (a git worktree shared by the tasks), each task in its own `LF_WORK`. Each task: w9 → `prototype.py` → `closure_ml.extract` into a private folder → `score_v2.py --run` + `score.py` → `DONE` / `FAILED` |
+| Turing collector | the existing `collect_scores` kind (`proto/turing/collect_scores.slurm`, added for the LF_INLETS test) | Waits until every plan task has `DONE`/`FAILED`, then pushes only small whitelisted files (`score_v2.json`, `score.json`, `points.json`, `flood_meta.json`, `w9_tail.txt`, ≤ 400 kB each) to `docs/proto/runoff/amcnwm_v1/<name>/`, plus `manifest.json` |
 | comparison | `proto/runoff/nwm_amc_score.py` | Paired `score_v2.compare` (v2 §5a, k = 1), pooled tables, gauge MAE, the pre-registered verdict → `docs/proto/runoff/nwm_amc.json` |
 
 ### Data sources (verified from Actions on 31 Oct 2026)
@@ -37,31 +38,44 @@
   (300 × 400 cells, every HSG, random impervious and water) with `LF_CN_AMC` unset and with II, I and III, `LF_CN_SCALE` unset and 0.88.
   The arrays were identical byte for byte (sha1 equal). `w9_lisflood.py --selftest` passes (35 checks, including the new `lf_nwm_soil`
   checks). The nwm path at θ = θ_cal returns the AMC II CN (checked).
-- `collect_group.py` + `nwm_amc_score.py` were dry-run on copies of three catalogue runs: they collect, compare and give the verdict.
+- `nwm_amc_score.py` was dry-run on the `collect_scores` layout, built from three catalogue runs: it compares and gives the verdict.
+  `run_plan_gpu.slurm` passes `bash -n`, its index parsing and its env reset between tasks were tested locally, and the plan passes
+  `inlets_plan.check`. The runner itself has not run yet: its first run is the queued test.
 
-## 2. What is queued (branch `turing-queue`, commit 81d631a1, submitted by the 16:25Z tick on 31 Oct 2026)
+## 2. What is queued
 
-- 50 `run_storm` requests, `amcnwm_base_<storm>` and `amcnwm_nwm_<storm>` for the 25 catalogue storms (settings in PREREG §4; partition
-  quick, 6 h, 96 GB, 1 GPU), Slurm jobs 2439666 onward.
-- 5 `collect_group` requests, `amcnwm_collect_1` … `_5`. Each runs after its 10 runs (5 storms × 2 arms) and pushes
-  `docs/proto/runoff/nwm_amc/runs/amcnwm_<arm>_<storm>.{score_v2,gauges,meta}.json` to main.
+QUEUE_PLACEHOLDER
 
 **Check progress.**
 
     git fetch origin turing-queue && git show origin/turing-queue:STATUS.md | grep amcnwm
-    ls docs/proto/runoff/nwm_amc/runs/ | grep -c score_v2      # 50 when complete (after git pull)
+    git pull && cat docs/proto/runoff/amcnwm_v1/manifest.json      # appears when the collector has pushed: done / failed / missing per task
 
-**If a run failed.** Its batch's `collect_group` is rejected ("a dependency failed"). Re-queue the failed run unchanged under a new id (for
-example `amcnwm_nwm_jul2019_r2`, but keep `NAME` the same). Then add a sweep with no `after`:
-`{"id": "amcnwm_collect_sweep1", "kind": "collect_group", "env": {"GROUP": "amcnwm", "DEST": "docs/proto/runoff/nwm_amc/runs"}}`. The
-sweep scores every finished `amcnwm_*` folder that is not collected yet.
+**Score (when the manifest shows 50 done).**
 
-**Score (when all 50 are in).**
+    python proto/runoff/nwm_amc_score.py          # -> docs/proto/runoff/nwm_amc.json + a table; prints VERDICT
 
-    python proto/runoff/nwm_amc_score.py          # -> docs/proto/runoff/nwm_amc.json + table; prints VERDICT
+Then fill §4 exactly as PREREG §5 says (adopt only if `verdict.adopt` is true).
 
-Then fill §3 below exactly as the PREREG §5 rule says (adopt only if `verdict.adopt` is true).
+**If tasks failed or timed out** (the manifest lists them): re-queue `run_plan_gpu` under a new id, with the same `PLAN` and `PIN` and only
+the failed indices in `IDXS` (task *i* is entry *i* of the plan's `tasks`; base = even, nwm = odd). Then queue `collect_scores` again
+under a new id, with `WAIT_H`. Nothing else may change (PREREG §5.3).
 
-## 3. Results
+## 3. Deviation log (procedural; written before any score of either arm was seen)
+
+- **31 Oct 2026, 16:25Z.** The first submission was 50 `run_storm` requests plus 5 `collect_group` collectors (turing-queue 81d631a1).
+  - 36 of the 50 were refused by Slurm with `QOSMaxSubmitJobPerUserLimit` (too many jobs per user at once), and their collectors were
+    rejected with them.
+  - 14 `run_storm` jobs (aug2018b … aug2026, both arms) and `amcnwm_collect_1` were accepted.
+  - Fix: one GPU job now runs ten tasks one after another (`run_plan_gpu`), so the 50 runs need 5 Slurm jobs. The jobs run at a pinned
+    commit, and both arms of a storm run in the same job, on the same GPU.
+  - The 14 accepted `run_storm` runs are **ignored**. The `collect_group` kind and its scripts were removed from main, so
+    `amcnwm_collect_1` fails without pushing anything. Those runs stay in `results/amcnwm_*` on Turing and are never scored.
+- **Scoring universe** (follows from the runner change). Each task now builds its own `features_<storm>.csv` / `matches_<storm>.json` in a
+  private folder, as the LF_INLETS runner does. `score_v2` therefore uses its standard universe (the model's in-box segments) and its
+  standard matching, not the `segments.geojson`-only fallback that PREREG §4 chose to avoid the shared-path race. The race no longer
+  exists. This is the same for both arms, and no parameter, arm, storm, metric or threshold changed.
+
+## 4. Results
 
 Pending.

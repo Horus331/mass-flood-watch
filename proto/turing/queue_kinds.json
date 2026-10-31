@@ -188,20 +188,23 @@
     "time"
    ]
   },
-  "collect_group": {
-   "script": "proto/turing/collect_group.slurm",
+  "run_plan_gpu": {
+   "script": "proto/turing/run_plan_gpu.slurm",
    "env": [
-    "GROUP",
-    "DEST",
-    "FORCE"
+    "PLAN",
+    "PIN",
+    "IDXS"
    ],
    "required": [
-    "GROUP",
-    "DEST"
+    "PLAN",
+    "PIN",
+    "IDXS"
    ],
    "sbatch": [
     "partition",
-    "time"
+    "time",
+    "mem",
+    "gres"
    ]
   }
  }
