@@ -2684,32 +2684,6 @@
   }
 
   // ---------- the water journey on the map ----------
-  // rain: light streaks over the map while it rains (intensity from the area-mean radar rain), gone once it stops
-  var rfx = (function () {
-    var cv = $('rainfx'), cx = cv.getContext('2d'), drops = [], on = false, raf = 0, rate = 0, W = 0, H = 0, dpr = 1, lastF = 0;
-    function size() { dpr = Math.min(2, window.devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; }
-    function frame(now) {
-      raf = 0; if (!on) return;
-      var dt = Math.min(0.05, (now - lastF) / 1000 || 0.016); lastF = now;
-      var want = Math.round(Math.min(small() ? 140 : 260, rate * (small() ? 5 : 9)));
-      while (drops.length < want) drops.push({ x: Math.random() * W, y: Math.random() * H, v: 700 + Math.random() * 500, l: 10 + Math.random() * 14 });
-      if (drops.length > want) drops.length = want;
-      cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
-      cx.strokeStyle = document.documentElement.dataset.theme === 'dark' ? 'rgba(200,190,255,.5)' : 'rgba(90,74,170,.42)'; cx.lineWidth = 1.4; cx.beginPath();
-      drops.forEach(function (d) { d.y += d.v * dt; d.x -= d.v * dt * 0.12; if (d.y > H + 20) { d.y = -20; d.x = Math.random() * (W + 60); } cx.moveTo(d.x, d.y); cx.lineTo(d.x + d.l * 0.12, d.y - d.l); });
-      cx.stroke();
-      if (playing && !document.hidden) raf = requestAnimationFrame(frame);
-    }
-    window.addEventListener('resize', function () { if (on) size(); });
-    return {
-      set: function (mmh) {
-        var want = !reduced && mmh >= 0.5 && curTab !== 'live';
-        rate = mmh;
-        if (want !== on) { on = want; cv.classList.toggle('on', on); if (on) { size(); } else { drops.length = 0; cx.clearRect(0, 0, cv.width, cv.height); } }
-        if (on && !raf) { lastF = performance.now(); raf = requestAnimationFrame(frame); }
-      }
-    };
-  })();
   // runoff: moving-water particles switch on by themselves at street zoom during runoff, rising streams and street flooding,
   // unless the reader has set the layer by hand
   var rainUser = false, rainAutoOn = null;
@@ -2761,7 +2735,7 @@
   function appTick() {
     if (!meta) return;
     var per = 60 / meta.frame_min, r = meta.rain_hourly_mean_mm || [], hr = r[Math.floor(t / per)] || 0;
-    rfx.set(hr); rainAuto(hr);
+    rainAuto(hr);
     flowAuto();
     var v = stageAt(); if (v != null) pondSwell(v);
     soakNow(); placeTime();
