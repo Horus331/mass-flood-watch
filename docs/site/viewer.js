@@ -100,7 +100,7 @@
   // blindness: water and road status sit on the blue-yellow axis, and closed roads add stripes, not just hue.
   var PAL = {
     light: { d: ['rgba(158,202,225,.78)', 'rgba(107,174,214,.82)', 'rgba(33,113,181,.86)', 'rgba(8,48,107,.9)'], // ColorBrewer Blues, single hue: lighter = shallower
-      grey: '#8a959e', amber: '#E69F00', orange: '#D55E00', closed: '#7A0019', cas: '#FFFFFF', casDark: '#1F2328', peak: '#7A0019', peakOp: 0.45, may: '#D55E00', halo: '#7A0019',
+      grey: '#8a959e', amber: '#E69F00', orange: '#E8590C', closed: '#B3261E', cas: '#FFFFFF', casDark: '#1F2328', peak: '#7A0019', peakOp: 0.45, may: '#D55E00', halo: '#7A0019',
       net: ['#7C7C77', '#878782', '#9A9A95', '#A4A49F'], fill: '#ffffff', netOp: 1, box: '#5F6368' }, // streets readable from z11
     satellite: { d: ['rgba(198,219,239,.82)', 'rgba(107,174,214,.86)', 'rgba(33,113,181,.9)', 'rgba(8,48,107,.92)'],
       grey: '#c9d1d6', amber: '#F5B400', orange: '#FF8A3D', closed: '#FF5C6C', cas: 'rgba(20,20,20,.85)', casDark: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
@@ -919,7 +919,7 @@
     var k0 = wi.first, dj = wi.dj, ix = wi.index, jobs = [];
     total = 4;
     jobs.push(Promise.all([getJson(WI + 'roads.json'), getJson(WI + 'pieces.json').catch(function () { return null; })]).then(function (a) {
-      var g = a[0]; if (a[1] && a[1].seg) { PCS = a[1]; PCS.k = pieceOrd(PCS.seg); }
+      var g = a[0];   // road state is drawn on whole segments (the unit that is closed), not 40 m pieces
       var may = {}; (dj.may || []).forEach(function (id) { may[id] = 1; });
       g.features.forEach(function (f) { var p = f.properties; p.d = dj.seg[f.id] || null; p.e = (dj.edge && dj.edge[f.id]) || null; p.p = dj.p[f.id] || 0; p.m = may[f.id] ? 1 : 0; if (p.d) { var iv = wiIntervals(p.d); if (iv.length) p.iv = iv; } });
       wi.roads = g;
@@ -1431,7 +1431,7 @@
       return getBitmap(base + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
     });
     if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').catch(function () { return null; })]).then(function (a) {
-      if (a[1] && a[1].seg) { PCS = a[1]; PCS.k = pieceOrd(PCS.seg); }
+      // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));
     // optional layers: a missing file only hides that layer
@@ -1510,16 +1510,14 @@
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };
     var D = PCS ? ['coalesce', ['get', 'd'], 0] : ['coalesce', ['feature-state', 'd'], 0]; RD = D;
     var RR = RS; // the road-state lines: with pieces, merged runs of the painted pieces of each segment (one continuous line per run)
-    if (PCS) {
-      map.addSource('runs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 }); RR = 'runs';
-      map.addSource('rlab', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    }
+    if (PCS) map.addSource('runs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 }), RR = 'runs';
+    map.addSource('rlab', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     var byD = function (z9, z15) { // width grows with water on the road, scaled by zoom
       return ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], D, 0, z9[0], 30, z9[1], 100, z9[2]], 15, ['interpolate', ['linear'], D, 0, z15[0], 30, z15[1], 100, z15[2]]];
     };
     var HASW = ['any', ['has', 'd'], ['has', 'iv']];
     // overview zooms show closed roads only; at-risk (15-30 cm) appears from z13, water on the road from z14
-    var ZOP = ['interpolate', ['linear'], ['zoom'], 12.6, ['case', ['>=', D, 30], 1, 0], 13.2, ['case', ['>=', D, 15], 1, 0], 13.8, ['case', ['>=', D, 15], 1, 0], 14.3, ['case', ['>=', D, 4], 1, 0]];
+    var ZOP = ['interpolate', ['linear'], ['zoom'], 12.6, ['case', ['>=', D, 30], 1, 0], 13.2, ['case', ['>=', D, 15], 1, 0], 14.6, ['case', ['>=', D, 15], 1, 0], 15.2, ['case', ['>=', D, 4], 1, 0]];
     // water at the road edge: a soft water-blue band along the road, under the road-state lines
     // water at the road edge: a thin dashed amber line (the road surface stays above the water), from street zoom
     map.addLayer({ id: 'edge', type: 'line', source: RS, minzoom: 13.5, layout: { 'line-cap': 'butt', 'line-join': 'round' },
@@ -1532,20 +1530,20 @@
     map.addLayer({ id: 'may', type: 'line', source: 'roads', filter: ['==', ['get', 'm'], 1], paint: { 'line-width': w(1.5, 3.5), 'line-dasharray': [2, 1.2] } });
     map.addLayer({ id: 'risk', type: 'line', source: 'roads', filter: ['has', 'rk'], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-width': w(2.5, 6) } });
     map.addLayer({ id: 'halo', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([0, 7, 9], [0, 18, 22]), 'line-blur': w(3, 8), 'line-opacity': ['interpolate', ['linear'], D, 22, 0, 40, 0.28] } });
+      paint: { 'line-width': byD([0, 7, 9], [0, 18, 22]), 'line-blur': w(3, 8), 'line-opacity': 0 } });
     map.addLayer({ id: 'wetcase', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([2.8, 3.8, 4.6], [7.4, 10.4, 11.8]), 'line-opacity': ZOP } });
+      paint: { 'line-width': byD([3.2, 4.2, 5], [6.4, 8.6, 9.6]), 'line-opacity': ZOP } });
     map.addLayer({ id: 'wet', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([1.6, 2.4, 3], [4.4, 7.2, 8.2]), 'line-opacity': ZOP } });
+      paint: { 'line-width': byD([1.8, 2.6, 3.2], [4, 6, 7]), 'line-opacity': ZOP } });
     // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
     map.addLayer({ id: 'bar', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
-      paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': ['case', ['>=', D, 30], 0.95, 0] } });
+      paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': 0 } });   // barricade stripes retired: solid colour reads cleaner
     // the selected road: an ink outline under the road-state lines at every zoom, so the selection never disappears when zooming out
     map.addLayer({ id: 'sel', type: 'line', source: 'roads', filter: ['==', ['id'], -1], layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': w(6, 14), 'line-color': '#1F2328', 'line-opacity': 0.85 } }, 'halo');
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
-    if (PCS) { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z14
-      [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 14], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 13], ['rlab-c', ['>=', ['get', 'd'], 30], 12]].forEach(function (a) {
+    { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z15
+      [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 15], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 13], ['rlab-c', ['>=', ['get', 'd'], 30], 12]].forEach(function (a) {
         map.addLayer({ id: a[0], type: 'symbol', source: 'rlab', filter: a[1], minzoom: a[2],
           layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 13], 'text-allow-overlap': false,
             'text-variable-anchor': ['top', 'bottom', 'left', 'right'], 'text-radial-offset': 0.7, 'text-padding': 3, 'text-max-width': 14, 'symbol-sort-key': ['-', 0, ['get', 'd']] },
@@ -2202,7 +2200,7 @@
     var dr = sc.rain - rainOp; if (Math.abs(dr) > 0.005) { rainOp += dr * Math.min(1, dt * 2.5); map.triggerRepaint(); }
     if (p >= 1 && !story.paused && story.i < story.sc.length - 1) {
       if (!story.hold) story.hold = now;
-      else if (now - story.hold > 1800) storyGo(story.i + 1);
+      else if (now - story.hold > (sc.dur ? 2500 : 12000)) storyGo(story.i + 1);   // a still scene (no storm time) is read, not watched
     }
     story.raf = requestAnimationFrame(storyTick);
   }
@@ -2398,6 +2396,26 @@
     map.getSource('runs').setData({ type: 'FeatureCollection', features: feats });
     map.getSource('rlab').setData({ type: 'FeatureCollection', features: kept });
   }
+  var segLabSig = '';
+  function segLabels() { // street-name labels on whole segments: one per street name within ~800 m, the most severe kept
+    if (!map || !map.getSource('rlab')) return;
+    var sig = '', labs = [];
+    segs.forEach(function (s) { if (s.v >= 5) sig += s.id + ':' + (s.v >= 30 ? 3 : s.v >= 15 ? 2 : 1) + ','; });
+    if (sig === segLabSig) return; segLabSig = sig;
+    segs.forEach(function (s) {
+      var d = s.v; if (d < 5) return; var p = s.f.properties, nm = p.n; if (!nm) return;
+      var kk = meta.kofn && p.k, lt = kk ? (kk >= 2 ? 'Likely' : 'Possible') + ' · ' + kk + ' of ' + meta.kofn.n + ' runs' : d >= 30 ? 'closed' : Math.round(d) + ' cm';
+      labs.push({ type: 'Feature', properties: { d: d, nm: nm, t: shortName(nm) + ' · ' + lt }, geometry: { type: 'Point', coordinates: midOf(s.f) } });
+    });
+    labs.sort(function (a, b) { return b.properties.d - a.properties.d; });
+    var kept = [], kx = 1 / (111320 * Math.cos(meta.corners[0][1] * Math.PI / 180)), ky = 1 / 110540;
+    labs.forEach(function (f) {
+      var nm = f.properties.nm, c = f.geometry.coordinates;
+      if (kept.some(function (o) { return o.properties.nm === nm && Math.hypot((o.geometry.coordinates[0] - c[0]) / kx, (o.geometry.coordinates[1] - c[1]) / ky) < 800; })) return;
+      kept.push(f);
+    });
+    map.getSource('rlab').setData({ type: 'FeatureCollection', features: kept });
+  }
   function runsUpdate() {
     var k = []; for (var i = 0; i < PCS.seg.length; i++) if (PCS.v[i] > 0) k.push(i + ':' + PCS.v[i]);
     k = k.join(','); if (k === runsKey) return; runsKey = k;
@@ -2488,7 +2506,7 @@
       if (q < 3 && s.e) for (var k = 0; k < s.e.length; k++) if (t >= s.e[k][0] - 0.5 && t <= s.e[k][1] + 0.5) { eg = 1; break; }
       if (q !== s.v || eg !== s.eg) { s.v = q; s.eg = eg; if (!PCS) map.setFeatureState({ source: 'roads', id: s.id }, { d: q, e: eg }); else s.v2 = 1; }
     }
-    if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else statusLine(closed, risk, wet - risk);
+    if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else { statusLine(closed, risk, wet - risk); segLabels(); }
     var mins = Math.round(t * meta.frame_min / 5) * 5, label = fmtClock.format(new Date(t0.getTime() + mins * 60000));
     if (label !== lastClock) {
       lastClock = label;
