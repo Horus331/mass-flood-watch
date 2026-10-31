@@ -282,7 +282,7 @@
     var c = null; for (var i = 0; i < RAIN_CLASSES.length; i++) if (mm >= RAIN_CLASSES[i][0]) c = RAIN_CLASSES[i];
     return c ? c[1].concat([RAIN_ALPHA]) : [0, 0, 0, 0];
   }
-  var rainOp = 1; // story fades the radar back once the rain has done its work
+  var rainOp = 0.8; // about 40 % opacity: the radar under the water, streets readable; story fades the radar back once the rain has done its work
   var rainLayer = (function () {
     var gl, prog, buf, loc = {}, tex = null, lut = null, pending = null, K = 1;
     var VS = 'attribute vec2 aPos;uniform mat4 uM;varying vec2 vM;void main(){vM=aPos;gl_Position=uM*vec4(aPos,0.0,1.0);}';
@@ -336,61 +336,6 @@
       },
       set: function (img) { pending = img; },
       scale: function (k) { K = k; if (map) map.triggerRepaint(); } // what-if: the radar rain as scaled in the run
-    };
-  })();
-
-  // ---------- rain on the ground: ripples where the radar says it is raining, as many as the rain is heavy ----------
-  // Anchored to the map (they stay put when it pans). Ripples per second on screen are proportional to the MRMS rain rate at each spot
-  // (0.08 per 100 x 100 px per mm/h: 50 mm/h gives ~4 a second in every 100 px square), each in its rain-class colour, 0.7 s from impact
-  // to gone. A picture of where and how hard it rains, sampled from the same radar field as the rain layer; not individual drops.
-  var drops = (function () {
-    var cv = null, cx = null, R = null, P = [], on = false, raf = 0, last = 0, W = 0, H = 0, dpr = 1;
-    function setup() {
-      if (cv || !map) return;
-      cv = document.createElement('canvas'); cv.className = 'drops'; cv.setAttribute('aria-hidden', 'true');
-      map.getCanvasContainer().appendChild(cv); cx = cv.getContext('2d');
-      size(); window.addEventListener('resize', size);
-    }
-    function size() { if (!cv) return; dpr = Math.min(2, window.devicePixelRatio || 1); W = map.getCanvas().clientWidth; H = map.getCanvas().clientHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; }
-    function px(f, x, y) { // one radar cell of frame f, mm/h
-      var c = Math.floor(f / 3), ox = (c % rain.cols) * rain.w, oy = Math.floor(c / rain.cols) * rain.h;
-      x = Math.max(0, Math.min(rain.w - 1, x)); y = Math.max(0, Math.min(rain.h - 1, y));
-      var v = R.d[((oy + y) * R.w + ox + x) * 4 + (f % 3)] / 255; return Math.expm1(v * Math.log1p(rain.max_mmh));
-    }
-    function rateAt(lon, lat) {
-      var b = rain.bounds, u = (lon - b[0][0]) / (b[1][0] - b[0][0]), v = (b[1][1] - lat) / (b[1][1] - b[0][1]);
-      if (u < 0 || u > 1 || v < 0 || v > 1) return 0;
-      var pos = Math.max(0, Math.min(rain.n - 1, (t * meta.frame_min - rain.off) / rain.step_min)), f0 = Math.floor(pos), f1 = Math.min(f0 + 1, rain.n - 1), k = pos - f0;
-      var x = Math.floor(u * rain.w), y = Math.floor(v * rain.h);
-      return (px(f0, x, y) * (1 - k) + px(f1, x, y) * k) * (WION ? wiScale() : 1);
-    }
-    function col(mm) { var c = rainColor(mm); return c[3] ? 'rgb(' + c.slice(0, 3).map(function (q) { return Math.max(0, Math.round(q * 0.8)); }).join(',') + ')' : null; }
-    function frame(now) {
-      raf = 0; if (!on || !R) return;
-      var dt = Math.min(0.1, (now - last) / 1000 || 0.016); last = now;
-      if (!reduced && !document.hidden) {
-        // spawn: test random screen points, keep each with the chance its rain rate gives
-        var area = W * H / 1e4, tries = Math.min(900, Math.round(area * 0.08 * 60 * dt) + 1), pmax = 60;
-        for (var i = 0; i < tries; i++) {
-          var sx = Math.random() * W, sy = Math.random() * H, ll = map.unproject([sx, sy]), mm = rateAt(ll.lng, ll.lat);
-          if (mm < 0.5 || Math.random() > Math.min(1, mm / pmax)) continue;
-          var c = col(mm); if (c) P.push({ lng: ll.lng, lat: ll.lat, a: 0, c: c, r: mm >= 25 ? 7 : mm >= 10 ? 6 : 5 });
-        }
-      }
-      cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H); cx.lineWidth = 1.1;
-      var keep = [];
-      for (var j = 0; j < P.length; j++) {
-        var p = P[j]; p.a += dt; if (p.a > 0.7) continue; keep.push(p);
-        var q = map.project([p.lng, p.lat]), s = p.a / 0.7;
-        cx.globalAlpha = (1 - s) * 0.75; cx.strokeStyle = p.c;
-        cx.beginPath(); cx.arc(q.x, q.y, 1 + p.r * s, 0, 6.2832); cx.stroke();
-      }
-      P = keep.length > 2500 ? keep.slice(-2500) : keep;
-      raf = requestAnimationFrame(frame);
-    }
-    return {
-      setRain: function (img) { var c = document.createElement('canvas'); c.width = img.width; c.height = img.height; var g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); R = { d: g.getImageData(0, 0, c.width, c.height).data, w: c.width }; },
-      show: function (v) { setup(); on = !!v && !reduced; if (cv) cv.style.display = on ? '' : 'none'; if (!on) { P = []; if (cx) cx.clearRect(0, 0, cv.width, cv.height); } else if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
     };
   })();
 
@@ -1535,9 +1480,8 @@
       return getBitmap(base + r.sheet).then(function (img) {
         r.off = (new Date(r.start.replace(/Z$/, ':00Z')) - t0) / 60000;
         rain = r; rainLayer.set(img);
-        getBitmap(base + r.sheet).then(function (im2) { drops.setRain(im2); if (im2.close) im2.close(); whenStyle(function () { drops.show($('lyDrops').checked); }); });
         whenStyle(function () { map.addLayer(rainLayer.layer, map.getLayer('depth') ? 'depth' : 'l-voy'); vis('rain', $('lyRain').checked); });
-        $('rainRow').hidden = false; $('rainKey').hidden = !$('lyRain').checked; $('dropsRow').hidden = false;
+        $('rainRow').hidden = false; $('rainKey').hidden = !$('lyRain').checked;
         progress();
       });
     }).catch(function () { progress(); }));
@@ -2312,7 +2256,7 @@
     story.on = false; document.documentElement.classList.remove('story-on');
     phNow = -9; setTimeout(function () { phaseCaption(); }, 0);
     $('story').hidden = true;
-    rainOp = 1; applyToggles(); map.triggerRepaint();
+    rainOp = 0.8; applyToggles(); map.triggerRepaint();
     document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === currentView ? 'true' : 'false'); });
   }
   function placeStory() { // desktop: under the identity card, in the same left column the framing already keeps clear
@@ -2948,7 +2892,6 @@
     $('lyRain').checked = want; vis('rain', want); $('rainKey').hidden = !want;
     rainOp = 0.9; // shown by itself: about 45 % opacity, the streets stay readable
   }
-  $('lyDrops').addEventListener('change', function (e) { drops.show(e.target.checked); });
   var flowUser = false, flowAutoOn = false;
   $('lyFlow').addEventListener('change', function () { flowUser = true; });
   function flowAuto() {
