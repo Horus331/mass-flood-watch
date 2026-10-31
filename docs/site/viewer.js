@@ -2994,6 +2994,20 @@
     if (small()) { sheetPlace(); setTimeout(function () { sheetDetent('half'); }, 50); }
     var oc = getJson('site/data/' + (params.get('outlook') === 'sample' ? 'outlook_sample.json' : 'outlook.json')).catch(function () { return null; });
     oc.then(function (o) { liveRender(s, o); });
+    getJson('site/data/ground.json').then(groundRender).catch(function () { });
+  }
+  // ground before the next storm (proto/ground_state.py): 5-day rain wetness (NRCS NEH-4) and the frozen-ground index (CFGI)
+  function groundRender(g) {
+    var el = $('ground'); if (!el || !g || !g.ground || g.ground === 'unknown') return;
+    var W = g.wetness || {}, F = g.frost || {}, lab = { dry: 'Dry', normal: 'Normal', wet: 'Wet', frozen: 'Frozen' }[g.ground] || g.ground;
+    var bits = [];
+    if (W.p5_mm != null) bits.push(W.p5_mm + ' mm of rain in the past 5 days (' + W.state + ' for the ' + W.season + ' season)');
+    if (F.cfgi != null) bits.push('frost index ' + F.cfgi + (F.state === 'frozen' ? ' (frozen: at or above 83)' : ' (not frozen; frozen at 83)') + (F.snow_cm ? ', ' + Math.round(F.snow_cm) + ' cm of snow' : ''));
+    var warn = g.ground === 'wet' || g.ground === 'frozen';
+    el.innerHTML = '<h3>Ground before the next storm <b class="gst g-' + g.ground + '">' + lab + '</b></h3><p>' + esc(bits.join('; ')) + '.</p>' +
+      '<p class="muted">' + (warn ? 'Wet or frozen ground sheds more rain than the model assumes, so closures are likely under-forecast. ' : '') +
+      'The forecast runs at normal ground (calibrated); this is context. Updated ' + esc((g.made || '').replace('T', ' ').replace('Z', ' UTC')) + '.</p>';
+    el.hidden = false;
   }
   // docs/proto/forecast/OUTLOOK.md (schema outlook/1): health chip rule, day levels and verdicts come from the feed itself
   function health(s, o) {
