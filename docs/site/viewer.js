@@ -28,7 +28,7 @@
       kind: 'One GPU run on WPI’s Turing cluster: 17.6 million cells at 20 m (shown here at 80 m).'
     },
     whatif: {
-      title: 'What if? · Leominster storm',
+      title: 'Scenarios · Leominster, Sept 2023',
       kind: 'The real storm, rerun by the flood model with heavier or lighter rain, wetter or frozen ground, and blocked culverts.'
     },
     forecast: { title: 'Live forecast · District 3', kind: '' }
@@ -1272,7 +1272,7 @@
     $('legend').hidden = true;
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
-    map.once('style.load', applyTheme);
+    map.once('style.load', function () { addCoverage(); applyTheme(); });
   }
 
   function start() {
@@ -1730,7 +1730,7 @@
     if (map.getSource('s-crowd')) return;
     var data = fc(refs.crowd, function (r) { return { k: WHATIF ? 'pin' : r[6] >= 3 ? 'pinHit' : 'pinMiss', type: r[2], text: r[3], road: r[4], town: r[5], c: r[6] }; });
     if (!map.hasImage('i-pin')) Object.keys(ICONS).forEach(function (k) { if (!map.hasImage('i-' + k)) { var cv = iconCanvas(k, 40); map.addImage('i-' + k, cv.getContext('2d').getImageData(0, 0, 40, 40), { pixelRatio: 2 }); } });
-    map.addSource('s-crowd', { type: 'geojson', data: data, cluster: true, clusterRadius: 40, clusterMaxZoom: 14 });
+    map.addSource('s-crowd', { type: 'geojson', data: data, cluster: true, clusterRadius: 30, clusterMaxZoom: 11 });
     addClusters('crowd');
     var on = document.querySelector('input[data-ref="crowd"]').checked;
     map.addLayer({ id: 'r-crowd', type: 'symbol', source: 's-crowd', minzoom: 11, filter: ['!', ['has', 'point_count']], layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': 0.62, 'icon-allow-overlap': true, visibility: on ? 'visible' : 'none' } });
@@ -1763,7 +1763,7 @@
       if (!sets[key]) return;
       document.querySelector('label[data-ref="' + key + '"]').hidden = false;
       var clu = key === 'reports';
-      map.addSource('s-' + key, clu ? { type: 'geojson', data: sets[key], cluster: true, clusterRadius: 40, clusterMaxZoom: 14 } : { type: 'geojson', data: sets[key] });
+      map.addSource('s-' + key, clu ? { type: 'geojson', data: sets[key], cluster: true, clusterRadius: 30, clusterMaxZoom: 11 } : { type: 'geojson', data: sets[key] });
       if (clu) addClusters(key);
       map.addLayer({ id: 'r-' + key, type: 'symbol', source: 's-' + key, filter: clu ? ['!', ['has', 'point_count']] : ['==', 1, 1], minzoom: runKey === 'd3_sep2023' ? minz[key] + 1 : minz[key] - 1,
         layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': key === 'gauges' ? 1.15 : key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.85, 0.65] : 0.8,
