@@ -408,18 +408,20 @@ def cmd_map_comids(a=None):
     from concurrent.futures import ThreadPoolExecutor
     X = d3_culverts(); old = json.load(open(COMID_MAP)) if os.path.exists(COMID_MAP) else {'map': {}}
     todo = [r for r in X if r['id'] not in old['map']]; log('culverts', len(X), 'to map', len(todo))
-    M = dict(old['map']); errs = 0
+    M = dict(old['map']); errs = 0; t_end = time.time() + 60 * float(getattr(a, 'max_minutes', None) or 12)
 
     def one(r):
+        if time.time() > t_end: return r['id'], TimeoutError('time budget')
         try: return r['id'], nldi_hydrolocation(r['lon'], r['lat'])
         except Exception as e: return r['id'], e
-    with ThreadPoolExecutor(6) as ex:
+    with ThreadPoolExecutor(8) as ex:
         for k, (i, res) in enumerate(ex.map(one, todo)):
+            if isinstance(res, TimeoutError): continue
             if isinstance(res, Exception): errs += 1; log('  fail', i, repr(res)[:160]) if errs < 20 else None; continue
             M[i] = dict(comid=res[0], snap_m=res[1], how=res[2])
-            if k % 100 == 0: log('  ', k, i, M[i])
+            if k % 50 == 0: log('  ', k, i, M[i], f'{t_end - time.time():.0f}s left')
     os.makedirs(os.path.dirname(COMID_MAP), exist_ok=True)
-    json.dump(dict(made=iso(utcnow()), made_by='proto/live_feeds.py map-comids', n=len(M), failed=errs,
+    json.dump(dict(made=iso(utcnow()), made_by='proto/live_feeds.py map-comids', n=len(M), of=len(X), failed=errs,
                    note='crossing id (docs/network/crossings_all.json) -> NHDPlus v2 COMID (= NWM feature_id); snap_m = distance to the indexed '
                         f'flowline point; only snap_m <= {SNAP_MAX_M:.0f} m is used. NHDPlus v2 is 1:100k: small culvert streams are often absent and '
                         'snap to a bigger stream, hence the cut-off.', map=M), open(COMID_MAP, 'w'), indent=0)
@@ -738,7 +740,8 @@ def selftest():
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=list(FEEDS) + ['run', 'map-comids', 'selftest'])
     ap.add_argument('--feeds', default=','.join(FEEDS)); ap.add_argument('--force', action='store_true'); ap.add_argument('--github-output')
-    ap.add_argument('--method', choices=['pysteps', 'phase'], help='nowcast motion method (default: pysteps if importable)')
+    ap.add_argument('--max-minutes', type=float, default=12, help='map-comids time budget (resumable: already mapped crossings are kept)')
+    ap.add_argument('--method',choices=['pysteps', 'phase'], help='nowcast motion method (default: pysteps if importable)')
     a = ap.parse_args()
     if a.cmd == 'selftest': selftest()
     elif a.cmd == 'map-comids': cmd_map_comids(a)
