@@ -271,7 +271,7 @@ def zarr_chunk(var, key, shape, dtype, attrs=None):
     a = np.frombuffer(zstandard.ZstdDecompressor().decompress(r.content, max_output_size=int(np.prod(shape)) * np.dtype(dtype).itemsize), dtype)
     a = a.reshape(shape)
     if attrs is None: return a
-    out = a.astype(np.float64); out[a == attrs['fill']] = np.nan
+    out = a.astype(np.float32); out[a == attrs['fill']] = np.nan
     return out * attrs['scale'] + attrs['offset']
 
 
@@ -300,15 +300,15 @@ def cmd_clim(a):
         try:
             T = zarr_chunk('time', str(k), (n,), '<i8')
             L = []
-            for l in (0, 1):
-                big = np.full((n, len(ycs) * cy, len(xcs) * cx), np.nan)
-                for i, yc in enumerate(ycs):
-                    for j, xc in enumerate(xcs):
-                        hy = min(cy, ny - yc * cy); hx = min(cx, nx - xc * cx)
-                        c = zarr_chunk('SOIL_M', f'{k}.{yc}.{l}.{xc}', (ct, cy, 1, cx), za['dtype'], attrs)[:n, :hy, 0, :hx]
-                        big[:, i * cy:i * cy + hy, j * cx:j * cx + hx] = c
-                y0_, x0_ = ycs[0] * cy, xcs[0] * cx
-                L.append(big[:, sy.start - y0_:sy.stop - y0_, sx.start - x0_:sx.stop - x0_])
+            for l in (0, 1):      # only the District 3 window is kept (a few MB); each chunk is decoded, cut and dropped
+                win = np.full((n, sy.stop - sy.start, sx.stop - sx.start), np.nan, np.float32)
+                for yc in ycs:
+                    for xc in xcs:
+                        c = zarr_chunk('SOIL_M', f'{k}.{yc}.{l}.{xc}', (ct, cy, 1, cx), za['dtype'], attrs)
+                        ya, yb = max(sy.start, yc * cy), min(sy.stop, (yc + 1) * cy); xa, xb = max(sx.start, xc * cx), min(sx.stop, (xc + 1) * cx)
+                        win[:, ya - sy.start:yb - sy.start, xa - sx.start:xb - sx.start] = c[:n, ya - yc * cy:yb - yc * cy, 0, xa - xc * cx:xb - xc * cx]
+                        del c
+                L.append(win)
             tw = (LAYER_M[0] * L[0] + LAYER_M[1] * L[1]) / sum(LAYER_M)
             with np.errstate(invalid='ignore', divide='ignore'): sat = np.clip(tw / P[None], 0, 1.2)
             m = np.nanmean(np.where(inside[None], sat, np.nan).reshape(n, -1), axis=1)
@@ -380,7 +380,7 @@ if __name__ == '__main__':
     sp.add_parser('probe'); sp.add_parser('selftest'); sp.add_parser('live')
     p = sp.add_parser('storms'); p.add_argument('--out', default=os.path.join(OUT, 'nwm_soilsat.json')); p.add_argument('--retro-end', default='2023-02-01T00:00')
     p = sp.add_parser('clim'); p.add_argument('--out', default=os.path.join(OUT, 'nwm_soilsat_clim.json'))
-    p.add_argument('--max-chunks', type=int, default=0, help='test: only the first N time chunks'); p.add_argument('--workers', type=int, default=16)
+    p.add_argument('--max-chunks', type=int, default=0, help='test: only the first N time chunks'); p.add_argument('--workers', type=int, default=6)
     a = ap.parse_args()
     if a.cmd == 'probe': cmd_probe(a)
     elif a.cmd == 'storms': cmd_storms(a)
