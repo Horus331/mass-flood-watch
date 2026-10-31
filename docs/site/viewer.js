@@ -971,6 +971,7 @@
         '<div class="k kdrn"><span class="kl">Draining</span><span class="kr kroads"><span><i class="kw drn"></i>water going down</span></span></div>';
     }
     $('replayStory').hidden = true;
+    if (small()) setTimeout(function () { sheetDetent('half'); }, 600); // phones: the scenario controls are the point of this mode, show them
     ['wiRain', 'wiSoil', 'wiCulv'].forEach(function (id) {
       $(id).addEventListener('input', function () { wiLabels(); clearTimeout(wi.deb); wi.deb = setTimeout(wiSelect, 120); });
     });
@@ -1119,13 +1120,13 @@
     if (!meta) return;
     var per = 60 / meta.frame_min, h = t / per, r = meta.rain_hourly_mean_mm || [], hr = r[Math.floor(h)] || 0, tot = sum(r, h);
     $('inRain').textContent = (hr >= 10 ? Math.round(hr) : hr.toFixed(1)) + ' mm/h';
-    $('inRainS').textContent = (tot >= 10 ? Math.round(tot) : tot.toFixed(1)) + ' mm so far (area average)';
+    $('inRainS').textContent = (tot >= 10 ? Math.round(tot) : tot.toFixed(1)) + ' mm so far';
     var x = (100 * t / Math.max(1, nf - 1)).toFixed(2);
     Object.keys(instSer).forEach(function (k) { var c = instSer[k]; if (c) { c.setAttribute('x1', x); c.setAttribute('x2', x); } });
     var g = instGauge();
     if (g) { var q = g.obs_q[Math.round(t)]; $('inRiver').textContent = q != null ? (q >= 10 ? Math.round(q) : q.toFixed(1)) + ' m³/s' : '–'; $('inRiverL').textContent = 'River, observed: ' + g.name.replace(/, MA$/, '').replace(/ (at|near) .*/, ''); }
     var cx = WION && wi && wi.cxT ? Object.keys(wi.cxT).map(function (k) { return wi.cxT[k]; }) : instCx, nc = 0;
-    if (cx) { for (var i = 0; i < cx.length; i++) if (cx[i] <= t) nc++; $('inCulv').textContent = n(nc); $('inCulvS').textContent = 'of ' + n(cx.length) + ' that overtop in this run'; }
+    if (cx) { for (var i = 0; i < cx.length; i++) if (cx[i] <= t) nc++; $('inCulv').textContent = n(nc); $('inCulvS').textContent = 'of ' + n(cx.length) + ' in this run'; }
     else { $('inCulv').textContent = meta.culverts_overtopped != null ? n(meta.culverts_overtopped) : '–'; $('inCulvS').textContent = 'over the whole storm'; }
     $('inRoads').textContent = n(nClosedNow);
   }
