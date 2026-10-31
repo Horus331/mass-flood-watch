@@ -56,9 +56,9 @@ jobs:
       - name: bbox test (District 3 box, as proto/transfer_d456.py / sim/colab/vt_inputs.py / proto/rain/rain_fetch.py)
         continue-on-error: true
         run: |
-          python proto/usgs_api.py compare --bbox -72.3796,41.9511,-71.4267,42.7646 --start ${{ inputs.start }} --end ${{ inputs.end }} \
+          python proto/usgs_api.py compare --bbox=-72.3796,41.9511,-71.4267,42.7646 --start ${{ inputs.start }} --end ${{ inputs.end }} \
             --out docs/proto/usgs/_logs/compare_bbox_d3.json 2>&1 | tail -60 | tee docs/proto/usgs/_logs/compare_bbox_d3.txt
-          python proto/usgs_api.py compare --bbox -72.3796,41.9511,-71.4267,42.7646 --params 00045 --start ${{ inputs.start }} --end ${{ inputs.end }} \
+          python proto/usgs_api.py compare --bbox=-72.3796,41.9511,-71.4267,42.7646 --params 00045 --start ${{ inputs.start }} --end ${{ inputs.end }} \
             --out docs/proto/usgs/_logs/compare_bbox_d3_rain.json 2>&1 | tail -30 | tee docs/proto/usgs/_logs/compare_bbox_d3_rain.txt
       - name: state test (MA, as sim/gauges_fetch.py)
         if: ${{ inputs.state_test }}
