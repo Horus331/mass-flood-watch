@@ -60,6 +60,10 @@
       title: 'Webster · Sept 5, 2022',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 148 mm of rain in the box (90 mm on average), up to 86 mm in the wettest hour.'
     },
+    sep2018m_milford: {
+      title: 'Milford · Sept 18, 2018',
+      kind: 'Held-out storm: same model settings, not chosen on it. Up to 109 mm of rain in the box (56 mm on average), up to 52 mm in the wettest hour.'
+    },
     forecast: { title: 'Live forecast · District 3', kind: '' }
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
@@ -1865,7 +1869,7 @@
       var clu = key === 'reports';
       map.addSource('s-' + key, clu ? { type: 'geojson', data: sets[key], cluster: true, clusterRadius: 30, clusterMaxZoom: 11 } : { type: 'geojson', data: sets[key] });
       if (clu) addClusters(key);
-      map.addLayer({ id: 'r-' + key, type: 'symbol', source: 's-' + key, filter: clu ? ['!', ['has', 'point_count']] : ['==', 1, 1], minzoom: runKey === 'd3_sep2023' ? minz[key] + 1 : minz[key] - 1,
+      map.addLayer({ id: 'r-' + key, type: 'symbol', source: 's-' + key, filter: clu ? ['!', ['has', 'point_count']] : ['all'], minzoom: runKey === 'd3_sep2023' ? minz[key] + 1 : minz[key] - 1,
         layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': key === 'gauges' ? 1.15 : key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.85, 0.65] : 0.8,
           'icon-allow-overlap': key === 'gauges' || key === 'reports' || key === 'crowd', 'icon-ignore-placement': key !== 'crossings', 'symbol-sort-key': key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0, 1] : 0,
           visibility: document.querySelector('input[data-ref="' + key + '"]').checked ? 'visible' : 'none' } });
@@ -3018,7 +3022,7 @@
   var fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }), fmtMD = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   var fmtHM = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   function ago(d) { var m = Math.round((Date.now() - d.getTime()) / 60000); return m < 2 ? 'just now' : m < 90 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; }
-  function zt(x) { return x ? new Date(String(x).replace(/Z?$/, 'Z').replace(/:00ZZ$/, ':00Z')) : null; }
+  function zt(x) { if (!x) return null; var d = new Date(String(x).replace(/Z?$/, 'Z').replace(/:00ZZ$/, ':00Z')); return isNaN(d.getTime()) ? null : d; }
   var ERO = ['none', 'marginal', 'slight', 'moderate', 'high'], ERO_L = { none: 'No risk area', marginal: 'Marginal', slight: 'Slight', moderate: 'Moderate', high: 'High' };
   function liveInit(s) {
     if (curTab !== 'live') return;
