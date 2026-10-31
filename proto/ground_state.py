@@ -88,7 +88,12 @@ def cmd_run(a):
                             t_mean_c=per[-1][1] if per else None, last_day=per[-1][0] if per else None, last_30=per[-30:],
                             source='NWS daily climate report, Worcester (KORH), via Iowa Environmental Mesonet; CFGI after Molnau & Bissell (1983)')
     except Exception as e: out['frost'] = dict(state='unknown', error=repr(e)[:200])
-    fz = out['frost'].get('state') == 'frozen'; wt = out['wetness'].get('state')
+    try:   # extra field only: SNODAS district snow (proto/live_feeds.py snow -> docs/site/data/live/snow.json); the CFGI above still uses KORH
+        S = json.load(open(os.path.join(ROOT, 'docs', 'site', 'data', 'live', 'snow.json')))
+        out['frost']['snodas'] = dict(date=S.get('date'), depth_cm_mean=S['depth_cm'].get('district_mean'), depth_cm_max=S['depth_cm'].get('district_max'),
+                                      swe_mm_mean=(S.get('swe_mm') or {}).get('district_mean'), source=S.get('source'))
+    except Exception: pass
+    fz =out['frost'].get('state') == 'frozen'; wt = out['wetness'].get('state')
     out['ground'] = 'frozen' if fz else (wt if wt in ('dry', 'normal', 'wet') else 'unknown')
     out['model_use'] = ('Shown for context only. The live forecast runs at the calibrated normal ground; the 5-day wetness rule lowered skill '
                         'in the 23 Oct 2026 backtest (docs/proto/runoff/AMC.md) and frozen ground is not yet backtested. Wet or frozen ground '
