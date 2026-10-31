@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-10-31T18:27:07Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-10-31T18:57:29Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -21,13 +21,13 @@ Updated 2026-10-31T18:27:07Z by `proto/turing/queue_runner.py` on Turing. Reques
 | run_sep2018_fitchburg | run_storm | completed | 2439503 | 1 / 0 | 2026-10-31T15:24:48Z | 2026-10-31T17:56:41Z |  |
 | pack_sep2018_fitchburg | pack_site | completed | 2439504 | 1 / 0 | 2026-10-31T15:24:48Z | 2026-10-31T18:27:07Z |  |
 | run_sep2022_webster | run_storm | completed | 2439505 | 1 / 0 | 2026-10-31T15:24:48Z | 2026-10-31T18:27:07Z |  |
-| pack_sep2022_webster | pack_site | running | 2439506 | 0 / 0 | 2026-10-31T15:24:48Z |  |  |
+| pack_sep2022_webster | pack_site | completed | 2439506 | 1 / 0 | 2026-10-31T15:24:48Z | 2026-10-31T18:57:29Z |  |
 | run_sep2018m_milford | run_storm | completed | 2439507 | 1 / 0 | 2026-10-31T15:24:48Z | 2026-10-31T18:27:07Z |  |
-| pack_sep2018m_milford | pack_site | running | 2439508 | 0 / 0 | 2026-10-31T15:24:48Z |  |  |
-| amcnwm_base_aug2018b | run_storm | running | 2439666 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
-| amcnwm_nwm_aug2018b | run_storm | pending | 2439667 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
-| amcnwm_base_aug2019 | run_storm | pending | 2439668 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
-| amcnwm_nwm_aug2019 | run_storm | pending | 2439669 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
+| pack_sep2018m_milford | pack_site | completed | 2439508 | 1 / 0 | 2026-10-31T15:24:48Z | 2026-10-31T18:57:29Z |  |
+| amcnwm_base_aug2018b | run_storm | completed | 2439666 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T18:57:29Z |  |
+| amcnwm_nwm_aug2018b | run_storm | completed | 2439667 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T18:57:29Z |  |
+| amcnwm_base_aug2019 | run_storm | completed | 2439668 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T18:57:29Z |  |
+| amcnwm_nwm_aug2019 | run_storm | completed | 2439669 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T18:57:29Z |  |
 | amcnwm_base_aug2020b | run_storm | pending | 2439670 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
 | amcnwm_nwm_aug2020b | run_storm | pending | 2439671 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
 | amcnwm_base_aug2021 | run_storm | pending | 2439672 | 0 / 0 | 2026-10-31T16:25:37Z |  |  |
@@ -115,8 +115,8 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_nwm_sep2023 | run_storm | failed |  |  /  | 2026-10-31T16:25:38Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_collect_5 |  | rejected |  |  /  | 2026-10-31T16:25:38Z |  | a dependency failed or was rejected |
-| inl1_runs | run_inlets | running | 2439813 | 0 / 49 | 2026-10-31T16:55:56Z |  |  |
-| inl1_collect | collect_scores | running | 2439814 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
+| inl1_runs | run_inlets | failed | 2439813 | 0 / 50 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z |  |
+| inl1_collect | collect_scores | completed | 2439814 | 1 / 0 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z |  |
 | amcnwm_v1_b1 | run_plan_gpu | pending | 2439815 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
 | amcnwm_v1_b2 | run_plan_gpu | failed |  |  /  | 2026-10-31T16:55:56Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
@@ -129,4 +129,4 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_v1_collect | collect_scores | running | 2439816 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
 | amcnwm_v1_arr | run_plan_gpu | failed |  |  /  | 2026-10-31T17:26:27Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
-| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-10-31T18:27:07Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
+| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-10-31T18:57:29Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
