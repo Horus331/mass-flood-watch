@@ -18,6 +18,7 @@ jobs.json on `turing-queue`:
                 "after": ["surr_gen_b1", "surr_inputs"]} ],
      "paused": false}
 A request is submitted once (its id is remembered); to rerun, add a new id.  "after" = Slurm afterok on those requests' jobs.
+"cancel": [request ids] (top level) scancels those requests' Slurm jobs; only jobs this queue submitted can be cancelled.
 """
 import os, re, sys, json, time, shlex, argparse, subprocess, datetime as dt
 
@@ -100,6 +101,13 @@ def tick(qdir, dry=False, kinds_path=None, jobs_path=None, state_path=None):
             if q and q['state']:
                 s.update(slurm=q); s['status'] = {'PENDING': 'pending', 'RUNNING': 'running', 'COMPLETED': 'completed', 'FAILED': 'failed'}.get(q['state'], s['status'])
                 if s['status'] in ('completed', 'failed'): s['finished'] = s.get('finished') or now()
+    # 1b. cancel: "cancel": [request ids] in jobs.json cancels those requests' own Slurm jobs (only jobs this queue submitted; nothing else)
+    for rid in J.get('cancel') or []:
+        s = St.get(str(rid))
+        if s and s.get('status') in ('submitted', 'pending', 'running', 'deferred') and ID.match(str(rid)):
+            jid = str(s.get('slurm_id') or '')
+            if jid and jid != 'DRY' and re.match(r'^[0-9]{1,12}$', jid) and not dry: sh(['scancel', jid])
+            s['status'] = 'cancelled'; s['finished'] = now(); s['why'] = ['cancelled through jobs.json "cancel"']; log('cancel', rid, jid)
     # 2. submit new requests
     if not J.get('paused'):
         for req in J.get('jobs', []):
