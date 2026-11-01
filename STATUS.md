@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T23:14:02Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T23:44:08Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -146,7 +146,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | inl1_diag | collect_scores | completed | 2443117 | 1 / 0 | 2026-11-01T16:09:49Z | 2026-11-01T16:40:07Z |  |
 | amcnwm_v1_arr3 | run_plan_gpu | completed | 2443118 | 40 / 0 | 2026-11-01T16:09:49Z | 2026-11-01T20:11:44Z |  |
 | d3all_diag4 | diag | completed | 2443159 | 1 / 0 | 2026-11-01T16:40:07Z | 2026-11-01T17:10:19Z |  |
-| fcd3_e2etest_d3_2023091112_g | forecast_d3 | pending | 2443209 | 0 / 0 | 2026-11-01T17:10:19Z |  |  |
+| fcd3_e2etest_d3_2023091112_g | forecast_d3 | cancelled | 2443209 | 0 / 0 | 2026-11-01T17:10:19Z | 2026-11-01T23:44:08Z | cancelled through jobs.json "cancel" |
 | run_d3_sep2023_20m_d | run_storm | cancelled | 2443210 | 0 / 0 | 2026-11-01T17:10:19Z | 2026-11-01T21:12:35Z | cancelled through jobs.json "cancel" |
 | pack_d3_sep2023_20m_d | pack_site | cancelled | 2443211 | 0 / 0 | 2026-11-01T17:10:19Z | 2026-11-01T21:12:35Z | cancelled through jobs.json "cancel" |
 | run_d3_sep2023_20m_any | run_storm | completed | 2443418 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T22:12:56Z |  |
@@ -185,15 +185,15 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | d3all_v2_a | run_plan_display | cancelled | 2443863 | 0 / 0 | 2026-11-01T21:42:47Z | 2026-11-01T22:43:14Z | cancelled through jobs.json "cancel" |
 | d3all_v1_adopt1 | run_plan_display | completed | 2443897 | 1 / 0 | 2026-11-01T22:12:56Z | 2026-11-01T22:43:14Z |  |
 | d3all_diag9 | diag | completed | 2443898 | 1 / 0 | 2026-11-01T22:12:56Z | 2026-11-01T22:43:14Z |  |
-| run_d3_sep2023_20m_t2b_s | run_storm | running | 2443970 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
-| run_d3_sep2023_20m_t2b_p | run_storm | pending | 2443971 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
-| pack_d3_sep2023_20m_t2b | pack_site | pending | 2443972 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| run_d3_sep2023_20m_t2b_s | run_storm | completed | 2443970 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:44:08Z |  |
+| run_d3_sep2023_20m_t2b_p | run_storm | cancelled | 2443971 | 0 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:44:08Z | cancelled through jobs.json "cancel" |
+| pack_d3_sep2023_20m_t2b | pack_site | cancelled | 2443972 | 0 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:44:08Z | cancelled through jobs.json "cancel" |
 | run_t2b_leominster_sep2023_s | run_storm | completed | 2443973 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
 | run_t2b_leominster_sep2023_p | run_storm | completed | 2443974 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
-| pack_t2b_leominster_sep2023 | pack_site | running | 2443975 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| pack_t2b_leominster_sep2023 | pack_site | completed | 2443975 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:44:08Z |  |
 | run_t2b_worcester_aug2021_s | run_storm | completed | 2443976 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
 | run_t2b_worcester_aug2021_p | run_storm | completed | 2443977 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
-| pack_t2b_worcester_aug2021 | pack_site | running | 2443978 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| pack_t2b_worcester_aug2021 | pack_site | completed | 2443978 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:44:08Z |  |
 | run_t2b_aug2026_leominster_s | run_storm | completed | 2443979 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
 | run_t2b_aug2026_leominster_p | run_storm | completed | 2443980 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
 | pack_t2b_aug2026_leominster | pack_site | completed | 2443981 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
@@ -207,21 +207,24 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | run_t2b_aug2023_metrowest_p | run_storm | completed | 2443989 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
 | pack_t2b_aug2023_metrowest | pack_site | completed | 2443990 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
 | run_t2b_jun2020_northbridge_s | run_storm | completed | 2443991 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
-| run_t2b_jun2020_northbridge_p | run_storm | running | 2443992 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_jun2020_northbridge | pack_site | pending | 2443993 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_jun2020_northbridge_p | run_storm | completed | 2443992 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
+| pack_t2b_jun2020_northbridge | pack_site | completed | 2443993 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
 | run_t2b_jul2023_worcester_s | run_storm | completed | 2443994 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
-| run_t2b_jul2023_worcester_p | run_storm | running | 2443995 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_jul2023_worcester | pack_site | pending | 2443996 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_jul2023_worcester_p | run_storm | completed | 2443995 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
+| pack_t2b_jul2023_worcester | pack_site | completed | 2443996 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
 | run_t2b_sep2018_fitchburg_s | run_storm | completed | 2443997 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
-| run_t2b_sep2018_fitchburg_p | run_storm | running | 2443998 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_sep2018_fitchburg | pack_site | pending | 2443999 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_sep2018_fitchburg_p | run_storm | completed | 2443998 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
+| pack_t2b_sep2018_fitchburg | pack_site | completed | 2443999 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
 | run_t2b_sep2018m_milford_s | run_storm | completed | 2444000 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
-| run_t2b_sep2018m_milford_p | run_storm | running | 2444001 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_sep2018m_milford | pack_site | pending | 2444002 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_sep2018m_milford_p | run_storm | completed | 2444001 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
+| pack_t2b_sep2018m_milford | pack_site | completed | 2444002 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
 | d3all_v1_b5_s | run_plan_display | running | 2444003 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v1_b5_p | run_plan_display | pending | 2444004 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v1_c2_s | run_plan_display | running | 2444005 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v1_c2_p | run_plan_display | pending | 2444006 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| d3all_v2_b_s | run_plan_display | pending | 2444007 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v2_b_s | run_plan_display | running | 2444007 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v2_b_p | run_plan_display | pending | 2444008 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| d3all_diag10 | diag | submitted | 2444162 |  /  | 2026-11-01T23:14:02Z |  |  |
+| d3all_diag10 | diag | completed | 2444162 | 1 / 0 | 2026-11-01T23:14:02Z | 2026-11-01T23:44:08Z |  |
+| d3all_v1_adopt2 | run_plan_display | submitted | 2444265 |  /  | 2026-11-01T23:44:08Z |  |  |
+| run_d3_sep2023_20m_t2b_p2 | run_storm | submitted | 2444266 |  /  | 2026-11-01T23:44:08Z |  |  |
+| pack_d3_sep2023_20m_t2b2 | pack_site | submitted | 2444267 |  /  | 2026-11-01T23:44:08Z |  |  |
