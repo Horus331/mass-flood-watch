@@ -3219,6 +3219,25 @@
   var REPO = 'https://github.com/Horus331/mass-flood-watch/blob/main/';
   var fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }), fmtMD = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   var fmtHM = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  // iOS-weather-style rain strip: one bar per 6 hours (NBM QPF in the outlook feed), height = district-average rain in that block,
+  // colour = the same radar rain classes as the map (by the block's average rate), line = wettest town
+  var SIX_FULL = 15, fmtH6 = new Intl.DateTimeFormat('en-US', { hour: 'numeric', timeZone: 'America/New_York' });
+  function sixStrip(R, i) {
+    var m = R && R.six_hourly_mean_mm, x = R && R.six_hourly_max_mm, st = (R && R.six_hourly_start) || [];
+    if (!m) return '<span class="six na"><i></i><i></i><i></i><i></i></span>';
+    var lab = [];
+    var bars = [0, 1, 2, 3].map(function (k) {
+      var v = m[k], w = x ? x[k] : null;
+      if (v == null) return '<i class="na"></i>';
+      var h = Math.min(100, 100 * v / SIX_FULL), hx = w != null ? Math.min(100, 100 * w / SIX_FULL) : 0;
+      var col = v < 0.2 ? 'transparent' : v < 2 ? '#B9AEE0' : v < 5 ? '#9381CC' : v < 10 ? '#6A51A3' : v < 20 ? '#54278F' : '#3F007D';
+      var t = st[k] ? fmtH6.format(zt(st[k])) : '';
+      lab.push(t + ': ' + v.toFixed(1) + ' mm average' + (w != null ? ', ' + w.toFixed(0) + ' mm wettest town' : ''));
+      return '<i title="' + esc(lab[lab.length - 1]) + '"><s style="height:' + h.toFixed(0) + '%;background:' + col + '"></s>' + (w != null && w >= 0.5 ? '<u style="bottom:' + hx.toFixed(0) + '%"></u>' : '') + '</i>';
+    });
+    while (bars.length < 4) bars.push('<i class="na"></i>');
+    return '<span class="six" role="img" aria-label="' + esc(lab.join('; ')) + '">' + bars.join('') + '</span>';
+  }
   function ago(d) { var m = Math.round((Date.now() - d.getTime()) / 60000); return m < 2 ? 'just now' : m < 90 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; }
   function zt(x) { if (!x) return null; var d = new Date(String(x).replace(/Z?$/, 'Z').replace(/:00ZZ$/, ':00Z')); return isNaN(d.getTime()) ? null : d; }
   var ERO = ['none', 'marginal', 'slight', 'moderate', 'high'], ERO_L = { none: 'No risk area', marginal: 'Marginal', slight: 'Slight', moderate: 'Moderate', high: 'High' };
@@ -3308,6 +3327,13 @@
     var mx = Math.max.apply(0, days.map(function (d) { return (d.rain && d.rain.town_max_mm) || 0; }).concat([25]));
     var ol = $('week'); ol.innerHTML = '';
     if (O && O.headline) { var hl = document.createElement('li'); hl.className = 'wk-head'; hl.textContent = O.headline; ol.appendChild(hl); }
+    SIX_FULL = Math.max(10, Math.ceil(Math.max.apply(0, days.map(function (x) { return Math.max.apply(0, ((x && x.rain && x.rain.six_hourly_max_mm) || [0]).map(function (v) { return v || 0; })); })) / 5) * 5);
+    var d0 = days.filter(function (x) { return x && x.rain && x.rain.six_hourly_start && x.rain.six_hourly_start.length === 4; }).pop();
+    if (d0) {
+      var hd = document.createElement('li'); hd.className = 'day six-hd';
+      hd.innerHTML = '<span></span><span></span><span class="six">' + d0.rain.six_hourly_start.map(function (z) { return '<b>' + fmtH6.format(zt(z)).replace(/\s?([AP])M/, function (_, a) { return a.toLowerCase(); }) + '</b>'; }).join('') + '</span><span class="mm">total</span>';
+      ol.appendChild(hd);
+    }
     for (var i = 0; i < 7; i++) {
       var d = days[i] || null, dd = d && d.date ? new Date(d.date + 'T12:00:00Z') : new Date(Date.now() + i * 864e5);
       var R = d && d.rain, mean = R ? R.d3_mean_mm : null, mxv = R ? R.town_max_mm : null;
@@ -3317,14 +3343,13 @@
       var li = document.createElement('li'); li.className = 'day' + (mean == null ? ' na' : '');
       li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) + '<small>' + (d ? esc(d.label.split(' ').slice(1).join(' ')) : fmtMD.format(dd)) + (d && d.partial ? ' (rest)' : '') + '</small></span>' +
         '<i class="ero ' + (ero || 'na') + '" title="NOAA WPC excessive rainfall risk: ' + (ero ? ERO_L[ero] : 'no outlook for this day') + '"></i>' +
-        '<span class="rbar" role="img" aria-label="' + (mean != null ? 'district mean ' + mean.toFixed(1) + ' mm, wettest town ' + (mxv || 0).toFixed(0) + ' mm' : 'no rain figure') + '">' +
-        (mean != null ? '<i style="width:' + Math.min(100, 100 * mean / mx).toFixed(1) + '%"></i><u style="left:' + Math.min(99, 100 * (mxv || 0) / mx).toFixed(1) + '%"></u>' : '') + '</span>' +
-        '<span class="mm">' + (mean != null ? (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm' : '–') + (mxv != null ? '<small title="wettest town">max ' + Math.round(mxv) + '</small>' : '') + '</span>' +
+        sixStrip(R, i) +
+        '<span class="mm">' + (mean != null ? (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm' : '–') + (mean != null && mean >= 0.05 ? '<small>' + (mean / 25.4 < 0.1 ? (mean / 25.4).toFixed(2) : (mean / 25.4).toFixed(1)) + ' in</small>' : '') + (mxv != null && mxv >= 1 ? '<small title="wettest town">max ' + Math.round(mxv) + '</small>' : '') + '</span>' +
         '<span class="vd ' + vc + '">' + esc(txt) + (det ? ' <span class="tw">· ' + esc(det) + '</span>' : '') + (d && d.alerts && d.alerts.length ? ' <span class="al">' + esc(d.alerts.join(', ')) + '</span>' : '') + '</span>';
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    key.innerHTML = '<span><i class="rbar" style="width:16px;display:inline-block"><i style="width:100%"></i></i>district mean</span><span><i style="display:inline-block;width:2px;height:10px;background:var(--ink)"></i>wettest town</span>' +
+    key.innerHTML = '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>' +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
     // storms coming (runs of days at level 2 or more)
