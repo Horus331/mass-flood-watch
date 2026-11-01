@@ -3037,7 +3037,7 @@
     "tasks": 1,
     "done": 0,
     "failed": 0,
-    "elapsed": "01:27:40"
+    "elapsed": "01:57:52"
    }
   },
   "pack_d3_sep2023_20m_any": {
@@ -3180,8 +3180,8 @@
     "state": "RUNNING",
     "tasks": 4,
     "done": 0,
-    "failed": 1,
-    "elapsed": "01:05:59"
+    "failed": 2,
+    "elapsed": "01:24:47"
    }
   },
   "d3all_diag6": {
@@ -3238,7 +3238,7 @@
    "finished": "2026-11-01T21:12:35Z"
   },
   "d3all_v1_b3": {
-   "status": "submitted",
+   "status": "cancelled",
    "slurm_id": "2443788",
    "kind": "run_plan_display",
    "env": {
@@ -3256,10 +3256,21 @@
    },
    "after": [],
    "at": "2026-11-01T21:12:35Z",
-   "error": null
+   "error": null,
+   "slurm": {
+    "state": "PENDING",
+    "tasks": 1,
+    "done": 0,
+    "failed": 0,
+    "elapsed": "00:00:00"
+   },
+   "finished": "2026-11-01T21:42:47Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "d3all_diag8": {
-   "status": "submitted",
+   "status": "completed",
    "slurm_id": "2443789",
    "kind": "diag",
    "env": {
@@ -3275,9 +3286,639 @@
    },
    "after": [],
    "at": "2026-11-01T21:12:35Z",
+   "error": null,
+   "slurm": {
+    "state": "COMPLETED",
+    "tasks": 1,
+    "done": 1,
+    "failed": 0,
+    "elapsed": "00:03:09"
+   },
+   "finished": "2026-11-01T21:42:47Z"
+  },
+  "d3all_v1_b4": {
+   "status": "submitted",
+   "slurm_id": "2443840",
+   "kind": "run_plan_display",
+   "env": {
+    "PLAN": "proto/turing/plans/d3all_v1.json",
+    "PIN": "ebcd9c318eae0fc5f3ce93f3c8e368a0dba54906",
+    "IDXS": "12-23",
+    "PER": "1"
+   },
+   "sbatch": {
+    "array": "0-11%2",
+    "partition": "short",
+    "gres": "gpu:1",
+    "time": "16:00:00",
+    "mem": "240G"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_d3_sep2023_20m_t2": {
+   "status": "submitted",
+   "slurm_id": "2443841",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_d3_sep2023_t2",
+    "STORM": "sep2023",
+    "BOX": "128000,856000,206000,946000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "600",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "16:00:00",
+    "mem": "240G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_d3_sep2023_20m_t2": {
+   "status": "submitted",
+   "slurm_id": "2443842",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_d3_sep2023_t2",
+    "STORM": "sep2023",
+    "SITE": "d3_sep2023_t2",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "10:00:00"
+   },
+   "after": [
+    "run_d3_sep2023_20m_t2"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_leominster_sep2023": {
+   "status": "submitted",
+   "slurm_id": "2443843",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "leominster_sep2023_t2",
+    "STORM": "sep2023",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_leominster_sep2023": {
+   "status": "submitted",
+   "slurm_id": "2443844",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "leominster_sep2023_t2",
+    "STORM": "sep2023",
+    "SITE": "leominster_sep2023_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_leominster_sep2023"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_worcester_aug2021": {
+   "status": "submitted",
+   "slurm_id": "2443845",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "worcester_aug2021_t2",
+    "STORM": "aug2021",
+    "BOX": "168000,875000,188000,895000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_worcester_aug2021": {
+   "status": "submitted",
+   "slurm_id": "2443846",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "worcester_aug2021_t2",
+    "STORM": "aug2021",
+    "SITE": "worcester_aug2021_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_worcester_aug2021"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_aug2026_leominster": {
+   "status": "submitted",
+   "slurm_id": "2443847",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_aug2026_leominster_t2",
+    "STORM": "aug2026",
+    "BOX": "162000,908000,182000,928000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_aug2026_leominster": {
+   "status": "submitted",
+   "slurm_id": "2443848",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_aug2026_leominster_t2",
+    "STORM": "aug2026",
+    "SITE": "aug2026_leominster_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_aug2026_leominster"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_sep2021_worcester": {
+   "status": "submitted",
+   "slurm_id": "2443849",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_sep2021_worcester_t2",
+    "STORM": "sep2021",
+    "BOX": "160000,882000,180000,902000",
+    "HOURS": "36",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_sep2021_worcester": {
+   "status": "submitted",
+   "slurm_id": "2443850",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_sep2021_worcester_t2",
+    "STORM": "sep2021",
+    "SITE": "sep2021_worcester_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_sep2021_worcester"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_sep2022_webster": {
+   "status": "submitted",
+   "slurm_id": "2443851",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_sep2022_webster_t2",
+    "STORM": "sep2022",
+    "BOX": "151000,855000,171000,875000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_sep2022_webster": {
+   "status": "submitted",
+   "slurm_id": "2443852",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_sep2022_webster_t2",
+    "STORM": "sep2022",
+    "SITE": "sep2022_webster_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_sep2022_webster"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_aug2023_metrowest": {
+   "status": "submitted",
+   "slurm_id": "2443853",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_aug2023_metrowest_t2",
+    "STORM": "aug2023",
+    "BOX": "193000,879000,213000,899000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_aug2023_metrowest": {
+   "status": "submitted",
+   "slurm_id": "2443854",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_aug2023_metrowest_t2",
+    "STORM": "aug2023",
+    "SITE": "aug2023_metrowest_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_aug2023_metrowest"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_jun2020_northbridge": {
+   "status": "submitted",
+   "slurm_id": "2443855",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_jun2020_northbridge_t2",
+    "STORM": "jun2020",
+    "BOX": "190000,859000,210000,879000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_jun2020_northbridge": {
+   "status": "submitted",
+   "slurm_id": "2443856",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_jun2020_northbridge_t2",
+    "STORM": "jun2020",
+    "SITE": "jun2020_northbridge_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_jun2020_northbridge"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_jul2023_worcester": {
+   "status": "submitted",
+   "slurm_id": "2443857",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_jul2023_worcester_t2",
+    "STORM": "jul2023",
+    "BOX": "157000,882000,177000,902000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_jul2023_worcester": {
+   "status": "submitted",
+   "slurm_id": "2443858",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_jul2023_worcester_t2",
+    "STORM": "jul2023",
+    "SITE": "jul2023_worcester_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_jul2023_worcester"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_sep2018_fitchburg": {
+   "status": "submitted",
+   "slurm_id": "2443859",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_sep2018_fitchburg_t2",
+    "STORM": "sep2018",
+    "BOX": "156000,913000,176000,933000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_sep2018_fitchburg": {
+   "status": "submitted",
+   "slurm_id": "2443860",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_sep2018_fitchburg_t2",
+    "STORM": "sep2018",
+    "SITE": "sep2018_fitchburg_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_sep2018_fitchburg"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "run_t2_sep2018m_milford": {
+   "status": "submitted",
+   "slurm_id": "2443861",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_sep2018m_milford_t2",
+    "STORM": "sep2018m",
+    "BOX": "188000,863000,208000,883000",
+    "HOURS": "30",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "pack_t2_sep2018m_milford": {
+   "status": "submitted",
+   "slurm_id": "2443862",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_sep2018m_milford_t2",
+    "STORM": "sep2018m",
+    "SITE": "sep2018m_milford_t2",
+    "FLOW": "1",
+    "PUSH_BRANCH": "t2-data"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "run_t2_sep2018m_milford"
+   ],
+   "at": "2026-11-01T21:42:47Z",
+   "error": null
+  },
+  "d3all_v2_a": {
+   "status": "submitted",
+   "slurm_id": "2443863",
+   "kind": "run_plan_display",
+   "env": {
+    "PLAN": "proto/turing/plans/d3all_v2.json",
+    "PIN": "363f0aa34bc7d08b2299df17b46c473e11df5c7c",
+    "IDXS": "0,1,6,3,2,4,5,7,8,9-23",
+    "PER": "1"
+   },
+   "sbatch": {
+    "array": "0-23%2",
+    "partition": "short",
+    "gres": "gpu:1",
+    "time": "16:00:00",
+    "mem": "240G"
+   },
+   "after": [],
+   "at": "2026-11-01T21:42:47Z",
    "error": null
   }
  },
- "updated": "2026-11-01T21:12:35Z",
+ "updated": "2026-11-01T21:42:47Z",
  "paused": false
 }
