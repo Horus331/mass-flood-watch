@@ -23,6 +23,10 @@
       title: 'Worcester · Aug 19, 2021',
       kind: 'Blind test. Same model settings as Leominster, run on a storm it was not tuned on.'
     },
+    forecast_d3: {
+      title: 'Shadow run · District 3',
+      kind: 'Not the forecast. The latest fired forecast cycle run over all of District 3 at 20 m on WPI’s Turing GPU cluster, as a test: it flags about 3 times as many roads as the radar run of the same storm (forecast/DISTRICT.md). The Forecast tab shows the forecast.'
+    },
     d3_sep2023: {
       title: 'District 3 · Sept 11, 2023',
       kind: 'One GPU run on WPI’s Turing cluster: 17.6 million cells at 20 m (shown here at 80 m).'
@@ -1444,8 +1448,14 @@
       base = 'site/data/' + String(dir).replace(/^(site\/)?data\//, '').replace(/\/?$/, '/');
       if (!s.title && s.headline) s.title = s.headline;
       if (s.title) $('runTitle').textContent = s.title;
-      fcStat = s;   // display: 'turing' (whole District 3 at 20 m) or 'boxes' (the GitHub backup); s.coverage says which, in words
+      fcStat = s;   // display: 'boxes' (the public forecast); s.coverage says what was modelled, in words
       $('runKind').textContent = (s.coverage && s.kind && s.kind.indexOf(s.coverage) < 0 ? s.coverage + '. ' : '') + (s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.'));
+      if (s.shadow && s.shadow.dir) {   // the whole-district shadow run of the same cycle (Turing): linked, never the headline (forecast/DISTRICT.md)
+        var sk = String(s.shadow.dir).replace(/^(site\/)?data\//, '').replace(/\/$/, ''), sa = document.createElement('span');
+        sa.innerHTML = ' Test only: a <a href="?run=' + encodeURIComponent(sk) + '">whole-district shadow run</a> of this cycle (Turing GPU, 20 m' +
+          (s.shadow.likely_closed != null ? ', ' + n(s.shadow.likely_closed) + ' segments likely closed' : '') + ') is not the forecast: it flags about 3 times too many roads.';
+        $('runKind').appendChild(sa);
+      }
       start(); liveInit(s);
     }).catch(function () { forecastPlaceholder(); liveInit(null); });
   } else if (WHATIF) {
@@ -1764,11 +1774,11 @@
     map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
     map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
     // legend: the dashed box is this replay's own flood-model run, not the area the model can cover. Whole-district runs (tiled packs: the
-    // District 3 replay, the Turing forecast) need no box label; a backup forecast says the model ran only in its boxes
+    // District 3 replay, the Turing shadow forecast) need no box label; the box forecast says the model ran only in its boxes
     var tiled = !!(meta.depthc && meta.depthc.tiles);
     if (!tiled && runKey !== 'd3_sep2023' && $('covBox') && (runKey !== 'forecast' || (fcStat && fcStat.display === 'boxes'))) {
       var km = Math.round(meta.w * (meta.pixel_m || meta.resolution_m || 20) / 1000);
-      $('covBoxT').textContent = runKey === 'forecast' ? 'backup flood-model box (' + km + ' × ' + km + ' km); roads outside it not modelled' : 'this replay’s run (' + km + ' × ' + km + ' km)';
+      $('covBoxT').textContent = runKey === 'forecast' ? 'flood-model box, the only area run' : 'this replay’s run (' + km + ' × ' + km + ' km)';
       $('covBox').hidden = false;
     }
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };
@@ -2407,6 +2417,17 @@
         live: function () { var per_ = 60 / meta.frame_min, tot = sum(r, t / per_), sf = meta.surface_mm ? meta.surface_mm[Math.round(t)] || 0 : null;
           return sf != null ? '<b class="blue">' + Math.max(0, tot - sf).toFixed(0) + ' mm</b><span>of ' + tot.toFixed(0) + ' mm soaked in or drained</span><b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>' : '<b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>'; } }
     ];
+    // whole-district runs (tiled packs): after the peak, the camera moves on to the next worst-hit places, chosen from this run's own
+    // closures (the hotspot clusters of computeViews: views[1] is the biggest and was shown above, then views[2..4])
+    if (M.depthc && M.depthc.tiles) {
+      var tour = views.filter(function (v, k) { return k >= 2 && v.count; }).slice(0, 3);
+      tour.forEach(function (v, k) {   // camera: about 7 x 6 km around the place, close enough for the 20 m tiles (z12+)
+        var cx = (v.bounds[0][0] + v.bounds[1][0]) / 2, cy = (v.bounds[0][1] + v.bounds[1][1]) / 2;
+        S.splice(5 + k, 0, { title: 'Also hit: ' + v.name, a: s5b, b: s5b, dur: 5000, rain: 0.15, cam: [[cx - 0.042, cy - 0.027], [cx + 0.042, cy + 0.027]], peak: true,
+          text: function () { return 'Elsewhere in the district, around ' + esc(v.name) + (v.road ? ' (' + esc(v.road) + ')' : '') + ', ' + big(v.count) + ' road segments close during the storm. Same model run, same moment: the flood model covers all of District 3 at 20 m.'; },
+          live: function () { return '<b class="shut">' + n(v.count) + '</b><span>road segments close here</span><b class="shut">' + n(nClosedNow) + '</b><span>closed now, whole district</span>'; } });
+      });
+    }
     // the same storm over the whole district (Leominster 2023 only): numbers from the District 3 run's own meta.json
     if (runKey === 'leominster_sep2023' && D3M) {
       var sD = S[S.length - 1].b;
