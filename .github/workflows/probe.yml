@@ -1,31 +1,26 @@
 name: Probe data sources (run by hand)
-# On the terrain-fix branch: terrain-conditioning diagnostics (proto/diag_terrain.py, docs/proto/terrain/). Artifacts only, no commits.
+# On the terrain-fix branch: District 3 forecast rain-volume diagnostic (proto/forecast_volcal.py, docs/proto/forecast/DISTRICT_VOLCAL_PREREG.md).
+# Commits its JSON to this branch (artifacts cannot be read back from where the analysis runs).
 on: workflow_dispatch
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        b:
-          - {name: worcester_jul2023, storm: jul2023, box: '157000,882000,177000,902000', pts: '12771:176050,891561 MLK:175483,890732 FOSTER:175560,890560'}
-          - {name: worcester_aug2021, storm: aug2021, box: '168000,875000,188000,895000', pts: '12771:176050,891561 MLK:175483,890732 FOSTER:175560,890560'}
-          - {name: leominster_sep2023, storm: sep2023, box: '168000,908000,188000,928000', pts: 'R2:181030,919625'}
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub netCDF4 shapely
-      - name: terrain diagnostics
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub netCDF4
+      - name: rain volume per setting vs MRMS (District 3 domain)
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           LF_WORK: ${{ runner.temp }}/lf
-          BOX: ${{ matrix.b.box }}
-          STORM: ${{ matrix.b.storm }}
         run: |
-          PTS=""; for p in ${{ matrix.b.pts }}; do PTS="$PTS --pt $p"; done
-          python proto/diag_terrain.py --out out/${{ matrix.b.name }} $PTS --cfg base= --cfg notch=LF_NOTCH_FIX=1 \
-            --cfg "notch_enf=LF_NOTCH_FIX=1 LF_CHAN_ENFORCE=1" --cfg "enf=LF_CHAN_ENFORCE=1" 2>&1 | grep -v "^ *$" | tail -60
-      - uses: actions/upload-artifact@v4
-        with:
-          name: terrain_${{ matrix.b.name }}
-          path: out/
+          mkdir -p docs/proto/forecast/district $LF_WORK
+          python proto/forecast_volcal.py rain --out docs/proto/forecast/district/volcal_rain.json 2>&1 | tail -60
+          python proto/forecast_volcal.py decide --rain docs/proto/forecast/district/volcal_rain.json --out docs/proto/forecast/district/volcal_decision.json | tail -80
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/forecast/district/volcal_*.json; git commit -qm "volcal rain diagnostic" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
