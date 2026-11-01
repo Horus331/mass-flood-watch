@@ -261,7 +261,7 @@ def day_hourly2(d, H):
     pop = None
     if H.get('pop'):
         Pp = np.array([[np.nan if v is None else v for v in row] for row in H['pop']], np.float32)
-        if Pp.shape == M.shape and not np.isnan(Pp[:, ix]).all(): pop = int(round(float(np.nanmax(np.nanmean(Pp[:, ix], axis=0)))))   # highest hourly chance, District 3 average
+        if Pp.shape == M.shape and not np.isnan(Pp[:, ix]).all(): pop = int(round(float(np.nanmax(Pp[:, ix]))))   # highest hourly chance in any town (as the bars: wettest town)
     return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1), pop=pop)
 
 
