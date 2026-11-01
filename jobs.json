@@ -2,6 +2,49 @@
  "paused": false,
  "jobs": [
   {
+   "id": "run_d3_sep2023_20m_c",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "BOX": "128000,856000,206000,946000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "600",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:A100:1",
+    "time": "10:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "pack_d3_sep2023_20m_c",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "SITE": "d3_sep2023_t",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "10:00:00"
+   },
+   "after": [
+    "run_d3_sep2023_20m_c"
+   ]
+  },
+  {
    "id": "fcd3_e2etest_d3_2023091112_s",
    "kind": "forecast_d3",
    "env": {
@@ -2027,6 +2070,8 @@
   "amcnwm_v1_collect",
   "run_d3_sep2023_20m",
   "pack_d3_sep2023_20m",
-  "fcd3_e2etest_d3_2023091112"
+  "fcd3_e2etest_d3_2023091112",
+  "run_d3_sep2023_20m_b",
+  "pack_d3_sep2023_20m_b"
  ]
 }
