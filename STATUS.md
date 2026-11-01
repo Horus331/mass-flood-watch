@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T22:43:15Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T23:14:02Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -154,7 +154,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | fcd3_e2etest2_d3_2023091112_any | forecast_d3 | failed | 2443420 | 0 / 1 | 2026-11-01T18:10:56Z | 2026-11-01T20:42:07Z |  |
 | d3all_diag5 | diag | completed | 2443421 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T18:41:02Z |  |
 | d3all_v1_b2 | run_plan_display | cancelled | 2443460 | 0 / 0 | 2026-11-01T18:41:02Z | 2026-11-01T21:12:35Z | cancelled through jobs.json "cancel" |
-| d3all_v1_c | run_plan_display | running | 2443461 | 0 / 3 | 2026-11-01T18:41:02Z |  | array tasks cancelled: d3all_v1_c@5-11 |
+| d3all_v1_c | run_plan_display | failed | 2443461 | 0 / 6 | 2026-11-01T18:41:02Z | 2026-11-01T23:14:01Z | array tasks cancelled: d3all_v1_c@5-11 |
 | d3all_diag6 | diag | completed | 2443650 | 1 / 0 | 2026-11-01T19:41:34Z | 2026-11-01T20:11:44Z |  |
 | d3all_diag7 | diag | completed | 2443757 | 1 / 0 | 2026-11-01T20:42:07Z | 2026-11-01T21:12:35Z |  |
 | d3all_v1_b3 | run_plan_display | cancelled | 2443788 | 0 / 0 | 2026-11-01T21:12:35Z | 2026-11-01T21:42:47Z | cancelled through jobs.json "cancel" |
@@ -185,42 +185,43 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | d3all_v2_a | run_plan_display | cancelled | 2443863 | 0 / 0 | 2026-11-01T21:42:47Z | 2026-11-01T22:43:14Z | cancelled through jobs.json "cancel" |
 | d3all_v1_adopt1 | run_plan_display | completed | 2443897 | 1 / 0 | 2026-11-01T22:12:56Z | 2026-11-01T22:43:14Z |  |
 | d3all_diag9 | diag | completed | 2443898 | 1 / 0 | 2026-11-01T22:12:56Z | 2026-11-01T22:43:14Z |  |
-| run_d3_sep2023_20m_t2b_s | run_storm | submitted | 2443970 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_d3_sep2023_20m_t2b_p | run_storm | submitted | 2443971 |  /  | 2026-11-01T22:43:14Z |  |  |
-| pack_d3_sep2023_20m_t2b | pack_site | submitted | 2443972 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_leominster_sep2023_s | run_storm | submitted | 2443973 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_leominster_sep2023_p | run_storm | submitted | 2443974 |  /  | 2026-11-01T22:43:14Z |  |  |
-| pack_t2b_leominster_sep2023 | pack_site | submitted | 2443975 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_worcester_aug2021_s | run_storm | submitted | 2443976 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_worcester_aug2021_p | run_storm | submitted | 2443977 |  /  | 2026-11-01T22:43:14Z |  |  |
-| pack_t2b_worcester_aug2021 | pack_site | submitted | 2443978 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_aug2026_leominster_s | run_storm | submitted | 2443979 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_aug2026_leominster_p | run_storm | submitted | 2443980 |  /  | 2026-11-01T22:43:14Z |  |  |
-| pack_t2b_aug2026_leominster | pack_site | submitted | 2443981 |  /  | 2026-11-01T22:43:14Z |  |  |
-| run_t2b_sep2021_worcester_s | run_storm | submitted | 2443982 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2021_worcester_p | run_storm | submitted | 2443983 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_sep2021_worcester | pack_site | submitted | 2443984 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2022_webster_s | run_storm | submitted | 2443985 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2022_webster_p | run_storm | submitted | 2443986 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_sep2022_webster | pack_site | submitted | 2443987 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_aug2023_metrowest_s | run_storm | submitted | 2443988 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_aug2023_metrowest_p | run_storm | submitted | 2443989 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_aug2023_metrowest | pack_site | submitted | 2443990 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_jun2020_northbridge_s | run_storm | submitted | 2443991 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_jun2020_northbridge_p | run_storm | submitted | 2443992 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_jun2020_northbridge | pack_site | submitted | 2443993 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_jul2023_worcester_s | run_storm | submitted | 2443994 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_jul2023_worcester_p | run_storm | submitted | 2443995 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_jul2023_worcester | pack_site | submitted | 2443996 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2018_fitchburg_s | run_storm | submitted | 2443997 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2018_fitchburg_p | run_storm | submitted | 2443998 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_sep2018_fitchburg | pack_site | submitted | 2443999 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2018m_milford_s | run_storm | submitted | 2444000 |  /  | 2026-11-01T22:43:15Z |  |  |
-| run_t2b_sep2018m_milford_p | run_storm | submitted | 2444001 |  /  | 2026-11-01T22:43:15Z |  |  |
-| pack_t2b_sep2018m_milford | pack_site | submitted | 2444002 |  /  | 2026-11-01T22:43:15Z |  |  |
-| d3all_v1_b5_s | run_plan_display | submitted | 2444003 |  /  | 2026-11-01T22:43:15Z |  |  |
-| d3all_v1_b5_p | run_plan_display | submitted | 2444004 |  /  | 2026-11-01T22:43:15Z |  |  |
-| d3all_v1_c2_s | run_plan_display | submitted | 2444005 |  /  | 2026-11-01T22:43:15Z |  |  |
-| d3all_v1_c2_p | run_plan_display | submitted | 2444006 |  /  | 2026-11-01T22:43:15Z |  |  |
-| d3all_v2_b_s | run_plan_display | submitted | 2444007 |  /  | 2026-11-01T22:43:15Z |  |  |
-| d3all_v2_b_p | run_plan_display | submitted | 2444008 |  /  | 2026-11-01T22:43:15Z |  |  |
+| run_d3_sep2023_20m_t2b_s | run_storm | running | 2443970 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| run_d3_sep2023_20m_t2b_p | run_storm | pending | 2443971 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| pack_d3_sep2023_20m_t2b | pack_site | pending | 2443972 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| run_t2b_leominster_sep2023_s | run_storm | completed | 2443973 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_leominster_sep2023_p | run_storm | completed | 2443974 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| pack_t2b_leominster_sep2023 | pack_site | running | 2443975 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| run_t2b_worcester_aug2021_s | run_storm | completed | 2443976 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_worcester_aug2021_p | run_storm | completed | 2443977 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| pack_t2b_worcester_aug2021 | pack_site | running | 2443978 | 0 / 0 | 2026-11-01T22:43:14Z |  |  |
+| run_t2b_aug2026_leominster_s | run_storm | completed | 2443979 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_aug2026_leominster_p | run_storm | completed | 2443980 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| pack_t2b_aug2026_leominster | pack_site | completed | 2443981 | 1 / 0 | 2026-11-01T22:43:14Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_sep2021_worcester_s | run_storm | completed | 2443982 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_sep2021_worcester_p | run_storm | completed | 2443983 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:01Z |  |
+| pack_t2b_sep2021_worcester | pack_site | completed | 2443984 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_sep2022_webster_s | run_storm | completed | 2443985 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_sep2022_webster_p | run_storm | completed | 2443986 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:01Z |  |
+| pack_t2b_sep2022_webster | pack_site | completed | 2443987 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:01Z |  |
+| run_t2b_aug2023_metrowest_s | run_storm | completed | 2443988 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| run_t2b_aug2023_metrowest_p | run_storm | completed | 2443989 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| pack_t2b_aug2023_metrowest | pack_site | completed | 2443990 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| run_t2b_jun2020_northbridge_s | run_storm | completed | 2443991 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| run_t2b_jun2020_northbridge_p | run_storm | running | 2443992 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| pack_t2b_jun2020_northbridge | pack_site | pending | 2443993 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_jul2023_worcester_s | run_storm | completed | 2443994 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| run_t2b_jul2023_worcester_p | run_storm | running | 2443995 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| pack_t2b_jul2023_worcester | pack_site | pending | 2443996 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_sep2018_fitchburg_s | run_storm | completed | 2443997 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| run_t2b_sep2018_fitchburg_p | run_storm | running | 2443998 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| pack_t2b_sep2018_fitchburg | pack_site | pending | 2443999 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| run_t2b_sep2018m_milford_s | run_storm | completed | 2444000 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
+| run_t2b_sep2018m_milford_p | run_storm | running | 2444001 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| pack_t2b_sep2018m_milford | pack_site | pending | 2444002 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v1_b5_s | run_plan_display | running | 2444003 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v1_b5_p | run_plan_display | pending | 2444004 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v1_c2_s | run_plan_display | running | 2444005 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v1_c2_p | run_plan_display | pending | 2444006 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v2_b_s | run_plan_display | pending | 2444007 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v2_b_p | run_plan_display | pending | 2444008 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_diag10 | diag | submitted | 2444162 |  /  | 2026-11-01T23:14:02Z |  |  |
