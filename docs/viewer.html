@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<link href="site/viewer.css?v=1101a" rel="stylesheet">
+<link href="site/viewer.css?v=1101b" rel="stylesheet">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
 if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');</script>
 </head>
@@ -130,7 +130,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
       <label class="row"><input type="checkbox" id="lyDepth" checked><span>Water depth</span></label>
       <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow"><span>Moving water <small>direction and speed of the modelled current; zoom in to street level</small></span></label>
       <div id="flowKey" hidden></div>
-      <p class="soon" id="flowSoon" hidden>Moving-water animation comes with the 5-minute GPU runs.</p>
+      <p class="soon" id="flowSoon" hidden>Current lines need the flood model’s saved velocities; this run does not have them.</p>
     </div>
     <div class="grp">
       <h2>Roads</h2>
@@ -204,7 +204,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
       <button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2" aria-pressed="true">2×</button><button data-speed="4">4×</button>
     </div>
     <div class="clock"><b id="clock">–</b><span id="since"></span></div>
-    <button type="button" class="replay" id="replayStory" hidden><span class="rs-l">Replay story</span><span class="rs-s">Story</span></button>
+    <button type="button" class="replay" id="replayStory" hidden><span class="rs-l">Replay tour</span><span class="rs-s">Tour</span></button>
     <div class="now"><b id="nClosed">–</b><span>roads closed</span></div>
   </div>
   <div class="views" id="views" role="group" aria-label="Map view"></div>
@@ -224,15 +224,15 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 <p class="caption" id="caption" hidden aria-live="polite"><span class="cap1"><span id="capC"></span><b id="capT"></b></span><span class="cap2" id="capS"></span></p>
 
 <section class="soon-card" id="forecastCard" hidden aria-labelledby="fcTitle">
-  <span class="tag-dev">In development</span>
+  <span class="tag-dev">Unavailable</span>
   <h2 id="fcTitle">Live forecast</h2>
-  <p>The next 48 hours of road closures across MassDOT District 3, rerun every six hours from the NOAA HRRR rain forecast on WPI’s Turing GPU cluster. Each road will show when water is expected to reach it, how deep, and how sure the model is.</p>
-  <p class="muted">Until the first forecast is published, the storm replays show the same model on past storms.</p>
+  <p>The forecast for the next 48 hours could not be loaded. It is rebuilt every six hours from the NOAA HRRR rain forecast; try again shortly.</p>
+  <p class="muted">The storm replays show the same model on past storms.</p>
   <a href="?run=leominster_sep2023">Open the Leominster 2023 replay</a>
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="site/viewer.js?v=1101a"></script>
+<script src="site/viewer.js?v=1101b"></script>
 <script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

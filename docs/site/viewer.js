@@ -901,7 +901,7 @@
   var PHASES = [
     { k: 'rain', name: 'Rain falls', s: 'Radar rain sweeps over the hills' },
     { k: 'runoff', name: 'Runoff', s: 'Rain the ground cannot take runs off over the land' },
-    { k: 'chan', name: 'Streams rise', s: 'Brooks, rivers and ponds collect it and swell' },
+    { k: 'chan', name: 'Streams rise', s: 'Brooks, rivers and ponds collect it and rise' },
     { k: 'over', name: 'Streets flood', s: 'Water overflows onto roads; 30 cm closes them' },
     { k: 'drain', name: 'Draining', s: 'Water drains downstream and roads reopen' }
   ];
@@ -1384,8 +1384,8 @@
   }
   function forecastPlaceholder() {
     document.documentElement.classList.add('no-replay');
-    $('runKind').textContent = 'Road-by-road closure forecast for the next 48 hours.';
-    $('runStats').innerHTML = '<span class="tag-dev">In development</span>';
+    $('runKind').textContent = 'The forecast feed could not be loaded.';
+    $('runStats').innerHTML = '<span class="tag-dev">Unavailable</span>';
     $('forecastCard').hidden = false;
     $('legend').hidden = true;
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
@@ -2264,14 +2264,14 @@
       { title: 'Rain intensifies', a: s1b, b: s2b, dur: 7500, rain: 1, cam: 'box',
         text: function () { return 'Up to ' + (M.rain_peak1h_max_mm != null ? '<b>' + M.rain_peak1h_max_mm + ' mm</b>' : 'a month’s rain') + ' falls on one spot in a single hour' + (M.rain_max_total_mm != null ? ', and the wettest place in the area collects <b>' + M.rain_max_total_mm + ' mm</b> over the storm.' : '.'); }, live: rainLive },
       { title: 'Runoff and rising brooks', a: s2b, b: s3b, dur: 8000, rain: 0.55, cam: hot ? 1 : 0,
-        text: function () { return 'Rain the ground cannot take runs off down streets and slopes into the brooks' + (meta.flow ? ' (the moving particles follow the modelled current)' : '') + '. Brooks and rivers swell and ponds fill: their outlines thicken as the river rises. Blue is water at least 5 cm deep, darker is deeper.'; },
+        text: function () { return 'Rain the ground cannot take runs off down streets and slopes into the brooks' + (meta.flow ? ' (turn on Moving water to see the modelled current)' : '') + '. Brooks and rivers rise and ponds fill. Blue is modelled water, faint from 1 cm and darker as it deepens.'; },
         live: function () { return '<b class="blue">' + n(nWet + nClosedNow) + '</b><span>road segments with water on them</span>'; } },
       { title: 'Streets flood', a: s3b, b: s4b, dur: 7500, rain: 0.3, cam: hot ? 1 : 0,
-        text: function () { return 'Where water reaches a road it turns <b>amber</b>: water on the road, still under 30 cm.' + (hot ? ' Around ' + esc(hot.name) + ', ' + big(hot.count) + ' road segments flood during the storm.' : ''); },
+        text: function () { return 'Where water reaches a road it turns <b>amber</b>: pale under 15 cm, darker from 15 to 30 cm (at risk).' + (hot ? ' Around ' + esc(hot.name) + ', ' + big(hot.count) + ' road segments flood during the storm.' : ''); },
         live: function () { return '<b class="wet">' + n(nWet) + '</b><span>roads with water</span><b class="shut">' + n(nClosedNow) + '</b><span>closed</span>'; } },
       { title: 'Streets close', a: s4b, b: s5b, dur: 7000, rain: 0.2, cam: 0,
         text: function () {
-          return 'At 30 cm a road counts as closed: <b>red with white stripes</b>. At the peak, ' + big(cp[fP] || 0) + ' segments are closed at once' +
+          return 'At 30 cm a road counts as closed: the segment turns <b>orange</b>, and <b>red</b> marks the stretches where 30 cm or more covers the road itself. At the peak, ' + big(cp[fP] || 0) + ' segments are closed at once' +
             (M.segments_p_ge_50 != null ? ', and ' + big(M.segments_p_ge_50) + ' (' + M.km_p_ge_50 + ' km) close at some point, out of ' + n(M.segments_in_box) + ' in the area.' : '.') +
             (rep_.length ? ' Check: ' + hits + ' of ' + rep_.length + ' storm reports fall where the model has 30 cm or more.' : '');
         },
@@ -2285,7 +2285,7 @@
           if (M.segments_may_close) bits.push(big(M.segments_may_close) + ' more segments may close where streams reach road level (dashed)');
           if (knock.fac) bits.push(big(knock.fac) + (knock.fac > 1 ? ' hospitals, fire and police stations sit' : ' emergency station sits') + ' within 500 m of a closing road (circled)');
           var list = bits.length > 1 ? bits.slice(0, -1).join('; ') + '; and ' + bits[bits.length - 1] : bits.join('');
-          return 'Closed roads cut routes around them. ' + (list ? list + '.' : '') + ' Faint red lines mark every road that closes at some point.';
+          return 'Closed roads cut routes around them. ' + (list ? list + '.' : '') + ' Turn on Closes at some point (Layers) to see every road that closes during the storm.';
         },
         live: function () { return M.segments_p_ge_50 != null ? '<b class="shut">' + n(M.segments_p_ge_50) + '</b><span>roads close at some point</span>' + (knock.fac ? '<b class="shut">' + knock.fac + '</b><span>stations near them</span>' : '') : ''; } },
       { title: 'Draining and soaking in', a: s5b, b: cl(s5b + 8 * per), dur: 9000, rain: 0, cam: hot ? 1 : 0,
