@@ -199,11 +199,24 @@ def fetch_rain(now, model=None):
                 if keep and a != keep[-1][1]: break
                 keep.append((a, b, v))
             P = g.points
+            # finer buckets for the first days (NBM: hourly files to f036, 3-hourly to f072), for the 2-hour bars on the Forecast tab
+            fine = []
+            if name == 'NBM':
+                fhs = [fh for fh in list(range(1, 37)) + list(range(39, FINE_H + 1, 3)) if g.init + dt.timedelta(hours=fh - 1) < end]
+                with ThreadPoolExecutor(8) as ex: list(ex.map(g.idx, fhs))
+                pairs = list(zip([0] + fhs[:-1], fhs))
+                with ThreadPoolExecutor(6) as ex: FF = list(ex.map(lambda ab: g.field(*ab), pairs))
+                for (a, b), v in zip(pairs, FF):
+                    if v is None: break                                   # stop at the first gap
+                    fine.append((a, b, v))
+                edges = {b for _, b, _ in keep}                            # end the fine part on a 6 h bucket edge, so 6 h buckets follow with no gap
+                while fine and fine[-1][1] not in edges: fine.pop()
             return dict(ok=True, model=name, run=g.init.strftime('%Y-%m-%dT%HZ'), source=('NOAA NBM v4 deterministic QPF (2.5 km), AWS noaa-nbm-grib2-pds'
                         if name == 'NBM' else 'NOAA GFS 0.25 deg APCP, AWS noaa-gfs-bdp-pds'), resolution_km=2.5 if name == 'NBM' else 25,
                         horizon_h=keep[-1][1], files=len(g.files), missing_buckets=len(ends) - len(keep), n_points=int(P.inside.sum()),
                         buckets=[[iso(g.init + dt.timedelta(hours=a)), iso(g.init + dt.timedelta(hours=b))] for a, b, _ in keep],
-                        _R=np.stack([v for _, _, v in keep]), _P=P, notes=errs)
+                        fine_buckets=[[iso(g.init + dt.timedelta(hours=a)), iso(g.init + dt.timedelta(hours=b))] for a, b, _ in fine],
+                        _R=np.stack([v for _, _, v in keep]), _RF=np.stack([v for _, _, v in fine]) if fine else None, _P=P, notes=errs)
         except Exception as e:
             log(name, 'failed', repr(e)[:300]); errs.append(f'{name}: {repr(e)[:200]}')
     return dict(ok=False, error='; '.join(errs) or 'no rain source')
@@ -338,7 +351,8 @@ def cmd_fetch(a, now=None):
     log('alerts', len(al.get('alerts', [])), al.get('error', ''))
     raw = dict(fetched=iso(now), fetch_s=round(time.time() - t_), ero=ero, alerts=al)
     if rain.get('ok'):
-        R, P = rain.pop('_R'), rain.pop('_P')
+        R, P, RF = rain.pop('_R'), rain.pop('_P'), rain.pop('_RF', None)
+        if RF is not None: raw['rain_fine_mm'] = np.round(RF[:, P.inside], 2).tolist()
         raw['grid'] = dict(towns=P.names, town_pts=[[int(np.searchsorted(np.nonzero(P.inside)[0], i)) for i in idx] for idx in P.town_pts])
         raw['rain_mm'] = np.round(R[:, P.inside], 1).tolist()            # (buckets, points inside District 3)
     raw['rain'] = rain
@@ -348,6 +362,32 @@ def cmd_fetch(a, now=None):
 
 
 # ------------------------------------------------------------------ build outlook.json
+FINE_H = 72
+
+
+def day_bars(d, s, e, rain, R, raw, tmax):
+    """Bars for one local day on the Forecast tab: 2-hour blocks where the model has hourly rain (1 h buckets merged in pairs on even local
+    hours), 3-hour blocks where it has 3-hourly rain, then the 6-hour buckets. Each bar: [start iso, hours, district mean mm, wettest town mm].
+    Nothing is interpolated: a bar is always one model bucket (or two hourly buckets summed)."""
+    out = []
+    FB = [(parse_utc(a), parse_utc(b)) for a, b in rain.get('fine_buckets') or []]
+    RF = np.asarray(raw.get('rain_fine_mm'), np.float32) if raw.get('rain_fine_mm') is not None and FB else None
+    fine_end = None
+    if RF is not None:
+        idx = [i for i, (a, b) in enumerate(FB) if to_local(a + (b - a) / 2).date() == d]
+        k = 0
+        while k < len(idx):
+            i = idx[k]; a, b = FB[i]; v = RF[i]
+            if (b - a) == dt.timedelta(hours=1) and to_local(a).hour % 2 == 0 and k + 1 < len(idx):
+                j = idx[k + 1]; a2, b2 = FB[j]
+                if a2 == b and (b2 - a2) == dt.timedelta(hours=1): b = b2; v = v + RF[j]; k += 1
+            out.append([iso(a), int(round((b - a).total_seconds() / 3600)), round(float(v.mean()), 2), round(float(tmax(v).max()), 1)]); fine_end = b; k += 1
+    for i, (a, b) in enumerate(rain['buckets']):
+        a, b = parse_utc(a), parse_utc(b)
+        if to_local(a + (b - a) / 2).date() != d or (fine_end is not None and a < fine_end): continue      # the day of its mid-point, as the totals
+        out.append([iso(a), int(round((b - a).total_seconds() / 3600)), round(float(R[i].mean()), 2), round(float(tmax(R[i]).max()), 1)])
+    return out
+
 def cron_times(workflow):
     """(cron string, [(hour, minute) UTC]) of forecast.yml's schedule."""
     cr = '40 2,8,14,20 * * *'
@@ -412,7 +452,7 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                 day['rain'] = dict(d3_mean_mm=round(float(tot.mean()), 1), town_max_mm=round(float(tt[j]), 1), town_max=names[j] if tt[j] >= 0.1 else None,
                                    max6h_mm=round(float(T6[ib].max()), 1), max24h_mm=max24({d}),
                                    six_hourly_mean_mm=[round(float(R[i].mean()), 1) for i in ib], six_hourly_max_mm=[round(float(T6[i].max()), 1) for i in ib],
-                                   six_hourly_start=[rain['buckets'][i][0] for i in ib])
+                                   six_hourly_start=[rain['buckets'][i][0] for i in ib], bars=day_bars(d, s, e, rain, R, raw, tmax))
                 day['towns_over'] = sorted(set(o6) | set(o24)); day['towns_over_6h'] = o6; day['towns_over_24h'] = o24
             else: day['rain'] = None; day['towns_over'] = []
         else: day['rain'] = None; day['towns_over'] = []; day['hours'] = 0; day['partial'] = True
