@@ -29,7 +29,7 @@
     },
     d3_sep2023: {
       title: 'District 3 · Sept 11, 2023',
-      kind: 'One GPU run on WPI’s Turing cluster: 17.6 million cells at 20 m (shown here at 80 m).'
+      kind: 'One GPU run on WPI’s Turing cluster: 17.6 million cells at 20 m. Zoom in for the full 20 m detail.'
     },
     whatif: {
       title: 'Scenarios · Leominster, Sept 2023',
