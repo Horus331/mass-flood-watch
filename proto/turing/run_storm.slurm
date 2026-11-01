@@ -21,7 +21,12 @@ export NAME=${NAME:-leominster_sep2023_gpu}
 export RUN_DIR=runs/${STORM}_proto_${NAME}
 nvidia-smi || true
 echo "== net check"; for u in https://huggingface.co https://noaa-mrms-pds.s3.amazonaws.com; do printf "%s " $u; curl -s -o /dev/null -m 10 -w "%{http_code}\n" $u; done
+# STAGE=solve (GPU request: inputs + solver only, raw results left on scratch) / STAGE=post (CPU request, no gres, "after" the solve request,
+# same env: w9 post-processing + scores + map). WPI HPC flagged a GPU left idle for an hour by the CPU post-processing (1 Nov 2026).
+[[ "${STAGE:-}" =~ ^(|solve|post)$ ]] || { echo "STAGE must be solve or post"; exit 2; }
+export LF_STAGE=${STAGE:-}
 time python sim/colab/w9_lisflood.py
+[ "${STAGE:-}" = solve ] && { echo "solve stage done; post-process with STAGE=post"; exit 0; }
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 mkdir -p results/$NAME
 SCORE_WINDOWS=results/$NAME/gauge_windows.npz python proto/score.py --run-dir "$OUT" --storm $STORM --out results/$NAME/score.json | tail -30 || true

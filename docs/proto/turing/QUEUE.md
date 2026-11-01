@@ -39,6 +39,11 @@ An id is submitted once; to rerun, add a new id. `after` becomes Slurm `afterok`
 What-if explorer (docs/proto/whatif/WHATIF.md), one request runs all 32 scenarios and publishes once:
 `{"id": "whatif_v1", "kind": "whatif_pipeline", "env": {"CONC": "8", "PART": "short"}}`
 
+**GPU jobs run the solver only** (WPI HPC flagged a GPU left idle for an hour on 1 Nov 2026 while w9's CPU post-processing ran). Split each
+run into `"STAGE": "solve"` with `"gres": "gpu:1"` and a CPU-only `"STAGE": "post"` request with the same env, no gres and `"after"` the solve
+request (run_storm and run_plan_display; w9 `LF_STAGE`). `"cancel": ["<id>@4-11"]` cancels only those array tasks of a request (e.g. its
+pending ones) and leaves the running tasks alone.
+
 Diagnostics without a login (disk/quota, the Slurm submit limits, sacct of named jobs, sizes of run folders, tails of named logs) come back to
 this branch as `diag/<id>.md` (`proto/turing/diag.slurm`):
 `{"id": "diag_1", "kind": "diag", "env": {"JOBS": "2442643", "LOGS": "roadflood_2442643.out", "WORKDIRS": "run_sep2023_proto_site_d3_sep2023"}}`

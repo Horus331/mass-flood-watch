@@ -1194,8 +1194,17 @@ def main():
     m = re.search(r'(\d+\.\d+(?:\.\d+)?)', ver or '') or re.search(r'v?(\d+\.\d+(?:\.\d+)?)', os.path.basename(zp))
     model = f'LISFLOOD-FP {m.group(1) if m else ver}'
     # 2. conventions probe
-    try: P = probe(exe, is_cuda)
-    except Exception as e: log('probe failed, assuming forward / y-ascending / mm:', repr(e)[:200]); P = dict(flip_y=False, flip_x=False, scale=1.0, convention='forward', failed=repr(e)[:200])
+    # LF_STAGE (opt-in; proto/turing/run_plan_display.slurm, run_storm.slurm): 'solve' stops after the solver and leaves the raw results in
+    # the run folder (GPU job); 'post' skips the solver and post-processes those results (CPU job, no GPU held idle). Unset = both.
+    STAGE = os.environ.get('LF_STAGE', '')
+    if STAGE not in ('', 'solve', 'post'): raise SystemExit(f'LF_STAGE must be solve or post, not {STAGE!r}')
+    STAGEF = f'{WORK}/run_{run_name}/stage_solve.json'
+    if STAGE == 'post':
+        if not os.path.exists(STAGEF): raise SystemExit(f'LF_STAGE=post: no finished solve stage ({STAGEF})')
+        P = json.load(open(STAGEF))['probe']; log('LF_STAGE=post: probe result from the solve stage, solver not run')
+    else:
+        try: P = probe(exe, is_cuda)
+        except Exception as e: log('probe failed, assuming forward / y-ascending / mm:', repr(e)[:200]); P = dict(flip_y=False, flip_x=False, scale=1.0, convention='forward', failed=repr(e)[:200])
     scale = P.get('scale') or 1.0
     if not (np.isfinite(scale) and 1e-4 < scale < 1e4): scale = 1.0
     if abs(scale - 1) > 0.2: log(f'WARNING: probe depth {scale:.3f} x expected; rain will be divided by it')
@@ -1211,7 +1220,8 @@ def main():
         SURR = os.environ.get('LF_SURR_OUT') or f'{WORK}/surr_inputs_{run_name}.npz'; os.makedirs(os.path.dirname(os.path.abspath(SURR)), exist_ok=True)
         log('LF_SURR_SAVE:', surr_pack(SURR, I, BOX, RES, S, int(os.environ.get('LF_SURR_RAIN_COARSEN', '5'))))
     if os.environ.get('LF_INPUTS_ONLY') == '1': log('LF_INPUTS_ONLY: stopping after the inputs'); return
-    wd = f'{WORK}/run_{run_name}'; shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')
+    wd = f'{WORK}/run_{run_name}'
+    if STAGE != 'post': shutil.rmtree(wd, ignore_errors=True); os.makedirs(f'{wd}/results')     # post: keep the solver's results/
     DOM = I.get('DOM'); MSK = DOM['mask'] if DOM else None
     write_asc(f'{wd}/dem.asc', I['Z'] if DOM is None else np.where(MSK, I['Z'], np.nan), x0, y0, RES)     # LF_DOMAIN=basin: NODATA outside the mask (LISFLOOD-FP walls)
     LC = None
@@ -1338,9 +1348,19 @@ def main():
                     infiltration=infil_mmh / 3.6e6 if infil_mmh > 0 else None, extra=extra, initial_tstep=INIT_TSTEP)
     log('par:', ' | '.join(par))
     # 4. run
-    try: run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
-    finally:
-        if DRAINS is not None and os.path.exists(f'{wd}/drains.asc'): os.remove(f'{wd}/drains.asc')    # derived from private pipe data: never kept
+    if STAGE == 'post':
+        run_s = float(json.load(open(STAGEF))['run_s']); out = open(f'{wd}/lisflood_stdout.txt').read() if os.path.exists(f'{wd}/lisflood_stdout.txt') else ''
+        log(f'LF_STAGE=post: solver results of the solve stage ({run_s:.0f}s)')
+        if DRAINS is not None and os.path.exists(f'{wd}/drains.asc'): os.remove(f'{wd}/drains.asc')
+    else:
+        try: run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
+        finally:
+            if DRAINS is not None and os.path.exists(f'{wd}/drains.asc'): os.remove(f'{wd}/drains.asc')    # derived from private pipe data: never kept
+    if STAGE == 'solve':
+        json.dump(dict(run_s=run_s, probe=P, model=model, build_s=build_s, cuda=bool(is_cuda), utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())),
+                  open(STAGEF, 'w'), default=str)
+        shutil.copy(LOGP, f'{wd}/w9_log_solve.txt')
+        log(f'LF_STAGE=solve: solver done in {run_s:.0f}s, raw results left in {wd}/results for LF_STAGE=post'); return
     T0_SNAP = 'solver'
     if is_cuda and start and os.path.exists(f'{wd}/results/res-0000.wd') and os.environ.get('LF_CUDA_T0_FROM_START', '1') == '1':
         # the CUDA build's t = 0 snapshot is not the initial state the CPU build writes (the start file, channels a third full); put the
