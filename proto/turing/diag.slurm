@@ -45,8 +45,16 @@ okpath() { [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)
   run sacctmgr -n -P show qos format=name,maxsubmitpu,maxjobspu,maxtrespu,maxwall,grpjobs,grpsubmit,flags
   run sinfo -o '%P %a %l %D %G %c %m'
   MAXL=120 run scontrol show partition
-  run squeue -u $USER -o '%i %j %P %T %M %l %R'
+  run squeue -u $USER -o '%i %j %P %T %M %l %R %b'
   echo "array tasks expanded: $(squeue -u $USER -r -h 2>/dev/null | wc -l), job records: $(squeue -u $USER -h 2>/dev/null | wc -l)"
+  end
+  sec "GPU queue position (short / quick)"
+  run sprio -u $USER
+  run sinfo -N -p short -o '%N %f %G %T' --noheader | sort -k2 | uniq -f1 -c
+  MAXL=60 run squeue -p short -t PD --sort=-p -o '%i %u %Q %b %r'
+  MAXL=40 run squeue -p quick -t PD --sort=-p -o '%i %u %Q %b %r'
+  run bash -c "squeue -p short -t R -h -o '%b %N' | sort | uniq -c | sort -rn | head -30"
+  run sinfo -p short -N -o '%N %G %C %T' --noheader
   end
   if [ -n "${JOBS:-}" ]; then
     sec "sacct $JOBS"

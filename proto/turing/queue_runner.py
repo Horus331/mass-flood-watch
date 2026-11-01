@@ -30,7 +30,8 @@ BAD_KEYS = {'PATH', 'HOME', 'SHELL', 'BASH_ENV', 'ENV', 'IFS', 'PS4', 'PROMPT_CO
             'LD_PRELOAD', 'LD_LIBRARY_PATH', 'CONDA_PREFIX', 'GIT_SSH', 'GIT_SSH_COMMAND', 'GIT_DIR', 'SLURM_CONF'}
 SBATCH_OK = {'array': re.compile(r'^[0-9][0-9,%-]{0,40}$'), 'partition': re.compile(r'^(short|long|quick|academic)$'),
              'time': re.compile(r'^[0-9]{1,2}(-[0-9]{1,2})?(:[0-9]{2}){0,2}$'), 'gres': re.compile(r'^gpu(:[A-Za-z0-9_]+)?:[1-4]$'),
-             'mem': re.compile(r'^[0-9]{1,4}G$')}
+             'mem': re.compile(r'^[0-9]{1,4}G$'),
+             'constraint': re.compile(r'^[A-Za-z0-9_]{1,20}(\|[A-Za-z0-9_]{1,20}){0,5}$')}   # node features, e.g. A100|H100|H200 (passed as one argv item, no shell)
 DONE = {'COMPLETED'}; FAILED = {'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY', 'NODE_FAIL', 'PREEMPTED', 'BOOT_FAIL', 'DEADLINE'}
 
 
