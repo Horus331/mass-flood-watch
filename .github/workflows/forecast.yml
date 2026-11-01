@@ -110,6 +110,9 @@ jobs:
           LF_PARITY: '1'            # infiltration in the rain + steps <= 1 s; ~2x LISFLOOD time, well inside the 330 min job limit
           LF_INFIL_MMH: '2'
           LF_QOUT: '1'
+          LF_SAVEINT: '300'         # 5-min depth snapshots, as the storm replays (output only; the model settings above are unchanged)
+          LF_VOUT: '1'              # solver velocity (.Vx/.Vy) ...
+          LF_VFRAMES: '1'           # ... at every snapshot -> out/vel_frames.npz: the replay's flow field
           GIT_SHA: ${{ github.sha }}
           OMP_NUM_THREADS: '4'
         run: |
@@ -124,6 +127,12 @@ jobs:
           python proto/resilience.py --out $P || true
           python proto/risk.py --out $P --run-dir $OUTDIR || true
           cp $OUTDIR/meta.json $P/flood_meta.json; tail -c 100000 w9_stdout.txt > $P/w9_stdout.txt
+          # the issue cycle's run is the one the replay shows: keep its model frames so the pack has continuous depth at 20 m, 5-min frames,
+          # pieces from the full-resolution depth and the solver's flow (docs/site/build_data.py --run-dir)
+          if [ "${{ matrix.b.init }}" = "${{ needs.gate.outputs.init }}" ]; then
+            mkdir -p $P/run_out && for f in frames_cm.npz watermask.npy vel_frames.npz xings.json meta.json; do [ -f $OUTDIR/$f ] && cp $OUTDIR/$f $P/run_out/; done
+            du -sh $P/run_out || true
+          fi
           mkdir -p art && cp -r $P art/
       - name: diagnostics (annotation)
         if: always()
@@ -158,7 +167,9 @@ jobs:
             NM=$(python -c "import json; print(len(json.load(open('arts/gate/gate.json'))['ensemble']['members']))")
             if [ "$NM" -gt 1 ]; then KOFN="--kofn kofn.json"; fi
             while read key dir box m; do
-              python docs/site/build_data.py --run $key --src $(realpath $dir) || continue
+              RD=""; [ -f $dir/run_out/frames_cm.npz ] && RD="--run-dir $(realpath $dir/run_out) --flow"   # continuous depth + flow when the frames came along
+              python docs/site/build_data.py --run $key --src $(realpath $dir) $RD || python docs/site/build_data.py --run $key --src $(realpath $dir) || continue
+              python proto/build_network.py $key || true      # the model's road network in the box (street layout, AADT in the road panel)
               if [ -n "$KOFN" ]; then python proto/forecast_kofn.py pack --kofn kofn.json --key $key --box $box; fi
               RUNS="$RUNS --run $key=$(realpath $dir)"
             done < viewers.txt

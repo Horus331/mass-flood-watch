@@ -362,6 +362,7 @@ def flow_solver(run_dir, keep, f_out, od, cn, step_min, per_sheet=49):
     over block depth, so a fast thin sheet does not outweigh the channel that carries the water. Packed like flow(): R, G = east / north
     speed (128 = 0, +-VMAX, square-root scaled so slow street flow keeps resolution), B = wet share; several atlas sheets of per_sheet frames."""
     V = np.load(os.path.join(run_dir, 'vel_frames.npz')); D = np.load(os.path.join(run_dir, 'frames_cm.npz'))
+    V = {k: V[k] for k in ('hours', 'u_ms', 'v_ms')}; D = {k: D[k] for k in ('hours', 'depth_cm')}   # read each array once (NpzFile re-reads per access)
     meta = jload(os.path.join(run_dir, 'meta.json')) or {}
     res = float(meta.get('res_m') or 20.0); VMAX = 4.0
     vh = np.asarray(V['hours'], float); dh = np.asarray(D['hours'], float)
@@ -398,7 +399,7 @@ def flow_solver(run_dir, keep, f_out, od, cn, step_min, per_sheet=49):
 def flow(run_dir, keep, f_out, od, cn, step_min):
     """Water velocity from the modelled water surface (diffusive-wave estimate, Manning n 0.05) on blocks of f_out cells,
     one frame per kept snapshot, packed 1 frame per atlas cell: R, G = east / north speed (128 = 0, +-VMAX), B = wet share."""
-    D = np.load(os.path.join(run_dir, 'frames_cm.npz'))
+    D = np.load(os.path.join(run_dir, 'frames_cm.npz')); D = {'depth_cm': D['depth_cm']}
     Z = np.load(os.path.join(run_dir, 'z.npy')).astype(np.float32)
     meta = jload(os.path.join(run_dir, 'meta.json')) or {}
     res = float(meta.get('res_m') or 20.0)
@@ -447,18 +448,23 @@ def edge_for(g, S, frames, wm, f):
     return edge_intervals(iter(frames), cells, land)
 
 
-def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=None):
+def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=None, budget_mb=140.0):
+    if run_dir and f == 1 and os.path.exists(os.path.join(run_dir, 'frames_cm.npz')):
+        ny, nx = npz_shape(os.path.join(run_dir, 'frames_cm.npz'), 'depth_cm')[1:]
+        if max(ny, nx) > TILE_MAX:     # larger than one texture (District 3): full resolution in tiles + an overview
+            return build_tiled(key, src, run_dir, frame_min, do_flow, risk_src, budget_mb)
     od = os.path.join(OUT, key)
     os.makedirs(od, exist_ok=True)
     S = json.load(open(os.path.join(src, 'summary.json')))
     fh = S['frame_hours']
     snap_min = int(round((fh[1] - fh[0]) * 60)) if len(fh) > 1 else 30
     step = max(1, int(round((frame_min or snap_min) / snap_min)))
-    keep = list(range(0, len(fh), step))
+    nsn = npz_shape(os.path.join(run_dir, 'frames_cm.npz'), 'depth_cm')[0] if run_dir else len(fh)
+    keep = list(range(0, min(len(fh), nsn), step))
     nf, fmin = len(keep), snap_min * step
     wm = None
     if run_dir:
-        D = np.load(os.path.join(run_dir, 'frames_cm.npz'))
+        D = np.load(os.path.join(run_dir, 'frames_cm.npz')); D = {'depth_cm': D['depth_cm']}   # read once (NpzFile re-reads per access)
         wm = np.load(os.path.join(run_dir, 'watermask.npy')).astype(bool) if os.path.exists(os.path.join(run_dir, 'watermask.npy')) else None
         frames = [despeckle(classes_cm(np.where(wm, 0, D['depth_cm'][k]) if wm is not None else D['depth_cm'][k], f)) for k in keep]
     else:
@@ -596,6 +602,290 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
           'crossings', len(R['crossings']['rows']), 'reports', len(R['reports']), '%.1f MB' % size)
 
 
+# ---------------------------------------------------------------- tiled packs (grids larger than one texture, e.g. all of District 3)
+# A 20 m run over District 3 (3900 x 4500 cells) does not fit one texture. build_tiled() keeps the model's own resolution by cutting the
+# grid into tiles of at most TILE_MAX cells a side and writing continuous-depth sheets (same encoding as depthc, 3 frames per RGB image)
+# per tile, skipping sheets where the tile is dry in all 3 frames. A max-pooled OVERVIEW (meta.depthc.sheets, pixel_m = 20 m x OV_POOL)
+# is drawn at district zoom; the viewer switches to the 20 m tiles in view from town zoom (viewer.js, depth layer). Road states, pieces
+# (w / w30), water at the road edge and the flow field are computed from the full-resolution frames, so nothing on the roads is coarsened.
+# Frames are streamed one at a time from frames_cm.npz / vel_frames.npz (a 48 h District 3 run at 10-min snapshots is ~10 GB of uint16
+# depth and ~20 GB of float16 velocity uncompressed: never loaded whole).
+TILE_MAX = 1000
+OV_POOL = 4
+
+
+def npz_frames(path, key):
+    """yield the frames of an (n, ny, nx) array stored in an .npz, one at a time, without loading the array (zip member streamed)"""
+    import zipfile
+    with zipfile.ZipFile(path) as zf:
+        with zf.open(key + '.npy') as fp:
+            ver = np.lib.format.read_magic(fp)
+            shape, fortran, dtype = (np.lib.format.read_array_header_1_0 if ver == (1, 0) else np.lib.format.read_array_header_2_0)(fp)
+            assert not fortran and len(shape) == 3, (path, key, shape, fortran)
+            per = int(shape[1] * shape[2]) * dtype.itemsize
+            for _ in range(shape[0]):
+                b = fp.read(per)
+                if len(b) != per: raise IOError('%s:%s truncated' % (path, key))
+                yield np.frombuffer(b, dtype).reshape(shape[1:])
+
+
+def npz_shape(path, key):
+    import zipfile
+    with zipfile.ZipFile(path) as zf:
+        with zf.open(key + '.npy') as fp:
+            ver = np.lib.format.read_magic(fp)
+            return (np.lib.format.read_array_header_1_0 if ver == (1, 0) else np.lib.format.read_array_header_2_0)(fp)[0]
+
+
+def seg_geom(ft):
+    """segments.geojson feature -> simplified, rounded lon/lat geometry for roads.json (None if not a line)"""
+    geom = shape(ft['geometry'])
+    if geom.geom_type == 'MultiLineString':
+        geom = linemerge(geom)
+    gm = mapping(geom.simplify(0.00003, preserve_topology=False))
+    r5 = lambda c: [round(c[0], 5), round(c[1], 5)]
+    if gm['type'] == 'LineString': return {'type': 'LineString', 'coordinates': [r5(c) for c in gm['coordinates']]}
+    if gm['type'] == 'MultiLineString': return {'type': 'MultiLineString', 'coordinates': [[r5(c) for c in l] for l in gm['coordinates']]}
+    return None
+
+
+def ivs_bool(w):
+    """bool series -> [[first, last], ...] runs of True (frame units)"""
+    w = np.asarray(w, bool)
+    if not w.any(): return []
+    d = np.diff(np.r_[0, w.astype(np.int8), 0])
+    return [[int(a), int(b) - 1] for a, b in zip(np.flatnonzero(d == 1), np.flatnonzero(d == -1))]
+
+
+class Sampler:
+    """per-group share of samples (r, c) where a boolean grid is True, vectorised: groups = road pieces or segments"""
+    def __init__(self, groups):  # groups: list of (r, c) index arrays
+        self.n = len(groups)
+        self.r = np.concatenate([g[0] for g in groups]) if groups else np.zeros(0, int)
+        self.c = np.concatenate([g[1] for g in groups]) if groups else np.zeros(0, int)
+        self.g = np.repeat(np.arange(self.n), [len(g[0]) for g in groups]) if groups else np.zeros(0, int)
+        self.cnt = np.maximum(np.bincount(self.g, minlength=self.n), 1)
+
+    def share(self, grid):
+        return np.bincount(self.g, weights=grid[self.r, self.c], minlength=self.n) / self.cnt
+
+
+def tile_layout(ny, nx, tmax=TILE_MAX, mult=OV_POOL):
+    """near-equal tiles of at most tmax cells a side, sides multiples of mult (so the overview pools tile by tile)"""
+    def cuts(n):
+        k = int(math.ceil(n / float(tmax))); s = int(math.ceil(n / float(k) / mult)) * mult
+        return [(a, min(n, a + s)) for a in range(0, n, s)]
+    return [(r0, r1, c0, c1) for r0, r1 in cuts(ny) for c0, c1 in cuts(nx)]
+
+
+def enc_depth(h_m):
+    return np.where(h_m >= 0.01, np.round(255 * np.sqrt(np.minimum(h_m, 3.0) / 3.0)), 0).astype(np.uint8)
+
+
+def build_tiled(key, src, run_dir, frame_min=None, do_flow=False, risk_src=None, budget_mb=140.0):
+    """District-scale pack at full model resolution (see the note above TILE_MAX). Picks the finest frame interval (a multiple of the
+    snapshot interval) whose pack fits budget_mb; writes into docs/site/data/<key>/."""
+    S = json.load(open(os.path.join(src, 'summary.json')))
+    fh = S['frame_hours']; snap_min = int(round((fh[1] - fh[0]) * 60)) if len(fh) > 1 else 30
+    step0 = max(1, int(round((frame_min or snap_min) / snap_min)))
+    for step in range(step0, step0 + 6):
+        size = _build_tiled_once(key, src, run_dir, step, do_flow, risk_src)
+        if size <= budget_mb or snap_min * step >= 30:
+            break
+        print('  %.1f MB at %d-min frames is over the %.0f MB budget: coarser frames' % (size, snap_min * step, budget_mb))
+    return size
+
+
+def _build_tiled_once(key, src, run_dir, step, do_flow, risk_src):
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from pyproj import Transformer
+    t_start = time.time()
+    od = os.path.join(OUT, key); os.makedirs(od, exist_ok=True)
+    for old in os.listdir(od):
+        if re.match(r'(depth_\d+|depthc_\d+|flow_\d+)\.png$', old) or old == 'flow.png': os.remove(os.path.join(od, old))
+    td = os.path.join(od, 'tiles'); os.makedirs(td, exist_ok=True)
+    for old in os.listdir(td): os.remove(os.path.join(td, old))
+    S = json.load(open(os.path.join(src, 'summary.json')))
+    fh = S['frame_hours']; snap_min = int(round((fh[1] - fh[0]) * 60)) if len(fh) > 1 else 30
+    box = S['box_epsg26986']; res = float(S['resolution_m'])
+    fp = os.path.join(run_dir, 'frames_cm.npz')
+    dshape = npz_shape(fp, 'depth_cm'); nsnap, ny, nx = dshape
+    dh = np.asarray(np.load(fp)['hours'], float)
+    keep = list(range(0, min(len(fh), nsnap), step)); nf, fmin = len(keep), snap_min * step
+    kset = {k: i for i, k in enumerate(keep)}
+    wm = np.load(os.path.join(run_dir, 'watermask.npy')).astype(bool) if os.path.exists(os.path.join(run_dir, 'watermask.npy')) else None
+    land = None if wm is None else ~wm
+    tf = Transformer.from_crs(26986, 4326, always_xy=True)
+    ll = lambda r, c: [round(v, 7) for v in tf.transform(box[0] + c * res, box[3] - r * res)]
+    tiles = tile_layout(ny, nx)
+    oh, ow = ny // OV_POOL, nx // OV_POOL
+    # roads: every segment of the prototype output, simplified once; road cells (edge) and ~40 m pieces sampled on the full grid
+    g = json.load(open(os.path.join(src, 'segments.geojson')))
+    num = lambda v, d=0.0: d if v in (None, '', 'None', 'nan') else (json.loads(v) if isinstance(v, str) and v[:1] == '[' else float(v) if isinstance(v, str) else v)
+    feats_all, cells, pcs = [], [], []
+    for ft in g['features']:
+        sid = int(ft['properties']['segment']); gm = seg_geom(ft)
+        if gm is None: continue
+        feats_all.append((sid, ft, gm))
+        rc = road_cells(ft['geometry'], box, res, (ny, nx)); cells.append(rc if rc is not None else (np.zeros(0, int), np.zeros(0, int)))
+    inv = Transformer.from_crs(26986, 4326, always_xy=True)
+    P_seg, P_lines, P_samp = [], [], []
+    for sid, ft, gm in feats_all:
+        for px, py in split_pieces(gm):
+            lo, la = inv.transform(px, py)
+            L = np.hypot(np.diff(px), np.diff(py)).sum(); n = max(2, int(L / (res / 2)))
+            t_ = np.linspace(0, 1, n); dd = np.r_[0, np.cumsum(np.hypot(np.diff(px), np.diff(py)))]
+            sx = np.interp(t_ * dd[-1], dd, px); sy = np.interp(t_ * dd[-1], dd, py)
+            c = np.clip(((sx - box[0]) // res).astype(int), 0, nx - 1); r = np.clip(((box[3] - sy) // res).astype(int), 0, ny - 1)
+            P_seg.append(sid); P_lines.append([[round(a, 5), round(b, 5)] for a, b in zip(lo, la)]); P_samp.append((r, c))
+    SE = Sampler(cells); SP = Sampler(P_samp)
+    E = np.zeros((SE.n, nf), bool); PW = np.zeros((SP.n, nf), bool); PN = np.zeros((SP.n, nf), bool); P3 = np.zeros((SP.n, nf), bool)
+    print('  %s: grid %dx%d, %d tiles, %d frames every %d min, %d segments, %d pieces' % (key, nx, ny, len(tiles), nf, fmin, len(feats_all), SP.n))
+    # flow (solver velocity), streamed beside the depth
+    vp = os.path.join(run_dir, 'vel_frames.npz')
+    use_flow = bool(do_flow and os.path.exists(vp))
+    if use_flow:
+        vh = np.asarray(np.load(vp)['hours'], float)
+        fk = max(1, int(round(20 / fmin)))                     # one flow field every ~20 min
+        f_out = max(1, int(round(120 / res)))                  # 120 m blocks (60 m on the 20 km boxes)
+        h2, w2 = ny // f_out, nx // f_out
+        per_sheet = max(1, (2048 // w2) * (2048 // h2))        # atlas sheets of at most 2048 x 2048 (decoded to canvas in the viewer)
+        fl_keep = keep[::fk]; fl_frames = {}; vpk = 0.0
+        fl_need = {k: int(np.argmin(np.abs(vh - dh[k]))) for k in fl_keep if np.min(np.abs(vh - dh[k])) <= 0.05}   # depth snapshot -> velocity snapshot
+        uS, vS = npz_frames(vp, 'u_ms'), npz_frames(vp, 'v_ms'); vnext = 0; ucur = vcur = None
+    ex = ThreadPoolExecutor(6); futs = []
+    save = lambda a, p: Image.fromarray(a, 'RGB').save(p, optimize=True)
+    ncols = len(set(x[2] for x in tiles))
+    T = [dict(r0=r0, r1=r1, c0=c0, c1=c1, s=[], p='tiles/r%dc%d_' % (ti // ncols, ti % ncols)) for ti, (r0, r1, c0, c1) in enumerate(tiles)]
+    tb = [np.zeros((t['r1'] - t['r0'], t['c1'] - t['c0'], 3), np.uint8) for t in T]
+    ovc = np.zeros((oh, ow, 3), np.uint8); ovk = np.zeros((oh, ow, 3), np.uint8)
+    osheets, csheets = [], []
+
+    def submit(a, p):
+        while len(futs) > 80: futs.pop(0).result()             # bounded queue of PNGs being written
+        futs.append(ex.submit(save, a, p))
+    for j, h_cm in enumerate(npz_frames(fp, 'depth_cm')):
+        if use_flow and j in fl_need:   # the solver's velocity at this snapshot, depth-weighted over f_out x f_out blocks
+            while vnext <= fl_need[j]: ucur = next(uS); vcur = next(vS); vnext += 1
+            hm = h_cm.astype(np.float32)[:h2 * f_out, :w2 * f_out] / 100.0
+            u = ucur.astype(np.float32)[:h2 * f_out, :w2 * f_out]; v = vcur.astype(np.float32)[:h2 * f_out, :w2 * f_out]
+            w = np.where(hm >= 0.05, hm, 0.0); rb = lambda a: a.reshape(h2, f_out, w2, f_out).sum(axis=(1, 3))
+            hs = rb(w) + 1e-6; U = rb(u * w) / hs; Vn = rb(v * w) / hs; wet = rb((hm >= 0.05).astype(np.float32)) / (f_out * f_out)
+            if (wet > 0).any(): vpk = max(vpk, float(np.hypot(U, Vn)[wet > 0].max()))
+            sp = np.hypot(U, Vn); gg = np.sqrt(np.minimum(sp, 4.0) / 4.0) / np.maximum(sp, 1e-6)
+            fl_frames[j] = np.stack([np.clip(np.round(128 + U * gg * 127), 1, 255), np.clip(np.round(128 + Vn * gg * 127), 1, 255),
+                                     np.round(np.clip(wet, 0, 1) * 255)], -1).astype(np.uint8)
+            del hm, u, v, w
+        if j not in kset: continue
+        i = kset[j]
+        hc = h_cm if wm is None else np.where(wm, 0, h_cm)
+        hm = hc.astype(np.float32) / 100.0
+        # continuous depth: tiles at full resolution, overview max-pooled
+        v = enc_depth(hm)
+        for t, b in zip(T, tb): b[..., i % 3] = v[t['r0']:t['r1'], t['c0']:t['c1']]
+        hp = hm[:oh * OV_POOL, :ow * OV_POOL].reshape(oh, OV_POOL, ow, OV_POOL).max(axis=(1, 3))
+        ovc[..., i % 3] = enc_depth(hp)
+        # depth classes (full grid) for pieces / edge; overview class sheets (9 frames per image) for the flow layer's wet mask
+        cl = despeckle(classes_cm(hc, 1))
+        ovk[..., (i % 9) // 3] += pool(cl, OV_POOL)[:oh, :ow] * (1, 5, 25)[i % 3]
+        m = cl >= 1; m3 = cl >= 3
+        if land is not None: m &= land; m3 &= land
+        g1 = m.copy(); g1[1:] |= m[:-1]; g1[:-1] |= m[1:]; g2 = g1.copy(); g2[:, 1:] |= g1[:, :-1]; g2[:, :-1] |= g1[:, 1:]
+        E[:, i] = SE.share(m) >= EDGE_SHARE
+        PW[:, i] = SP.share(m) >= 0.5; PN[:, i] = SP.share(g2) >= 0.5; P3[:, i] = SP.share(m3) >= 0.5
+        if i % 3 == 2 or i == nf - 1:
+            si = i // 3
+            for t, b in zip(T, tb):
+                if b.any():
+                    t['s'].append(si); submit(b.copy(), os.path.join(od, t['p'] + '%03d.png' % si))
+                b[:] = 0
+            nm = 'depthc_%03d.png' % si; submit(ovc.copy(), os.path.join(od, nm)); osheets.append(nm); ovc[:] = 0
+        if i % 9 == 8 or i == nf - 1:
+            nm = 'depth_%02d.png' % (i // 9); submit(ovk.copy(), os.path.join(od, nm)); csheets.append(nm); ovk[:] = 0
+        if i % 24 == 0: print('    frame %d/%d  %.0f s' % (i, nf, time.time() - t_start), flush=True)
+    for f_ in futs: f_.result()
+    ex.shutdown()
+    tl = [dict(x0=t['c0'], y0=t['r0'], w=t['c1'] - t['c0'], h=t['r1'] - t['r0'], p=t['p'], s=t['s'],
+               corners=[ll(t['r0'], t['c0']), ll(t['r0'], t['c1']), ll(t['r1'], t['c1']), ll(t['r1'], t['c0'])]) for t in T]
+    depthc = {'sheets': osheets, 'per': 3, 'enc': 'v = 255 * sqrt(depth_m / 3), 1 cm floor, permanent water 0', 'pixel_m': res * OV_POOL,
+              'w': ow, 'h': oh, 'overview': 'max of %d x %d cells' % (OV_POOL, OV_POOL),
+              'tiles': {'pixel_m': res, 'n': len(osheets), 'zoom': 12, 'about': 'sheet i of tile p is <p><i:03d>.png, written only for i in s (else dry)',
+                        'list': tl}}
+    # roads.json (same rules as build()), pieces.json for the kept segments
+    risk = {}
+    for rsrc in (src, risk_src):
+        rp = os.path.join(rsrc, 'risk_segments.json') if rsrc else None
+        if rp and os.path.exists(rp): risk = json.load(open(rp))['segments']; break
+    edge = {sid: ivs_bool(E[k]) for k, (sid, ft, gm) in enumerate(feats_all) if E[k].any()}
+    feats, closed = [], np.zeros(nf, int)
+    for sid, ft, gm in feats_all:
+        q = ft['properties']; d = num(q.get('d'), []) or []
+        d = [float(d[k]) for k in keep if k < len(d)]
+        iv = intervals(d); e = risk.get(str(sid), {})
+        pc = num(q.get('p_close')); pm = num(q.get('p_may_close'))
+        may = (pm or 0) >= 0.5 and pc < 0.5
+        if not (pc >= 0.5 or may or iv or 'r' in e or (d and max(d) >= 3) or sid in edge): continue
+        pr = {'n': q.get('road') or '', 't': q.get('town') or '', 'c': CLS.get(q.get('road_class'), 0), 'p': round(pc, 2), 'm': 1 if may else 0,
+              'w': q.get('why') or ''}
+        if iv:
+            pr['iv'] = iv
+            for a, b in iv: closed[int(math.ceil(a)):int(min(nf, math.ceil(b)))] += 1
+        if sid in edge: pr['e'] = edge[sid]
+        if d and max(d) >= 3:
+            dd = [int(min(255, v)) for v in d]
+            while dd and dd[-1] == 0: dd.pop()
+            pr['d'] = dd
+        a = e.get('a')
+        if a and (a.get('h') or a.get('f') or a.get('p')): pr['a'] = [a.get('h', 0), a.get('f', 0), a.get('p', 0), a.get('iso', 0)]
+        r = e.get('r')
+        if r: pr['rk'] = r['risk']; pr['rc'] = [r['repair'][0], r['repair'][1], r.get('delay', 0)]
+        feats.append({'type': 'Feature', 'id': sid, 'properties': pr, 'geometry': gm})
+    json.dump({'type': 'FeatureCollection', 'features': feats}, open(os.path.join(od, 'roads.json'), 'w'), separators=(',', ':'))
+    kept = set(f['id'] for f in feats); ix = [i for i, s in enumerate(P_seg) if s in kept]
+    PC = dict(about='road segments split into ~%d m pieces; w = frame intervals when the map draws water (>= 5 cm) on the piece '
+                    '(docs/site/build_data.py pieces_build); w30 = frame intervals with 30 cm or more on the piece (impassable)' % PIECE_M,
+              seg=[P_seg[i] for i in ix], lines=[P_lines[i] for i in ix], w=[ivs_bool(PW[i]) for i in ix],
+              n=[ivs_bool(PN[i] & ~PW[i]) for i in ix], w30=[ivs_bool(P3[i]) for i in ix])
+    json.dump(PC, open(os.path.join(od, 'pieces.json'), 'w'), separators=(',', ':'))
+    cn = corners(src)
+    keep_k = ['segments_in_box', 'segments_p_ge_50', 'km_p_ge_50', 'segments_may_close', 'km_may_close', 'culverts_overtopped',
+              'crossings_assessed', 'flood_model_runtime_s', 'resolution_m', 'rain_max_total_mm', 'rain_peak1h_max_mm', 'solver', 'storm_start']
+    meta = {k: S[k] for k in keep_k if k in S}
+    cpf = S.get('closed_per_frame', [])
+    cpf = [cpf[k] for k in keep] if len(cpf) == len(fh) else closed.tolist()
+    meta.update({'key': key, 'source': os.path.relpath(src, ROOT) if os.path.isabs(src) else src, 'corners': cn, 'frame_min': fmin, 'nf': nf,
+                 'w': ow, 'h': oh, 'pixel_m': res * OV_POOL, 'sheets': csheets, 'rain_hourly_mean_mm': S.get('rain_hourly_mean_mm', []),
+                 'closed_per_frame': cpf, 'depthc': depthc})
+    storm = S['run'].split('_')[0]
+    R = refs(src, cn, storm, utc(S['storm_start']), fmin, nf, run_dir)
+    json.dump(clean(R), open(os.path.join(od, 'refs.json'), 'w'), separators=(',', ':'), allow_nan=False)
+    if use_flow:
+        blank = np.zeros((h2, w2, 3), np.uint8); blank[..., :2] = 128
+        frames = [fl_frames.get(k, blank) for k in fl_keep]; n = len(frames); sheets = []
+        cols = max(1, min(2048 // w2, int(math.ceil(math.sqrt(min(n, per_sheet) * h2 / w2))))); rows = (min(n, per_sheet) + cols - 1) // cols
+        per_sheet = cols * rows
+        for s0 in range(0, n, per_sheet):
+            atlas = np.zeros((rows * h2, cols * w2, 3), np.uint8); atlas[..., :2] = 128
+            for q_, a in enumerate(frames[s0:s0 + per_sheet]):
+                cy, cx = divmod(q_, cols); atlas[cy * h2:(cy + 1) * h2, cx * w2:(cx + 1) * w2] = a
+            nm = 'flow_%02d.png' % len(sheets); Image.fromarray(atlas, 'RGB').save(os.path.join(od, nm), optimize=True); sheets.append(nm)
+        json.dump({'n': n, 'frame_min': fmin * fk, 'w': w2, 'h': h2, 'cols': cols, 'rows': rows, 'per_sheet': per_sheet, 'sheets': sheets,
+                   'vmax_ms': 4.0, 'enc': 'sqrt', 'peak_ms': round(vpk, 2), 'cell_m': res * f_out, 'corners': cn,
+                   'method': 'LISFLOOD-FP solver velocity (.Vx/.Vy snapshots), depth-weighted over %d m blocks' % int(res * f_out)},
+                  open(os.path.join(od, 'flow.json'), 'w'), separators=(',', ':'))
+        meta['flow'] = 'flow.json'
+        print('  flow (solver)', n, 'frames', '%dx%d' % (w2, h2), len(sheets), 'sheets, peak block speed %.2f m/s' % vpk)
+    json.dump(meta, open(os.path.join(od, 'meta.json'), 'w'), separators=(',', ':'))
+    sz = lambda p: os.path.getsize(p)
+    tb_ = sum(sz(os.path.join(td, x)) for x in os.listdir(td)); ob = sum(sz(os.path.join(od, x)) for x in osheets)
+    size = (sum(sz(os.path.join(od, x)) for x in os.listdir(od) if os.path.isfile(os.path.join(od, x))) + tb_) / 1e6
+    print(key, 'frames', nf, 'every %d min' % fmin, 'grid %dx%d' % (nx, ny), 'tiles %d (%d sheets written of %d)' % (len(tl), sum(len(t['s']) for t in tl), len(tl) * len(osheets)),
+          'tile depth %.1f MB, overview depth %.1f MB' % (tb_ / 1e6, ob / 1e6), 'roads', len(feats), 'pieces', len(PC['seg']),
+          'gauges', len(R['gauges']), '%.1f MB total, %.0f s' % (size, time.time() - t_start))
+    return size
+
+
 def roads_only(key, src):
     """rebuild roads.json of a published pack from its prototype folder (segments.geojson, summary.json) and its own depth sheets"""
     od = os.path.join(OUT, key); meta = json.load(open(os.path.join(od, 'meta.json')))
@@ -652,6 +942,8 @@ if __name__ == '__main__':
     ap.add_argument('--roads-only', action='store_true', help='rewrite roads.json only (depth sheets read back from the published pack)')
     ap.add_argument('--surface', action='store_true', help='with --run: add surface_mm (box-mean water left on the land per frame) to meta.json')
     ap.add_argument('--despeckle', action='store_true', help='with --roads-only: first clean the published depth sheets (despeckle)')
+    ap.add_argument('--budget-mb', type=float, default=140.0, help='tiled packs (grids over %d cells a side, with --run-dir): coarsen the frame '
+                                                                     'interval until the pack fits this size' % TILE_MAX)
     a = ap.parse_args()
     if a.surface:
         mp = os.path.join(OUT, a.run, 'meta.json'); m = json.load(open(mp))
@@ -663,8 +955,8 @@ if __name__ == '__main__':
         roads_only(a.run, a.src or os.path.join(P, RUNS[a.run][0]))
     elif a.run:
         dsrc, df = RUNS.get(a.run, (None, 1))
-        build(a.run, a.src or os.path.join(P, dsrc), a.pool or df, a.run_dir, a.frame_min, a.flow,
-              risk_src=os.path.join(P, dsrc) if dsrc else None)
+        build(a.run, a.src or os.path.join(P, dsrc), a.pool or (1 if a.run_dir else df), a.run_dir, a.frame_min, a.flow,
+              risk_src=os.path.join(P, dsrc) if dsrc else None, budget_mb=a.budget_mb)
     else:
         for k, (src, f) in RUNS.items():
             build(k, os.path.join(P, src), f)
