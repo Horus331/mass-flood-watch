@@ -2392,8 +2392,8 @@
   "amcnwm_v1_arr2": {
    "status": "deferred",
    "kind": "run_plan_gpu",
-   "at": "2026-11-01T14:39:10Z",
-   "tries": 42,
+   "at": "2026-11-01T15:09:27Z",
+   "tries": 43,
    "error": "QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot"
   },
   "run_d3_sep2023_20m": {
@@ -2500,7 +2500,7 @@
    ]
   },
   "run_d3_sep2023_20m_b": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2442907",
    "kind": "run_storm",
    "env": {
@@ -2533,10 +2533,14 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T15:09:27Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "pack_d3_sep2023_20m_b": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2442908",
    "kind": "pack_site",
    "env": {
@@ -2560,7 +2564,11 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T15:09:27Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "d3all_diag1": {
    "status": "completed",
@@ -2589,7 +2597,7 @@
    "finished": "2026-11-01T14:39:10Z"
   },
   "fcd3_e2etest_d3_2023091112_s": {
-   "status": "submitted",
+   "status": "pending",
    "slurm_id": "2443042",
    "kind": "forecast_d3",
    "env": {
@@ -2608,10 +2616,17 @@
    },
    "after": [],
    "at": "2026-11-01T14:39:10Z",
-   "error": null
+   "error": null,
+   "slurm": {
+    "state": "PENDING",
+    "tasks": 1,
+    "done": 0,
+    "failed": 0,
+    "elapsed": "00:00:00"
+   }
   },
   "d3all_v1_a": {
-   "status": "submitted",
+   "status": "pending",
    "slurm_id": "2443043",
    "kind": "run_plan_display",
    "env": {
@@ -2629,9 +2644,85 @@
    },
    "after": [],
    "at": "2026-11-01T14:39:10Z",
+   "error": null,
+   "slurm": {
+    "state": "PENDING",
+    "tasks": 1,
+    "done": 0,
+    "failed": 0,
+    "elapsed": "00:00:00"
+   }
+  },
+  "run_d3_sep2023_20m_c": {
+   "status": "submitted",
+   "slurm_id": "2443072",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "BOX": "128000,856000,206000,946000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "600",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:A100:1",
+    "time": "10:00:00",
+    "mem": "160G"
+   },
+   "after": [],
+   "at": "2026-11-01T15:09:27Z",
+   "error": null
+  },
+  "pack_d3_sep2023_20m_c": {
+   "status": "submitted",
+   "slurm_id": "2443073",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "SITE": "d3_sep2023_t",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "10:00:00"
+   },
+   "after": [
+    "run_d3_sep2023_20m_c"
+   ],
+   "at": "2026-11-01T15:09:27Z",
+   "error": null
+  },
+  "d3all_diag2": {
+   "status": "submitted",
+   "slurm_id": "2443074",
+   "kind": "diag",
+   "env": {
+    "JOBS": "2443043,2442907,2443042",
+    "LOGS": "plan_display_2443043_0.out,plan_display_2443043_1.out,plan_display_2443043_2.out",
+    "WLOGS": "d3all_v1/d3all_aug2026/report.json,d3all_v1/d3all_sep2021/report.json,d3all_v1/d3all_jun2020/report.json,d3all_v1/d3all_aug2026/FAILED",
+    "WORKDIRS": "d3all_v1",
+    "TAIL": "40"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "00:30:00"
+   },
+   "after": [],
+   "at": "2026-11-01T15:09:27Z",
    "error": null
   }
  },
- "updated": "2026-11-01T14:39:10Z",
+ "updated": "2026-11-01T15:09:27Z",
  "paused": false
 }
