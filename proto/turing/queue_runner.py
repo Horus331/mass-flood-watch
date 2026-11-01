@@ -63,6 +63,11 @@ def validate(req, kinds):
     for k, v in (req.get('sbatch') or {}).items():
         if k not in SBATCH_OK or k not in K.get('sbatch', list(SBATCH_OK)) or not SBATCH_OK[k].match(str(v)): bad.append(f'sbatch {k}={v!r} not allowed'); continue
         sb.append(f'--{k}={v}')
+    # STAGE=post is the CPU half of a split GPU run: scripts such as run_storm.slurm carry '#SBATCH --gres=gpu:1' in their header, so a post
+    # request without its own gres must clear it, or the post-processing holds an idle GPU (WPI HPC alert, 1 Nov 2026)
+    if 'post' in (env.get('STAGE'), env.get('LF_STAGE')):
+        if 'gres' in (req.get('sbatch') or {}): bad.append('a STAGE=post request must not ask for a GPU')
+        else: sb.append('--gres=none')
     # Slurm's --export splits on commas, so values with commas go through the environment of sbatch itself (--export=ALL picks them up)
     sb.append('--export=ALL')
     script = K['script']
