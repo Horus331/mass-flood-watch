@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
+      max-parallel: 14   # terrain-fix branch: leave runners for the live forecast and other agents
       matrix:
         c: ${{ fromJSON(inputs.cases) }}
     steps:
@@ -52,7 +53,7 @@ jobs:
         if: always()
         run: |
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); S=${{ matrix.c.storm }}
-          P=${{ runner.temp }}/proto; D=${{ inputs.dest || 'docs/proto/parity' }}/${{ matrix.c.name }}; mkdir -p $D
+          P=${{ runner.temp }}/proto; D=${{ matrix.c.dest || inputs.dest || 'docs/proto/parity' }}/${{ matrix.c.name }}; mkdir -p $D
           echo '${{ toJSON(matrix.c) }}' > $D/config.json
           tail -c 60000 w9_stdout.txt > $D/w9_stdout.txt 2>/dev/null || true
           [ -n "$OUTDIR" ] || exit 0
@@ -71,5 +72,5 @@ jobs:
         if: always()
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add ${{ inputs.dest || 'docs/proto/parity' }}/${{ matrix.c.name }}; git commit -qm "parity test: ${{ matrix.c.name }}" || exit 0
+          git add ${{ matrix.c.dest || inputs.dest || 'docs/proto/parity' }}/${{ matrix.c.name }}; git commit -qm "parity test: ${{ matrix.c.dest }} ${{ matrix.c.name }}" || exit 0
           for i in 1 2 3 4 5 6 7 8; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 30 + 5)); done
