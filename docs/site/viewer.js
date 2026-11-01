@@ -226,7 +226,24 @@
     // continuous depth (meta.depthc): h = 3 m x v^2, linear filtering is fine on depth. Colour follows depth continuously from 1 cm
     // (faint) so water is seen gathering, not appearing at 5 cm; the trend is the real rate of rise over the last 15 minutes:
     // rising faster than 2 cm/h reads as filling (saturated), falling faster than 2 cm/h as draining (slate).
-    var texC = [], queueC = [], progC = null, locC = {};
+    // memory: the PNG sheets stay compressed in memory (a few MB per storm); only the sheets around the replay time are decoded
+    // into GPU textures (at most KEEP_C, about 4 MB each), the rest are released. Decoding all 193 sheets of a 5-minute run
+    // at once took ~1 GB of GPU memory and crashed phones and laptops.
+    var texC = [], queueC = [], progC = null, locC = {}, blobC = [], decC = {}, useC = {}, KEEP_C = 8, lastC = null;
+    function wantC(si) {
+      if (si < 0 || si >= blobC.length || texC[si] || decC[si] || !blobC[si]) return;
+      decC[si] = 1;
+      decodeBlob(blobC[si]).then(function (img) { queueC.push({ i: si, img: img }); delete decC[si]; if (map) map.triggerRepaint(); })
+        .catch(function () { delete decC[si]; });
+    }
+    function evictC(keep) {
+      var live = Object.keys(useC).map(Number).filter(function (i) { return texC[i] && !keep[i]; });
+      if (live.length + Object.keys(keep).length <= KEEP_C) return;
+      live.sort(function (a, b) { return useC[a] - useC[b]; });
+      for (var k = 0; k < live.length && live.length - k + Object.keys(keep).length > KEEP_C; k++) {
+        gl.deleteTexture(texC[live[k]]); texC[live[k]] = null; delete useC[live[k]];
+      }
+    }
     var FSC = 'precision highp float;varying vec2 vUv;uniform sampler2D uA;uniform sampler2D uB;uniform sampler2D uR;uniform vec3 uMa;uniform vec3 uMb;uniform vec3 uMr;' +
       'uniform float uT;uniform float uDtH;uniform vec4 uC[4];uniform vec4 uDrn;' +
       'float hd(sampler2D s,vec3 m){float v=dot(texture2D(s,vUv).rgb,m);return 3.0*v*v;}' +
@@ -249,10 +266,21 @@
         },
         render: function (g, matrix) {
           while (queue.length) { var q = queue.shift(); tex[q.i] = texture(gl, q.img, gl.NEAREST); if (q.img.close) q.img.close(); }
-          while (queueC.length) { var qc = queueC.shift(); texC[qc.i] = texture(gl, qc.img, gl.LINEAR); if (qc.img.close) qc.img.close(); }
+          while (queueC.length) { var qc = queueC.shift(); if (!texC[qc.i]) texC[qc.i] = texture(gl, qc.img, gl.LINEAR); useC[qc.i] = performance.now(); if (qc.img.close) qc.img.close(); }
           var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1);
-          var CA = slotC(fa), CB = slotC(fb), back = Math.round(15 / meta.frame_min), CR = slotC(Math.max(0, fa - back));
+          var back = Math.round(15 / meta.frame_min);
+          if (blobC.length) {   // the window: sheets of the frames drawn now, 15 min back, and three sheets ahead for playback
+            var keep = {}, now_ = performance.now();
+            [Math.floor(Math.max(0, fa - back) / 3), Math.floor(fa / 3), Math.floor(fb / 3), Math.floor(fb / 3) + 1, Math.floor(fb / 3) + 2, Math.floor(fb / 3) + 3]
+              .forEach(function (si) { if (si < blobC.length) { keep[si] = 1; wantC(si); if (texC[si]) useC[si] = now_; } });
+            evictC(keep);
+          }
+          var CA = slotC(fa), CB = slotC(fb), CR = slotC(Math.max(0, fa - back));
+          if ((!CA.tex || !CB.tex) && lastC && texC[lastC.si]) {   // a jump to a sheet still decoding: keep the last drawn frame for a moment
+            CA = CB = { tex: texC[lastC.si], m: lastC.m }; CR = { tex: null };
+          }
           if (CA.tex && CB.tex && ramp) {   // continuous path
+            if (CA.tex === texC[Math.floor(fa / 3)]) lastC = { si: Math.floor(fa / 3), m: CA.m };
             if (!progC) { progC = program(gl, VS, FSC); ['aPos', 'aUv'].forEach(function (k) { locC[k] = gl.getAttribLocation(progC, k); });
               ['uM', 'uA', 'uB', 'uR', 'uMa', 'uMb', 'uMr', 'uT', 'uDtH', 'uC', 'uDrn'].forEach(function (k) { locC[k] = gl.getUniformLocation(progC, k); }); }
             gl.useProgram(progC); gl.uniformMatrix4fv(locC.uM, false, matrix);
@@ -295,6 +323,8 @@
       },
       add: function (i, img) { queue.push({ i: i, img: img }); },
       addC: function (i, img) { queueC.push({ i: i, img: img }); },
+      addCBlob: function (i, b) { blobC[i] = b; if (map) map.triggerRepaint(); },
+      setCCount: function (n_) { blobC.length = n_; },
       setRamp: function (cols) { ramp = new Float32Array([].concat.apply([], cols)); },
       setDrain: function (c) { drnCol = new Float32Array(c); },
       // the two depth frames around t, for the flow layer's wet mask (null until both are on the GPU)
@@ -564,7 +594,9 @@
           var z = map.getZoom(); if (z < 13.4) return;
           maskSheet(); if (!SD) return;
           FI = Math.max(0, Math.min(F.n - 1, t * meta.frame_min / F.frame_min));
-          var f0 = Math.floor(FI); need(sheetOf(f0)); need(sheetOf(Math.min(f0 + 1, F.n - 1))); need(sheetOf(Math.min(f0 + (F.per_sheet || 1), F.n - 1)));
+          var f0 = Math.floor(FI), s0 = sheetOf(f0), s1 = sheetOf(Math.min(f0 + 1, F.n - 1)), s2 = sheetOf(Math.min(f0 + (F.per_sheet || 1), F.n - 1));
+          need(s0); need(s1); need(s2);
+          Object.keys(SH).forEach(function (k) { k = +k; if (k !== s0 && k !== s1 && k !== s2) delete SH[k]; });
           if (!SH[sheetOf(f0)]) return;
           if (!mapMoving && (!built || Math.abs(built.fi - FI) > 0.5 || (built.z >= 15) !== (z >= 15))) build();
           if (!nv) return;
@@ -972,6 +1004,7 @@
   var dashI = 0, dashLast = 0, dashUntil = 0, swellLast = -1;
   function wiPulse() { dashUntil = performance.now() + 6000; requestAnimationFrame(dashTick); }
   function dashTick(now) {
+    return; // static: OpenStreetMap stream direction is not modelled flow
     if (!map || !map.getLayer('h-flow') || reduced) return;
     if (now - dashLast > 85) { dashLast = now; dashI = (dashI + 1) % DASH.length; map.setPaintProperty('h-flow', 'line-dasharray', DASH[dashI]); }
     if (playing || now < dashUntil) requestAnimationFrame(dashTick);
@@ -1265,6 +1298,10 @@
   }
 
   // ---------- loading ----------
+  function getBlob(url) { return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.blob(); }); }
+  function decodeBlob(b) {
+    return window.createImageBitmap ? createImageBitmap(b, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }).catch(function () { return imgFromBlob(b); }) : imgFromBlob(b);
+  }
   function getBitmap(url) {
     return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.blob(); })
       .then(function (b) {
@@ -1499,13 +1536,21 @@
   function whenStyle(f) { if (styleOk) f(); else styleWaiters.push(f); }
 
   function loadData() {
-    total = meta.sheets.length + 2;
-    var jobs = WION ? wiLoadJobs() : meta.sheets.map(function (s, i) {
+    var CS = !WION && meta.depthc ? meta.depthc.sheets : null;
+    total = (CS ? Math.min(4, CS.length) : meta.sheets.length) + 2;
+    var jobs = WION ? wiLoadJobs() : CS ? [] : meta.sheets.map(function (s, i) {
       return getBitmap(base + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
     });
-    if (!WION && meta.depthc) meta.depthc.sheets.forEach(function (s, i) {   // continuous depth: drawn once both frames around t are here
-      getBitmap(base + s).then(function (img) { depth.addC(i, img); if (styleOk) map.triggerRepaint(); }).catch(function () { });
-    });
+    if (CS) {   // continuous depth: compressed sheets fetched 4 at a time in time order; decoded on the GPU only near the replay time
+      depth.setCCount(CS.length);
+      var nextC = 0, firstC = [];
+      var pump = function () {
+        if (nextC >= CS.length) return Promise.resolve();
+        var i = nextC++;
+        return getBlob(base + CS[i]).then(function (b) { depth.addCBlob(i, b); if (i < 4) progress(); }, function () { if (i < 4) progress(); }).then(pump);
+      };
+      for (var k = 0; k < 4; k++) firstC.push(pump());
+    }
     if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) IMP = p; return null; }).catch(function () { return null; })]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
@@ -1632,20 +1677,20 @@
     map.addLayer({ id: 'halo', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 7, 9], [0, 18, 22]), 'line-blur': w(3, 8), 'line-opacity': 0 } });
     map.addLayer({ id: 'wetcase', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([3.2, 4.2, 5], [6.4, 8.6, 9.6]), 'line-opacity': ZOP } });
+      paint: { 'line-width': byD([1.8, 2.3, 2.7], [3, 3.8, 4.4]), 'line-opacity': ZOP } });
     map.addLayer({ id: 'wet', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': byD([1.8, 2.6, 3.2], [4, 6, 7]), 'line-opacity': ZOP } });
+      paint: { 'line-width': byD([1, 1.4, 1.7], [1.8, 2.5, 3]), 'line-opacity': ZOP } });
     // impassable stretches: red only where 30 cm or more of modelled water covers the road itself (40 m pieces), on top of the
     // orange closed segment, so one deep spot does not paint a whole kilometre red
     map.addSource('imp', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 });
-    map.addLayer({ id: 'imp-case', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(4.4, 11), 'line-color': '#FFFFFF', 'line-opacity': 0.9 } });
-    map.addLayer({ id: 'imp', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(3, 8), 'line-color': '#C62828' } });
+    map.addLayer({ id: 'imp-case', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(2.6, 4.6), 'line-color': '#FFFFFF', 'line-opacity': 0.9 } });
+    map.addLayer({ id: 'imp', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(1.6, 3.2), 'line-color': '#C62828' } });
     // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
     map.addLayer({ id: 'bar', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': 0 } });   // barricade stripes retired: solid colour reads cleaner
     // the selected road: an ink outline under the road-state lines at every zoom, so the selection never disappears when zooming out
     map.addLayer({ id: 'sel', type: 'line', source: 'roads', filter: ['==', ['id'], -1], layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-width': w(6, 14), 'line-color': '#1F2328', 'line-opacity': 0.85 } }, 'halo');
+      paint: { 'line-width': w(3.4, 6.5), 'line-color': '#1F2328', 'line-opacity': 0.85 } }, 'halo');
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
     { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z15
       [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 15], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 13], ['rlab-c', ['>=', ['get', 'd'], 30], 12]].forEach(function (a) {
