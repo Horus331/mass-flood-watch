@@ -800,8 +800,15 @@
     return out;
   }
   // apply a loaded scenario: roads (depth series cross-fade), numbers, chart, flow, culverts, then fade the water
+  // impassable stretches in a scenario: the ~40 m pieces with 30 cm or more on the piece in that run (d.json pw30, proto/whatif_w30.py)
+  var WIP = null;
+  function wiImp(dj) {
+    if (!WIP || !dj || !dj.pw30) { IMP = null; impSig = ''; if (map && map.getSource('imp')) map.getSource('imp').setData({ type: 'FeatureCollection', features: [] }); return; }
+    IMP = { seg: WIP.seg, lines: WIP.lines, w30: WIP.seg.map(function (sid, i) { var a = dj.pw30[sid]; return (a && a[WIP.ord[i]]) || []; }) };
+    impSig = null;
+  }
   function wiApply(key, dj, first) {
-    wi.key = key; wi.dj = dj; store('mfw-whatif', key);
+    wi.key = key; wi.dj = dj; store('mfw-whatif', key); wiImp(dj);
     meta.closed_per_frame = dj.closed_per_frame; meta.rain_hourly_mean_mm = dj.rain_hourly_mean_mm;
     var N = dj.numbers || {};
     ['segments_closed', 'km_closed', 'segments_may_close', 'culverts_overtopped', 'rain_peak1h_mm', 'rain_max_total_mm', 'segments_in_box'].forEach(function (k) {
@@ -1026,6 +1033,7 @@
     total = 4;
     jobs.push(Promise.all([getJson(WI + 'roads.json'), getJson(WI + 'pieces.json').catch(function () { return null; })]).then(function (a) {
       var g = a[0];   // road state is drawn on whole segments (the unit that is closed), not 40 m pieces
+      if (a[1] && a[1].seg) { WIP = a[1]; WIP.ord = pieceOrd(WIP.seg); wiImp(dj); }
       var may = {}; (dj.may || []).forEach(function (id) { may[id] = 1; });
       g.features.forEach(function (f) { var p = f.properties; p.d = dj.seg[f.id] || null; p.e = (dj.edge && dj.edge[f.id]) || null; p.p = dj.p[f.id] || 0; p.m = may[f.id] ? 1 : 0; if (p.d) { var iv = wiIntervals(p.d); if (iv.length) p.iv = iv; } });
       wi.roads = g;
