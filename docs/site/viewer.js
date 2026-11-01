@@ -304,7 +304,7 @@
         return; }
       if (tFetch[k] || nFetch >= 6) return;
       tFetch[k] = 1; nFetch++;
-      getBlob(base + T.p + ('00' + si).slice(-3) + '.png').then(function (b) { tBlob[k] = b; tBlobUse[k] = performance.now(); })
+      getBlob(dbase() + T.p + ('00' + si).slice(-3) + '.png').then(function (b) { tBlob[k] = b; tBlobUse[k] = performance.now(); })
         .catch(function () { }).then(function () { delete tFetch[k]; nFetch--; if (map) map.triggerRepaint(); });
     }
     function tBlobTrim() {   // compressed sheets kept in memory: at most 600 (a few tens of MB), least recently used dropped
@@ -564,7 +564,7 @@
       var k = Math.max(0, Math.min(nf - 1, Math.round(t))), si = Math.floor(k / 9);
       if (si === sdIdx || si === sdLoading || !meta.sheets) return;
       sdLoading = si;
-      var url = (WION && wi ? WI + wi.key + '/' : base) + meta.sheets[si];
+      var url = (WION && wi ? WI + wi.key + '/' : dbase()) + meta.sheets[si];
       getBitmap(url).then(function (img) { var P = pix(img); SD = { d: P.d, w: P.w, h: img.height || (P.d.length / 4 / P.w) }; sdIdx = si; sdLoading = -1; built = null; map.triggerRepaint(); })
         .catch(function () { sdLoading = -1; });
     }
@@ -1404,6 +1404,9 @@
   }
 
   // ---------- loading ----------
+  // where a run's image sheets live: meta.data_base (absolute or relative URL, e.g. a dataset host with CORS) or the run folder itself.
+  // JSON (meta, roads, pieces, refs, network) always comes from the run folder; only the large depth / flow sheets may live elsewhere.
+  function dbase() { var d = meta && meta.data_base; return d ? String(d).replace(/\/?$/, '/') : base; }
   function getBlob(url) { return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.blob(); }); }
   function decodeBlob(b) {
     return window.createImageBitmap ? createImageBitmap(b, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }).catch(function () { return imgFromBlob(b); }) : imgFromBlob(b);
@@ -1431,6 +1434,7 @@
   }
 
   // ---------- forecast tab ----------
+  var fcStat = null;
   if (runKey === 'forecast') {
     getJson('site/data/forecast_status.json').then(function (s) {
       var run0 = s && s.runs && s.runs[0], dir = s && (s.dir || (run0 && run0.viewer) || (s.state === 'run' && s.run));
@@ -1440,7 +1444,8 @@
       base = 'site/data/' + String(dir).replace(/^(site\/)?data\//, '').replace(/\/?$/, '/');
       if (!s.title && s.headline) s.title = s.headline;
       if (s.title) $('runTitle').textContent = s.title;
-      $('runKind').textContent = s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.');
+      fcStat = s;   // display: 'turing' (whole District 3 at 20 m) or 'boxes' (the GitHub backup); s.coverage says which, in words
+      $('runKind').textContent = (s.coverage && s.kind && s.kind.indexOf(s.coverage) < 0 ? s.coverage + '. ' : '') + (s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.'));
       start(); liveInit(s);
     }).catch(function () { forecastPlaceholder(); liveInit(null); });
   } else if (WHATIF) {
@@ -1645,7 +1650,7 @@
     var CS = !WION && meta.depthc ? meta.depthc.sheets : null;
     total = (CS ? Math.min(4, CS.length) : meta.sheets.length) + 2;
     var jobs = WION ? wiLoadJobs() : CS ? [] : meta.sheets.map(function (s, i) {
-      return getBitmap(base + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
+      return getBitmap(dbase() + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
     });
     if (CS) {   // continuous depth: compressed sheets fetched 4 at a time in time order; decoded on the GPU only near the replay time
       depth.setCCount(CS.length);
@@ -1653,7 +1658,7 @@
       var pump = function () {
         if (nextC >= CS.length) return Promise.resolve();
         var i = nextC++;
-        return getBlob(base + CS[i]).then(function (b) { depth.addCBlob(i, b); if (i < 4) progress(); }, function () { if (i < 4) progress(); }).then(pump);
+        return getBlob(dbase() + CS[i]).then(function (b) { depth.addCBlob(i, b); if (i < 4) progress(); }, function () { if (i < 4) progress(); }).then(pump);
       };
       for (var k = 0; k < 4; k++) firstC.push(pump());
     }
@@ -1695,8 +1700,8 @@
     }).catch(function () {}));
     if (WION) { /* flow comes with each scenario (wiLoadJobs) */ } else if (meta.flow) {
       jobs.push(getJson(base + meta.flow).then(function (fi) {
-        return getBitmap(base + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
-          flowLayer.set(fi, img, base);
+        return getBitmap(dbase() + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
+          flowLayer.set(fi, img, dbase());
           whenStyle(function () { map.addLayer(flowLayer.layer, 'l-voy'); vis('flow', $('lyFlow').checked); });
           $('flowRow').hidden = $('flowKey').hidden = false;
         });
@@ -1758,10 +1763,12 @@
     // the model box, a quiet dashed outline so the replayed area reads at regional zoom
     map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
     map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
-    // legend: the dashed box is this replay's own flood-model run, not the area the model can cover (the forecast runs all of District 3)
-    if (runKey !== 'forecast' && runKey !== 'd3_sep2023' && $('covBox')) {
+    // legend: the dashed box is this replay's own flood-model run, not the area the model can cover. Whole-district runs (tiled packs: the
+    // District 3 replay, the Turing forecast) need no box label; a backup forecast says the model ran only in its boxes
+    var tiled = !!(meta.depthc && meta.depthc.tiles);
+    if (!tiled && runKey !== 'd3_sep2023' && $('covBox') && (runKey !== 'forecast' || (fcStat && fcStat.display === 'boxes'))) {
       var km = Math.round(meta.w * (meta.pixel_m || meta.resolution_m || 20) / 1000);
-      $('covBoxT').textContent = 'this replay’s run (' + km + ' × ' + km + ' km)';
+      $('covBoxT').textContent = runKey === 'forecast' ? 'backup flood-model box (' + km + ' × ' + km + ' km); roads outside it not modelled' : 'this replay’s run (' + km + ' × ' + km + ' km)';
       $('covBox').hidden = false;
     }
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };

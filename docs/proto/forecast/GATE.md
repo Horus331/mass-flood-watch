@@ -10,7 +10,26 @@ inside it; a town smaller than one cell takes its nearest point. The LISFLOOD-FP
 | 24 h maximum | **40 mm** |
 
 Below both thresholds the forecast is published as quiet: "No road closures expected in District 3 in the next 48 h", with the rain summary.
-When the gate fires, up to four 20 x 20 km boxes are placed, one at a time, on the heaviest forecast rain. Each box is centred on the highest
+
+**Turing first, boxes as the backup (since 1 Nov 2026).** When the gate fires, the gate job queues the whole district on WPI's Turing GPU
+cluster (`proto/forecast_turing.py request`): one request, kind `forecast_d3` (`proto/turing/forecast_d3.slurm`), inserted at the **front** of
+`jobs.json` on the `turing-queue` branch, so a storm cycle is never stuck behind research requests (the runner submits in `jobs.json` order
+and stops at the first refusal of the per-user submit cap). It is one Slurm **array** job (one task per ensemble member, so it counts as one
+submitted job): every member runs all of District 3 at 20 m (17.6 M cells) with exactly the box jobs' set-up and the member's own HRRR rain;
+the issue cycle's task also keeps 30-min depth frames and the solver's velocity for the map. The task that finishes the issue member, and
+again the one that finishes the last member, publishes: a tiled full-resolution replay `docs/site/data/forecast_d3/`, the 2-of-8 / 1-of-8
+ensemble, `forecast_d3_status.json`, and `forecast_status.json` when that cycle is still the newest published one.
+The box jobs below still run at the same time on GitHub Actions as the **backup**; their status is written as before and labelled
+"Backup: N boxes of 20 x 20 km on the heaviest rain (Turing run not ready)" (`proto/forecast_turing.py prefer`). If Turing has already
+published the same cycle, its whole-district status stays. A Turing result never replaces a newer cycle's boxes or a newer quiet cycle.
+Why concurrently and not "boxes only if Turing misses a deadline": the boxes take 1-2 h on Actions, the Turing queue runner ticks every
+30 min and its GPU queue wait is outside our control, so waiting for a Turing deadline before starting the boxes would cost the backup at
+least 1-2 h of lead time; running both costs nothing (Actions minutes are free for the public repository).
+Latency on Turing: request pushed by the gate job → submitted at the next queue-runner tick (≤ 30 min) → GPU queue wait (unknown, minutes
+to hours) → about 1-1.5 h per member (inputs + 23 min of LISFLOOD-FP + prototype) → publish commit → Pages deploy (~2 min).
+Switch off with the repository variable `FORECAST_TURING=0` (or the workflow input `turing=0`).
+
+**Backup boxes.** When the gate fires, up to four 20 x 20 km boxes are placed, one at a time, on the heaviest forecast rain. Each box is centred on the highest
 remaining exceedance score, max(6 h / 25 mm, 24 h / 40 mm), and its points plus a 5 km margin are then taken out before the next box is placed.
 Each box runs at 20 m, the prototype set-up validated on Sept 2023 Leominster, as a parallel GitHub Actions job.
 

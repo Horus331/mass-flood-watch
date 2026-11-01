@@ -944,6 +944,8 @@ if __name__ == '__main__':
     ap.add_argument('--despeckle', action='store_true', help='with --roads-only: first clean the published depth sheets (despeckle)')
     ap.add_argument('--budget-mb', type=float, default=140.0, help='tiled packs (grids over %d cells a side, with --run-dir): coarsen the frame '
                                                                      'interval until the pack fits this size' % TILE_MAX)
+    ap.add_argument('--data-base', help='URL the viewer fetches this run\'s image sheets from (meta.data_base; e.g. a dataset host with CORS), '
+                                        'when the sheets are uploaded there instead of committed under docs/')
     a = ap.parse_args()
     if a.surface:
         mp = os.path.join(OUT, a.run, 'meta.json'); m = json.load(open(mp))
@@ -957,6 +959,9 @@ if __name__ == '__main__':
         dsrc, df = RUNS.get(a.run, (None, 1))
         build(a.run, a.src or os.path.join(P, dsrc), a.pool or (1 if a.run_dir else df), a.run_dir, a.frame_min, a.flow,
               risk_src=os.path.join(P, dsrc) if dsrc else None, budget_mb=a.budget_mb)
+        if a.data_base:
+            mp = os.path.join(OUT, a.run, 'meta.json'); m = json.load(open(mp)); m['data_base'] = a.data_base
+            json.dump(m, open(mp, 'w'), separators=(',', ':'))
     else:
         for k, (src, f) in RUNS.items():
             build(k, os.path.join(P, src), f)
