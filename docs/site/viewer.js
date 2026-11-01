@@ -255,6 +255,104 @@
       'c=vec4(mix(c.rgb,vec3(0.05,0.28,0.85),fl*0.5),min(1.0,c.a+fl*0.1));c=vec4(mix(c.rgb,uDrn.rgb,dr*0.7),c.a*mix(1.0,uDrn.a,dr));}' +
       'gl_FragColor=vec4(c.rgb*c.a,c.a);}';
     function slotC(f) { var m = [0, 0, 0]; m[f % 3] = 1; return { tex: texC[Math.floor(f / 3)], m: m }; }
+    // one continuous-depth quad: vertex buffer b (x, y, u, v), frames A and B (and R, 15 min back, for the trend) as {tex, m}
+    function drawCont(matrix, b, CA, CB, CR, hasR, fa, fb, back) {
+      if (!progC) { progC = program(gl, VS, FSC); ['aPos', 'aUv'].forEach(function (k) { locC[k] = gl.getAttribLocation(progC, k); });
+        ['uM', 'uA', 'uB', 'uR', 'uMa', 'uMb', 'uMr', 'uT', 'uDtH', 'uC', 'uDrn'].forEach(function (k) { locC[k] = gl.getUniformLocation(progC, k); }); }
+      gl.useProgram(progC); gl.uniformMatrix4fv(locC.uM, false, matrix);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, CA.tex); gl.uniform1i(locC.uA, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, CB.tex); gl.uniform1i(locC.uB, 1);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, hasR ? CR.tex : CA.tex); gl.uniform1i(locC.uR, 2);
+      gl.uniform3fv(locC.uMa, CA.m); gl.uniform3fv(locC.uMb, CB.m); gl.uniform3fv(locC.uMr, hasR ? CR.m : CA.m);
+      gl.uniform1f(locC.uT, fb === fa ? 0 : t - fa); gl.uniform1f(locC.uDtH, hasR ? back * meta.frame_min / 60 : 0);
+      gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol);
+      gl.bindBuffer(gl.ARRAY_BUFFER, b);
+      gl.enableVertexAttribArray(locC.aPos); gl.vertexAttribPointer(locC.aPos, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(locC.aUv); gl.vertexAttribPointer(locC.aUv, 2, gl.FLOAT, false, 16, 8);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.disableVertexAttribArray(locC.aPos); gl.disableVertexAttribArray(locC.aUv); gl.activeTexture(gl.TEXTURE0);
+    }
+    // ---- tiled continuous depth (meta.depthc.tiles: a grid too large for one texture, e.g. all of District 3 at 20 m) ----
+    // Below the tiles' zoom the overview (meta.depthc.sheets, max-pooled) is drawn as one quad, as on a single-box run. From that zoom
+    // the 20 m tiles in view are drawn, each from its own sheets; a tile whose sheets are not decoded yet shows the overview over its own
+    // area meanwhile. Sheets are fetched only for tiles in view (compressed blobs, LRU) and decoded into GPU textures within one budget
+    // for all tiles (TBUDGET; the overview keeps only the frames drawn now at that zoom), nearest tiles and the frames drawn now first.
+    // A sheet a tile does not have is dry in all 3 frames: drawn from a 1 x 1 zero texture.
+    var lastVis = [], TL = null, TBUDGET = 64e6, tTex = {}, tUse = {}, tDec = {}, tBlob = {}, tBlobUse = {}, tFetch = {}, nFetch = 0, nDec = 0, zeroTex = null, tQueue = [];
+    function quadUV(corners, u0, v0, u1, v1) {
+      var c = corners.map(function (p) { return maplibregl.MercatorCoordinate.fromLngLat(p); });
+      return new Float32Array([c[0].x, c[0].y, u0, v0, c[1].x, c[1].y, u1, v0, c[3].x, c[3].y, u0, v1, c[2].x, c[2].y, u1, v1]);
+    }
+    function tilesInit() {
+      var D = meta.depthc, T = D.tiles, k = D.pixel_m / T.pixel_m, W = D.w * k, H = D.h * k;
+      TL = { zoom: T.zoom || 12, list: T.list.map(function (s, i) {
+        var lo = s.corners.map(function (c) { return c[0]; }), la = s.corners.map(function (c) { return c[1]; }), has = {};
+        s.s.forEach(function (si) { has[si] = 1; });
+        var b1 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b1); gl.bufferData(gl.ARRAY_BUFFER, quadUV(s.corners, 0, 0, 1, 1), gl.STATIC_DRAW);
+        var b2 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b2);
+        gl.bufferData(gl.ARRAY_BUFFER, quadUV(s.corners, s.x0 / W, s.y0 / H, (s.x0 + s.w) / W, (s.y0 + s.h) / H), gl.STATIC_DRAW);
+        return { i: i, p: s.p, has: has, bytes: s.w * s.h * 4, buf: b1, obuf: b2, bb: [Math.min.apply(0, lo), Math.min.apply(0, la), Math.max.apply(0, lo), Math.max.apply(0, la)] };
+      }) };
+      zeroTex = texture(gl, new Uint8Array([0, 0, 0, 0]), gl.NEAREST);
+    }
+    function tKey(ti, si) { return ti + ':' + si; }
+    function tWant(T, si, decode) {   // fetch the sheet's blob; decode it into a texture when asked
+      var k = tKey(T.i, si), now_ = performance.now();
+      if (tTex[k]) { tUse[k] = now_; return; }
+      if (tBlob[k]) { tBlobUse[k] = now_; if (decode && !tDec[k] && nDec < 3) { tDec[k] = 1; nDec++;
+        decodeBlob(tBlob[k]).then(function (img) { tQueue.push({ k: k, img: img, bytes: T.bytes }); }).catch(function () { }).then(function () { delete tDec[k]; nDec--; if (map) map.triggerRepaint(); }); }
+        return; }
+      if (tFetch[k] || nFetch >= 6) return;
+      tFetch[k] = 1; nFetch++;
+      getBlob(base + T.p + ('00' + si).slice(-3) + '.png').then(function (b) { tBlob[k] = b; tBlobUse[k] = performance.now(); })
+        .catch(function () { }).then(function () { delete tFetch[k]; nFetch--; if (map) map.triggerRepaint(); });
+    }
+    function tBlobTrim() {   // compressed sheets kept in memory: at most 600 (a few tens of MB), least recently used dropped
+      var ks = Object.keys(tBlob); if (ks.length <= 600) return;
+      ks.sort(function (a, b) { return tBlobUse[a] - tBlobUse[b]; });
+      for (var i = 0; i < ks.length - 600; i++) { delete tBlob[ks[i]]; delete tBlobUse[ks[i]]; }
+    }
+    function tSlot(T, f) {   // {tex, m} of frame f in tile T: zero texture where the tile is dry, null while not decoded
+      var si = Math.floor(f / 3), m = [0, 0, 0]; m[f % 3] = 1;
+      if (!T.has[si]) return { tex: zeroTex, m: m };
+      var x = tTex[tKey(T.i, si)]; return x ? { tex: x.tex, m: m } : null;
+    }
+    function tilesFull() { return !!TL && map && map.getZoom() >= TL.zoom; }
+    function renderTiles(matrix, fa, fb, back) {
+      while (tQueue.length) { var q = tQueue.shift(); if (!tTex[q.k]) tTex[q.k] = { tex: texture(gl, q.img, gl.LINEAR), bytes: q.bytes }; tUse[q.k] = performance.now(); if (q.img.close) q.img.close(); }
+      var B = map.getBounds(), w = B.getWest(), s = B.getSouth(), e = B.getEast(), n = B.getNorth(), cx = (w + e) / 2, cy = (s + n) / 2;
+      var vis = TL.list.filter(function (T) { return T.bb[0] < e && T.bb[2] > w && T.bb[1] < n && T.bb[3] > s; });
+      vis.sort(function (a, b) { return Math.hypot((a.bb[0] + a.bb[2]) / 2 - cx, (a.bb[1] + a.bb[3]) / 2 - cy) - Math.hypot((b.bb[0] + b.bb[2]) / 2 - cx, (b.bb[1] + b.bb[3]) / 2 - cy); });
+      // what to hold on the GPU, in priority order, within the budget left by the overview's textures
+      var sa = Math.floor(fa / 3), sb = Math.floor(fb / 3), sr = Math.floor(Math.max(0, fa - back) / 3), want = {}, used = 0;
+      lastVis = vis.map(function (T) { return T.p; });
+      var ob = meta.depthc.w * meta.depthc.h * 4, budget = TBUDGET - ob * texC.filter(function (x) { return x; }).length;
+      [[sa, sb], [sr], [sb + 1], [sb + 2], [sb + 3]].forEach(function (grp, gi) {
+        vis.forEach(function (T) {
+          grp.forEach(function (si) {
+            if (si >= meta.depthc.tiles.n || !T.has[si]) return;
+            var k = tKey(T.i, si); if (want[k]) return;
+            if (used + T.bytes > budget) { if (gi === 0) tWant(T, si, false); return; }
+            want[k] = 1; used += T.bytes; tWant(T, si, true);
+          });
+        });
+      });
+      vis.slice(0, 4).forEach(function (T) { for (var si = sb + 4; si <= sb + 8; si++) if (T.has[si] && si < meta.depthc.tiles.n) tWant(T, si, false); });   // blobs only, for playback
+      var live = Object.keys(tTex), tot = 0;   // over budget: release the least recently used textures that are not wanted now
+      live.forEach(function (k) { tot += tTex[k].bytes; });
+      if (tot > budget) {
+        live.filter(function (k) { return !want[k]; }).sort(function (a, b) { return tUse[a] - tUse[b]; }).forEach(function (k) {
+          if (tot <= budget) return; gl.deleteTexture(tTex[k].tex); tot -= tTex[k].bytes; delete tTex[k]; delete tUse[k];
+        });
+      }
+      tBlobTrim();
+      var OA = slotC(fa), OB = slotC(fb);
+      vis.forEach(function (T) {
+        var A = tSlot(T, fa), Bf = tSlot(T, fb), R = fa >= back ? tSlot(T, Math.max(0, fa - back)) : null;
+        if (A && Bf) { if (A.tex === zeroTex && Bf.tex === zeroTex) return; drawCont(matrix, T.buf, A, Bf, R, !!R, fa, fb, back); }
+        else if (OA.tex && OB.tex) drawCont(matrix, T.obuf, OA, OB, null, false, fa, fb, back);   // not decoded yet: the overview here
+      });
+    }
     return {
       layer: {
         id: 'depth', type: 'custom', renderingMode: '2d',
@@ -263,39 +361,33 @@
           ['aPos', 'aUv'].forEach(function (k) { loc[k] = gl.getAttribLocation(prog, k); });
           ['uM', 'uA', 'uB', 'uMa', 'uMb', 'uDa', 'uDb', 'uT', 'uC', 'uS', 'uR', 'uMr', 'uDr', 'uHasR', 'uDrn'].forEach(function (k) { loc[k] = gl.getUniformLocation(prog, k); });
           buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, quad(meta.corners), gl.STATIC_DRAW);
+          if (meta.depthc && meta.depthc.tiles && !WION) tilesInit();
         },
         render: function (g, matrix) {
           while (queue.length) { var q = queue.shift(); tex[q.i] = texture(gl, q.img, gl.NEAREST); if (q.img.close) q.img.close(); }
           while (queueC.length) { var qc = queueC.shift(); if (!texC[qc.i]) texC[qc.i] = texture(gl, qc.img, gl.LINEAR); useC[qc.i] = performance.now(); if (qc.img.close) qc.img.close(); }
           var fa = Math.min(Math.floor(t), nf - 1), fb = Math.min(fa + 1, nf - 1);
           var back = Math.round(15 / meta.frame_min);
+          var full = tilesFull();
+          if (TL && !full) {   // zoomed out: no tile textures on the GPU
+            Object.keys(tTex).forEach(function (k) { gl.deleteTexture(tTex[k].tex); delete tTex[k]; delete tUse[k]; });
+          }
           if (blobC.length) {   // the window: sheets of the frames drawn now, 15 min back, and three sheets ahead for playback
             var keep = {}, now_ = performance.now();
-            [Math.floor(Math.max(0, fa - back) / 3), Math.floor(fa / 3), Math.floor(fb / 3), Math.floor(fb / 3) + 1, Math.floor(fb / 3) + 2, Math.floor(fb / 3) + 3]
+            KEEP_C = full ? 2 : 8;   // tiled, at tile zoom: the overview only stands in for tiles still decoding
+            (full ? [Math.floor(fa / 3), Math.floor(fb / 3)] :
+              [Math.floor(Math.max(0, fa - back) / 3), Math.floor(fa / 3), Math.floor(fb / 3), Math.floor(fb / 3) + 1, Math.floor(fb / 3) + 2, Math.floor(fb / 3) + 3])
               .forEach(function (si) { if (si < blobC.length) { keep[si] = 1; wantC(si); if (texC[si]) useC[si] = now_; } });
             evictC(keep);
           }
+          if (full && ramp) { renderTiles(matrix, fa, fb, back); return; }
           var CA = slotC(fa), CB = slotC(fb), CR = slotC(Math.max(0, fa - back));
           if ((!CA.tex || !CB.tex) && lastC && texC[lastC.si]) {   // a jump to a sheet still decoding: keep the last drawn frame for a moment
             CA = CB = { tex: texC[lastC.si], m: lastC.m }; CR = { tex: null };
           }
           if (CA.tex && CB.tex && ramp) {   // continuous path
             if (CA.tex === texC[Math.floor(fa / 3)]) lastC = { si: Math.floor(fa / 3), m: CA.m };
-            if (!progC) { progC = program(gl, VS, FSC); ['aPos', 'aUv'].forEach(function (k) { locC[k] = gl.getAttribLocation(progC, k); });
-              ['uM', 'uA', 'uB', 'uR', 'uMa', 'uMb', 'uMr', 'uT', 'uDtH', 'uC', 'uDrn'].forEach(function (k) { locC[k] = gl.getUniformLocation(progC, k); }); }
-            gl.useProgram(progC); gl.uniformMatrix4fv(locC.uM, false, matrix);
-            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, CA.tex); gl.uniform1i(locC.uA, 0);
-            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, CB.tex); gl.uniform1i(locC.uB, 1);
-            var hasR = !!CR.tex && fa >= back;
-            gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, hasR ? CR.tex : CA.tex); gl.uniform1i(locC.uR, 2);
-            gl.uniform3fv(locC.uMa, CA.m); gl.uniform3fv(locC.uMb, CB.m); gl.uniform3fv(locC.uMr, hasR ? CR.m : CA.m);
-            gl.uniform1f(locC.uT, fb === fa ? 0 : t - fa); gl.uniform1f(locC.uDtH, hasR ? back * meta.frame_min / 60 : 0);
-            gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol);
-            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-            gl.enableVertexAttribArray(locC.aPos); gl.vertexAttribPointer(locC.aPos, 2, gl.FLOAT, false, 16, 0);
-            gl.enableVertexAttribArray(locC.aUv); gl.vertexAttribPointer(locC.aUv, 2, gl.FLOAT, false, 16, 8);
-            gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            gl.disableVertexAttribArray(locC.aPos); gl.disableVertexAttribArray(locC.aUv); gl.activeTexture(gl.TEXTURE0);
+            drawCont(matrix, buf, CA, CB, CR, !!CR.tex && fa >= back, fa, fb, back);
             return;
           }
           var A = slot(fa), B = slot(fb);
@@ -325,6 +417,12 @@
       addC: function (i, img) { queueC.push({ i: i, img: img }); },
       addCBlob: function (i, b) { blobC[i] = b; if (map) map.triggerRepaint(); },
       setCCount: function (n_) { blobC.length = n_; },
+      stat: function () {   // GPU memory held by the depth layer (debug / screenshot checks)
+        var tb = 0; Object.keys(tTex).forEach(function (k) { tb += tTex[k].bytes; });
+        var ob = texC.filter(function (x) { return x; }).length * (meta.depthc ? (meta.depthc.w || meta.w) * (meta.depthc.h || meta.h) * 4 : 0);
+        return { tiled: !!TL, full: tilesFull(), tileTex: Object.keys(tTex).length, tileMB: Math.round(tb / 1e5) / 10, overviewTex: texC.filter(function (x) { return x; }).length,
+          overviewMB: Math.round(ob / 1e5) / 10, blobs: Object.keys(tBlob).length, vis: lastVis.join(' '), tex: Object.keys(tTex).join(' ') };
+      },
       setRamp: function (cols) { ramp = new Float32Array([].concat.apply([], cols)); },
       setDrain: function (c) { drnCol = new Float32Array(c); },
       // the two depth frames around t, for the flow layer's wet mask (null until both are on the GPU)
@@ -1525,7 +1623,7 @@
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: ' + (meta && meta.kofn ? 'NOAA HRRR forecast' : 'NOAA MRMS') + ' · Roads: MassDOT' }));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.touchZoomRotate.disableRotation();
-    if (params.get('debug') === '1') { window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
+    if (params.get('debug') === '1') { window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { depth: depth.stat(), wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
     map.once('style.load', function () {
       map.addLayer(WION ? wdepth.layer : depth.layer, 'l-voy');
       addCoverage();
