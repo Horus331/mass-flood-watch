@@ -455,6 +455,7 @@
     var c = null; for (var i = 0; i < RAIN_CLASSES.length; i++) if (mm >= RAIN_CLASSES[i][0]) c = RAIN_CLASSES[i];
     return c ? c[1].concat([RAIN_ALPHA]) : [0, 0, 0, 0];
   }
+  var rainPosFn = null; // Forecast tab: the rain timeline sets the rain frame (forecast_rain), not the replay clock
   var rainOp = 0.8; // about 40 % opacity: the radar under the water, streets readable; story fades the radar back once the rain has done its work
   var rainLayer = (function () {
     var gl, prog, buf, loc = {}, tex = null, lut = null, pending = null, K = 1;
@@ -487,7 +488,7 @@
         render: function (g, matrix) {
           if (pending) { tex = texture(gl, pending, gl.LINEAR); if (pending.close) pending.close(); pending = null; }
           if (!tex) return;
-          var R = rain, pos = Math.max(0, Math.min(R.n - 1, (t * meta.frame_min - R.off) / R.step_min));
+          var R = rain, pos = Math.max(0, Math.min(R.n - 1, rainPosFn ? rainPosFn() : (t * meta.frame_min - R.off) / R.step_min));
           var fa = Math.floor(pos), fb = Math.min(fa + 1, R.n - 1);
           function cell(f) { var c = Math.floor(f / 3), cy = Math.floor(c / R.cols), cx = c % R.cols, m = [0, 0, 0]; m[f % 3] = 1; return { o: [cx / R.cols, cy / R.rows], m: m }; }
           var A = cell(fa), B = cell(fb);
@@ -1382,7 +1383,8 @@
     }).catch(function () { /* no evidence file for this run */ });
   }
 
-  // ---------- phones: the panels live in a bottom sheet; the map is full screen until the sheet is opened ----------
+  // ---------- phones: one scrolling page. The map sits at the top at a fixed height, the timeline right under it, and everything else
+  // (numbers, scenario set-up, the week ahead, the road list) follows as ordinary content scrolled with a finger. Desktop: the sidebar.
   var homes = {};
   function sheetPlace() {
     var pl = document.querySelector('.player'), body = $('sheetBody'), card = $('card');
@@ -1391,28 +1393,21 @@
       if (!homes[id]) homes[id] = { parent: el.parentNode, next: el.nextSibling };
       if (id === 'legend') { if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
       if (id === 'tabs') { if (small()) { if (el.parentNode !== document.body) document.body.appendChild(el); } else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
-      if (id === 'inst') { if (small()) { if (el.previousElementSibling !== $('tlTicks')) $('tlTicks').insertAdjacentElement('afterend', el); } else if (el.parentNode !== card) { var after = $('live'); after.insertAdjacentElement('afterend', el); } return; }
-      if (id === 'live') { if (small()) { if (el.parentNode !== pl) $('grab').insertAdjacentElement('afterend', el); } else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
+      if (id === 'live') { if (!small() && el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }   // phones: placed below
+      if (id === 'inst') { if (!small() && el.parentNode !== card) $('live').insertAdjacentElement('afterend', el); return; }
       if (small()) { if (el.parentNode !== body) body.appendChild(el); }
       else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next);
     });
-    // phones: the status line heads the sheet; desktop: it sits in the card, and the what-if controls move into the card too
+    // phones, in page order under the timeline: the numbers now, the week ahead (Forecast), the inputs now, the scenario set-up, the roads
     var sl = $('statusLine'), w = $('wi');
-    var ctl = pl.querySelector('.controls');
-    if (small()) { if (sl.previousElementSibling !== ctl) ctl.insertAdjacentElement('afterend', sl); if (w.parentNode !== pl || w.previousElementSibling !== $('inst')) $('inst').insertAdjacentElement('afterend', w); }
-    else { if (sl.parentNode !== card) card.querySelector('.pick').insertAdjacentElement('afterend', sl); if (WHATIF && w.parentNode !== card) sl.insertAdjacentElement('afterend', w); }
-    pl.dataset.sheet = small() ? 'on' : 'off';
-    document.documentElement.style.setProperty('--card-b', Math.round(card.getBoundingClientRect().bottom) + 'px');
-    if (small()) sheetDetent(detent || 'peek'); else { pl.style.removeProperty('--sheet-off'); pl.style.removeProperty('--sheet-h'); pl.style.transform = ''; delete pl.dataset.detent; }
+    if (small()) {
+      var after = $('tlTicks');
+      [sl, $('live'), $('inst'), w].forEach(function (el) { if (el.previousElementSibling !== after || el.parentNode !== pl) after.insertAdjacentElement('afterend', el); after = el; });
+    } else { if (sl.parentNode !== card) card.querySelector('.pick').insertAdjacentElement('afterend', sl); if (WHATIF && w.parentNode !== card) sl.insertAdjacentElement('afterend', w); }
+    pl.dataset.sheet = small() ? 'page' : 'off'; pl.dataset.open = 'true';
+    document.documentElement.style.setProperty('--card-b', Math.round(card.getBoundingClientRect().bottom + (small() ? window.scrollY : 0)) + 'px');
   }
-  function sheetToggle(open) {
-    if (small()) { sheetDetent(open === undefined ? (detent === 'peek' ? 'half' : 'peek') : open ? 'half' : 'peek'); return; }
-    var pl = document.querySelector('.player'); if (open === undefined) open = pl.dataset.open !== 'true';
-    pl.dataset.open = open ? 'true' : 'false'; $('grab').setAttribute('aria-expanded', open ? 'true' : 'false');
-    document.documentElement.classList.toggle('sheet-open', open);
-    $('grabL').textContent = open ? 'Show more map' : (WHATIF ? 'Set up the storm, layers, timeline' : 'Timeline, layers, evidence');
-    drawChart();
-  }
+  function sheetToggle() { if (small()) return; document.querySelector('.player').dataset.open = 'true'; drawChart(); }
 
   // ---------- loading ----------
   // where a run's image sheets live: meta.data_base (absolute or relative URL, e.g. a dataset host with CORS) or the run folder itself.
@@ -1442,6 +1437,171 @@
     var p = Math.min(1, done / total);
     $('loadBar').style.width = (p * 100).toFixed(0) + '%';
     $('loadText').textContent = label || ('Loading storm frames… ' + Math.round(p * 100) + '%');
+  }
+
+  // ---------- Forecast tab: rain from two days back to two days ahead (docs/site/data/forecast_rain, same atlas as the replays) ----------
+  // Frame f is the mean rain rate over the hour ending at start + f x step_min. Frames up to now_frame are NOAA MRMS radar (observed), the
+  // rest the NOAA HRRR forecast. Frames listed in `missing` (or with frame_src '-') were drawn as 0: shown hatched ("no forecast yet"), not dry.
+  // When the flood model ran for this cycle, the future part of the slider also drives its water and roads, matched by UTC time.
+  var FR = null, FRON = false, frT = 0, frPlaying = false, frLast = 0, frSpeed = 1, frMiss = {}, frPackOn = null;
+  var frP = runKey === 'forecast' ? getJson('site/data/forecast_rain/rain.json').then(function (r) {
+    if (!r || !r.n || !r.sheet || !r.bounds) return null;
+    return getBlob('site/data/forecast_rain/' + r.sheet).then(decodeBlob).then(function (img) { r._img = img; return r; });
+  }).catch(function () { return null; }) : null;
+  function utc(x) { var s0 = String(x || ''); if (/T\d\d:\d\dZ$/.test(s0)) s0 = s0.replace(/Z$/, ':00Z'); var d = new Date(s0); return isNaN(d.getTime()) ? null : d; }
+  var fmtFr = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  function frMs(f) { return FR._t0 + f * FR.step_min * 60000; }
+  function frInit(r) {
+    if (FRON) return;
+    FR = r; FRON = true; rain = r; rainPosFn = function () { return frT; };
+    FR._t0 = utc(r.start).getTime(); FR._now = r.now_frame != null ? r.now_frame : Math.max(0, (r.past_n || 1) - 1);
+    frMiss = {};
+    (r.missing || []).forEach(function (x) { var d = utc(x); if (d) { var f = Math.round((d.getTime() - FR._t0) / 60000 / r.step_min); if (f >= 0 && f < r.n) frMiss[f] = 1; } });
+    (r.frame_src || []).forEach(function (x, i) { if (x === '-') frMiss[i] = 1; });
+    rainLayer.set(r._img); r._img = null;
+    whenStyle(function () {
+      map.addLayer(rainLayer.layer, map.getLayer('depth') ? 'depth' : map.getLayer('cov-out') ? 'cov-out' : 'l-voy');
+      vis('rain', $('lyRain').checked); map.triggerRepaint();
+    });
+    document.documentElement.classList.add('fr-on');
+    $('rainRow').hidden = false; $('rainKey').hidden = !$('lyRain').checked;
+    var rs = $('rainRow').querySelector('span'); if (rs) rs.innerHTML = 'Rain <small>radar, then NOAA HRRR forecast</small>';
+    $('fplayer').hidden = false; $('frScrub').max = r.n - 1;
+    frSetSpeed(+(store('mfw-frspeed') || 1));
+    frDraw(); frSetTime(FR._now);
+    ph(); if (window.ResizeObserver) new ResizeObserver(function () { frTicks(); }).observe($('frTl'));
+    if (small()) sheetPlace();
+  }
+  function frPeak(f) { var P = FR.frame_peak_mmh || []; return P[f]; }
+  function frDraw() {
+    if (!FR) return;
+    var N = FR.n - 1, now_ = FR._now, P = FR.frame_peak_mmh || [], svg = $('frChart');
+    var cp = meta && t0 && meta.closed_per_frame && meta.closed_per_frame.length ? meta.closed_per_frame : null;
+    $('frRoadsBand').hidden = !cp;
+    var bands = Array.prototype.filter.call(document.querySelectorAll('#frTl .band'), function (b) { return !b.hidden; });
+    var BH = (bands[0] && bands[0].offsetHeight) || 30, H = BH * bands.length, s = '';
+    var mx = Math.max(5, Math.max.apply(0, P.map(function (v) { return v || 0; })));
+    s += '<rect x="0" y="0" width="' + now_ + '" height="' + H + '" fill="' + css('--ink') + '" fill-opacity=".045"/>';   // the observed part
+    bands.forEach(function (b, k) {
+      var y0 = k * BH;
+      if (k) s += '<line x1="0" x2="' + N + '" y1="' + y0 + '" y2="' + y0 + '" stroke="' + css('--rule') + '" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+      if (b.dataset.band === 'rain') {
+        for (var i = 0; i <= N; i++) {
+          var v = P[i] || 0; if (frMiss[i] || v < 0.05) continue;
+          var bh = Math.max(1.5, (BH - 12) * Math.sqrt(v / mx));   // square-root scale: drizzle stays visible next to a downpour
+          s += '<rect x="' + (i - 0.42) + '" y="' + (y0 + BH - bh) + '" width="0.84" height="' + bh.toFixed(2) + '" fill="' + css('--rain') + '"' + (i > now_ ? ' fill-opacity=".72"' : '') + '/>';
+        }
+      } else if (cp) {   // the flood model's closures, on the rain clock, over the part of the slider that drives them
+        var cmax = Math.max.apply(0, cp.concat([1])), pts = [];
+        cp.forEach(function (v, j) { var x = (t0.getTime() + j * meta.frame_min * 60000 - FR._t0) / 60000 / FR.step_min; if (x >= now_ && x <= N) pts.push(x.toFixed(3) + ',' + (y0 + BH - 1 - (BH - 13) * v / cmax).toFixed(2)); });
+        if (pts.length > 1) {
+          var xa = pts[0].split(',')[0], xb = pts[pts.length - 1].split(',')[0];
+          s += '<polygon points="' + xa + ',' + (y0 + BH) + ' ' + pts.join(' ') + ' ' + xb + ',' + (y0 + BH) + '" fill="' + css('--closed') + '" fill-opacity=".16"/>';
+          s += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + css('--closed') + '" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>';
+        }
+      }
+    });
+    svg.setAttribute('viewBox', '0 0 ' + N + ' ' + H); svg.style.height = H + 'px'; svg.innerHTML = s;
+    // hours with no data: hatched over the rain band, labelled
+    Array.prototype.forEach.call(document.querySelectorAll('#frTl .fr-miss'), function (x) { x.remove(); });
+    var runs = [], st = null;
+    for (var f = 0; f <= N + 1; f++) { if (f <= N && frMiss[f]) { if (st === null) st = f; } else if (st !== null) { runs.push([st, f - 1]); st = null; } }
+    runs.forEach(function (rn) {
+      var d = document.createElement('div'); d.className = 'fr-miss';
+      var a = Math.max(0, rn[0] - 0.5), b2 = Math.min(N, rn[1] + 0.5);
+      d.style.left = (100 * a / N) + '%'; d.style.width = (100 * (b2 - a) / N) + '%'; d.style.height = (BH - 4) + 'px'; d.style.top = (bands[0].offsetTop + 2) + 'px';
+      d.title = rn[0] > now_ ? 'No forecast yet for these hours' : 'No radar for these hours';
+      if ((b2 - a) / N * $('frTl').clientWidth > 84) d.innerHTML = '<span>' + (rn[0] > now_ ? 'no forecast yet' : 'no radar') + '</span>';
+      $('frTl').insertBefore(d, $('frNowMark'));
+    });
+    $('frNowMark').style.left = (100 * now_ / N) + '%';
+    $('frPast').style.width = (100 * now_ / N) + '%'; $('frFut').style.width = (100 * (N - now_) / N) + '%';
+    frTicks(true); frCursor();
+  }
+  var frTickSig = '';
+  function frTicks(force) {
+    if (!FR) return; var px = $('frTl').clientWidth; if (!px) return;
+    var hrs = (FR.n - 1) * FR.step_min / 60, step = [1, 2, 3, 6, 12, 24, 48].filter(function (h) { return px * h / hrs >= 78; })[0] || 48;
+    var sig = px + ':' + step; if (sig === frTickSig && !force) return; frTickSig = sig;
+    $('frTicks').innerHTML = ticksHtml(FR._t0, hrs, step);
+  }
+  function frCursor() { $('frCursor').style.left = (100 * frT / (FR.n - 1)) + '%'; }
+  function frRel(f) {
+    var h = Math.round((f - FR._now) * FR.step_min / 60);
+    return h === 0 ? 'now' : h < 0 ? (-h) + ' h ago' : 'in ' + h + ' h';
+  }
+  function frPack(on) {   // the flood model's water and roads: shown only on the part of the slider they forecast
+    if (on === frPackOn) return; frPackOn = on;
+    if (on) { applyToggles(); slLast = ''; }
+    else {
+      ['depth', 'flow', 'wet', 'wetcase', 'halo', 'bar', 'imp', 'imp-case', 'edge', 'rlab-w', 'rlab-r', 'rlab-c', 'agree', 'peak', 'may', 'risk'].forEach(function (l) { vis(l, false); });
+      $('kClosed').textContent = $('kRisk').textContent = '–'; slLast = '';
+    }
+    var a = t0, b = t0 && new Date(t0.getTime() + (nf - 1) * meta.frame_min * 60000);
+    $('slMode').textContent = on ? 'Flood model, NOAA HRRR forecast' : 'Flood model covers ' + fmtFr.format(new Date(Math.max(a.getTime(), frMs(FR._now)))) + ' to ' + fmtFr.format(b) + ': move the slider there';
+  }
+  var frLastLabel = '';
+  function frSetTime(v) {
+    if (!FR) return;
+    frT = Math.max(0, Math.min(FR.n - 1, v));
+    var f = Math.round(frT), d = new Date(frMs(f)), pk = frPeak(f), fut = f > FR._now;
+    var rd = frMiss[f] ? (fut ? 'No forecast yet for this hour' : 'No radar for this hour') :
+      (pk == null ? '' : pk < 0.05 ? 'No rain in District 3' : (pk >= 10 ? Math.round(pk) : pk.toFixed(1)) + ' mm/h max in District 3');
+    var label = fmtFr.format(d) + '|' + rd + '|' + f;
+    if (label !== frLastLabel) {
+      frLastLabel = label;
+      $('frClock').innerHTML = esc(fmtFr.format(d)) + ' <small>' + (fut ? 'forecast, ' : 'radar, ') + frRel(f) + '</small>';
+      $('frRead').textContent = rd;
+      $('frScrub').value = f;
+      $('frScrub').setAttribute('aria-valuetext', fmtFr.format(d) + ', ' + rd + ', ' + (fut ? 'forecast, ' : 'radar, ') + frRel(f));
+    }
+    frCursor();
+    if (meta && t0 && ready) {   // a forecast flood-model run of this cycle: the future part of the slider drives it (same UTC time)
+      var pf = (frMs(frT) - t0.getTime()) / 60000 / meta.frame_min, on = frT >= FR._now && pf >= 0 && pf <= nf - 1;
+      frPack(on);
+      if (on) setTime(pf);
+    }
+    if (map) map.triggerRepaint();
+  }
+  function frTick(now) {
+    if (!frPlaying) return;
+    var dt = Math.min(0.1, (now - frLast) / 1000); frLast = now;
+    var v = frT + dt * frSpeed * 60 / FR.step_min;
+    if (v >= FR.n - 1) { frSetTime(FR.n - 1); frSetPlaying(false); return; }
+    frSetTime(v); requestAnimationFrame(frTick);
+  }
+  function frSetPlaying(on) {
+    frPlaying = on;
+    $('frPlayIcon').setAttribute('d', on ? 'M5 3h3.5v14H5zM11.5 3H15v14h-3.5z' : 'M5 3l12 7-12 7z');
+    $('frPlay').setAttribute('aria-label', on ? 'Pause' : 'Play the rain');
+    if (on) { if (frT >= FR.n - 1.01) frT = 0; frLast = performance.now(); requestAnimationFrame(frTick); }
+  }
+  function frSetSpeed(v) {
+    var bs = Array.prototype.slice.call(document.querySelectorAll('#frSpeeds button')), b = bs.filter(function (x) { return Math.abs(+x.dataset.speed - v) < 1e-3; })[0] || bs[1];
+    frSpeed = +b.dataset.speed; bs.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+  }
+  if (runKey === 'forecast') {
+    $('frPlay').addEventListener('click', function () { if (FR) frSetPlaying(!frPlaying); });
+    $('frNow').addEventListener('click', function () { if (!FR) return; frSetPlaying(false); frSetTime(FR._now); });
+    document.querySelectorAll('#frSpeeds button').forEach(function (b0) {
+      b0.addEventListener('click', function () {
+        var b = b0;
+        if (small() && b.getAttribute('aria-pressed') === 'true') { var all = Array.prototype.slice.call(document.querySelectorAll('#frSpeeds button')); b = all[(all.indexOf(b) + 1) % all.length]; }
+        frSetSpeed(+b.dataset.speed); store('mfw-frspeed', b.dataset.speed);
+      });
+    });
+    var frWant = null, frRaf = 0;
+    var frTo = function (v) { frWant = v; if (frRaf) return; frRaf = requestAnimationFrame(function () { frRaf = 0; if (frWant != null) { var w = frWant; frWant = null; frSetTime(w); } }); };
+    $('frScrub').addEventListener('input', function (e) { if (!FR) return; frSetPlaying(false); frTo(+e.target.value); });
+    scrubber($('frTl'), function () { return !!FR; }, function () { return FR.n; }, function () { frSetPlaying(false); }, frTo);
+    document.addEventListener('keydown', function (e) {
+      if (!FR || e.altKey || e.ctrlKey || e.metaKey) return;
+      var tg = e.target, free = tg === document.body || (map && tg === map.getCanvas());
+      if (!free) return;
+      if (e.key === ' ') { e.preventDefault(); frSetPlaying(!frPlaying); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); frSetPlaying(false); frSetTime(Math.round(frT) + (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 6 : 1)); }
+    });
+    window.addEventListener('resize', function () { if (FR) { frDraw(); } });
   }
 
   // ---------- forecast tab ----------
@@ -1509,7 +1669,12 @@
     $('forecastCard').hidden = false;   // no replay: the layer panel keeps only the background choice and the coverage key
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
-    map.once('style.load', function () { addCoverage(); applyTheme(); });
+    var at = document.querySelector('.maplibregl-ctrl-attrib'); if (at && small()) at.classList.remove('maplibregl-compact-show');
+    map.once('style.load', function () { addCoverage(); applyTheme(); styleReady(); });
+    // phones: the credits stay folded behind their (i) button (MapLibre unfolds them whenever the credit text changes) until it is tapped
+    var atUser = false; document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.maplibregl-ctrl-attrib-button')) atUser = true; }, true);
+    map.on('data', function () { var a = document.querySelector('.maplibregl-ctrl-attrib'); if (a && small() && !atUser) a.classList.remove('maplibregl-compact-show'); });
+    if (frP) frP.then(function (r) { if (r) frInit(r); });
   }
 
   function start() {
@@ -1606,16 +1771,15 @@
   // padding that keeps the framed area clear of the panels, measured from the panels themselves
   function framePadding() {
     var W = window.innerWidth, H = window.innerHeight, g = 14;
-    var card = $('card').getBoundingClientRect(), lg = $('legend').getBoundingClientRect(), pl = document.querySelector('.player').getBoundingClientRect();
+    var card = $('card').getBoundingClientRect(), lg = $('legend').getBoundingClientRect(), pl = bottomBar().getBoundingClientRect();
     var fc = $('forecastCard'); var p;
     if (!small()) {
       p = { top: g + 8, bottom: H - (pl.height ? pl.top : H) + g, left: card.right + g, right: (lg.width && !$('legend').hidden ? W - lg.left : 0) + g + 40 };
       if (!fc.hidden) { var r = fc.getBoundingClientRect(); p.bottom = Math.max(p.bottom, H - r.top + g); }
-    } else {
-      var lgTop = lg.width && !$('legend').hidden ? lg.top : H, st = $('story');
-      if (!st.hidden) lgTop = Math.min(lgTop, st.getBoundingClientRect().top);
-      p = { top: card.bottom + g, bottom: H - Math.min(pl.height ? pl.top : H, lgTop) + g, left: g, right: g };
-      if (!fc.hidden) { var r2 = fc.getBoundingClientRect(); p.bottom = Math.max(p.bottom, H - r2.top + g); }
+    } else {   // phones: padding inside the map's own box (the header floats over its top; the tour card may cover its foot)
+      var mr = $('map').getBoundingClientRect(), st = $('story'); H = mr.height || H;
+      p = { top: Math.max(g, card.bottom - mr.top + g), bottom: g, left: g, right: g };
+      if (!st.hidden) p.bottom = Math.max(p.bottom, mr.bottom - st.getBoundingClientRect().top + g);
     }
     // never leave less than 40% of the map free: shrink padding proportionally if the panels are huge
     var fw = W - p.left - p.right, fh = H - p.top - p.bottom;
@@ -1623,6 +1787,9 @@
     if (fh < H * 0.3) { var k2 = (H * 0.7) / (p.top + p.bottom); p.top *= k2; p.bottom *= k2; }
     return p;
   }
+
+  // the timeline bar at the foot of the map: the replay's, or on the Forecast tab the rain timeline when it is shown
+  function bottomBar() { var f = $('fplayer'); return f && !f.hidden ? f : document.querySelector('.player'); }
 
   // ---------- model coverage: where the live forecast runs (MassDOT District 3) and where the model was only tested on past storms
   // (the District 4-6 storm boxes); everything else is greyed out (docs/site/data/coverage.json, proto/build_coverage.py)
@@ -1704,7 +1871,11 @@
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));
     // optional layers: a missing file only hides that layer
-    jobs.push(getJson(base + 'rain.json').then(function (r) {
+    jobs.push((frP ? frP : Promise.resolve(null)).then(function (fr) {   // Forecast tab: the two-day-back, two-day-ahead rain replaces the run's own
+      if (fr) { frInit(fr); progress(); return null; }
+      return getJson(base + 'rain.json');
+    }).then(function (r) {
+      if (!r) return;
       return getBitmap(base + r.sheet).then(function (img) {
         r.off = (new Date(r.start.replace(/Z$/, ':00Z')) - t0) / 60000;
         rain = r; rainLayer.set(img);
@@ -1755,6 +1926,7 @@
       if (WION) wiApply(wi.first, wi.dj, true); else if (WHATIF) { wiPhases(); wiSelect(); } else wiPhases();
       try { rankBuild(); } catch (e) { console.error('rank', e); }
       setTime(t);
+      if (FRON) { frDraw(); frSetTime(frT); }
       if (storyWanted()) storyStart(0); else refit();
       if (!WHATIF && runKey !== 'forecast' && $('tourLink')) { $('tourLink').href = '?run=' + runKey + '&tour=1'; $('tourLink').hidden = false; }
     }).catch(function (e) { $('loadText').textContent = 'Some storm data did not load. Reload the page to try again.'; console.error(e); });
@@ -2495,6 +2667,7 @@
     if (popup) popup.remove(); hideTip();
     if (follow) setFollow(false);
     story.on = true; document.documentElement.classList.add('story-on'); $('caption').hidden = true;
+    if (small() && window.scrollY) window.scrollTo(0, 0);   // phones: the tour runs on the map at the top of the page
     $('story').hidden = false; $('replayStory').hidden = true;
     var ol = $('stSteps'); ol.innerHTML = ''; ol.style.setProperty('--n', story.sc.length);
     story.sc.forEach(function (sc, k) {
@@ -2683,13 +2856,16 @@
     var px = tl.clientWidth; if (!px) return;
     var hrs = (nf - 1) * meta.frame_min / 60, step = [1, 2, 3, 6, 12, 24, 48].filter(function (h) { return px * h / hrs >= 78; })[0] || 48;
     var sig = px + ':' + step + ':' + nf; if (sig === ticksSig) return; ticksSig = sig;
-    var out = '', h0 = Math.ceil(t0.getTime() / 3600e3) * 3600e3;
-    for (var ms = h0; ms <= t0.getTime() + hrs * 3600e3; ms += 3600e3) {
+    el.innerHTML = ticksHtml(t0.getTime(), hrs, step);
+  }
+  function ticksHtml(ms0, hrs, step) {
+    var out = '', h0 = Math.ceil(ms0 / 3600e3) * 3600e3;
+    for (var ms = h0; ms <= ms0 + hrs * 3600e3; ms += 3600e3) {
       var d = new Date(ms), hh = +fmtHrN.format(d) % 24; if (hh % step) continue;
-      var x = (ms - t0.getTime()) / 3600e3 / hrs * 100; if (x < 3 || x > 97) continue;
+      var x = (ms - ms0) / 3600e3 / hrs * 100; if (x < 3 || x > 97) continue;
       out += '<span' + (hh === 0 ? ' class="d"' : '') + ' style="left:' + x.toFixed(2) + '%">' + (hh === 0 ? fmtWD.format(d).replace(/,.*$/, '') : fmtTick.format(d).replace(' ', '\u202f')) + '</span>';
     }
-    el.innerHTML = out;
+    return out;
   }
   $('gaugeSel').addEventListener('change', function () { drawChart(); instInit(); });
   function setCursor() { var c = $('cursor'); if (c && nf > 1) c.style.left = (100 * t / (nf - 1)) + '%'; }
@@ -2918,18 +3094,18 @@
     }
   }
   $('play').addEventListener('click', function () { if (!ready) return; if (story.on) { storyEnd(); played = true; } setPlaying(!playing); });
-  document.querySelectorAll('.speeds button').forEach(function (b0) {
+  document.querySelectorAll('.player .speeds button').forEach(function (b0) {
     b0.addEventListener('click', function () {
       var b = b0;
       if (small() && b.getAttribute('aria-pressed') === 'true') { // phones show one speed button that cycles
-        var all = Array.prototype.slice.call(document.querySelectorAll('.speeds button')); b = all[(all.indexOf(b) + 1) % all.length];
+        var all = Array.prototype.slice.call(document.querySelectorAll('.player .speeds button')); b = all[(all.indexOf(b) + 1) % all.length];
       }
       setSpeed(+b.dataset.speed); store('mfw-speed2', b.dataset.speed);
     });
   });
   // playback speed in storm hours per real second: Slow 5 min/s, Normal 15 min/s, Fast 45 min/s; remembered across storms and tabs
   function setSpeed(v) {
-    var bs = Array.prototype.slice.call(document.querySelectorAll('.speeds button')), b = bs.filter(function (x) { return Math.abs(+x.dataset.speed - v) < 1e-3; })[0] || bs[1];
+    var bs = Array.prototype.slice.call(document.querySelectorAll('.player .speeds button')), b = bs.filter(function (x) { return Math.abs(+x.dataset.speed - v) < 1e-3; })[0] || bs[1];
     speed = +b.dataset.speed;
     bs.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
   }
@@ -2941,20 +3117,33 @@
   }
   function scrubStart() { if (story.on) storyEnd(); if (playing) setPlaying(false); played = true; }
   $('scrub').addEventListener('input', function (e) { if (!ready) return; scrubStart(); scrubTo(+e.target.value); });
-  (function scrubPointer() {
-    var tl = $('timeline'), rect = null, id = null;
-    function at(e) { var f = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); return f * (nf - 1); }
+  // drag (or tap) on a timeline to move through time. Mouse: at once. Touch: a sideways drag scrubs and a tap jumps, while an up or down
+  // swipe that starts on the timeline scrolls the page (touch-action: pan-y), so the timeline never traps the page on a phone.
+  function scrubber(tl, ok, n_, start_, to_) {
+    var rect = null, id = null, x0 = 0, y0 = 0, on = false;
+    function at(e) { var f = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); return f * (n_() - 1); }
+    function go(e) { on = true; try { tl.setPointerCapture(id); } catch (x) { } tl.classList.add('scrubbing'); start_(); to_(at(e)); }
     tl.addEventListener('pointerdown', function (e) {
-      if (!ready || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('button,select')) return;
-      rect = tl.getBoundingClientRect(); id = e.pointerId; try { tl.setPointerCapture(id); } catch (x) { }
-      tl.classList.add('scrubbing'); scrubStart(); scrubTo(at(e)); e.preventDefault();
+      if (!ok() || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('button,select')) return;
+      rect = tl.getBoundingClientRect(); id = e.pointerId; x0 = e.clientX; y0 = e.clientY; on = false;
+      if (e.pointerType === 'mouse') { go(e); e.preventDefault(); }
     });
-    tl.addEventListener('pointermove', function (e) { if (id === e.pointerId && rect) scrubTo(at(e)); });
-    function end(e) { if (id !== e.pointerId) return; id = null; rect = null; tl.classList.remove('scrubbing'); }
-    tl.addEventListener('pointerup', end); tl.addEventListener('pointercancel', end);
-  })();
+    tl.addEventListener('pointermove', function (e) {
+      if (id !== e.pointerId || !rect) return;
+      if (on) { to_(at(e)); return; }
+      var dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+      if (dx > 6 && dx > dy) go(e); else if (dy > 8) { id = null; rect = null; }
+    });
+    function end(e) {
+      if (id !== e.pointerId) return;
+      if (!on && e.type === 'pointerup' && rect) go(e);   // a tap
+      id = null; rect = null; on = false; tl.classList.remove('scrubbing');
+    }
+    tl.addEventListener('pointerup', end); tl.addEventListener('pointercancel', function (e) { if (id === e.pointerId) { id = null; rect = null; on = false; tl.classList.remove('scrubbing'); } });
+  }
+  scrubber($('timeline'), function () { return ready; }, function () { return nf; }, scrubStart, scrubTo);
   document.addEventListener('keydown', function (e) {
-    if (!ready || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (!ready || FRON || e.altKey || e.ctrlKey || e.metaKey) return;
     var tg = e.target, free = tg === document.body || tg === map.getCanvas() || (tg.closest && tg.closest('#story'));
     if (/^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName) && tg.id !== 'scrub') return;
     if (story.on) {
@@ -2989,8 +3178,8 @@
   document.querySelectorAll('input[data-ref]').forEach(function (x) { x.addEventListener('change', function () { refVis(x.dataset.ref, x.checked); }); });
   sheetPlace(); sheetToggle(false);
   var pl = document.querySelector('.player');
-  function ph() { if (small()) return; document.documentElement.style.setProperty('--player-h', pl.offsetHeight + 'px'); }
-  if (window.ResizeObserver) { new ResizeObserver(ph).observe(pl); new ResizeObserver(function () { drawTicks(); }).observe($('timeline')); } ph();
+  function ph() { if (small()) return; document.documentElement.style.setProperty('--player-h', bottomBar().offsetHeight + 'px'); }
+  if (window.ResizeObserver) { new ResizeObserver(ph).observe(pl); new ResizeObserver(ph).observe($('fplayer')); new ResizeObserver(function () { drawTicks(); }).observe($('timeline')); } ph();
   // the key is always on screen; the layer panel opens on demand (remembered on desktop)
   var lg = $('legend'), lgOpen = !small() && store('mfw-layers') === '1';
   lg.dataset.collapsed = lgOpen ? 'false' : 'true'; $('legendToggle').setAttribute('aria-expanded', lgOpen ? 'true' : 'false');
@@ -3033,7 +3222,7 @@
   function openRoads() {
     if ($('rank').hidden) { toast('No road gets water in this run'); return; }
     closePlace(); setTabOn('roads'); $('rank').open = true;
-    if (small()) { sheetDetent('full'); setTimeout(function () { var pl = document.querySelector('.player'); pl.scrollTo({ top: $('rank').offsetTop - 44, behavior: reduced ? 'auto' : 'smooth' }); }, 60); }
+    if (small()) { setTimeout(function () { window.scrollTo({ top: Math.max(0, $('rank').getBoundingClientRect().top + window.scrollY - 8), behavior: reduced ? 'auto' : 'smooth' }); }, 60); }
     else { sideSet(true); $('rank').scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' }); }
   }
 
@@ -3047,60 +3236,11 @@
   $('sideToggle').addEventListener('click', function () { sideSet(document.documentElement.classList.contains('side-off')); });
   if (!small() && store('mfw-side') === '0') sideSet(false);
 
-  // ---------- phone: bottom sheet with three detents ----------
-  var detent = 'peek', dragged = false;
-  function sheetMetrics() {
-    var pl = document.querySelector('.player'), vh = window.innerHeight, tabs = $('tabs'), tab = tabs && tabs.parentNode === document.body ? tabs.offsetHeight : 0;
-    var top = $('card').getBoundingClientRect().bottom + 8, full = Math.max(200, vh - tab - top);
-    var tl = $('timeline'), peek;
-    if (document.documentElement.classList.contains('no-replay')) peek = Math.min(full, Math.round(vh * 0.2));
-    else { var ct = pl.querySelector('.controls'); peek = Math.min(full, (ct && ct.offsetParent ? ct.offsetTop + ct.offsetHeight : 80) + 12); }   // peek: one row (play, time, closed and at risk); the rest when dragged up
-    var half = Math.max(peek + 90, Math.min(full, Math.round(vh * 0.52)));
-    return { full: full, peek: Math.max(72, peek), half: half };
-  }
+  // ---------- phone: the page scrolls; 'peek' brings the map back into view (the old sheet detents are gone) ----------
   function sheetDetent(d) {
     if (!small()) return;
-    var pl = document.querySelector('.player'); detent = d;
-    pl.dataset.detent = d; pl.dataset.open = d === 'peek' ? 'false' : 'true';
-    $('grab').setAttribute('aria-expanded', d === 'peek' ? 'false' : 'true');
-    document.documentElement.classList.toggle('sheet-open', d !== 'peek');
-    var m = sheetMetrics(), vis_ = m[d];
-    pl.style.setProperty('--sheet-h', m.full + 'px'); pl.style.setProperty('--sheet-off', (m.full - vis_) + 'px'); pl.style.transform = '';
-    if (d !== 'full') pl.scrollTop = 0;
-    document.documentElement.style.setProperty('--player-h', vis_ + 'px');
-    $('grabL').textContent = d === 'peek' ? 'More' : 'Less';
-    drawChart();
+    if (d === 'peek' && window.scrollY > 0) window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
   }
-  (function sheetDrag() {
-    var pl = document.querySelector('.player'), y0 = null, off0 = 0, ly = 0, lt = 0, v = 0, id = null;
-    function down(e) {
-      if (!small() || (e.pointerType === 'mouse' && e.button !== 0)) return;
-      if (detent === 'full' && pl.scrollTop > 0 && e.currentTarget !== $('grab')) return;
-      var m = sheetMetrics(); y0 = e.clientY; off0 = m.full - m[detent]; ly = y0; lt = performance.now(); v = 0; id = e.pointerId; dragged = false;
-    }
-    function move(e) {
-      if (y0 === null || e.pointerId !== id) return;
-      var dy = e.clientY - y0; if (!dragged && Math.abs(dy) < 6) return;
-      if (!dragged) { dragged = true; pl.classList.add('dragging'); try { e.currentTarget.setPointerCapture(id); } catch (x) { } }
-      var m = sheetMetrics(), off = Math.max(-12, Math.min(m.full - m.peek + 24, off0 + dy));
-      pl.style.transform = 'translateY(' + off + 'px)';
-      var now = performance.now(); v = (e.clientY - ly) / Math.max(1, now - lt); ly = e.clientY; lt = now;
-    }
-    function up(e) {
-      if (y0 === null) return;
-      var dy = e.clientY - y0; y0 = null; pl.classList.remove('dragging');
-      if (!dragged) return;
-      var m = sheetMetrics(), vis_ = m.full - (off0 + dy) - v * 220, best = 'peek', bd = 1e9;
-      ['peek', 'half', 'full'].forEach(function (k) { var dd = Math.abs(m[k] - vis_); if (dd < bd) { bd = dd; best = k; } });
-      sheetDetent(best);
-      setTimeout(function () { dragged = false; }, 50);
-    }
-    ['grab', 'statusLine'].forEach(function (k) {
-      var el = $(k); el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
-    });
-    $('grab').addEventListener('click', function () { if (dragged) return; sheetDetent(detent === 'peek' ? 'half' : detent === 'half' ? 'full' : 'peek'); });
-    $('statusLine').addEventListener('click', function () { if (small() && !dragged && detent === 'peek') sheetDetent('half'); });
-  })();
 
   // ---------- floating buttons ----------
   $('fbIn').addEventListener('click', function () { if (map) map.zoomIn({ duration: reduced ? 0 : 300 }); });
@@ -3208,8 +3348,8 @@
     });
     $('plShare').addEventListener('click', shareView);
     if (small()) { // keep the road above the card
-      var pt = map.project(ll || midOf(f)), lim = window.innerHeight - $('place').getBoundingClientRect().height - 40;
-      if (pt.y > lim) map.panBy([0, pt.y - lim + 60], { duration: reduced ? 0 : 400 });
+      var pt = map.project(ll || midOf(f)), mt = $('map').getBoundingClientRect().top, lim = window.innerHeight - $('place').getBoundingClientRect().height - 40;
+      if (pt.y + mt > lim) map.panBy([0, pt.y + mt - lim + 60], { duration: reduced ? 0 : 400 });
     }
   }
   function closePlace() {

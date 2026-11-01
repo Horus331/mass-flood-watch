@@ -65,9 +65,9 @@ small{color:var(--muted);font-size:11.5px;margin-left:3px}
 svg{flex:none}
 
 /* floating surfaces share one material */
-.card,.legend,.player,.story,.soon-card,.place,.hsheet,.toast,.side-toggle,.fabs .fgrp{position:absolute;background:var(--surface);border:1px solid var(--rule);box-shadow:var(--shadow);
+.card,.legend,.player,.fplayer,.story,.soon-card,.place,.hsheet,.toast,.side-toggle,.fabs .fgrp{position:absolute;background:var(--surface);border:1px solid var(--rule);box-shadow:var(--shadow);
   -webkit-backdrop-filter:saturate(1.3) blur(16px);backdrop-filter:saturate(1.3) blur(16px)}
-.card,.legend,.player,.story,.soon-card,.fabs,.place,.hsheet,.caption,.toast,.side-toggle,.tabs{z-index:3}
+.card,.legend,.player,.fplayer,.story,.soon-card,.fabs,.place,.hsheet,.caption,.toast,.side-toggle,.tabs{z-index:3}
 
 /* generic buttons */
 .jumps button,.rank-act button,.pl-act button,.st-nav button,.legend-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 12px;
@@ -289,7 +289,6 @@ html.side-off .player{left:12px}
 .loading .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
 .loading span{color:var(--muted);font-size:12.5px}
 .no-replay .player{display:none}
-.grab{display:none}
 .sheet-body:empty{display:none}
 
 /* phases of the water's journey: the guided tour only */
@@ -534,10 +533,43 @@ html.story-on .rank,html.story-on .caveat-foot{visibility:hidden}
   .speeds button{min-width:30px}
 }
 
-/* ---------- phone: header, bottom sheet with detents, tab bar ---------- */
+/* ---------- Forecast tab: the rain timeline, two days back to two days ahead (same component as the replay's) ---------- */
+.fplayer{left:calc(12px + var(--side-w) + 12px);right:12px;bottom:12px;padding:10px 16px 6px;border-radius:var(--r-lg);transition:left .38s var(--spring)}
+html.side-off .fplayer{left:12px}
+.fplayer .clock b small{font-size:12px;font-weight:600;color:var(--muted);margin-left:4px}
+.fr-tl{margin-top:8px}
+.fr-parts{display:flex;height:16px;font-size:11px;font-weight:700;line-height:16px;color:var(--muted);pointer-events:none}
+.fr-parts span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fr-past{text-align:right;padding-right:26px}
+.fr-fut{padding-left:26px;color:var(--ink-2)}
+#frChart{position:absolute;left:0;top:16px;width:100%;display:block;pointer-events:none}
+#frScrub{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none;z-index:0}
+.timeline:has(#frScrub:focus-visible){outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
+.fr-tl .cursor{top:12px}
+.fr-nowmark{position:absolute;top:0;bottom:-4px;width:0;border-left:2px dashed var(--accent);pointer-events:none;z-index:2}
+.fr-nowmark span{position:absolute;top:0;left:-1px;transform:translateX(-50%);font-size:10.5px;font-weight:800;color:var(--on-accent);background:var(--accent);border-radius:4px;padding:1px 5px 0;line-height:15px}
+.fr-tl .band[data-band="rain"] .blabel{display:none}
+.fr-miss{position:absolute;border-radius:3px;pointer-events:none;z-index:1;overflow:hidden;
+  background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--muted) 30%,transparent) 0 2px,transparent 2px 6px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--muted) 35%,transparent)}
+.fr-miss span{display:block;padding:2px 4px 0;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;text-align:right}
+html.fr-on .fabs{bottom:calc(var(--player-h,140px) + 28px)}
+html.no-replay.fr-on #key{display:grid!important}
+html.no-replay.fr-on #key>.k:not(#rainKey){display:none}
+@media (min-width:721px){
+  html.fr-on .player{display:none}
+}
+
+/* ---------- phone: one scrolling page. The map at the top at a fixed height, the timeline right under it, everything else below as
+   ordinary content; a slim header over the map; the tab bar fixed at the bottom. No sheet, no drag handles. ---------- */
 @media (max-width:720px){
-  :root{--tab-h:calc(58px + env(safe-area-inset-bottom))}
-  .card{top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;bottom:auto;width:auto;padding:4px 6px 4px 12px;border-radius:14px;overflow:visible;max-height:none;flex-direction:row;align-items:center;gap:6px}
+  :root{--tab-h:calc(58px + env(safe-area-inset-bottom));--map-h:64vh}
+  @supports (height:1svh){:root{--map-h:64svh}}
+  html.embed{--map-h:calc(100vh - 150px)}
+  html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:visible}
+  body{padding-bottom:var(--tab-h);background:var(--solid)}
+  #map{position:relative;inset:auto;width:100%;height:var(--map-h)}
+  /* header: floats over the top of the map and scrolls away with it */
+  .card{top:calc(6px + env(safe-area-inset-top));left:8px;right:8px;bottom:auto;width:auto;padding:2px 4px 2px 12px;min-height:48px;border-radius:14px;overflow:visible;max-height:none;flex-direction:row;align-items:center;gap:6px}
   .hd{order:2;margin:0;flex:none}
   .brand{display:none}
   .hlinks{gap:2px}
@@ -547,108 +579,80 @@ html.story-on .rank,html.story-on .caveat-foot{visibility:hidden}
   .pick{order:1;flex:1;min-width:0}
   .picker summary{min-height:44px;padding:4px 6px;margin:0 -6px}
   .picker summary h1{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .picker[open] .pk-body{position:absolute;left:-1px;right:-1px;top:calc(100% + 6px);background:var(--solid);border:1px solid var(--rule);border-radius:14px;box-shadow:var(--shadow);padding:6px;max-height:70vh;overflow:auto}
+  .picker[open] .pk-body{position:absolute;left:-1px;right:-1px;top:calc(100% + 6px);background:var(--solid);border:1px solid var(--rule);border-radius:14px;box-shadow:var(--shadow);padding:6px;max-height:70vh;overflow:auto;overscroll-behavior:contain}
   .caveat-foot{display:none}
-  body>.tabs{position:absolute;left:0;right:0;bottom:0;height:var(--tab-h);margin:0;border-radius:0;padding:5px 8px env(safe-area-inset-bottom);background:var(--glass);gap:0;
+  body>.tabs{position:fixed;left:0;right:0;bottom:0;height:var(--tab-h);margin:0;border-radius:0;padding:5px 8px env(safe-area-inset-bottom);background:var(--glass);gap:0;
     -webkit-backdrop-filter:saturate(1.3) blur(18px);backdrop-filter:saturate(1.3) blur(18px);border-top:1px solid var(--rule);z-index:7}
   body>.tabs a{flex-direction:column;gap:3px;background:none!important;box-shadow:none!important;font-size:11px;font-weight:650;min-height:48px}
   body>.tabs a svg{display:block;width:22px;height:22px}
   body>.tabs a[aria-current="page"]{color:var(--accent-ink)}
   .side-toggle{display:none}
 
-  /* the bottom sheet */
-  .player[data-sheet="on"]{left:0;right:0;bottom:var(--tab-h);top:auto;height:var(--sheet-h,70vh);max-height:none;border-radius:18px 18px 0 0;padding:0 14px 8px;border-bottom:0;z-index:5;
-    overflow:hidden;transform:translateY(var(--sheet-off,0));transition:transform .44s var(--spring);will-change:transform}
-  .player[data-sheet="on"].dragging{transition:none}
-  .player[data-sheet="on"][data-detent="full"],html.live-mode .player[data-detent="half"],html.live-mode .player[data-detent="full"]{overflow-y:auto;overscroll-behavior:contain}
-  .grab{display:flex;justify-content:center;align-items:center;width:calc(100% + 28px);margin:0 -14px;border:0;background:none;padding:8px 0 6px;min-height:26px;cursor:grab;touch-action:none;position:sticky;top:0;z-index:6}
-  .grab i{width:38px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--muted) 45%,transparent)}
-  .grab span{display:none}
-  .player[data-detent="full"] .grab{background:var(--surface)}
-  .player .statusline{margin:0 0 10px;padding:0;border-top:0;touch-action:none;gap:8px}
-  .kpi b{font-size:22px}.k-peak b{font-size:16px;line-height:1.4}
-  .kpi span{font-size:11.5px}
+  /* the content under the map: the timeline first, so play and scrub are on screen without scrolling */
+  .player,.fplayer{position:relative;top:auto;left:auto;right:auto;bottom:auto;width:auto;max-height:none;border:0;border-top:1px solid var(--rule);border-radius:0;box-shadow:none;
+    background:var(--solid);-webkit-backdrop-filter:none;backdrop-filter:none;padding:10px 14px 14px;z-index:1;transform:none}
+  .fplayer+.player{border-top:0;padding-top:0}
   .controls{gap:8px}
   .play{width:48px;height:48px}
   .clock b{font-size:16px}
   .clock span{font-size:11.5px}
+  .player .clock #since{display:none}
+  .clock .pk-line{display:block;font-size:12.5px;color:var(--muted)}
+  .clock .pk-line b{color:var(--ink);font-weight:750}
   .jumps{gap:4px}
   .jumps button{min-height:44px;padding:0 11px}
   #jStart{display:none}
   .speeds{padding:0;background:none}
   .speeds button{min-height:44px;min-width:46px;border:1px solid var(--rule);background:var(--solid)!important;color:var(--ink);box-shadow:none!important}
   .speeds button:not([aria-pressed="true"]){display:none}
-  .timeline{margin-top:12px}
+  .timeline{margin-top:12px;touch-action:pan-y}
   .band{height:28px}
   .cursor i{width:22px;height:22px;margin-left:-11px;bottom:-11px}
   .tl-ticks{margin-top:9px}
-  .player .inst{margin:12px 0 4px}
-  .player[data-open="false"] .wi,.player[data-open="false"] .sheet-body,.player[data-open="false"] .phases{display:none!important}
-  .player[data-sheet="on"] .loading{border-radius:18px 18px 0 0}
-  .sheet-body{margin-top:8px}
-  .sheet-body .legend{position:static;width:auto;max-height:none;box-shadow:none;border:0;border-top:1px solid var(--rule-2);border-radius:0;padding:12px 0 4px;background:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-  .sheet-body .rank{border-top:1px solid var(--rule-2);padding:10px 0 4px;margin:0}
-  html.no-replay.live-mode .player{display:block}
-  html.no-replay.live-mode .player > :not(.grab):not(#statusLine):not(.live){display:none!important}
-  html.live-mode .player .statusline{display:none}
-  html.live-mode .player .live{margin-top:0}
-  .player .wi{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule-2)}
+  .loading{bottom:auto;height:118px}
+  .player .statusline{margin:14px 0 0;padding:12px 0 0;border-top:1px solid var(--rule-2);gap:8px}
+  .kpi b{font-size:22px}.k-peak b{font-size:16px;line-height:1.4}
+  .kpi span{font-size:11.5px}
+  .player .inst{margin:14px 0 0}
+  .player .wi{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--rule-2)}
   .wi-out{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
   .wi-n b{font-size:17px}.wi-n b small,.wi-n b i{display:none}.wi-n>span{font-size:11px}
   .seg button{min-height:44px}
   .wi-play{min-height:46px;justify-self:stretch;justify-content:center}
+  .sheet-body{margin-top:14px}
+  .sheet-body .rank{border-top:1px solid var(--rule-2);padding:10px 0 4px;margin:0}
+  /* Forecast tab: the week ahead and the right-now panel follow the timeline */
+  html.no-replay.live-mode .player{display:block}
+  html.no-replay.live-mode .player > :not(.live){display:none!important}
+  html.live-mode:not(.fr-on) .player .statusline{display:none}
+  html.fr-on .player > .controls,html.fr-on .player > .timeline,html.fr-on .player > .tl-ticks,html.fr-on .player > .inst,html.fr-on .player > .views,html.fr-on .player > .phsteps{display:none!important}
+  html.fr-on .player .statusline{margin-top:4px;border-top:0;padding-top:0}
+  .player .live{margin:0}
+  html.fr-on .player .live{margin-top:14px;padding-top:4px;border-top:1px solid var(--rule-2)}
+  html.no-replay.fr-on .player .live{margin-top:0;border-top:0}
 
+  /* things over the map */
   .fabs{top:calc(var(--card-b,64px) + 10px);bottom:auto;right:8px;gap:8px;z-index:4}
   .legend{display:none;top:calc(var(--card-b,64px) + 10px)!important;bottom:auto!important;left:8px!important;right:62px!important;width:auto!important;
-    max-height:calc(100% - var(--card-b,64px) - var(--player-h,140px) - var(--tab-h) - 30px)!important;padding:12px 14px!important;z-index:6}
+    max-height:calc(var(--map-h) - var(--card-b,64px) - 22px)!important;padding:12px 14px!important;z-index:6}
   .legend[data-pop="on"]{display:block;animation:plin .28s var(--spring)}
   .legend[data-pop="on"] .panel{display:block}
   .legend .legend-toggle{display:none}
-  .place,.hsheet{left:0!important;right:0;top:auto;bottom:var(--tab-h);width:auto;max-height:64%;border-radius:18px 18px 0 0;padding:6px 18px calc(14px + env(safe-area-inset-bottom));z-index:6;border-bottom:0;animation:shin .4s var(--spring)}
+  /* fixed to the screen, above the tab bar */
+  .place,.hsheet{position:fixed;left:0!important;right:0;top:auto;bottom:var(--tab-h);width:auto;max-height:64%;border-radius:18px 18px 0 0;padding:6px 18px calc(14px + env(safe-area-inset-bottom));z-index:6;border-bottom:0;animation:shin .4s var(--spring)}
   @keyframes shin{from{transform:translateY(40%);opacity:.4}to{transform:none;opacity:1}}
   .pl-grab{display:flex;justify-content:center;width:100%;border:0;background:none;padding:4px 0 10px;cursor:pointer}
   .pl-grab i{width:38px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--muted) 45%,transparent)}
-  .place.tall{max-height:calc(100% - var(--card-b,64px) - 12px)}
+  .place.tall{max-height:calc(100% - 64px)}
   .pl-x{top:14px}
-  html.place-on .player{opacity:0;pointer-events:none}
-  .toast{bottom:calc(var(--player-h,140px) + var(--tab-h) + 14px)}
-  .soon-card{left:50%;width:calc(100% - 16px);bottom:calc(var(--tab-h) + 12px)}
+  .toast{position:fixed;bottom:calc(var(--tab-h) + 14px)}
+  .soon-card{position:fixed;left:50%;width:calc(100% - 16px);bottom:calc(var(--tab-h) + 12px)}
 
-  .story{left:8px;right:8px;width:auto;top:auto!important;bottom:calc(var(--player-h,160px) + var(--tab-h) + 10px);padding:12px 14px;z-index:6}
-  .st-top{margin-bottom:8px}
-  .steps{margin-bottom:10px}
-  .story h2{font-size:19px;margin-bottom:4px}
-  .st-text{font-size:13px;line-height:1.45;margin-bottom:8px}
-  .st-live{padding:8px 10px;margin-bottom:10px}
-  .st-live b{font-size:20px}
-  .st-keys{display:none}
-  .st-nav button{min-height:44px;min-width:44px}
-  .st-nav .primary{flex:1}
+  /* the guided tour: a compact card fixed above the tab bar, the page at the top, the map clear above it */
+  html.story-on .player,html.story-on .fplayer{display:none!important}
+  html.story-on .fabs{display:none}
   .story-on .legend{display:none}
-}
-@media (max-width:380px){.jumps button{padding:0 8px}.clock b{font-size:15px}}
-
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{transition:none!important;animation:none!important}
-}
-@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
-
-/* ---------- phone, map first: a one-row peek, a slim header, a compact tour that owns the bottom ---------- */
-@media (max-width:720px){
-  .card{top:calc(6px + env(safe-area-inset-top));padding:2px 4px 2px 12px;min-height:48px}
-  .picker summary{min-height:44px}
-  .hlinks a{min-height:36px}
-  /* peek: play, time, and closed / at risk on one row */
-  .clock #since{display:none}
-  .clock .pk-line{display:block;font-size:12.5px;color:var(--muted)}
-  .clock .pk-line b{color:var(--ink);font-weight:750}
-  .player[data-open="false"] .jumps,.player[data-open="false"] .speeds,.player[data-open="false"] .statusline,.player[data-open="false"] .timeline,
-  .player[data-open="false"] .tl-ticks,.player[data-open="false"] .inst{visibility:hidden}
-  .player .statusline{margin:12px 0 4px}
-  .grab{padding:6px 0 4px;min-height:20px}
-  /* the tour on a phone: the sheet steps aside, the card is short */
-  html.story-on .player{display:none!important}
-  .story{bottom:calc(var(--tab-h) + 8px)!important;padding:0 14px 10px;max-height:34vh;overflow:hidden;display:flex;flex-direction:column}
+  .story{position:fixed;left:8px;right:8px;width:auto;top:auto!important;bottom:calc(var(--tab-h) + 8px)!important;padding:0 14px 10px;z-index:6;max-height:34vh;overflow:hidden;display:flex;flex-direction:column}
   .story .steps{order:-2;margin:0 -14px 8px;gap:2px;grid-template-columns:repeat(var(--n,6),1fr)}
   .story .steps li{height:4px;border-radius:0}
   .story .steps li:first-child{border-top-left-radius:14px}.story .steps li:last-child{border-top-right-radius:14px}
@@ -661,7 +665,14 @@ html.story-on .rank,html.story-on .caveat-foot{visibility:hidden}
   .st-live{padding:0;background:none;margin:0 0 8px;gap:2px 6px;min-height:0}
   .st-live b{font-size:17px}
   .st-live span{font-size:12px}
+  .st-keys{display:none}
   .st-nav{gap:6px}
-  .st-nav button{min-height:44px}
-  html.story-on .fabs{display:none}
+  .st-nav button{min-height:44px;min-width:44px}
+  .st-nav .primary{flex:1}
 }
+@media (max-width:380px){.jumps button{padding:0 8px}.clock b{font-size:15px}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
