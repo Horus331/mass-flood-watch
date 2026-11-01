@@ -233,14 +233,16 @@ def fetch_hourly(now):
     import forecast as FC
     towns = FC.d3_towns()
     lat = ','.join(f'{lab[1]:.4f}' for _, lab, _ in towns); lon = ','.join(f'{lab[0]:.4f}' for _, lab, _ in towns)
-    r = http(OM, params=dict(latitude=lat, longitude=lon, hourly='precipitation', models='ncep_nbm_conus', timezone='UTC', forecast_days=8), timeout=60)
+    r = http(OM, params=dict(latitude=lat, longitude=lon, hourly='precipitation,precipitation_probability', models='ncep_nbm_conus', timezone='UTC', forecast_days=8), timeout=60)
     if r is None: return dict(ok=False, error='Open-Meteo request failed')
     J = r.json(); J = J if isinstance(J, list) else [J]
     if not J or 'hourly' not in J[0]: return dict(ok=False, error=str(J)[:200])
     times = J[0]['hourly']['time']
     mm = [[None if v is None else round(float(v), 2) for v in j['hourly']['precipitation']] for j in J]
+    pop = [[None if v is None else int(v) for v in (j['hourly'].get('precipitation_probability') or [])] for j in J]
     return dict(ok=True, source='Open-Meteo (open-meteo.com, CC BY 4.0), NOAA NBM CONUS, hourly precipitation at the 73 town label points',
-                fetched=iso(now), times=[t + 'Z' if not t.endswith('Z') else t for t in times], towns=[n.title() for n, _, _ in towns], mm=mm)
+                fetched=iso(now), times=[t + 'Z' if not t.endswith('Z') else t for t in times], towns=[n.title() for n, _, _ in towns], mm=mm,
+                pop=pop if any(any(v is not None for v in r) for r in pop) else None)
 
 
 def day_hourly2(d, H):
@@ -256,7 +258,11 @@ def day_hourly2(d, H):
     if not got: return None
     ix = [i for i, t in enumerate(T) if s < t <= s + dt.timedelta(hours=24)]
     tot = np.nansum(M[:, ix], axis=1)
-    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1))
+    pop = None
+    if H.get('pop'):
+        Pp = np.array([[np.nan if v is None else v for v in row] for row in H['pop']], np.float32)
+        if Pp.shape == M.shape and not np.isnan(Pp[:, ix]).all(): pop = int(round(float(np.nanmax(np.nanmean(Pp[:, ix], axis=0)))))   # highest hourly chance, District 3 average
+    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1), pop=pop)
 
 
 # ------------------------------------------------------------------ WPC Excessive Rainfall Outlook
@@ -569,7 +575,7 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                sources=dict(rain={k: v for k, v in rain.items() if not k.startswith('_') and k != 'buckets'},
                             ero={k: v for k, v in ero.items() if k != 'days'} | dict(days=[{k: v for k, v in x.items() if k != 'towns'} for x in ero.get('days') or []]),
                             alerts={k: v for k, v in al.items() if k != 'alerts'},
-                            hourly={k: v for k, v in ((raw or {}).get('hourly') or {}).items() if k not in ('mm', 'times', 'towns')}),
+                            hourly={k: v for k, v in ((raw or {}).get('hourly') or {}).items() if k not in ('mm', 'times', 'towns', 'pop')}),
                health=dict(status=status_, problems=problems, issued=iso(now), fetched=(raw or {}).get('fetched'), rain_run=rain.get('run'),
                            next_update=iso(nx), schedule_cron=cr, schedule_utc=[f'{h:02d}:{m:02d}' for h, m in times], typical_delay_min=[10, 60],
                            stale_after_h=STALE_H, workflow='.github/workflows/forecast.yml', run_url=run_url,

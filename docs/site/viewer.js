@@ -3372,12 +3372,12 @@
     var HAS2 = days.some(function (x) { return x && x.rain && x.rain.hourly2; });
     BAR_FULL = HAS2 ? Math.max(1, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.hourly2 && x.rain.hourly2.cols) || []).map(function (c) { return c ? c[0] : 0; }); })))) : Math.max(1.5, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.bars) || []).map(function (q) { return q[2] * 2 / q[1]; }); })).concat([0])));
     var d0 = days.filter(function (x) { return x && x.rain && x.rain.six_hourly_start && x.rain.six_hourly_start.length === 4; }).pop();
-    if (days.some(function (x) { return x && x.rain && x.rain.bars; })) {
+    if (!HAS2 && days.some(function (x) { return x && x.rain && x.rain.bars; })) {
       var hd2 = document.createElement('li'); hd2.className = 'day six-hd';
       hd2.innerHTML = '<span></span><span></span><span class="six c12">' + ['12a', '6a', '12p', '6p'].map(function (l, k) { return '<b style="grid-column:' + (3 * k + 1) + ' / span 3">' + l + '</b>'; }).join('') + '</span><span class="mm">total</span>';
       ol.appendChild(hd2); d0 = null;
     }
-    if (d0) {
+    if (d0 && !HAS2) {
       var hd = document.createElement('li'); hd.className = 'day six-hd';
       hd.innerHTML = '<span></span><span></span><span class="six">' + d0.rain.six_hourly_start.map(function (z) { return '<b>' + fmtH6.format(zt(z)).replace(/\s?([AP])M/, function (_, a) { return a.toLowerCase(); }) + '</b>'; }).join('') + '</span><span class="mm">total</span>';
       ol.appendChild(hd);
@@ -3389,6 +3389,18 @@
       var vc = lv === 4 ? 'run' : lv === 3 ? 'hot' : '', txt = d ? d.verdict || '' : 'Week-ahead feed not published yet';
       var det = d && d.detail && lv != null && lv >= 1 ? d.detail : '';
       var li = document.createElement('li'); li.className = 'day' + (mean == null ? ' na' : '');
+      if (HAS2) {   // iOS Weather layout: day · 12 slim 2-hour bars · total · chance
+        var pop = R && R.hourly2 ? R.hourly2.pop : null, inch = mean != null ? mean / 25.4 : null;
+        li.className = 'day ios' + (mean == null ? ' na' : '');
+        li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) +
+          (ero && ero !== 'none' ? '<i class="ero-dot ' + ero + '" title="NOAA excessive rainfall risk: ' + ERO_L[ero] + '"></i>' : '') +
+          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'flood model running' : 'over threshold') + '</em>' : '') + '</span>' +
+          sixStrip(R, d && d.date) +
+          '<span class="tot' + (inch && inch >= 0.005 ? '' : ' dry') + '" title="' + (mean != null ? mean.toFixed(1) + ' mm District 3 average, ' + Math.round(mxv || 0) + ' mm wettest town' : '') + '">' +
+          (inch == null ? '–' : inch < 0.005 ? '0″' : (inch < 1 ? inch.toFixed(2).replace(/^0/, '') : inch.toFixed(2)) + '″') + '</span>' +
+          '<span class="pop' + (pop ? '' : ' dry') + '">' + (pop != null ? (pop >= 10 ? '<svg viewBox="0 0 10 13" aria-hidden="true"><path d="M5 0C5 0 0 6 0 8.5A5 5 0 0 0 10 8.5C10 6 5 0 5 0Z"/></svg>' : '') + pop + '%' : '') + '</span>';
+        ol.appendChild(li); continue;
+      }
       li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) + '<small>' + (d ? esc(d.label.split(' ').slice(1).join(' ')) : fmtMD.format(dd)) + (d && d.partial ? ' (rest)' : '') + '</small></span>' +
         '<i class="ero ' + (ero || 'na') + '" title="NOAA WPC excessive rainfall risk: ' + (ero ? ERO_L[ero] : 'no outlook for this day') + '"></i>' +
         sixStrip(R, d && d.date) +
@@ -3397,7 +3409,8 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    key.innerHTML = (HAS2 ? '<span>Each column is 2 hours of rain in the wettest town of District 3. The line across each column is the flood-model trigger rate, 8.3 mm in 2 hours (25 mm in 6 hours); columns that reach it turn orange, and the flood model runs on the roads once that rain is within 48 hours. Heights are on a square-root scale, so light rain stays visible (a quarter of the trigger rate reaches half the line). Darker columns are night. NOAA National Blend of Models, hourly via Open-Meteo (open-meteo.com): hourly for about 36 h, smoothed from 3- and 6-hour totals after that.</span>' : days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
+    if (HAS2) { key.className = 'wk-key'; key.innerHTML = 'Bars: rain every 2 hours in the wettest town · <i class="trig"></i> flood-model trigger (25 mm in 6 h) · total: District 3 average · NOAA NBM via Open-Meteo · <a href="about.html#forecast-rain">how this works</a>'; ol.appendChild(key); }
+    else if (!HAS2) key.innerHTML = ( days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
     // storms coming (runs of days at level 2 or more)
