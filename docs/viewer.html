@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
-<link href="site/viewer.css?v=1101q" rel="stylesheet">
+<link href="site/viewer.css?v=1101r" rel="stylesheet">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t;var pl=new URLSearchParams(location.search).get('pal');if(pl)document.documentElement.dataset.pal=pl}catch(e){}
 if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');</script>
 </head>
@@ -104,7 +104,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   <div class="st-top"><span class="st-n" id="stN"></span><span class="st-clock" id="stClock"></span><button type="button" id="stSkip" class="st-x">Exit tour</button></div>
   <ol class="steps" id="stSteps" aria-label="Tour scenes"></ol>
   <h2 id="stTitle"></h2>
-  <p class="st-text" id="stText"></p>
+  <p class="st-text" id="stText"></p><button type="button" class="st-more" id="stMore" aria-expanded="false">More</button>
   <p class="st-live" id="stLive" aria-live="polite"></p>
   <div class="st-nav">
     <button type="button" id="stPrev" aria-label="Previous scene"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
@@ -125,11 +125,11 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <div class="grp grp-key">
       <div class="key key-more">
         <div class="k kdrn" id="drnKey"><span class="kl">Water trend</span><span class="kr kroads"><span><i class="kw fill"></i>filling, rising</span><span><i class="kw drn"></i>draining or soaking in</span></span></div>
-        <div class="k"><span class="kl">Road edge</span><span class="kr kroads"><span><i class="kw edge"></i>water beside the road, surface still dry</span></span></div>
+        <div class="k k-edge"><span class="kl">Road edge</span><span class="kr kroads"><span><i class="kw edge"></i>water beside the road, surface still dry</span></span></div>
         <div class="k" id="covKey" hidden><span class="kl">Coverage</span><span class="kr kroads"><span><i class="kw cov-d3"></i>forecast area, District 3</span><span id="covBox" hidden><i class="kw cov-box"></i><b id="covBoxT">area of this replay run</b></span><span><i class="kw cov-t"></i>tested on past storms only</span><span><i class="kw cov-o"></i>not modelled</span></span></div>
       </div>
     </div>
-    <div class="grp">
+    <div class="grp grp-bm">
       <h2>Background</h2>
       <div class="basemaps" role="group" aria-label="Background map" id="basemaps">
         <button type="button" data-bm="streets">Light</button><button type="button" data-bm="terrain">Terrain</button><button type="button" data-bm="satellite" title="Aerial imagery: MassGIS 2023, 15 cm, leaf-off">Aerial (MassGIS 2023, 15 cm)</button><button type="button" data-bm="dark">Dark</button>
@@ -210,7 +210,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   </div>
   <div class="controls">
     <button id="play" class="play" disabled aria-label="Play storm"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="playIcon" d="M5 3l12 7-12 7z"/></svg></button>
-    <div class="clock" aria-live="off"><b id="clock">–</b><span id="since"></span></div>
+    <div class="clock" aria-live="off"><b id="clock">–</b><span id="since"></span><span class="pk-line" id="pkLine"></span></div>
     <div class="jumps" role="group" aria-label="Jump to"><button type="button" id="jStart">Start</button><button type="button" id="jPeak">Peak</button></div>
     <div class="speeds" role="group" aria-label="Playback speed">
       <button type="button" data-speed="0.0833333" title="5 minutes of storm per second">Slow</button><button type="button" data-speed="0.25" aria-pressed="true" title="15 minutes of storm per second">Normal</button><button type="button" data-speed="0.75" title="45 minutes of storm per second">Fast</button>
@@ -244,7 +244,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="site/viewer.js?v=1101q"></script>
+<script src="site/viewer.js?v=1101r"></script>
 <script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
