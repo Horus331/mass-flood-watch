@@ -44,8 +44,18 @@ this branch as `diag/<id>.md` (`proto/turing/diag.slurm`):
 `{"id": "diag_1", "kind": "diag", "env": {"JOBS": "2442643", "LOGS": "roadflood_2442643.out", "WORKDIRS": "run_sep2023_proto_site_d3_sep2023"}}`
 
 Display runs from a plan, no scoring (`proto/turing/run_plan_display.slurm`; e.g. all of District 3 for every catalogue storm,
-`proto/turing/plans/d3all_v1.json`); array task j runs PER plan entries in a row, so a long plan needs few array tasks (the per-user submit cap appears to count array tasks one by one: a 40-task quick array was refused for 20 h while single jobs went in):
-`{"id": "d3all_v1_a", "kind": "run_plan_display", "env": {"PLAN": "proto/turing/plans/d3all_v1.json", "PIN": "<sha>", "IDXS": "0-23", "PER": "4"}, "sbatch": {"array": "0-5%2"}}`
+`proto/turing/plans/d3all_v1.json`); array task j runs PER plan entries in a row, `{"id": "d3all_v1_a", "kind": "run_plan_display", "env": {"PLAN": "proto/turing/plans/d3all_v1.json", "PIN": "<sha>", "IDXS": "0-23", "PER": "1"}, "sbatch": {"array": "0-23%3", "partition": "short", "gres": "gpu:A100:1", "time": "10:00:00", "mem": "160G"}}`
+
+Turing limits per user (sacctmgr, `diag/d3all_diag1.md`, 1 Nov 2026), **every array task counts as one submitted job**:
+
+| QOS / partition | max submitted (pending + running) | GPUs at once | time limit | GPU types |
+| --- | --- | --- | --- | --- |
+| quick | 20 | **1** | 12 h | A100, H100, H200, L40S, RTX Pro 6000 |
+| short (default) | 100 | 12 | 1 day | same as quick |
+| long | 100 | 4 | 7 days | A100, L40S, RTX Pro 6000 (no H100/H200) |
+
+A quick array with more than ~18 tasks can never be submitted (the runner keeps deferring it, and the runner stops at the first
+deferred request, so everything after it waits too). Pin FP64 runs to A100/H100 with `"gres": "gpu:A100:1"`.
 
 ## Where results go (no Google Drive)
 
