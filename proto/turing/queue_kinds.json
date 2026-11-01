@@ -207,6 +207,42 @@
     "mem",
     "gres"
    ]
+  },
+  "run_plan_display": {
+   "script": "proto/turing/run_plan_display.slurm",
+   "env": [
+    "PLAN",
+    "PIN",
+    "IDXS",
+    "PER",
+    "MIN_FREE_GB"
+   ],
+   "required": [
+    "PLAN",
+    "PIN",
+    "IDXS"
+   ],
+   "sbatch": [
+    "array",
+    "partition",
+    "time",
+    "mem",
+    "gres"
+   ]
+  },
+  "diag": {
+   "script": "proto/turing/diag.slurm",
+   "env": [
+    "JOBS",
+    "LOGS",
+    "WORKDIRS",
+    "WLOGS",
+    "TAIL"
+   ],
+   "sbatch": [
+    "partition",
+    "time"
+   ]
   }
  }
 }

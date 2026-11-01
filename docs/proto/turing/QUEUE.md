@@ -39,6 +39,14 @@ An id is submitted once; to rerun, add a new id. `after` becomes Slurm `afterok`
 What-if explorer (docs/proto/whatif/WHATIF.md), one request runs all 32 scenarios and publishes once:
 `{"id": "whatif_v1", "kind": "whatif_pipeline", "env": {"CONC": "8", "PART": "short"}}`
 
+Diagnostics without a login (disk/quota, the Slurm submit limits, sacct of named jobs, sizes of run folders, tails of named logs) come back to
+this branch as `diag/<id>.md` (`proto/turing/diag.slurm`):
+`{"id": "diag_1", "kind": "diag", "env": {"JOBS": "2442643", "LOGS": "roadflood_2442643.out", "WORKDIRS": "run_sep2023_proto_site_d3_sep2023"}}`
+
+Display runs from a plan, no scoring (`proto/turing/run_plan_display.slurm`; e.g. all of District 3 for every catalogue storm,
+`proto/turing/plans/d3all_v1.json`); array task j runs PER plan entries in a row, so a long plan needs few array tasks (the per-user submit cap appears to count array tasks one by one: a 40-task quick array was refused for 20 h while single jobs went in):
+`{"id": "d3all_v1_a", "kind": "run_plan_display", "env": {"PLAN": "proto/turing/plans/d3all_v1.json", "PIN": "<sha>", "IDXS": "0-23", "PER": "4"}, "sbatch": {"array": "0-5%2"}}`
+
 ## Where results go (no Google Drive)
 
 - Small results (scores, site packs, RESULTS.md): the job scripts push them to `main` through the deploy key (`proto/turing/publish.sh`).
