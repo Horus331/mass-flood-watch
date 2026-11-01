@@ -28,7 +28,7 @@ def make_request(G, prefix, force=False, hours=None, now=None):
                REQ_AT=(now or dt.datetime.now(dt.timezone.utc)).strftime('%Y-%m-%dT%H:%M:%SZ'))
     if force: env['FORCE'] = '1'
     return dict(id=f'fcd3_{pfx}_{tag}'[:60], kind='forecast_d3', env=env,
-                sbatch=dict(array=f'0-{len(mem) - 1}', partition='short', gres='gpu:A100:1', time='06:00:00'))
+                sbatch=dict(array=f'0-{len(mem) - 1}', partition='short', gres='gpu:1', constraint='A100|H100|H200', time='06:00:00'))   # strong FP64 GPUs
 
 
 def insert_front(J, req):

@@ -15,7 +15,7 @@ Below both thresholds the forecast is published as quiet: "No road closures expe
 GPU cluster (`proto/forecast_turing.py request`): one request, kind `forecast_d3` (`proto/turing/forecast_d3.slurm`), inserted at the
 **front** of `jobs.json` on the `turing-queue` branch, so a storm cycle is never stuck behind research requests (the runner submits in
 `jobs.json` order and stops at the first refusal of the per-user submit cap). It is one Slurm array, one task per ensemble member, on the
-`short` partition with an A100 each (every array task counts against the submit cap, 100 on `short`, and `short` allows 12 GPUs per user, so
+`short` partition with one A100, H100 or H200 each (strong FP64; every array task counts against the submit cap, 100 on `short`, and `short` allows 12 GPUs per user, so
 the members run side by side; `quick` allows one GPU per user). Every member runs the whole district at 20 m (17.6 M cells) with exactly the
 box jobs' set-up and the member's own HRRR rain; the issue cycle's task also keeps 30-min depth frames and the solver's velocity for the map.
 The task that finishes the issue member, and again the one that finishes the last member, publishes a tiled full-resolution replay

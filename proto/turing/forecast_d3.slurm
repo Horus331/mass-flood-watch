@@ -6,9 +6,9 @@
 # Queued by .github/workflows/forecast.yml (gate job, proto/forecast_turing.py request) at the FRONT of jobs.json on the turing-queue branch:
 #   {"id": "fcd3_forecast_d3_2026110112", "kind": "forecast_d3", "env": {"CYCLE": "2026-11-01T12Z", "MEMBERS": "2026-11-01T12Z,...",
 #    "HOURS": "48", "PFX": "forecast_d3", "REQ_AT": "2026-11-01T13:50:12Z"},
-#    "sbatch": {"array": "0-7", "partition": "short", "gres": "gpu:A100:1", "time": "06:00:00"}}
+#    "sbatch": {"array": "0-7", "partition": "short", "gres": "gpu:1", "constraint": "A100|H100|H200", "time": "06:00:00"}}
 # Turing limits (QUEUE.md, diag 1 Nov 2026): every array task counts against the per-user submit cap (short 100); short allows 12 GPUs per user,
-# so the 8 members can run side by side (quick allows one GPU per user). A100: the CUDA build is FP64.
+# so the 8 members can run side by side (quick allows one GPU per user). A100 / H100 / H200 only: the CUDA build is FP64.
 # Each task: the same flood-model set-up as the GitHub box jobs (HRRR rain of its member, 20 km / 90th percentile neighbourhood, CN x 0.88 AMC II,
 # LF_PARITY=1, 2 mm/h, LF_QOUT=1), only the box is the whole district (17.6 M cells); 30-min depth frames (w9 default)
 # feed the map. Then proto/prototype.py -> $LF_WORK/fcd3_<PFX>_<cycle>/m<j>/.
@@ -22,7 +22,8 @@
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=96G
-#SBATCH --gres=gpu:A100:1
+#SBATCH --gres=gpu:1
+#SBATCH --constraint=A100|H100|H200
 #SBATCH -t 06:00:00
 #SBATCH -o fcd3_%A_%a.out
 set -eo pipefail
