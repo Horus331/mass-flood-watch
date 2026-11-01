@@ -204,3 +204,36 @@ FSS300 at rule 0.051) and the gauge errors of `scoring/BASELINE_v2_expanded.md` 
 exactly the settings above and commit once per workflow run to `docs/proto/transfer/<run>/`. If a run fails for a technical reason
 (download, timeout) it is rerun unchanged; no storm is dropped or re-boxed after its result is seen. Results go to
 `docs/proto/transfer/TRANSFER.md` whatever they are.
+
+
+# PROTOCOL v3 amendment (1 Nov 2026): artifact fixes (non-inferiority)
+
+**Disclosure.** This amendment was written on 1 Nov 2026 *after* the results of the terrain test (`terrain/TERRAIN.md`, `terrain/PREREG.md`)
+were known. It is a post-hoc change to the protocol, made by Mohab Eldokla, and it is applied to exactly one candidate so far (T2 below).
+It is recorded here so that anyone can judge it.
+
+**§A. Why.** The v2 adoption rule (§5a) only adopts a change that *improves* held-out skill by a margin. It has no route for a correction of a
+demonstrable input error (a model artifact) that leaves skill unchanged. Keeping such an error in the deployed model and on the published
+maps because it does not also raise skill is not defensible for a tool meant for engineers.
+
+**§A.1 Rule.** A change may be adopted as an *artifact fix* (not as a skill improvement) when all of the following hold:
+1. **Documented artifact.** A specific, physically impossible or input-caused error is identified and its cause shown from the inputs alone
+   (a terrain, data or code check that does not use any closure label), e.g. road water deeper than the surrounding terrain allows.
+2. **The fix removes it.** The pre-registered run shows the artifact gone at the named places.
+3. **Non-inferior on the decision set.** On the held-out 23 storms (PROTOCOL v2 §2, k = 1): site recall at the 3 % budget does not fall by more
+   than 0.02 and the lower 90 % bound of the paired difference is above −0.05; FSS at 300 m does not fall by more than 0.005; the alert-tier lift
+   does not fall; the gauge rise error does not rise by more than 10 %.
+4. **No tuning.** The fix has no free parameter chosen on scored data (fixed physical rules or caps set in advance).
+An artifact fix is reported as such everywhere it is cited; it is never counted as a skill gain.
+
+**§A.2 Applied to T2** (`LF_NOTCH_FIX=1`, `LF_CHAN_ENFORCE=1`; runs of 1 Nov 2026, `terrain/TERRAIN.md`):
+1. Artifacts: culvert notches deepened from already-notched terrain (Route 2 / I-190, a 25 m pit; segment 12771); Mill Brook conduit under downtown
+   Worcester not draining (MLK Jr Blvd, Foster St). Shown by `proto/diag_terrain.py` on the terrain only.
+2. Removed: road depths > 3 m 5 → 0, > 2 m 12 → 1; Route 2 8.49 → 0.13 m, Foster St 2.79 → 0.04 m, MLK 45260 4.54 → 1.45 m.
+3. Held-out 23: site recall at 3 % 0.194 → 0.194 (difference 0.000); FSS300 −0.0001; alert lift 6.27 → 7.19; gauge rise error 0.371 → 0.359 m.
+   Lower 90 % bound of the paired recall difference (`terrain/compare_t2.json`): **−0.053**, below the −0.05 margin written above.
+4. Fixed rules (cap 10 m, downhill to the box edge); no parameter fitted.
+**Outcome: condition 3 not met (−0.053 < −0.05), so T2 is NOT adopted under §A.** The margin was set in this text before the bound was read and is
+not changed after it. The point estimate is 0.000 and the artifact removal is clear; the failure reflects the width of the interval on 98 sites.
+The decision whether to adopt T2 anyway (and on what grounds) is left to the advisory committee (meeting 3 Nov 2026). Until then the live
+forecast and the published replays keep the deployed settings; T2 versions of the replays are run alongside for that discussion.
