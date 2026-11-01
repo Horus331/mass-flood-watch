@@ -13,6 +13,9 @@ name: forecast (HRRR rain -> gate -> LISFLOOD-FP -> road closures, District 3)
 # WEEK OUTLOOK (proto/outlook.py, docs/proto/forecast/OUTLOOK.md): a parallel job fetches the 7-day rain (NBM, fallback GFS), the WPC Excessive
 # Rainfall Outlook and the NWS alerts for District 3; publish writes docs/site/data/outlook.json (<prefix>_outlook.json for test prefixes) in the
 # same commit as the status.  Rain/risk only: the flood model still runs only on the 48 h HRRR.  Never fails the forecast.
+# RAIN TIMELINE (proto/rain_timeline.py, docs/proto/forecast/RAIN_TIMELINE.md): a parallel job builds the Forecast tab's rain atlas, MRMS hourly
+# QPE for the past 48 h + this HRRR cycle's hourly rain for the next 48 h over District 3 (97 hourly frames, the replay rain format); publish
+# writes docs/site/data/forecast_rain/rain.json + rain.png (<prefix>_rain/ for test prefixes) in the same commit.  Never fails the forecast.
 on:
   schedule:
     - cron: '40 2,8,14,20 * * *'
@@ -84,6 +87,22 @@ jobs:
         run: python proto/outlook.py fetch --out outlook/raw.json
       - uses: actions/upload-artifact@v4
         with: {name: outlook, path: outlook, if-no-files-found: ignore}
+  rain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy pandas requests pygrib pyproj pillow
+      - name: rain timeline (MRMS past 48 h + HRRR next 48 h over District 3; missing hours are listed, never fails)
+        env:
+          INIT: ${{ inputs.init }}
+        run: |
+          set -o pipefail
+          python proto/rain_timeline.py build ${INIT:+--init $INIT} --out rain_timeline 2>&1 | tee rain.log
+          echo "::notice title=rain timeline::$(tail -n 1 rain.log | cut -c1-600 | sed 's/%/%25/g')"
+      - uses: actions/upload-artifact@v4
+        with: {name: rain_timeline, path: rain_timeline, if-no-files-found: ignore}
   flood:
     needs: gate
     if: needs.gate.outputs.trigger == 'true'
@@ -150,7 +169,7 @@ jobs:
         if: always()
         with: {name: 'proto_${{ matrix.b.m }}_${{ matrix.b.id }}', path: art, if-no-files-found: ignore}
   publish:
-    needs: [gate, flood, outlook]
+    needs: [gate, flood, outlook, rain]
     if: always() && needs.gate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -197,6 +216,16 @@ jobs:
           [ "$PFX" = "forecast_latest" ] || { ST=docs/site/data/${PFX}_status.json; OL=docs/site/data/${PFX}_outlook.json; }
           python proto/outlook.py build --raw arts/outlook/raw.json --status $ST --prev $OL --out $OL 2>&1 | tee outlook.log
           echo "::notice title=outlook::$(cut -c1-200 outlook.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+      - name: rain timeline (docs/site/data/forecast_rain/, same commit; a cycle without it keeps the previous atlas)
+        continue-on-error: true
+        env:
+          PFX: ${{ inputs.prefix || 'forecast_latest' }}
+        run: |
+          RD=docs/site/data/forecast_rain; [ "$PFX" = "forecast_latest" ] || RD=docs/site/data/${PFX}_rain
+          if [ -f arts/rain_timeline/rain.json ] && [ -f arts/rain_timeline/rain.png ]; then
+            rm -rf $RD && mkdir -p $RD && cp arts/rain_timeline/rain.json arts/rain_timeline/rain.png $RD/
+            ls -la $RD; python -c "import json; d=json.load(open('$RD/rain.json')); print(d['now'], d['n'], d['past_peak_mmh'], d['future_peak_mmh'], len(d['missing']), 'missing')"
+          else echo "no rain timeline this cycle; keeping the previous one"; fi
       - name: ground state (5-day rain wetness + frozen-ground index; context only, proto/ground_state.py)
         if: (inputs.prefix || 'forecast_latest') == 'forecast_latest'
         continue-on-error: true
