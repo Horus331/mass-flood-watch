@@ -1,4 +1,4 @@
-"""Live forecast: Turing first, GitHub boxes as the backup (docs/proto/forecast/GATE.md, "Turing first").
+"""Live forecast: the whole-district SHADOW run on Turing beside the public GitHub box forecast (docs/proto/forecast/GATE.md).
 
     python proto/forecast_turing.py request --gate gate/gate.json --prefix forecast_latest [--force] [--hours 48] [--repo .]
         (forecast.yml gate job, when the gate fires) queue one whole-District-3 array job on Turing: a request at the FRONT of jobs.json on
@@ -6,8 +6,9 @@
         a storm cycle is never stuck behind research requests). Kind forecast_d3 (proto/turing/forecast_d3.slurm), one array task per
         ensemble member, same HRRR members and hours as the box jobs.
     python proto/forecast_turing.py prefer --status docs/site/data/forecast_status.json --turing docs/site/data/forecast_d3_status.json
-        (forecast.yml publish job, after forecast.py status) the boxes' status was just written: if Turing already published THIS cycle,
-        put the Turing status back (the boxes' one is kept as <status>_boxes.json); otherwise label the boxes as the backup.
+        (forecast.yml publish job, after forecast.py status) the boxes' status was just written and stays the public forecast (SHADOW mode:
+        forecast/DISTRICT.md, the district run over-flags ~3x); it is labelled in words and, if Turing already published the same cycle,
+        gets a 'shadow' pointer to the whole-district run (never another cycle's).
     python proto/forecast_turing.py selftest
 """
 import argparse, datetime as dt, json, os, re, subprocess, sys, tempfile, time
@@ -27,7 +28,7 @@ def make_request(G, prefix, force=False, hours=None, now=None):
                REQ_AT=(now or dt.datetime.now(dt.timezone.utc)).strftime('%Y-%m-%dT%H:%M:%SZ'))
     if force: env['FORCE'] = '1'
     return dict(id=f'fcd3_{pfx}_{tag}'[:60], kind='forecast_d3', env=env,
-                sbatch=dict(array=f'0-{len(mem) - 1}', partition='quick', time='06:00:00'))
+                sbatch=dict(array=f'0-{len(mem) - 1}', partition='short', gres='gpu:A100:1', time='06:00:00'))
 
 
 def insert_front(J, req):
@@ -64,17 +65,30 @@ def cmd_request(a):
     raise SystemExit('could not queue the Turing request')
 
 
+def shadow_of(turing):
+    """the pointer the public status carries to a whole-district shadow run of the same cycle"""
+    return dict(dir=turing.get('dir'), issued=turing.get('issued'), likely_closed=turing.get('likely_closed'), possible=turing.get('possible'),
+                state=turing.get('state'), published=(turing.get('turing') or {}).get('published'), label=turing.get('coverage'),
+                note='Not the forecast: the whole-district run over-flags about 3x against the radar run (docs/proto/forecast/DISTRICT.md).')
+
+
+def attach_shadow(status, turing):
+    """-> the public status with a 'shadow' pointer, or None when the cycles differ (a shadow never touches another cycle's status)"""
+    if not turing or turing.get('issued') != status.get('issued'): return None
+    return dict(status, shadow=shadow_of(turing))
+
+
 def prefer(status, turing):
-    """-> (status to publish, boxes status to keep aside or None)"""
-    if status.get('state') != 'run':
-        return status, None
-    if turing and turing.get('display') == 'turing' and turing.get('issued') == status.get('issued'):
-        return turing, dict(status, display='boxes', superseded_by='turing')
-    nb = len(status.get('runs') or status.get('boxes') or [])
-    s = dict(status, display='boxes', coverage=f"Backup: {nb} box{'es' if nb != 1 else ''} of 20 × 20 km on the heaviest rain (Turing run not ready)")
-    s['kind'] = ("The flood model ran only in these boxes (GitHub Actions); the whole-district run on WPI’s Turing cluster was not ready, "
-                 "so roads outside the boxes were not modelled.")
-    return s, None
+    """SHADOW mode (DISTRICT.md over-forecast): the boxes stay the public forecast. -> (status to publish, None). Labels the boxes in words
+    and points to the whole-district shadow run when Turing already published the same cycle."""
+    s = dict(status)
+    if s.get('state') == 'run':
+        nb = len(s.get('runs') or s.get('boxes') or [])
+        s['display'] = 'boxes'
+        s['coverage'] = f"Flood model: {nb} box{'es' if nb != 1 else ''} of 20 \u00d7 20 km on the heaviest forecast rain"
+        s['kind'] = ("The flood model ran in these boxes only (GitHub Actions); roads outside them were not modelled. The rain gate covers all of District 3.")
+    t = attach_shadow(s, turing)
+    return (t or s), None
 
 
 def cmd_prefer(a):
@@ -93,11 +107,12 @@ def selftest():
     V = re.compile(r'^[A-Za-z0-9_.,:=/@+%~-]{0,300}$'); assert all(V.match(v) for v in r['env'].values()), r
     J = dict(jobs=[dict(id='research')]); assert insert_front(J, r) and J['jobs'][0]['id'] == r['id'] and not insert_front(J, r)
     B = dict(state='run', issued='2026-11-01T12:00Z', runs=[1, 2])
-    s, x = prefer(B, None); assert s['display'] == 'boxes' and 'Backup: 2 boxes' in s['coverage'] and x is None
-    T = dict(state='run', issued='2026-11-01T12:00Z', display='turing')
-    s, x = prefer(B, T); assert s is T and x['superseded_by'] == 'turing'
-    s, x = prefer(dict(B, issued='2026-11-01T18:00Z'), T); assert s['display'] == 'boxes'       # a stale Turing cycle never wins
-    s, x = prefer(dict(state='quiet', issued='2026-11-01T18:00Z'), T); assert s['state'] == 'quiet'
+    s, x = prefer(B, None); assert s['display'] == 'boxes' and '2 boxes' in s['coverage'] and 'shadow' not in s
+    T = dict(state='run', issued='2026-11-01T12:00Z', display='turing', dir='data/forecast_d3/', likely_closed=9, coverage='Shadow run')
+    s, x = prefer(B, T); assert s['display'] == 'boxes' and s['shadow']['dir'] == 'data/forecast_d3/' and s['shadow']['likely_closed'] == 9
+    s, x = prefer(dict(B, issued='2026-11-01T18:00Z'), T); assert 'shadow' not in s                  # never another cycle's shadow
+    s, x = prefer(dict(state='quiet', issued='2026-11-01T18:00Z'), T); assert s['state'] == 'quiet' and 'shadow' not in s
+    assert attach_shadow(dict(issued='2026-11-01T06:00Z'), T) is None
     print('selftest ok')
 
 

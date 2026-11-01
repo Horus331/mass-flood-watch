@@ -1,23 +1,28 @@
 #!/bin/bash
-# Live forecast, PRIMARY path (docs/proto/forecast/GATE.md "Turing first"): all of MassDOT District 3 at 20 m on the GPU for one HRRR cycle whose
-# gate fired, one ARRAY task per time-lagged ensemble member (a pending array is one submitted job under Turing's per-user submit cap).
-# Queued by .github/workflows/forecast.yml (gate job) at the FRONT of jobs.json on the turing-queue branch:
-#   {"id": "fcd3_2026110112", "kind": "forecast_d3", "env": {"CYCLE": "2026-11-01T12Z", "MEMBERS": "2026-11-01T12Z,2026-11-01T06Z,...",
-#    "HOURS": "48", "PFX": "forecast_d3", "REQ_AT": "2026-11-01T13:50:12Z"}, "sbatch": {"array": "0-7", "partition": "quick", "time": "06:00:00"}}
+# Live forecast, SHADOW run on Turing (docs/proto/forecast/GATE.md "Whole-district shadow run"): all of MassDOT District 3 at 20 m on the GPU for
+# one HRRR cycle whose gate fired, one ARRAY task per time-lagged ensemble member. SHADOW: computed, published and archived beside the public
+# forecast, clearly labelled, NOT the headline: forecast/DISTRICT.md found the district-wide run over-flags 3.2x (888 vs 276 segments, the
+# 90th-percentile rain spreading), so the GitHub box runs stay the public forecast until a pre-registered fix passes.
+# Queued by .github/workflows/forecast.yml (gate job, proto/forecast_turing.py request) at the FRONT of jobs.json on the turing-queue branch:
+#   {"id": "fcd3_forecast_d3_2026110112", "kind": "forecast_d3", "env": {"CYCLE": "2026-11-01T12Z", "MEMBERS": "2026-11-01T12Z,...",
+#    "HOURS": "48", "PFX": "forecast_d3", "REQ_AT": "2026-11-01T13:50:12Z"},
+#    "sbatch": {"array": "0-7", "partition": "short", "gres": "gpu:A100:1", "time": "06:00:00"}}
+# Turing limits (QUEUE.md, diag 1 Nov 2026): every array task counts against the per-user submit cap (short 100); short allows 12 GPUs per user,
+# so the 8 members can run side by side (quick allows one GPU per user). A100: the CUDA build is FP64.
 # Each task: the same flood-model set-up as the GitHub box jobs (HRRR rain of its member, 20 km / 90th percentile neighbourhood, CN x 0.88 AMC II,
-# LF_PARITY=1, 2 mm/h, LF_QOUT=1), only the box is the whole district (17.6 M cells). Task 0 (the issue cycle) also keeps depth frames and
-# solver velocity for the replay. Then proto/prototype.py -> $LF_WORK/fcd3_<cycle>/m<j>/.
+# LF_PARITY=1, 2 mm/h, LF_QOUT=1), only the box is the whole district (17.6 M cells). Task 0 (the issue cycle) also keeps 30-min depth frames
+# and solver velocity for the map. Then proto/prototype.py -> $LF_WORK/fcd3_<PFX>_<cycle>/m<j>/.
 # Publishing (under a lock, from the task that completes it): when task 0 is done, and again when the last member is done (k-of-n complete):
-# tiled replay pack docs/site/data/<PFX>/ (docs/site/build_data.py build_tiled), k-of-n (proto/forecast_kofn.py), network.json,
-# docs/site/data/<PFX>_status.json, and for the live prefix forecast_status.json too when this cycle is the newest one published (a Turing
-# result never replaces a newer cycle's boxes). One commit per publish, pushed through the deploy key.
+# tiled replay pack docs/site/data/<PFX>/ (docs/site/build_data.py build_tiled), k-of-n (proto/forecast_kofn.py), network.json and
+# docs/site/data/<PFX>_status.json. The public forecast_status.json only gets a 'shadow' pointer (same cycle only); its headline, roads and map
+# stay the boxes'. One commit per publish, pushed through the deploy key.
 #   FORCE=1: run even if the gate is quiet for CYCLE (tests on past storms).  PFX other than forecast_d3: a test, live status untouched.
 #SBATCH -J fcd3
-#SBATCH -p quick
+#SBATCH -p short
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=96G
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:A100:1
 #SBATCH -t 06:00:00
 #SBATCH -o fcd3_%A_%a.out
 set -eo pipefail
@@ -77,25 +82,28 @@ for d in sorted(glob.glob(os.path.join(fc, 'm*'))):
     T[os.path.basename(d)]['ok'] = os.path.exists(os.path.join(d, 'DONE'))
 import datetime as dt
 K = json.load(open(os.path.join(p, 'kofn.json'))); fin = len(K['finished'].get('b1', []))
-x = dict(display='turing', dir='data/%s/' % pfx, coverage='Whole District 3, 20 m (Turing GPU)',
-         kind='One GPU flood-model run per forecast member on WPI’s Turing cluster (%d of %s members finished; the map shows the %s run).' % (fin, n, mm),
+x = dict(display='turing', shadow_run=True, dir='data/%s/' % pfx, coverage='Shadow run, not the forecast: whole District 3 at 20 m (Turing GPU)',
+         title='Shadow run \u00b7 District 3', kind='Not the forecast. A test of the whole-district model on WPI\u2019s Turing GPU cluster, one run per forecast member (%d of %s finished; the map shows the %s run). '
+         'It flags about 3 times as many roads as the radar run of the same storm (forecast/DISTRICT.md), so the forecast stays the box runs until a fix passes.' % (fin, n, mm),
          turing=dict(requested=req or None, members=T, published=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), finished_members=fin, n_members=int(n)))
 json.dump(x, open(os.path.join(p, 'extra.json'), 'w'))
 PY
 python proto/forecast.py status --gate $P/gate.json --run "$PFX=$DIR" --kofn $P/kofn.json --extra $P/extra.json --out docs/site/data/${PFX}_status.json
 ADD="docs/site/data/$PFX docs/site/data/${PFX}_status.json"
-if [ "$PFX" = forecast_d3 ]; then   # live: replace the public status only when this cycle is the newest published (never over a newer cycle's boxes)
+if [ "$PFX" = forecast_d3 ]; then   # live: the public status (the boxes') only gets a pointer to this shadow run, and only for the same cycle
   if python - docs/site/data/forecast_status.json docs/site/data/forecast_d3_status.json <<'PY'
 import json, sys
+sys.path.insert(0, 'proto'); import forecast_turing as FT
 try: cur = json.load(open(sys.argv[1]))
-except Exception: cur = {}
-new = json.load(open(sys.argv[2]))
-sys.exit(0 if (cur.get('issued') or '') <= new['issued'] else 1)
+except Exception: sys.exit(1)
+new = json.load(open(sys.argv[2])); out = FT.attach_shadow(cur, new)
+if out is None: sys.exit(1)
+json.dump(out, open(sys.argv[1], 'w'), separators=(',', ':'))
 PY
-  then cp docs/site/data/forecast_d3_status.json docs/site/data/forecast_status.json; ADD="$ADD docs/site/data/forecast_status.json"; fi
+  then ADD="$ADD docs/site/data/forecast_status.json"; fi
 fi
 for X in $ADD; do git add -A $X; done
-git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Forecast $PFX $CYCLE: whole District 3 at 20 m on Turing ($(python -c "import json;s=json.load(open('docs/site/data/${PFX}_status.json'));print(s.get('likely_closed'), 'likely,', s.get('possible'), 'possible')"))" || { echo "nothing to commit"; exit 0; }
+git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Forecast $PFX $CYCLE: whole District 3 at 20 m on Turing, shadow run ($(python -c "import json;s=json.load(open('docs/site/data/${PFX}_status.json'));print(s.get('likely_closed'), 'likely,', s.get('possible'), 'possible')"))" || { echo "nothing to commit"; exit 0; }
 RM=$(git remote get-url --push origin)
 for i in 1 2 3 4 5; do git pull -q --rebase --autostash "$RM" main && git push -q "$RM" HEAD:main && echo "published $PFX $CYCLE" && exit 0; sleep 15; done
 echo "push failed"; exit 1

@@ -25,7 +25,7 @@ on:
       ensemble: {description: '1 = 8-member time-lagged ensemble, 0 = single cycle (empty = repository variable FORECAST_ENSEMBLE, default 1)', default: ''}
       prefix: {description: 'site data key (forecast_latest = live; anything else is a test and writes <prefix>_status.json instead of the live status)', default: 'forecast_latest'}
       max_boxes: {description: 'maximum boxes (empty = 4)', default: ''}
-      turing: {description: '1 = also queue the whole-District-3 GPU run on Turing (primary path; the boxes are the backup), 0 = boxes only (empty = repository variable FORECAST_TURING, default 1)', default: ''}
+      turing: {description: '1 = also queue the whole-District-3 GPU shadow run on Turing (test only; the boxes stay the forecast), 0 = boxes only (empty = repository variable FORECAST_TURING, default 1)', default: ''}
       archive_root: {description: 'storm archive folder (empty = docs/proto/archive for the live prefix, no archive for test prefixes)', default: ''}
       alerts_window: {description: 'NWS alert period START/END (UTC ISO) from the IEM archive instead of the live API (tests)', default: ''}
 permissions:
@@ -58,7 +58,7 @@ jobs:
           SINGLE=""; if [ "$ENSEMBLE" = "0" ]; then SINGLE=--single; fi
           python proto/forecast_kofn.py members --gate gate/gate.json $SINGLE --github-output $GITHUB_OUTPUT 2>&1 | tee -a gate.log
           echo "::notice title=gate::$(cut -c1-300 gate.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
-      - name: Turing whole-District-3 run (PRIMARY path, proto/forecast_turing.py; the box jobs below are the backup and run anyway)
+      - name: Turing whole-District-3 shadow run (proto/forecast_turing.py; test only, the box jobs below stay the public forecast, DISTRICT.md)
         if: steps.g.outputs.trigger == 'true' && (inputs.turing || vars.FORECAST_TURING || '1') == '1'
         continue-on-error: true
         env:
@@ -182,7 +182,7 @@ jobs:
             done < viewers.txt
           fi
           python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out $ST
-          # Turing first: if the whole-district run already published THIS cycle, its status stays; otherwise the boxes are labelled the backup
+          # the boxes stay the public forecast (shadow mode); a Turing whole-district run of THIS cycle is linked as a shadow run
           TP=forecast_d3; [ "$PFX" = "forecast_latest" ] || TP=${PFX}_d3
           git fetch -q origin main && git checkout origin/main -- docs/site/data/${TP}_status.json 2>/dev/null || true
           python proto/forecast_turing.py prefer --status $ST --turing docs/site/data/${TP}_status.json || true
