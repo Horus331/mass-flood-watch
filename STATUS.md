@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T21:12:35Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T21:42:47Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -154,8 +154,32 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | fcd3_e2etest2_d3_2023091112_any | forecast_d3 | failed | 2443420 | 0 / 1 | 2026-11-01T18:10:56Z | 2026-11-01T20:42:07Z |  |
 | d3all_diag5 | diag | completed | 2443421 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T18:41:02Z |  |
 | d3all_v1_b2 | run_plan_display | cancelled | 2443460 | 0 / 0 | 2026-11-01T18:41:02Z | 2026-11-01T21:12:35Z | cancelled through jobs.json "cancel" |
-| d3all_v1_c | run_plan_display | running | 2443461 | 0 / 1 | 2026-11-01T18:41:02Z |  |  |
+| d3all_v1_c | run_plan_display | running | 2443461 | 0 / 2 | 2026-11-01T18:41:02Z |  |  |
 | d3all_diag6 | diag | completed | 2443650 | 1 / 0 | 2026-11-01T19:41:34Z | 2026-11-01T20:11:44Z |  |
 | d3all_diag7 | diag | completed | 2443757 | 1 / 0 | 2026-11-01T20:42:07Z | 2026-11-01T21:12:35Z |  |
-| d3all_v1_b3 | run_plan_display | submitted | 2443788 |  /  | 2026-11-01T21:12:35Z |  |  |
-| d3all_diag8 | diag | submitted | 2443789 |  /  | 2026-11-01T21:12:35Z |  |  |
+| d3all_v1_b3 | run_plan_display | cancelled | 2443788 | 0 / 0 | 2026-11-01T21:12:35Z | 2026-11-01T21:42:47Z | cancelled through jobs.json "cancel" |
+| d3all_diag8 | diag | completed | 2443789 | 1 / 0 | 2026-11-01T21:12:35Z | 2026-11-01T21:42:47Z |  |
+| d3all_v1_b4 | run_plan_display | submitted | 2443840 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_d3_sep2023_20m_t2 | run_storm | submitted | 2443841 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_d3_sep2023_20m_t2 | pack_site | submitted | 2443842 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_leominster_sep2023 | run_storm | submitted | 2443843 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_leominster_sep2023 | pack_site | submitted | 2443844 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_worcester_aug2021 | run_storm | submitted | 2443845 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_worcester_aug2021 | pack_site | submitted | 2443846 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_aug2026_leominster | run_storm | submitted | 2443847 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_aug2026_leominster | pack_site | submitted | 2443848 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_sep2021_worcester | run_storm | submitted | 2443849 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_sep2021_worcester | pack_site | submitted | 2443850 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_sep2022_webster | run_storm | submitted | 2443851 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_sep2022_webster | pack_site | submitted | 2443852 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_aug2023_metrowest | run_storm | submitted | 2443853 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_aug2023_metrowest | pack_site | submitted | 2443854 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_jun2020_northbridge | run_storm | submitted | 2443855 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_jun2020_northbridge | pack_site | submitted | 2443856 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_jul2023_worcester | run_storm | submitted | 2443857 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_jul2023_worcester | pack_site | submitted | 2443858 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_sep2018_fitchburg | run_storm | submitted | 2443859 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_sep2018_fitchburg | pack_site | submitted | 2443860 |  /  | 2026-11-01T21:42:47Z |  |  |
+| run_t2_sep2018m_milford | run_storm | submitted | 2443861 |  /  | 2026-11-01T21:42:47Z |  |  |
+| pack_t2_sep2018m_milford | pack_site | submitted | 2443862 |  /  | 2026-11-01T21:42:47Z |  |  |
+| d3all_v2_a | run_plan_display | submitted | 2443863 |  /  | 2026-11-01T21:42:47Z |  |  |
