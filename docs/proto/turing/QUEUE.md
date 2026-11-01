@@ -55,7 +55,10 @@ Turing limits per user (sacctmgr, `diag/d3all_diag1.md`, 1 Nov 2026), **every ar
 | long | 100 | 4 | 7 days | A100, L40S, RTX Pro 6000 (no H100/H200) |
 
 A quick array with more than ~18 tasks can never be submitted (the runner keeps deferring it, and the runner stops at the first
-deferred request, so everything after it waits too). Pin FP64 runs to A100/H100 with `"gres": "gpu:A100:1"`.
+deferred request, so everything after it waits too). For FP64 runs ask for any fast-FP64 node by feature, not one gres type:
+`"sbatch": {"gres": "gpu:1", "constraint": "A100|H100|H200"}` (run_storm, run_forecast, run_plan_gpu, run_plan_display, forecast_d3).
+On 1 Nov 2026 three of the four A100-80G nodes and both H100 nodes were down: an A100-only request waits for 1 node (4 GPUs) plus the
+2 × A100-40G on whitehill-0-02, while the H200 node (8 GPUs) is reachable only through the constraint.
 
 ## Where results go (no Google Drive)
 
