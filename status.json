@@ -2601,7 +2601,7 @@
    "finished": "2026-11-01T14:39:10Z"
   },
   "fcd3_e2etest_d3_2023091112_s": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2443042",
    "kind": "forecast_d3",
    "env": {
@@ -2627,7 +2627,11 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T17:10:19Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "d3all_v1_a": {
    "status": "cancelled",
@@ -2662,7 +2666,7 @@
    ]
   },
   "run_d3_sep2023_20m_c": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2443072",
    "kind": "run_storm",
    "env": {
@@ -2696,10 +2700,14 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T17:10:19Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "pack_d3_sep2023_20m_c": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2443073",
    "kind": "pack_site",
    "env": {
@@ -2723,7 +2731,11 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T17:10:19Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "d3all_diag2": {
    "status": "completed",
@@ -2832,7 +2844,7 @@
    "finished": "2026-11-01T16:40:07Z"
   },
   "amcnwm_v1_arr3": {
-   "status": "pending",
+   "status": "running",
    "slurm_id": "2443118",
    "kind": "run_plan_gpu",
    "env": {
@@ -2849,15 +2861,15 @@
    "at": "2026-11-01T16:09:49Z",
    "error": null,
    "slurm": {
-    "state": "PENDING",
-    "tasks": 1,
-    "done": 0,
+    "state": "RUNNING",
+    "tasks": 7,
+    "done": 5,
     "failed": 0,
-    "elapsed": "00:00:00"
+    "elapsed": "00:04:27"
    }
   },
   "d3all_diag4": {
-   "status": "submitted",
+   "status": "completed",
    "slurm_id": "2443159",
    "kind": "diag",
    "env": {
@@ -2873,9 +2885,91 @@
    },
    "after": [],
    "at": "2026-11-01T16:40:07Z",
+   "error": null,
+   "slurm": {
+    "state": "COMPLETED",
+    "tasks": 1,
+    "done": 1,
+    "failed": 0,
+    "elapsed": "00:00:10"
+   },
+   "finished": "2026-11-01T17:10:19Z"
+  },
+  "fcd3_e2etest_d3_2023091112_g": {
+   "status": "submitted",
+   "slurm_id": "2443209",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2023-09-11T12Z",
+    "MEMBERS": "2023-09-11T12Z",
+    "HOURS": "48",
+    "PFX": "e2etest_d3",
+    "REQ_AT": "2026-11-01T14:04:51Z",
+    "FORCE": "1"
+   },
+   "sbatch": {
+    "array": "0-0",
+    "partition": "short",
+    "time": "06:00:00",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200"
+   },
+   "after": [],
+   "at": "2026-11-01T17:10:19Z",
+   "error": null
+  },
+  "run_d3_sep2023_20m_d": {
+   "status": "submitted",
+   "slurm_id": "2443210",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "BOX": "128000,856000,206000,946000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "600",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "10:00:00",
+    "mem": "160G",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200"
+   },
+   "after": [],
+   "at": "2026-11-01T17:10:19Z",
+   "error": null
+  },
+  "pack_d3_sep2023_20m_d": {
+   "status": "submitted",
+   "slurm_id": "2443211",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "SITE": "d3_sep2023_t",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "10:00:00"
+   },
+   "after": [
+    "run_d3_sep2023_20m_d"
+   ],
+   "at": "2026-11-01T17:10:19Z",
    "error": null
   }
  },
- "updated": "2026-11-01T16:40:07Z",
+ "updated": "2026-11-01T17:10:19Z",
  "paused": false
 }
