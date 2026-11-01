@@ -2862,8 +2862,8 @@
    "error": null,
    "slurm": {
     "state": "RUNNING",
-    "tasks": 14,
-    "done": 12,
+    "tasks": 21,
+    "done": 19,
     "failed": 0,
     "elapsed": "00:05:02"
    }
@@ -2989,8 +2989,98 @@
     "failed": 0,
     "elapsed": "00:00:00"
    }
+  },
+  "run_d3_sep2023_20m_any": {
+   "status": "submitted",
+   "slurm_id": "2443418",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_d3_sep2023_any",
+    "STORM": "sep2023",
+    "BOX": "128000,856000,206000,946000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "600",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "16:00:00",
+    "mem": "160G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T18:10:56Z",
+   "error": null
+  },
+  "pack_d3_sep2023_20m_any": {
+   "status": "submitted",
+   "slurm_id": "2443419",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_d3_sep2023_any",
+    "STORM": "sep2023",
+    "SITE": "d3_sep2023_t",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "10:00:00"
+   },
+   "after": [
+    "run_d3_sep2023_20m_any"
+   ],
+   "at": "2026-11-01T18:10:56Z",
+   "error": null
+  },
+  "fcd3_e2etest2_d3_2023091112_any": {
+   "status": "submitted",
+   "slurm_id": "2443420",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2023-09-11T12Z",
+    "MEMBERS": "2023-09-11T12Z",
+    "HOURS": "48",
+    "PFX": "e2etest2_d3",
+    "REQ_AT": "2026-11-01T14:04:51Z",
+    "FORCE": "1"
+   },
+   "sbatch": {
+    "array": "0-0",
+    "partition": "short",
+    "time": "12:00:00",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-01T18:10:56Z",
+   "error": null
+  },
+  "d3all_diag5": {
+   "status": "submitted",
+   "slurm_id": "2443421",
+   "kind": "diag",
+   "env": {
+    "JOBS": "2443116,2443210",
+    "LOGS": "plan_display_2443116_0.out,plan_display_2443116_1.out",
+    "WLOGS": "d3all_v1/work_d3all_aug2026/w9_log.txt,d3all_v1/work_d3all_sep2021/w9_log.txt",
+    "TAIL": "30"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "00:30:00"
+   },
+   "after": [],
+   "at": "2026-11-01T18:10:56Z",
+   "error": null
   }
  },
- "updated": "2026-11-01T17:40:37Z",
+ "updated": "2026-11-01T18:10:56Z",
  "paused": false
 }
