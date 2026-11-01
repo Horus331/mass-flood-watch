@@ -8,6 +8,11 @@
 #SBATCH -t 03:00:00
 #SBATCH -o pack_site_%j.out
 set -eo pipefail
+# PUSH_BRANCH=<branch> (optional): push the pack to that branch of this repository (as the district packs below), never to main; for
+# variants not approved for the public site (e.g. terrain fix T2 replays -> t2-data)
+if [ -n "${PUSH_BRANCH:-}" ]; then
+  [[ "$PUSH_BRANCH" =~ ^[a-z0-9][a-z0-9-]{0,40}$ && "$PUSH_BRANCH" != main && "$PUSH_BRANCH" != gh-pages && "$PUSH_BRANCH" != turing-queue ]] || { echo "PUSH_BRANCH not allowed: $PUSH_BRANCH"; exit 2; }
+fi
 source proto/turing/env.sh
 python -c "import shapely" 2>/dev/null || pip install -q shapely
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
@@ -20,13 +25,15 @@ du -sh docs/site/data/$SITE
 # whole-district packs (tiled, docs/site/build_data.py build_tiled) are too big for the main site (Pages ~1 GB): they go to the branch
 # district-data of this repository (never deployed; the Turing deploy key only reaches this repository), one commit per storm folder.
 # From there they are copied to the data site (Horus331/mfw-data-d3, GitHub Pages) and the main site gets a small stub with meta.data_base.
-if python -c "import json,sys; sys.exit(0 if (json.load(open('docs/site/data/$SITE/meta.json')).get('depthc') or {}).get('tiles') else 1)"; then
+BR=${PUSH_BRANCH:-}
+if python -c "import json,sys; sys.exit(0 if (json.load(open('docs/site/data/$SITE/meta.json')).get('depthc') or {}).get('tiles') else 1)"; then BR=${BR:-district-data}; fi
+if [ -n "$BR" ]; then
   RM=$(git remote get-url --push origin); W=$LF_WORK/district_data_wt_$SITE; rm -rf $W; git worktree prune
-  if git fetch -q "$RM" district-data 2>/dev/null; then git worktree add -q --detach $W FETCH_HEAD
-  else git worktree add -q --detach $W HEAD; (cd $W && git checkout -q --orphan district-data-new && git rm -rqf . && echo "Whole-district replay packs (docs/site/build_data.py build_tiled); copied to the data site, not deployed from here." > README.md && git add README.md); fi
+  if git fetch -q "$RM" $BR 2>/dev/null; then git worktree add -q --detach $W FETCH_HEAD
+  else git worktree add -q --detach $W HEAD; (cd $W && git checkout -q --orphan $BR-new && git rm -rqf . && echo "Replay packs (docs/site/build_data.py) kept off the main site; copied from here when approved, not deployed from here." > README.md && git add README.md); fi
   rm -rf $W/$SITE; mv docs/site/data/$SITE $W/$SITE
-  (cd $W && git add -A $SITE && git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "District data: $SITE from Turing run $NAME" && \
-    for i in 1 2 3; do git push -q "$RM" HEAD:refs/heads/district-data && echo "pushed $SITE to district-data" && break; sleep 15; done)
+  (cd $W && git add -A $SITE && git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Replay data ($BR): $SITE from Turing run $NAME" && \
+    for i in 1 2 3; do git push -q "$RM" HEAD:refs/heads/$BR && echo "pushed $SITE to $BR" && break; sleep 15; done)
   git worktree remove --force $W || true
   exit 0
 fi
