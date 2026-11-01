@@ -222,6 +222,43 @@ def fetch_rain(now, model=None):
     return dict(ok=False, error='; '.join(errs) or 'no rain source')
 
 
+# ------------------------------------------------------------------ hourly rain for the week table (Open-Meteo, NOAA NBM)
+OM = 'https://api.open-meteo.com/v1/forecast'
+
+
+def fetch_hourly(now):
+    """Hourly rain (mm) at every District 3 town's label point from Open-Meteo's NOAA NBM CONUS model, for the Forecast tab's week table
+    (2-hour columns, as iOS Weather). NBM is hourly to ~36 h; Open-Meteo serves it hourly beyond that by spreading the 3/6-hour totals.
+    Display only: the flood gate and the day levels stay on the NBM GRIB buckets above."""
+    import forecast as FC
+    towns = FC.d3_towns()
+    lat = ','.join(f'{lab[1]:.4f}' for _, lab, _ in towns); lon = ','.join(f'{lab[0]:.4f}' for _, lab, _ in towns)
+    r = http(OM, params=dict(latitude=lat, longitude=lon, hourly='precipitation', models='ncep_nbm_conus', timezone='UTC', forecast_days=8), timeout=60)
+    if r is None: return dict(ok=False, error='Open-Meteo request failed')
+    J = r.json(); J = J if isinstance(J, list) else [J]
+    if not J or 'hourly' not in J[0]: return dict(ok=False, error=str(J)[:200])
+    times = J[0]['hourly']['time']
+    mm = [[None if v is None else round(float(v), 2) for v in j['hourly']['precipitation']] for j in J]
+    return dict(ok=True, source='Open-Meteo (open-meteo.com, CC BY 4.0), NOAA NBM CONUS, hourly precipitation at the 73 town label points',
+                fetched=iso(now), times=[t + 'Z' if not t.endswith('Z') else t for t in times], towns=[n.title() for n, _, _ in towns], mm=mm)
+
+
+def day_hourly2(d, H):
+    """12 two-hour columns of the local day d from the hourly town series: [district mean mm, wettest town mm] or None where missing."""
+    if not H or not H.get('ok'): return None
+    T = [parse_utc(t) for t in H['times']]; M = np.array([[np.nan if v is None else v for v in row] for row in H['mm']], np.float32)   # towns x hours
+    s = local_midnight_utc(d); out = []; got = False
+    for k in range(12):
+        a, b = s + dt.timedelta(hours=2 * k), s + dt.timedelta(hours=2 * k + 2)
+        ix = [i for i, t in enumerate(T) if a < t <= b]                 # hourly totals are for the hour ending at t
+        if len(ix) < 2 or np.isnan(M[:, ix]).all(): out.append(None); continue
+        v = np.nansum(M[:, ix], axis=1); out.append([round(float(np.nanmean(v)), 2), round(float(np.nanmax(v)), 1)]); got = True
+    if not got: return None
+    ix = [i for i, t in enumerate(T) if s < t <= s + dt.timedelta(hours=24)]
+    tot = np.nansum(M[:, ix], axis=1)
+    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1))
+
+
 # ------------------------------------------------------------------ WPC Excessive Rainfall Outlook
 def ero_category(props):
     """Highest ERO level named in a feature's properties (dn 1-4 or text Marginal/Slight/Moderate/High, MRGL/SLGT/MDT/HIGH)."""
@@ -343,13 +380,16 @@ def fetch_alerts(now):
 def cmd_fetch(a, now=None):
     now = now or (parse_utc(a.now) if getattr(a, 'now', None) else utcnow())
     t_ = time.time(); rain = fetch_rain(now, getattr(a, 'model', None)); log('rain', rain.get('model'), rain.get('run'), rain.get('error', ''), f'{time.time() - t_:.0f} s')
+    try: hourly = fetch_hourly(now)
+    except Exception as e: hourly = dict(ok=False, error=repr(e)[:200])
+    log('hourly', hourly.get('ok'), hourly.get('error', ''), len(hourly.get('times') or []))
     try: ero = fetch_ero(now)
     except Exception as e: ero = dict(ok=False, error=repr(e)[:200])
     log('ero', [(d['day'], d.get('category')) for d in ero.get('days', [])], ero.get('errors') or ero.get('error') or '')
     try: al = fetch_alerts(now)
     except Exception as e: al = dict(ok=False, error=repr(e)[:200])
     log('alerts', len(al.get('alerts', [])), al.get('error', ''))
-    raw = dict(fetched=iso(now), fetch_s=round(time.time() - t_), ero=ero, alerts=al)
+    raw = dict(fetched=iso(now), fetch_s=round(time.time() - t_), ero=ero, alerts=al, hourly=hourly)
     if rain.get('ok'):
         R, P, RF = rain.pop('_R'), rain.pop('_P'), rain.pop('_RF', None)
         if RF is not None: raw['rain_fine_mm'] = np.round(RF[:, P.inside], 2).tolist()
@@ -452,7 +492,8 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                 day['rain'] = dict(d3_mean_mm=round(float(tot.mean()), 1), town_max_mm=round(float(tt[j]), 1), town_max=names[j] if tt[j] >= 0.1 else None,
                                    max6h_mm=round(float(T6[ib].max()), 1), max24h_mm=max24({d}),
                                    six_hourly_mean_mm=[round(float(R[i].mean()), 1) for i in ib], six_hourly_max_mm=[round(float(T6[i].max()), 1) for i in ib],
-                                   six_hourly_start=[rain['buckets'][i][0] for i in ib], bars=day_bars(d, s, e, rain, R, raw, tmax))
+                                   six_hourly_start=[rain['buckets'][i][0] for i in ib], bars=day_bars(d, s, e, rain, R, raw, tmax),
+                                   hourly2=day_hourly2(d, (raw or {}).get('hourly')))
                 day['towns_over'] = sorted(set(o6) | set(o24)); day['towns_over_6h'] = o6; day['towns_over_24h'] = o24
             else: day['rain'] = None; day['towns_over'] = []
         else: day['rain'] = None; day['towns_over'] = []; day['hours'] = 0; day['partial'] = True
@@ -527,7 +568,8 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                days=days, storms=storms, alerts=(al.get('alerts') or [])[:20],
                sources=dict(rain={k: v for k, v in rain.items() if not k.startswith('_') and k != 'buckets'},
                             ero={k: v for k, v in ero.items() if k != 'days'} | dict(days=[{k: v for k, v in x.items() if k != 'towns'} for x in ero.get('days') or []]),
-                            alerts={k: v for k, v in al.items() if k != 'alerts'}),
+                            alerts={k: v for k, v in al.items() if k != 'alerts'},
+                            hourly={k: v for k, v in ((raw or {}).get('hourly') or {}).items() if k not in ('mm', 'times', 'towns')}),
                health=dict(status=status_, problems=problems, issued=iso(now), fetched=(raw or {}).get('fetched'), rain_run=rain.get('run'),
                            next_update=iso(nx), schedule_cron=cr, schedule_utc=[f'{h:02d}:{m:02d}' for h, m in times], typical_delay_min=[10, 60],
                            stale_after_h=STALE_H, workflow='.github/workflows/forecast.yml', run_url=run_url,
