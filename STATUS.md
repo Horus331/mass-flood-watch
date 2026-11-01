@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T18:10:56Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T18:41:02Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -142,14 +142,16 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | pack_d3_sep2023_20m_c | pack_site | cancelled | 2443073 | 0 / 0 | 2026-11-01T15:09:27Z | 2026-11-01T17:10:19Z | cancelled through jobs.json "cancel" |
 | d3all_diag2 | diag | completed | 2443074 | 1 / 0 | 2026-11-01T15:09:27Z | 2026-11-01T15:39:42Z |  |
 | d3all_diag3 | diag | completed | 2443094 | 1 / 0 | 2026-11-01T15:39:42Z | 2026-11-01T16:09:49Z |  |
-| d3all_v1_b | run_plan_display | pending | 2443116 | 0 / 0 | 2026-11-01T16:09:49Z |  |  |
+| d3all_v1_b | run_plan_display | cancelled | 2443116 | 0 / 0 | 2026-11-01T16:09:49Z | 2026-11-01T18:41:02Z | cancelled through jobs.json "cancel" |
 | inl1_diag | collect_scores | completed | 2443117 | 1 / 0 | 2026-11-01T16:09:49Z | 2026-11-01T16:40:07Z |  |
-| amcnwm_v1_arr3 | run_plan_gpu | running | 2443118 | 19 / 0 | 2026-11-01T16:09:49Z |  |  |
+| amcnwm_v1_arr3 | run_plan_gpu | pending | 2443118 | 25 / 0 | 2026-11-01T16:09:49Z |  |  |
 | d3all_diag4 | diag | completed | 2443159 | 1 / 0 | 2026-11-01T16:40:07Z | 2026-11-01T17:10:19Z |  |
 | fcd3_e2etest_d3_2023091112_g | forecast_d3 | pending | 2443209 | 0 / 0 | 2026-11-01T17:10:19Z |  |  |
 | run_d3_sep2023_20m_d | run_storm | pending | 2443210 | 0 / 0 | 2026-11-01T17:10:19Z |  |  |
 | pack_d3_sep2023_20m_d | pack_site | pending | 2443211 | 0 / 0 | 2026-11-01T17:10:19Z |  |  |
-| run_d3_sep2023_20m_any | run_storm | submitted | 2443418 |  /  | 2026-11-01T18:10:56Z |  |  |
-| pack_d3_sep2023_20m_any | pack_site | submitted | 2443419 |  /  | 2026-11-01T18:10:56Z |  |  |
-| fcd3_e2etest2_d3_2023091112_any | forecast_d3 | submitted | 2443420 |  /  | 2026-11-01T18:10:56Z |  |  |
-| d3all_diag5 | diag | submitted | 2443421 |  /  | 2026-11-01T18:10:56Z |  |  |
+| run_d3_sep2023_20m_any | run_storm | pending | 2443418 | 0 / 0 | 2026-11-01T18:10:56Z |  |  |
+| pack_d3_sep2023_20m_any | pack_site | pending | 2443419 | 0 / 0 | 2026-11-01T18:10:56Z |  |  |
+| fcd3_e2etest2_d3_2023091112_any | forecast_d3 | pending | 2443420 | 0 / 0 | 2026-11-01T18:10:56Z |  |  |
+| d3all_diag5 | diag | completed | 2443421 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T18:41:02Z |  |
+| d3all_v1_b2 | run_plan_display | submitted | 2443460 |  /  | 2026-11-01T18:41:02Z |  |  |
+| d3all_v1_c | run_plan_display | submitted | 2443461 |  /  | 2026-11-01T18:41:02Z |  |  |
