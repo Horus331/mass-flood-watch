@@ -3233,7 +3233,7 @@
     R.hourly2.cols.forEach(function (c, k) {
       var night = k < 3 || k > 8, t = (2 * k % 12 || 12) + (k < 6 ? 'a' : 'p');
       if (!c) { cols += '<i class="' + (night ? 'nt ' : '') + 'na"><b></b></i>'; return; }
-      var v = c[1], hv = v < 0.05 ? 0 : Math.max(6, Math.min(100, 100 * v / (2 * GATE2))), over = v >= GATE2;
+      var v = c[1], hv = v < 0.05 ? 0 : Math.max(5, Math.min(100, 85 * Math.sqrt(v / GATE2))), over = v >= GATE2;   // line at 85 %, square-root scale below it
       lab.push(t + ': wettest town ' + v.toFixed(1) + ' mm, District 3 average ' + c[0].toFixed(1) + ' mm' + (over ? ' (at or over the flood-model trigger rate)' : ''));
       cols += '<i class="' + (night ? 'nt' : '') + '" title="' + esc(lab[lab.length - 1]) + '">' + (hv ? '<s class="' + (over ? 'ov' : '') + '" style="height:' + hv.toFixed(0) + '%"></s>' : '') + '<b></b></i>';
     });
@@ -3397,7 +3397,7 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    key.innerHTML = (HAS2 ? '<span>Each column is 2 hours of rain in the wettest town of District 3. The line across each column is the flood-model trigger rate, 8.3 mm in 2 hours (25 mm in 6 hours); columns that reach it turn orange, and the flood model runs on the roads once that rain is within 48 hours. Darker columns are night. NOAA National Blend of Models, hourly via Open-Meteo (open-meteo.com): hourly for about 36 h, smoothed from 3- and 6-hour totals after that.</span>' : days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
+    key.innerHTML = (HAS2 ? '<span>Each column is 2 hours of rain in the wettest town of District 3. The line across each column is the flood-model trigger rate, 8.3 mm in 2 hours (25 mm in 6 hours); columns that reach it turn orange, and the flood model runs on the roads once that rain is within 48 hours. Heights are on a square-root scale, so light rain stays visible (a quarter of the trigger rate reaches half the line). Darker columns are night. NOAA National Blend of Models, hourly via Open-Meteo (open-meteo.com): hourly for about 36 h, smoothed from 3- and 6-hour totals after that.</span>' : days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
     // storms coming (runs of days at level 2 or more)
