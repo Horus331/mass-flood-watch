@@ -3226,20 +3226,25 @@
   // bars further out); a bar is never split or smoothed
   var fmtYMD = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/New_York' });
   function barStrip(R, date) {
-    var full = BAR_FULL, out = [], lab = [];   // a full bar = the week's wettest-town rain per 2 hours (at least 2 mm)
+    // 12 two-hour columns like iOS Weather. Each column = District 3 average rain in those 2 hours. Where the model is hourly the
+    // column is the model's own 2 hours; where it gives only 3- or 6-hour totals, those hours share that total evenly (said in the key).
+    var hr_ = new Array(24).fill(null), coarse = new Array(24).fill(false);
     R.bars.forEach(function (b) {
-      var st = zt(b[0]), h = b[1], v = b[2], w = b[3], hr = +fmtHr24.format(st) % 24, per2 = 2 / h, c0 = hr, sp = h;
-      if (date && fmtYMD.format(st) < date) { sp = h - (24 - hr); c0 = 0; }   // starts the evening before: draw the part in this day
-      sp = Math.max(1, Math.min(sp, 24 - c0));
-      var hv = Math.min(100, 100 * v * per2 / full), hx = Math.min(100, 100 * w * per2 / full), r = v / h;   // height by rain per 2 h
-      var col = v < 0.1 ? 'transparent' : r < 0.33 ? '#B9AEE0' : r < 0.83 ? '#9381CC' : r < 1.67 ? '#6A51A3' : r < 3.3 ? '#54278F' : '#3F007D';
-      var t = fmtH6.format(st) + ' (' + h + ' h): ' + v.toFixed(1) + ' mm average, ' + w.toFixed(0) + ' mm wettest town';
-      lab.push(t);
-      out.push('<i title="' + esc(t) + '" style="grid-row:1;grid-column:' + (c0 + 1) + ' / span ' + sp + '"><s style="height:' + hv.toFixed(0) + '%;background:' + col + '"></s>' +
-        (w >= 0.3 ? '<u style="bottom:' + hx.toFixed(0) + '%"></u>' : '') + '</i>');
+      var st = zt(b[0]), h = b[1], v = b[2], hr = +fmtHr24.format(st) % 24, c0 = hr, sp = h;
+      if (date && fmtYMD.format(st) < date) { sp = h - (24 - hr); c0 = 0; }
+      sp = Math.max(0, Math.min(sp, 24 - c0));
+      for (var k = c0; k < c0 + sp; k++) { hr_[k] = v / h; coarse[k] = h > 2; }
     });
-    var tr = ''; for (var k = 0; k < 12; k++) tr += '<em style="grid-column:' + (2 * k + 1) + ' / span 2"></em>';
-    return '<span class="six h24" role="img" aria-label="' + esc(lab.join('; ')) + '">' + tr + out.join('') + '</span>';
+    var cols = '', lab = [];
+    for (var k = 0; k < 12; k++) {
+      var a = hr_[2 * k], b2 = hr_[2 * k + 1], night = k < 3 || k > 8;
+      if (a == null && b2 == null) { cols += '<i class="' + (night ? 'nt ' : '') + 'na"></i>'; continue; }
+      var v = (a || 0) + (b2 || 0), hv = v < 0.05 ? 0 : Math.max(12, Math.min(100, 100 * v / BAR_FULL));
+      var t = (2 * k === 0 ? '12a' : 2 * k < 12 ? (2 * k) + 'a' : 2 * k === 12 ? '12p' : (2 * k - 12) + 'p') + '–' + (2 * k + 2 === 24 ? '12a' : 2 * k + 2 < 12 ? (2 * k + 2) + 'a' : 2 * k + 2 === 12 ? '12p' : (2 * k + 2 - 12) + 'p') + ': ' + v.toFixed(1) + ' mm' + (coarse[2 * k] ? ' (share of a ' + '3/6-hour forecast total)' : '');
+      lab.push(t);
+      cols += '<i class="' + (night ? 'nt' : '') + '" title="' + esc(t) + '">' + (hv ? '<s style="height:' + hv.toFixed(0) + '%"></s>' : '') + '</i>';
+    }
+    return '<span class="six c12" role="img" aria-label="' + esc(lab.join('; ')) + '">' + cols + '</span>';
   }
   var fmtHr24 = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/New_York' });
   function sixStrip(R, i) {
@@ -3349,11 +3354,11 @@
     var ol = $('week'); ol.innerHTML = '';
     if (O && O.headline) { var hl = document.createElement('li'); hl.className = 'wk-head'; hl.textContent = O.headline; ol.appendChild(hl); }
     SIX_FULL = Math.max(10, Math.ceil(Math.max.apply(0, days.map(function (x) { return Math.max.apply(0, ((x && x.rain && x.rain.six_hourly_max_mm) || [0]).map(function (v) { return v || 0; })); })) / 5) * 5);
-    BAR_FULL = Math.max(2, Math.ceil(Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.bars) || []).map(function (q) { return q[3] * 2 / q[1]; }); })).concat([0]))));
+    BAR_FULL = Math.max(1.5, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.bars) || []).map(function (q) { return q[2] * 2 / q[1]; }); })).concat([0])));
     var d0 = days.filter(function (x) { return x && x.rain && x.rain.six_hourly_start && x.rain.six_hourly_start.length === 4; }).pop();
     if (days.some(function (x) { return x && x.rain && x.rain.bars; })) {
       var hd2 = document.createElement('li'); hd2.className = 'day six-hd';
-      hd2.innerHTML = '<span></span><span></span><span class="six h24">' + ['12a', '6a', '12p', '6p'].map(function (l, k) { return '<b style="grid-column:' + (6 * k + 1) + ' / span 6">' + l + '</b>'; }).join('') + '</span><span class="mm">total</span>';
+      hd2.innerHTML = '<span></span><span></span><span class="six c12">' + ['12a', '6a', '12p', '6p'].map(function (l, k) { return '<b style="grid-column:' + (3 * k + 1) + ' / span 3">' + l + '</b>'; }).join('') + '</span><span class="mm">total</span>';
       ol.appendChild(hd2); d0 = null;
     }
     if (d0) {
@@ -3376,7 +3381,7 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    key.innerHTML = (days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Bars are 2 hours where the forecast is hourly (about the next 36 h), then 3 and 6 hours: height = rain per 2 hours, District 3 average (fill) and wettest town (line); a full bar is ' + BAR_FULL + ' mm in 2 h. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
+    key.innerHTML = (days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
     // storms coming (runs of days at level 2 or more)
