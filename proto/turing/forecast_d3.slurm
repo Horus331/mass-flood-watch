@@ -22,8 +22,7 @@
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=96G
-#SBATCH --gres=gpu:1
-#SBATCH --constraint=A100|H100|H200
+#SBATCH --gres=gpu:1                 # the GPU type is chosen by the request (constraint A100|H100|H200 for the live shadow run, forecast_turing.py)
 #SBATCH -t 06:00:00
 #SBATCH -o fcd3_%A_%a.out
 set -eo pipefail
