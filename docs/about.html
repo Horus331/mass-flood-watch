@@ -9,16 +9,36 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1F2328">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-:root{--bg:#F2F2EF;--surface:#fff;--ink:#1F2328;--muted:#5F6368;--rule:#D0D0CC;--accent:#1F2328;--closed:#c8102e;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1E2124;--surface:#2A2E33;--ink:#E8EAED;--muted:#9AA0A6;--rule:#41464D;--accent:#E8EAED;--closed:#ff5a6e;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#1E2124;--surface:#2A2E33;--ink:#E8EAED;--muted:#9AA0A6;--rule:#41464D;--accent:#E8EAED;--closed:#ff5a6e;color-scheme:dark}
+@font-face{font-family:"Overpass";src:url(site/fonts/overpass-latin-wght.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@view-transition{navigation:auto}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+/* palette "harbour mist", shared with the map */
+:root{--bg:#E6EDF0;--surface:#F4F7F9;--ink:#1B2A33;--muted:#55656F;--rule:#CBD5DA;--accent:#2C5F73;--accent-ink:#22506A;--plate:#244B5E;--closed:#c8102e;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121A20;--surface:#1B242C;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;--accent:#7FB6CB;--accent-ink:#9CC8D8;--closed:#ff5a6e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121A20;--surface:#1B242C;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;--accent:#7FB6CB;--accent-ink:#9CC8D8;--closed:#ff5a6e;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;-webkit-text-size-adjust:100%}
-a{color:var(--accent)}
-.bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
-.bar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:none;font-weight:600}
-.bar b{margin-left:auto;font-size:15px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Overpass",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
+a{color:var(--accent-ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+.bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:14px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
+.bar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:none;font-weight:650}
+.bar .plate{min-height:0;color:#fff;background:var(--plate);font-weight:800;font-size:14px;letter-spacing:.01em;line-height:1;padding:7px 10px 5px;border-radius:6px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),inset 0 0 0 3px var(--plate);view-transition-name:mfw-plate}
+.bar .back{margin-left:auto;color:#fff;background:var(--accent);border-radius:999px;padding:0 16px;min-height:40px}
+:root[data-theme="dark"] .bar .back{color:#10202A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bar .back{color:#10202A}}
+@media (max-width:480px){.bar .proj{display:none}}
+.toc{display:flex;flex-wrap:wrap;gap:6px 8px;margin:14px 0 4px;padding:0;list-style:none}
+.toc a{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid var(--rule);border-radius:999px;background:var(--surface);text-decoration:none;color:var(--ink);font-size:14px;font-weight:600}
+.toc a:hover{border-color:var(--accent)}
+.key{display:grid;grid-template-columns:170px 1fr;gap:8px 16px;margin:10px 0 16px;font-size:15px;align-items:start}
+.key dt{font-weight:700;display:flex;align-items:center;gap:8px}
+.key dd{margin:0;color:var(--muted)}
+.key .sw{display:inline-block;width:22px;height:6px;border-radius:3px;flex:none}
+@media (max-width:560px){.key{grid-template-columns:1fr;gap:2px 0}.key dd{margin-bottom:8px}}
 main{max-width:760px;margin:0 auto;padding:8px 16px 64px}
 h1{font-size:30px;line-height:1.15;margin:28px 0 10px;letter-spacing:-.015em}
 h2{font-size:21px;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--rule)}
@@ -81,15 +101,45 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 </style>
 </head>
 <body>
-<div class="bar"><a href="viewer.html?run=leominster_sep2023">&#8249; Map</a><b>About</b><a href="./">Project page</a></div>
+<div class="bar"><a class="plate" href="./" title="Mass Flood Watch, project page">Mass Flood Watch</a><a class="proj" href="./">Project page</a><a class="back" href="viewer.html?run=leominster_sep2023">Open the map</a></div>
 <main>
 <p class="disc"><b>WPI research prototype, not an official MassDOT warning.</b> Confirm closures with MassDOT District 3 operations. Replays and what-if runs are past storms; only the Forecast mode looks ahead.</p>
 <h1>Which roads a flash flood will close, when, and why</h1>
 <p class="lede">Mass Flood Watch turns radar rainfall into a road-by-road picture of flash-flood closures for MassDOT Highway District 3 in central Massachusetts: where water reaches the road, when each segment closes and reopens, and who loses access to a hospital, fire station or police station while it is shut.</p>
 <div class="who"><b>Mohab Eldokla</b><span>PhD dissertation research, Department of Civil, Environmental and Architectural Engineering (CEAE), Worcester Polytechnic Institute</span><span>Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff</span></div>
 
+<ul class="toc" aria-label="On this page"><li><a href="#reading">Reading the map</a></li><li><a href="#storms">The storms</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#how">How it works</a></li><li><a href="#validation">How well it matches</a></li><li><a href="#data">Data</a></li><li><a href="#forecast-rain">Forecast</a></li><li><a href="#limits">Limitations</a></li></ul>
+
 <h2>What it does</h2>
 <p>For a storm that happened (a replay), a storm that is forecast (the live forecast, rerun every six hours from NOAA HRRR) or a storm with changed inputs (the what-if explorer), the app shows the water as the flood model moves it across the terrain, every road segment as it gets wet, risky and closed, the culverts it overtops, and the people cut off from emergency services. Every map is one physics run; nothing on it is drawn by hand.</p>
+
+<h2 id="reading">Reading the map</h2>
+<p>Everything on the map is model output or a measurement; nothing is drawn by hand. The timeline under the map plays the storm: drag anywhere on it, or use the arrow keys (Shift and an arrow moves an hour). Slow, Normal and Fast play 5, 15 and 45 minutes of storm per second.</p>
+<dl class="key">
+<dt><i class="sw" style="background:linear-gradient(90deg,#9ECAE1,#6BAED6,#2171B5,#08306B)"></i>Water depth</dt><dd>Modelled water on the ground, from 5 cm (pale) to 1 m and more (dark). 15 cm reaches a car floor; 30 cm can float a small car.</dd>
+<dt><i class="sw" style="background:#7f94a8"></i>Draining</dt><dd>Slate-grey water is going down: draining downstream or soaking in.</dd>
+<dt><i class="sw" style="background:linear-gradient(90deg,#d6d0ee,#7a6fb0,#3f007d)"></i>Rain</dt><dd>NOAA MRMS radar rain in mm per hour: light (0.5), moderate (2.5), heavy (10), very heavy (25), violent (50).</dd>
+<dt><i class="sw" style="background:#F2C14E"></i>Water on road</dt><dd>5 to 15 cm of modelled water on the road surface.</dd>
+<dt><i class="sw" style="background:#F0A202"></i>At risk</dt><dd>15 to 30 cm.</dd>
+<dt><i class="sw" style="background:#E8590C"></i>Closed</dt><dd>30 cm or more on the segment: the closure rule. A closed road reopens when the water drops below 26 cm, so a depth hovering at the threshold does not flicker.</dd>
+<dt><i class="sw" style="background:#C62828"></i>Impassable stretch</dt><dd>Red marks only the 40 m pieces where 30 cm or more covers the road itself, so one deep spot does not paint a whole kilometre red.</dd>
+<dt><i class="sw" style="background:repeating-linear-gradient(90deg,#E69F00 0 3px,transparent 3px 6px)"></i>Water at the edge</dt><dd>Water beside the road while the road surface (an embankment or a crowned road) stays above it.</dd>
+<dt><i class="sw" style="background:repeating-linear-gradient(90deg,#D55E00 0 4px,transparent 4px 6px)"></i>May close</dt><dd>A stream beside the road reaches road level; not counted in the chance of closing.</dd>
+<dt><i class="sw" style="border:2px solid currentColor;height:10px"></i>Coverage</dt><dd>The outline is MassDOT District 3, where the live forecast runs. Dashed boxes elsewhere were tested on past storms only; the shaded area outside is not modelled. On a replay, the dashed square is that run's own 20 × 20 km box.</dd>
+</dl>
+<p>The three numbers beside the map are the road segments closed and at risk at the moment shown on the timeline, and the time when the most roads are closed at once. Rain now and culverts overtopped are area values at the same moment. Click a road, on the map or in the list, for its depth through the storm, when it closes and reopens, its traffic (AADT) and the residents who lose access to a hospital, fire or police station if it closes. The guided tour (Tour) walks through the storm in eight scenes with the same numbers.</p>
+<p>The default basemap is the MassGIS 2023 statewide aerial imagery (15 cm, leaf-off, so roads under tree canopy are visible), with Esri World Imagery outside Massachusetts. Light, Terrain and Dark backgrounds are under Layers. Moving water (Layers, at street zoom) shows the direction and relative speed of the modelled current, not to time scale.</p>
+
+<h2 id="storms">The storms</h2>
+<ul class="limits">
+<li><b>Leominster, Sept 11, 2023</b>: the tuned case. A 20 × 20 km box at 20 m; the storm the model settings were checked against.</li>
+<li><b>Worcester, Aug 19, 2021</b>: a blind test. Same model settings, on a storm it was not tuned on.</li>
+<li><b>Eight more storms</b> (2018 to 2026, under More storms): held-out replays. Same settings, none chosen on them. Each entry gives the most rain in the box and the most in one hour.</li>
+<li><b>District 3, Sept 11, 2023</b>: one run over the whole district on WPI’s Turing GPU cluster, 17.6 million cells at 20 m (shown at 80 m).</li>
+</ul>
+
+<h2 id="scenarios">Scenarios</h2>
+<p>The Scenarios tab reruns the real Leominster 2023 storm with one input changed at a time: rain scaled to ½, ¾ or 1¼ of the radar storm; the ground before the storm dry (the driest soil class), normal (the calibrated setting), soaked (the wettest soil class) or frozen (nothing soaks in, an upper bound); and culverts clear or blocked (road embankments then hold water back like dams; bridges stay open). Each combination is a full LISFLOOD-FP run on WPI’s Turing GPU cluster, not an extrapolation. A combination marked with a dot is still queued, and the map keeps the last run that has landed. People cut off counts residents with no route to a hospital, fire or police station at the worst moment.</p>
 
 <h2 id="modelmap">The model and its data</h2>
 <p class="muted">Everything that goes into the flood model, what comes out of it, and what it is checked against. Each card names the source and how it is used; the full table is under <a href="#data">Data behind the model</a>.</p>
@@ -147,7 +197,7 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
         </ol>
 <div class="loop"><p>Every run is scored against what happened: USGS river gauges, NWS storm reports, NOAA Storm Events, and documented city and MassDOT closure and damage sites, each compared with random road points.</p></div>
 
-<h2>How well it matches real floods</h2>
+<h2 id="validation">How well it matches real floods</h2>
 <p class="muted">Honest numbers first: what the model does on storms it was never tuned on. The project's status page is the single source of truth for these figures (<a href="proto/STATUS.md">STATUS.md</a>).</p>
 <div class="facts" role="list">
       <div class="fact" role="listitem">
@@ -222,8 +272,9 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 <h2 id="forecast-rain">The week-ahead rain table</h2>
 <p>The Forecast tab shows the next 7 days the way a phone weather app does: one row per day, 12 columns of 2 hours each, the day's total and the chance of rain. The rain comes from NOAA's National Blend of Models, hourly at the 73 District 3 towns through Open-Meteo (open-meteo.com, CC BY 4.0). NOAA forecasts hour by hour for about the next 36 hours; after that its 3- and 6-hour totals are spread over the hours, so later days look smoother until they come closer.</p>
 <p>Each column is the rain in the wettest town in those 2 hours, so a local downpour is not averaged away. The dashed line on every column is the flood model's trigger: 25 mm in 6 hours in any town (8.3 mm in 2 hours). Columns below the line use a square-root scale so light rain stays visible; a column that reaches the line turns orange, and once that rain is within 48 hours the flood model runs on the road network. The total is the District 3 average; the chance of rain is NOAA's 12-hour probability of measurable rain (0.25 mm or more) for the day, at the most likely spot in District 3. This table is for orientation; road closures come only from the flood model.</p>
+<p>Week-ahead rain is uncertain, and road closures are modelled only within 48 hours of a storm (NOAA HRRR). “Ground before the next storm” is context: the forecast runs at normal (calibrated) ground, so wet or frozen ground means closures are likely under-forecast. “Right now” lists observations and short-range products, checked every hour: radar rain, a 2-hour radar extrapolation (experimental, not yet verified), flash-flood guidance, river gauges against flood stage, National Water Model flow at culverts, snow, and recent flooding reports.</p>
 
-<h2>Limitations</h2>
+<h2 id="limits">Limitations</h2>
 <ul class="limits">
       <li><b>Light storms are under-predicted.</b> The runoff setting tuned on Leominster leaves summer thunderstorms too dry: the alert rule catches 1 of 58 sites on the 16 newer storms. Drains, 5-minute rain and connected-pavement runoff were each tested and none fixed it.</li>
       <li><b>Spatial skill outside the development storms is at chance.</b> On held-out storms the model ranks roads better than chance but does not place the flooded area (FSS at 300 m: 0.019 against 0.234 on the development storms).</li>
