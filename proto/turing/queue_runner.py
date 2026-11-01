@@ -104,6 +104,13 @@ def tick(qdir, dry=False, kinds_path=None, jobs_path=None, state_path=None):
                 if s['status'] in ('completed', 'failed'): s['finished'] = s.get('finished') or now()
     # 1b. cancel: "cancel": [request ids] in jobs.json cancels those requests' own Slurm jobs (only jobs this queue submitted; nothing else)
     for rid in J.get('cancel') or []:
+        m_ = re.match(r'^([A-Za-z0-9_.-]{1,60})@([0-9]{1,4}(-[0-9]{1,4})?)$', str(rid))
+        if m_:   # "<id>@4-11": only those array tasks (e.g. pending ones), the request itself keeps running
+            s = St.get(m_.group(1)); jid = str((s or {}).get('slurm_id') or '')
+            if s and s.get('status') in ('submitted', 'pending', 'running') and re.match(r'^[0-9]{1,12}$', jid) and str(rid) not in (s.get('tasks_cancelled') or []):
+                if not dry: sh(['scancel', f'{jid}_[{m_.group(2)}]'])
+                s.setdefault('tasks_cancelled', []).append(str(rid)); s['why'] = [f'array tasks cancelled: {", ".join(s["tasks_cancelled"])}']; log('cancel tasks', rid, jid)
+            continue
         s = St.get(str(rid))
         if s and s.get('status') in ('submitted', 'pending', 'running', 'deferred') and ID.match(str(rid)):
             jid = str(s.get('slurm_id') or '')
