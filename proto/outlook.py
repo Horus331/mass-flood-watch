@@ -117,7 +117,7 @@ ACC = re.compile(r'^(\d+)-(\d+) (hour|day) acc')
 class Grib:
     """One model cycle on AWS: .idx inventories and byte-range reads of the deterministic APCP buckets."""
     def __init__(self, name, init):
-        self.name, self.init = name, init; self._idx = {}; self._fields = {}; self.points = None; self.files = set()
+        self.name, self.init = name, init; self._idx = {}; self._fields = {}; self.points = None; self.files = set(); self._pop = {}
 
     def url(self, fh):
         t = self.init
@@ -135,12 +135,25 @@ class Grib:
                 m = ACC.match(p[5])
                 if not m: continue
                 extra = ':'.join(p[6:]).strip(': ').lower()
+                if extra and 'prob >0.254' in extra:           # NBM PoP: probability of >= 0.254 mm (0.01 in)
+                    f_ = 24 if m.group(3) == 'day' else 1; st_ = int(p[1]); en_ = next((int(q[1]) - 1 for q in L[i + 1:] if int(q[1]) > st_), '')
+                    self._pop.setdefault(fh, {})[(int(m.group(1)) * f_, int(m.group(2)) * f_)] = (st_, en_); continue
                 if extra and any(w in extra for w in ('prob', 'std', '%', 'perc', 'ens')): continue
                 f = 24 if m.group(3) == 'day' else 1; a, b = int(m.group(1)) * f, int(m.group(2)) * f
                 st = int(p[1]); en = next((int(q[1]) - 1 for q in L[i + 1:] if int(q[1]) > st), '')
                 if (a, b) not in out or not extra: out[(a, b)] = (st, en)
         self._idx[fh] = out
         return out
+
+    def pop12(self, b):
+        """NBM 12 h probability of measurable rain (%) ending at forecast hour b on the District 3 points, or None."""
+        self.idx(b); e = (self._pop.get(b) or {}).get((b - 12, b))
+        if not e or self.points is None: return None
+        r = http(self.url(b), headers={'Range': f'bytes={e[0]}-{e[1]}'}, timeout=120)
+        if r is None: return None
+        import pygrib
+        x = np.ma.filled(pygrib.fromstring(r.content).values, 0).astype(np.float32); x[~np.isfinite(x)] = 0
+        return self.points.cut(x)
 
     def field(self, a, b):
         """Rain (mm) from init + a to init + b h on the District 3 points, from the files' buckets (recursively split), or None."""
@@ -211,11 +224,17 @@ def fetch_rain(now, model=None):
                     fine.append((a, b, v))
                 edges = {b for _, b, _ in keep}                            # end the fine part on a 6 h bucket edge, so 6 h buckets follow with no gap
                 while fine and fine[-1][1] not in edges: fine.pop()
+            pop12 = []
+            if name == 'NBM':
+                ends12 = [fh for fh in range(12, keep[-1][1] + 1) if (g.init + dt.timedelta(hours=fh)).hour in (0, 12)]
+                with ThreadPoolExecutor(6) as ex: PP = list(ex.map(g.pop12, ends12))
+                pop12 = [(b, v) for b, v in zip(ends12, PP) if v is not None]
             return dict(ok=True, model=name, run=g.init.strftime('%Y-%m-%dT%HZ'), source=('NOAA NBM v4 deterministic QPF (2.5 km), AWS noaa-nbm-grib2-pds'
                         if name == 'NBM' else 'NOAA GFS 0.25 deg APCP, AWS noaa-gfs-bdp-pds'), resolution_km=2.5 if name == 'NBM' else 25,
                         horizon_h=keep[-1][1], files=len(g.files), missing_buckets=len(ends) - len(keep), n_points=int(P.inside.sum()),
                         buckets=[[iso(g.init + dt.timedelta(hours=a)), iso(g.init + dt.timedelta(hours=b))] for a, b, _ in keep],
                         fine_buckets=[[iso(g.init + dt.timedelta(hours=a)), iso(g.init + dt.timedelta(hours=b))] for a, b, _ in fine],
+                        pop12_end=[iso(g.init + dt.timedelta(hours=b)) for b, _ in pop12], _P12=np.stack([v for _, v in pop12]) if pop12 else None,
                         _R=np.stack([v for _, _, v in keep]), _RF=np.stack([v for _, _, v in fine]) if fine else None, _P=P, notes=errs)
         except Exception as e:
             log(name, 'failed', repr(e)[:300]); errs.append(f'{name}: {repr(e)[:200]}')
@@ -243,6 +262,14 @@ def fetch_hourly(now):
     return dict(ok=True, source='Open-Meteo (open-meteo.com, CC BY 4.0), NOAA NBM CONUS, hourly precipitation at the 73 town label points',
                 fetched=iso(now), times=[t + 'Z' if not t.endswith('Z') else t for t in times], towns=[n.title() for n, _, _ in towns], mm=mm,
                 pop=pop if any(any(v is not None for v in r) for r in pop) else None)
+
+
+def day_pop12(d, rain, raw):
+    """NBM chance of measurable rain for the day (%): the higher of the 12 h windows centred in this local day, at the wettest grid point."""
+    E, P = rain.get('pop12_end') or [], raw.get('pop12')
+    if not E or not P: return None
+    v = [max(row) for e, row in zip(E, P) if to_local(parse_utc(e) - dt.timedelta(hours=6)).date() == d]
+    return int(max(v)) if v else None
 
 
 def day_hourly2(d, H):
@@ -397,7 +424,8 @@ def cmd_fetch(a, now=None):
     log('alerts', len(al.get('alerts', [])), al.get('error', ''))
     raw = dict(fetched=iso(now), fetch_s=round(time.time() - t_), ero=ero, alerts=al, hourly=hourly)
     if rain.get('ok'):
-        R, P, RF = rain.pop('_R'), rain.pop('_P'), rain.pop('_RF', None)
+        R, P, RF, P12 = rain.pop('_R'), rain.pop('_P'), rain.pop('_RF', None), rain.pop('_P12', None)
+        if P12 is not None: raw['pop12'] = np.round(P12[:, P.inside]).astype(int).tolist()
         if RF is not None: raw['rain_fine_mm'] = np.round(RF[:, P.inside], 2).tolist()
         raw['grid'] = dict(towns=P.names, town_pts=[[int(np.searchsorted(np.nonzero(P.inside)[0], i)) for i in idx] for idx in P.town_pts])
         raw['rain_mm'] = np.round(R[:, P.inside], 1).tolist()            # (buckets, points inside District 3)
@@ -499,7 +527,7 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                                    max6h_mm=round(float(T6[ib].max()), 1), max24h_mm=max24({d}),
                                    six_hourly_mean_mm=[round(float(R[i].mean()), 1) for i in ib], six_hourly_max_mm=[round(float(T6[i].max()), 1) for i in ib],
                                    six_hourly_start=[rain['buckets'][i][0] for i in ib], bars=day_bars(d, s, e, rain, R, raw, tmax),
-                                   hourly2=day_hourly2(d, (raw or {}).get('hourly')))
+                                   hourly2=day_hourly2(d, (raw or {}).get('hourly')), pop=day_pop12(d, rain, raw))
                 day['towns_over'] = sorted(set(o6) | set(o24)); day['towns_over_6h'] = o6; day['towns_over_24h'] = o24
             else: day['rain'] = None; day['towns_over'] = []
         else: day['rain'] = None; day['towns_over'] = []; day['hours'] = 0; day['partial'] = True
