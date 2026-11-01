@@ -6,20 +6,25 @@
 #     finished run folder is then moved to $LF_WORK/run_<STORM>_proto_<NAME>, where proto/turing/pack_site.slurm looks for it (NAME=<NAME>);
 #   * the solver's raw ESRI-ASCII snapshots (results/: .wd/.elev/.Vx/.Vy/.Qx/.Qy every LF_SAVEINT) are deleted as soon as w9 has turned them into
 #     out/frames_cm.npz (uint16 cm) and out/vel_frames.npz (float16 m/s); input rasters too (copies of the .par/.bci stay in out/);
+#   * out/frames_u8.npz: the 10-min depth frames as 1 byte per cell, the tile code of docs/proto/district/ARCHITECTURE.md §4.2
+#     (0 = dry < 3 cm, 1-100 = cm, 101-255 = 1 m + 5 cm x (code - 100)); frames_cm.npz (uint16 cm) stays for pack_site / prototype.py;
+#   * nothing is pushed anywhere: storm display data stays on Turing scratch;
 #   * $LF_WORK/<results_root>/<NAME>/ gets DONE or FAILED, w9_tail.txt and report.json (runtime, peak memory, raw and kept sizes);
 #   * a run that is already DONE (with its out/meta.json) is skipped, so a re-queue with a new id resumes where a time-out stopped;
 #   * a run does not start when scratch has less than MIN_FREE_GB free (default 300; a 48 h District 3 run writes ~200 GB of ASCII before cleanup).
 #   queue: {"id": "d3all_v1_a", "kind": "run_plan_display", "env": {"PLAN": "proto/turing/plans/d3all_v1.json", "PIN": "<sha on main>",
-#           "IDXS": "0-23", "PER": "4"}, "sbatch": {"array": "0-5%2", "partition": "quick", "time": "12:00:00"}}
-#   -> array task j runs indices j*PER .. j*PER+PER-1 of IDXS one after the other (Turing counts every array task against the per-user submit
-#      cap, so few tasks with several runs each); without an array all of IDXS runs in one job.
+#           "IDXS": "0-23", "PER": "1"}, "sbatch": {"array": "0-23%3", "partition": "short", "gres": "gpu:A100:1", "time": "10:00:00", "mem": "160G"}}
+#   -> array task j runs indices j*PER .. j*PER+PER-1 of IDXS one after the other; without an array all of IDXS runs in one job.
+#   Turing limits (diag/d3all_diag1.md on turing-queue, 1 Nov 2026): every array task counts against the per-user submit cap (quick 20,
+#   short/long 100); quick also allows only ONE GPU per user at a time (the live forecast runs there), short allows 12 and 1 day.  So display
+#   batches go to short, on A100 (the CUDA build is FP64; L40S / RTX Pro 6000 are slow at FP64).
 #SBATCH -J planDisp
-#SBATCH -p quick
+#SBATCH -p short
 #SBATCH -N 1
 #SBATCH -n 8
-#SBATCH --mem=96G
-#SBATCH --gres=gpu:1
-#SBATCH -t 12:00:00
+#SBATCH --mem=160G
+#SBATCH --gres=gpu:A100:1
+#SBATCH -t 10:00:00
 #SBATCH -o plan_display_%A_%a.out
 set -eo pipefail
 source proto/turing/env.sh
@@ -70,6 +75,17 @@ run_task() {   # one run in a subshell: its env cannot leak into the next one
   RAWB=$(du -sb $LF_WORK/$RUN/results 2>/dev/null | cut -f1); RAWN=$(ls $LF_WORK/$RUN/results 2>/dev/null | wc -l)
   find $LF_WORK/$RUN -mindepth 1 -maxdepth 1 ! -name out -exec rm -rf {} +       # raw snapshots + input rasters; out/ keeps what the packer reads
   rm -rf $FINAL; mv $LF_WORK/$RUN $FINAL; rm -rf $LF_WORK                       # where pack_site.slurm finds it
+  python - $FINAL/out <<'PY' || fail frames_u8
+import sys, numpy as np
+out = sys.argv[1]; D = np.load(f'{out}/frames_cm.npz'); cm = D['depth_cm']; hours = D['hours']
+code = np.empty(cm.shape, np.uint8)
+for i in range(cm.shape[0]):          # one frame at a time: no int32 copy of the whole stack
+    c = cm[i].astype(np.int32)
+    code[i] = np.where(c < 3, 0, np.where(c <= 100, c, np.clip(100 + np.rint((c - 100) / 5.0), 101, 255))).astype(np.uint8)
+np.savez_compressed(f'{out}/frames_u8.npz', depth_code=code, hours=hours,
+                    note='depth code per cell: 0 dry (< 3 cm), 1-100 depth in cm, 101-255 = 1 m + 5 cm x (code - 100); rows north -> south (docs/proto/district/ARCHITECTURE.md 4.2)')
+print('frames_u8', code.shape, 'wet cells at peak frame', int((code > 0).sum(axis=(1, 2)).max()))
+PY
   python - $FINAL/out $R $T0 $T1 "${RAWB:-0}" "${RAWN:-0}" <<'PY'
 import json, os, sys, re
 out, r, t0, t1, rawb, rawn = sys.argv[1:]; m = json.load(open(f'{out}/meta.json'))
