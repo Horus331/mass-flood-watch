@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T16:09:49Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T16:40:07Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -142,6 +142,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | pack_d3_sep2023_20m_c | pack_site | pending | 2443073 | 0 / 0 | 2026-11-01T15:09:27Z |  |  |
 | d3all_diag2 | diag | completed | 2443074 | 1 / 0 | 2026-11-01T15:09:27Z | 2026-11-01T15:39:42Z |  |
 | d3all_diag3 | diag | completed | 2443094 | 1 / 0 | 2026-11-01T15:39:42Z | 2026-11-01T16:09:49Z |  |
-| d3all_v1_b | run_plan_display | submitted | 2443116 |  /  | 2026-11-01T16:09:49Z |  |  |
-| inl1_diag | collect_scores | submitted | 2443117 |  /  | 2026-11-01T16:09:49Z |  |  |
-| amcnwm_v1_arr3 | run_plan_gpu | submitted | 2443118 |  /  | 2026-11-01T16:09:49Z |  |  |
+| d3all_v1_b | run_plan_display | pending | 2443116 | 0 / 0 | 2026-11-01T16:09:49Z |  |  |
+| inl1_diag | collect_scores | completed | 2443117 | 1 / 0 | 2026-11-01T16:09:49Z | 2026-11-01T16:40:07Z |  |
+| amcnwm_v1_arr3 | run_plan_gpu | pending | 2443118 | 0 / 0 | 2026-11-01T16:09:49Z |  |  |
+| d3all_diag4 | diag | submitted | 2443159 |  /  | 2026-11-01T16:40:07Z |  |  |
