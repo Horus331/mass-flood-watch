@@ -1761,7 +1761,7 @@
     // legend: the dashed box is this replay's own flood-model run, not the area the model can cover (the forecast runs all of District 3)
     if (runKey !== 'forecast' && runKey !== 'd3_sep2023' && $('covBox')) {
       var km = Math.round(meta.w * (meta.pixel_m || meta.resolution_m || 20) / 1000);
-      $('covBoxT').textContent = 'this replay: one ' + km + ' × ' + km + ' km flood-model run';
+      $('covBoxT').textContent = 'this replay’s run (' + km + ' × ' + km + ' km)';
       $('covBox').hidden = false;
     }
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };
@@ -2258,6 +2258,8 @@
      their time, facilities circled icons; the summary feeds the last story scene. Without it, the last scene uses the
      run's own numbers (culverts overtopped, roads that may close) and the stations within 500 m of a closing road. */
   var knock = { fac: 0, hosp: 0, fire: 0, police: 0, xing: 0 }, cxFrame = -1;
+  var D3M = null; // District 3 run summary for the last tour scene (Leominster 2023)
+  if (runKey === 'leominster_sep2023') getJson('site/data/d3_sep2023/meta.json').then(function (m) { D3M = m; }).catch(function () { });
   function addKnock() {
     var lat0 = (meta.corners[0][1] + meta.corners[2][1]) / 2, kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.57;
     var lines = [];
@@ -2398,6 +2400,17 @@
         live: function () { var per_ = 60 / meta.frame_min, tot = sum(r, t / per_), sf = meta.surface_mm ? meta.surface_mm[Math.round(t)] || 0 : null;
           return sf != null ? '<b class="blue">' + Math.max(0, tot - sf).toFixed(0) + ' mm</b><span>of ' + tot.toFixed(0) + ' mm soaked in or drained</span><b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>' : '<b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>'; } }
     ];
+    // the same storm over the whole district (Leominster 2023 only): numbers from the District 3 run's own meta.json
+    if (runKey === 'leominster_sep2023' && D3M) {
+      var sD = S[S.length - 1].b;
+      S.push({ title: 'Across District 3', a: sD, b: sD, dur: 0, rain: 0, cam: D3_BOUNDS,
+        text: function () {
+          return 'This box is one 20 × 20 km run. The same storm was also run over all of MassDOT District 3 at once, ' + n(D3M.segments_in_box) + ' road segments at 20 m on WPI’s Turing GPU cluster: ' +
+            big(D3M.segments_p_ge_50) + ' segments (' + D3M.km_p_ge_50 + ' km) close at some point' + (D3M.culverts_overtopped ? ' and ' + big(D3M.culverts_overtopped) + ' culverts are overtopped' : '') +
+            '. <a href="?run=d3_sep2023">Open the District 3 replay</a>.';
+        },
+        live: function () { return '<b class="shut">' + n(D3M.segments_p_ge_50) + '</b><span>District 3 roads close at some point</span>'; } });
+    }
     return S;
   }
   function storyLayers(sc) {
