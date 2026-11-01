@@ -1398,7 +1398,8 @@
     });
     // phones: the status line heads the sheet; desktop: it sits in the card, and the what-if controls move into the card too
     var sl = $('statusLine'), w = $('wi');
-    if (small()) { if (sl.parentNode !== pl) $('grab').insertAdjacentElement('afterend', sl); if (w.parentNode !== pl || w.previousElementSibling !== $('inst')) $('inst').insertAdjacentElement('afterend', w); }
+    var ctl = pl.querySelector('.controls');
+    if (small()) { if (sl.previousElementSibling !== ctl) ctl.insertAdjacentElement('afterend', sl); if (w.parentNode !== pl || w.previousElementSibling !== $('inst')) $('inst').insertAdjacentElement('afterend', w); }
     else { if (sl.parentNode !== card) card.querySelector('.pick').insertAdjacentElement('afterend', sl); if (WHATIF && w.parentNode !== card) sl.insertAdjacentElement('afterend', w); }
     pl.dataset.sheet = small() ? 'on' : 'off';
     document.documentElement.style.setProperty('--card-b', Math.round(card.getBoundingClientRect().bottom) + 'px');
@@ -1505,8 +1506,7 @@
     document.documentElement.classList.add('no-replay');
     $('runKind').textContent = 'The forecast feed could not be loaded.';
     $('runStats').innerHTML = '<span class="tag-dev">Unavailable</span>';
-    $('forecastCard').hidden = false;
-    $('legend').hidden = true;
+    $('forecastCard').hidden = false;   // no replay: the layer panel keeps only the background choice and the coverage key
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     map.once('style.load', function () { addCoverage(); applyTheme(); });
@@ -1635,6 +1635,7 @@
       map.addSource('cov', { type: 'geojson', data: C }); map.addSource('cov-mask', { type: 'geojson', data: mask });
       var before = map.getLayer('depth') ? 'depth' : 'l-voy';
       // one hierarchy: a subtle wash outside the modelled area, faint dashed boxes where the model was only tested, one clear District 3 outline
+      map.addLayer({ id: 'cov-in', type: 'fill', source: 'cov', filter: ['==', ['get', 'k'], 'forecast'], paint: { 'fill-color': '#000000', 'fill-opacity': 0 } }, before);
       map.addLayer({ id: 'cov-out', type: 'fill', source: 'cov-mask', paint: { 'fill-color': '#55656F', 'fill-opacity': 0.2 } }, before);
       map.addLayer({ id: 'cov-test', type: 'fill', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'fill-color': '#55656F', 'fill-opacity': 0.07 } }, before);
       map.addLayer({ id: 'cov-test-ol', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'line-color': '#7A858D', 'line-width': 0.8, 'line-opacity': 0.75, 'line-dasharray': [2, 2] } }, before);
@@ -1650,6 +1651,7 @@
     var b = basemap(), dk = b === 'dark' || b === 'night' || b === 'satellite', sat = b === 'satellite';
     map.setPaintProperty('cov-d3', 'line-color', dk ? '#F4F7F9' : '#1B2A33'); map.setPaintProperty('cov-d3', 'line-opacity', dk ? 0.95 : 0.85);
     map.setPaintProperty('cov-d3-sh', 'line-opacity', sat ? 0.55 : 0);
+    map.setPaintProperty('cov-in', 'fill-opacity', sat ? 0.17 : 0);   // aerial: a light darkening inside District 3 so water and closures read on the photo
     map.setPaintProperty('cov-out', 'fill-color', dk ? '#0B1116' : '#55656F'); map.setPaintProperty('cov-out', 'fill-opacity', sat ? 0.42 : dk ? 0.35 : 0.2);
     // on imagery the tested-only boxes are a thin light dash, no fill (inside District 3 stays crisp)
     map.setPaintProperty('cov-test', 'fill-opacity', 0);
@@ -1821,12 +1823,12 @@
     // water at the road edge: a thin dashed amber line (the road surface stays above the water), from street zoom
     map.addLayer({ id: 'edge', type: 'line', source: RS, minzoom: 13.5, layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': w(1.2, 2.6), 'line-color': '#E69F00', 'line-dasharray': [1.2, 1.6], 'line-opacity': ['case', ['==', ['coalesce', ['feature-state', 'e'], 0], 1], 0.95, 0] } });
-    map.addLayer({ id: 'peak', type: 'line', source: 'roads', filter: ['>=', ['get', 'p'], 0.5], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(1, 2.5) } });
+    map.addLayer({ id: 'peak', type: 'line', source: 'roads', filter: ['>=', ['get', 'p'], 0.5], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(0.7, 1.8) } });
     if (meta.kofn) { // forecast ensemble: how many of the time-lagged forecast runs close the road (likely >= 2, possible 1)
       map.addLayer({ id: 'agree', type: 'line', source: 'roads', filter: ['has', 'k'], layout: { 'line-cap': 'round' }, paint: { 'line-width': w(2, 5), 'line-opacity': 0.9 } });
       kofnLegend();
     }
-    map.addLayer({ id: 'may', type: 'line', source: 'roads', filter: ['==', ['get', 'm'], 1], paint: { 'line-width': w(1.5, 3.5), 'line-dasharray': [2, 1.2] } });
+    map.addLayer({ id: 'may', type: 'line', source: 'roads', filter: ['==', ['get', 'm'], 1], paint: { 'line-width': w(1, 2.4), 'line-dasharray': [2, 1.2] } });
     map.addLayer({ id: 'risk', type: 'line', source: 'roads', filter: ['has', 'rk'], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-width': w(2.5, 6) } });
     map.addLayer({ id: 'halo', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 7, 9], [0, 18, 22]), 'line-blur': w(3, 8), 'line-opacity': 0 } });
@@ -2061,7 +2063,7 @@
       reports: R.reports && R.reports.length ? fc(R.reports, function (r) { return { k: r[6] ? 'repHit' : 'repMiss', src: r[2], text: r[3], t: r[4], m: r[5], hit: r[6] }; }) : null,
       crowd: null // added later with the evidence file (addCrowd)
     };
-    var minz = { crossings: 11, bridges: 11.5, dams: 9, facilities: 10, reports: 12, crowd: 12, gauges: 6 };
+    var minz = { crossings: 11, bridges: 11.5, dams: 9, facilities: 15, reports: 12, crowd: 12, gauges: 6 };   // facilities from z14
     ['crossings', 'bridges', 'dams', 'facilities', 'crowd', 'reports', 'gauges'].forEach(function (key) {
       if (!sets[key]) return;
       document.querySelector('label[data-ref="' + key + '"]').hidden = false;
@@ -2069,7 +2071,7 @@
       map.addSource('s-' + key, clu ? { type: 'geojson', data: sets[key], cluster: true, clusterRadius: 30, clusterMaxZoom: 11 } : { type: 'geojson', data: sets[key] });
       if (clu) addClusters(key);
       map.addLayer({ id: 'r-' + key, type: 'symbol', source: 's-' + key, filter: clu ? ['!', ['has', 'point_count']] : ['all'], minzoom: runKey === 'd3_sep2023' ? minz[key] + 1 : minz[key] - 1,
-        layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': key === 'gauges' ? 1.15 : key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.85, 0.65] : 0.8,
+        layout: { 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': key === 'gauges' ? 1.15 : key === 'facilities' ? 0.62 : key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.85, 0.65] : 0.8,
           'icon-allow-overlap': key === 'gauges' || key === 'reports' || key === 'crowd', 'icon-ignore-placement': key !== 'crossings', 'symbol-sort-key': key === 'crossings' ? ['case', ['==', ['get', 'k'], 'culvertRisk'], 0, 1] : 0,
           visibility: document.querySelector('input[data-ref="' + key + '"]').checked ? 'visible' : 'none' } });
       map.on('mouseenter', 'r-' + key, function (e) {
@@ -2203,10 +2205,10 @@
     var idToView = {}; views.forEach(function (v, i) { (v.ids || []).forEach(function (id) { idToView[id] = i; }); });
     segs.forEach(function (s) { s.view = idToView[s.id]; });
     if (map && !map.getSource('hot')) { // overview zooms: one quiet label per hotspot instead of every road
-      map.addSource('hot', { type: 'geojson', data: { type: 'FeatureCollection', features: hs.map(function (h) {
+      map.addSource('hot', { type: 'geojson', data: { type: 'FeatureCollection', features: hs.slice().sort(function (a, b) { return b.count - a.count; }).slice(0, 3).map(function (h) {
         // one line, placed just above the hotspot (not on its roads); it gives way to place labels and other hotspots instead of overlapping
         return { type: 'Feature', properties: { t: h.name + ' · ' + h.count + ' roads close', k: -h.count }, geometry: { type: 'Point', coordinates: [(h.bounds[0][0] + h.bounds[1][0]) / 2, Math.max(h.bounds[0][1], h.bounds[1][1])] } }; }) } });
-      map.addLayer({ id: 'hot', type: 'symbol', source: 'hot', maxzoom: 12.8, layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-allow-overlap': false, 'text-ignore-placement': false,
+      map.addLayer({ id: 'hot', type: 'symbol', source: 'hot', maxzoom: 12.8, layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-allow-overlap': false, 'text-ignore-placement': false,
         'symbol-sort-key': ['get', 'k'], 'text-variable-anchor': ['bottom', 'top', 'left', 'right'], 'text-radial-offset': 0.5, 'text-padding': 4 },
         paint: { 'text-color': css('--ink') || '#1F2328', 'text-halo-color': css('--solid') || '#fff', 'text-halo-width': 2, 'text-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0] } });
     }
@@ -2346,9 +2348,10 @@
     if (!map.hasImage('i-hospital')) Object.keys(ICONS).forEach(function (k) { var cv = iconCanvas(k, 40); if (!map.hasImage('i-' + k)) map.addImage('i-' + k, cv.getContext('2d').getImageData(0, 0, 40, 40), { pixelRatio: 2 }); });
     map.addSource('knock', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
     var vk = document.querySelector('input[data-ref="knock"]').checked ? 'visible' : 'none';
-    map.addLayer({ id: 'knock-ring', type: 'circle', source: 'knock', filter: ['!=', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk },
-      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 9, 14, 16], 'circle-color': css('--closed'), 'circle-opacity': 0.12, 'circle-stroke-color': css('--closed'), 'circle-stroke-width': 1.6 } });
-    map.addLayer({ id: 'knock', type: 'symbol', source: 'knock', layout: { visibility: vk, 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.62, 0.85], 'icon-allow-overlap': true, 'symbol-sort-key': ['case', ['==', ['get', 'k'], 'culvertRisk'], 1, 0] } });
+    // stations and culverts near closing roads: street zoom only (z14+), small, so they never crowd the imagery at overview zooms
+    map.addLayer({ id: 'knock-ring', type: 'circle', source: 'knock', minzoom: 14, filter: ['!=', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk },
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 10, 16, 13], 'circle-color': css('--closed'), 'circle-opacity': 0.12, 'circle-stroke-color': css('--closed'), 'circle-stroke-width': 1.6 } });
+    map.addLayer({ id: 'knock', type: 'symbol', source: 'knock', minzoom: 14, layout: { visibility: vk, 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.5, 0.62], 'icon-allow-overlap': true, 'symbol-sort-key': ['case', ['==', ['get', 'k'], 'culvertRisk'], 1, 0] } });
     map.on('mouseenter', 'knock', function (e) {
       map.getCanvas().style.cursor = 'pointer'; if (small()) return;
       var p = e.features[0].properties;
@@ -2424,14 +2427,14 @@
             (rep_.length ? ' ' + hits + ' of ' + rep_.length + ' storm reports fall where the model has 30 cm or more.' : '');
         },
         live: function () { return '<b class="shut">' + n(nClosedNow) + '</b><span>roads closed now</span>'; } },
-      { title: 'Knock-on effects', a: s5b, b: s5b, dur: 0, rain: 0.15, cam: 0, peak: true, may: true, knock: true,
+      { title: 'Knock-on effects', a: s5b, b: s5b, dur: 0, rain: 0.15, cam: 0, peak: true, knock: true,
         text: function () {
           if (C) return esc(C.headline || '') + (C.people_cut_off ? ' ' + big(C.people_cut_off) + ' people cut off.' : '') + (C.facilities_affected ? ' ' + big(C.facilities_affected) + ' facilities affected.' : '') +
             (C.max_added_min ? ' Detours add up to <b>' + Math.round(C.max_added_min) + ' min</b>.' : '');
           var bits = [];
           if (M.culverts_overtopped) bits.push(big(M.culverts_overtopped) + ' culverts are overtopped');
-          if (M.segments_may_close) bits.push(big(M.segments_may_close) + ' more segments may close where streams reach road level (dashed)');
-          if (knock.fac) bits.push(big(knock.fac) + (knock.fac > 1 ? ' hospitals, fire and police stations sit' : ' emergency station sits') + ' within 500 m of a closing road (circled)');
+          if (M.segments_may_close) bits.push(big(M.segments_may_close) + ' more segments may close where streams reach road level');
+          if (knock.fac) bits.push(big(knock.fac) + (knock.fac > 1 ? ' hospitals, fire and police stations sit' : ' emergency station sits') + ' within 500 m of a closing road');
           var list = bits.length > 1 ? bits.slice(0, -1).join('; ') + '; and ' + bits[bits.length - 1] : bits.join('');
           return 'Closed roads cut the routes around them. ' + (list ? list + '.' : '');
         },
@@ -2508,7 +2511,7 @@
     $('stTitle').textContent = sc.title; $('stN').textContent = 'Scene ' + (i + 1) + ' of ' + story.sc.length;
     var last_ = i === story.sc.length - 1; $('stNext').firstChild.nodeValue = last_ ? 'Explore the map' : 'Next';
     setTime(sc.a);
-    $('stText').innerHTML = sc.text();
+    $('stText').innerHTML = sc.text(); $('story').classList.remove('more'); $('stMore').setAttribute('aria-expanded', 'false'); $('stMore').textContent = 'More';
     $('story').classList.toggle('fin', i === story.sc.length - 1);
     $('stPrev').disabled = i === 0;
     Array.prototype.forEach.call($('stSteps').children, function (li, k) { li.className = k < i ? 'done' : ''; li.firstChild.style.width = k < i ? '100%' : '0'; });
@@ -2553,6 +2556,7 @@
   }
   $('stNext').addEventListener('click', function () { if (story.i >= story.sc.length - 1) storyEnd(); else storyGo(story.i + 1); });
   $('stPrev').addEventListener('click', function () { storyGo(story.i - 1); });
+  $('stMore').addEventListener('click', function () { var on = $('story').classList.toggle('more'); this.setAttribute('aria-expanded', on ? 'true' : 'false'); this.textContent = on ? 'Less' : 'More'; if (on) setStoryPaused(true); });
   $('stPause').addEventListener('click', function () { setStoryPaused(!story.paused); });
   $('stSkip').addEventListener('click', function () { storyEnd(); });
   $('replayStory').addEventListener('click', function () { storyStart(0); });
@@ -2804,6 +2808,7 @@
     $('kClosed').textContent = n(c); $('kRisk').textContent = n(r); $('kPeak').textContent = pkT;
     $('kPeakL').textContent = cp.length && cp[pk] ? 'peak, ' + n(cp[pk]) + ' closed' : 'peak closures';
     $('slNow').textContent = n(c) + ' closed, ' + n(r) + ' at risk, ' + n(w) + ' with water on the road';
+    $('pkLine').innerHTML = '<b>' + n(c) + '</b> closed · <b>' + n(r) + '</b> at risk';
   }
   function rankBuild() {
     var rows = [];
@@ -3049,9 +3054,9 @@
     var top = $('card').getBoundingClientRect().bottom + 8, full = Math.max(200, vh - tab - top);
     var tl = $('timeline'), peek;
     if (document.documentElement.classList.contains('no-replay')) peek = Math.min(full, Math.round(vh * 0.2));
-    else { var tk = $('tlTicks'); peek = Math.min(full, (tk && tk.offsetParent ? tk.offsetTop + tk.offsetHeight : 200) + 10); }   // through the hour ticks under the timeline
+    else { var ct = pl.querySelector('.controls'); peek = Math.min(full, (ct && ct.offsetParent ? ct.offsetTop + ct.offsetHeight : 80) + 12); }   // peek: one row (play, time, closed and at risk); the rest when dragged up
     var half = Math.max(peek + 90, Math.min(full, Math.round(vh * 0.52)));
-    return { full: full, peek: Math.max(96, peek), half: half };
+    return { full: full, peek: Math.max(72, peek), half: half };
   }
   function sheetDetent(d) {
     if (!small()) return;
