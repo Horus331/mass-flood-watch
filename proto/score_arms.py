@@ -62,7 +62,17 @@ def cmd_depths(a):
                         ch.append(dict(segment=seg, road=road, town=town, depth_base=round(db, 2), depth=round(dd, 2), p_base=round(pb, 3), p=round(pp, 3)))
                 ch.sort(key=lambda r: r['depth'] - r['depth_base'])
                 out['affected'].setdefault(arm, {})[s] = ch
+    for arm in names:     # USGS gauges (proto/score.py per run): per-storm mean |rise error| and bias, then their mean over storms
+        g = {}
+        for p, s in runs_in(arms[arm]):
+            f = os.path.join(p, 'score.json')
+            if os.path.exists(f):
+                j = json.load(open(f))
+                if j.get('mean_abs_rise_error_m') is not None: g[s] = (j['mean_abs_rise_error_m'], j.get('mean_rise_bias_m'))
+        out.setdefault('gauges', {})[arm] = dict(storms=len(g), per_storm=g, mean_abs_rise_error_m=round(float(np.mean([v[0] for v in g.values()])), 3) if g else None,
+                                                 mean_rise_bias_m=round(float(np.mean([v[1] for v in g.values() if v[1] is not None])), 3) if g else None)
     tot = {arm: {k: sum(out['storms'][s][arm][k] for s in out['storms'] if arm in out['storms'][s]) for k in ('flagged', 'depth_gt1m', 'depth_gt2m', 'depth_gt3m')} for arm in names}
+    for arm in names: tot[arm]['gauge_mean_abs_rise_error_m'] = out['gauges'][arm]['mean_abs_rise_error_m']; tot[arm]['gauge_mean_rise_bias_m'] = out['gauges'][arm]['mean_rise_bias_m']
     out['totals'] = tot; json.dump(out, open(a.out, 'w'), indent=1); print(json.dumps(tot, indent=1))
 
 
