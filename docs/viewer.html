@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
-<link href="site/viewer.css?v=1101r" rel="stylesheet">
+<link href="site/viewer.css?v=1101s" rel="stylesheet">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t;var pl=new URLSearchParams(location.search).get('pal');if(pl)document.documentElement.dataset.pal=pl}catch(e){}
 if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');</script>
 </head>
@@ -167,8 +167,28 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   </div>
 </section>
 
+<section class="fplayer" id="fplayer" hidden aria-label="Rain, two days back and two days ahead">
+  <div class="controls">
+    <button type="button" id="frPlay" class="play" aria-label="Play the rain"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="frPlayIcon" d="M5 3l12 7-12 7z"/></svg></button>
+    <div class="clock" aria-live="off"><b id="frClock">–</b><span id="frRead"></span></div>
+    <div class="jumps" role="group" aria-label="Jump to"><button type="button" id="frNow">Now</button></div>
+    <div class="speeds" id="frSpeeds" role="group" aria-label="Playback speed">
+      <button type="button" data-speed="0.3333333" title="20 minutes of rain per second">Slow</button><button type="button" data-speed="1" aria-pressed="true" title="1 hour of rain per second">Normal</button><button type="button" data-speed="3" title="3 hours of rain per second">Fast</button>
+    </div>
+  </div>
+  <div class="timeline fr-tl" id="frTl">
+    <div class="fr-parts" id="frParts" aria-hidden="true"><span class="fr-past" id="frPast">Radar (observed)</span><span class="fr-fut" id="frFut">Forecast (NOAA HRRR)</span></div>
+    <div class="band" data-band="rain"><span class="blabel">Rain, wettest spot in District 3</span></div>
+    <div class="band" data-band="closed" id="frRoadsBand" hidden><span class="blabel">Roads closed, flood model</span></div>
+    <svg id="frChart" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div class="fr-nowmark" id="frNowMark" aria-hidden="true"><span>Now</span></div>
+    <div class="cursor" id="frCursor" aria-hidden="true"><i></i></div>
+    <input type="range" id="frScrub" min="0" max="1" step="1" value="0" aria-label="Rain time, two days back to two days ahead">
+  </div>
+  <div class="tl-ticks" id="frTicks" aria-hidden="true"></div>
+</section>
+
 <section class="player" aria-label="Storm timeline">
-  <button type="button" class="grab" id="grab" aria-expanded="false" aria-controls="sheetBody"><i></i><span id="grabL">Timeline, layers and more</span></button>
   <div class="wi" id="wi" hidden>
     <div class="wi-ctl" role="group" aria-label="Storm set-up">
       <div class="wi-sl" id="wiRainBox">
@@ -244,7 +264,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="site/viewer.js?v=1101r"></script>
+<script src="site/viewer.js?v=1101s"></script>
 <script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
