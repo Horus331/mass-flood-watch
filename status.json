@@ -2345,7 +2345,7 @@
    "error": "sbatch: error: QOSMaxSubmitJobPerUserLimit\nsbatch: error: Batch job submission failed: Job violates accounting/QOS policy (job submit limit, user's size and/or time limits)"
   },
   "amcnwm_v1_collect": {
-   "status": "running",
+   "status": "cancelled",
    "slurm_id": "2439816",
    "kind": "collect_scores",
    "env": {
@@ -2364,8 +2364,12 @@
     "tasks": 1,
     "done": 0,
     "failed": 0,
-    "elapsed": "20:42:19"
-   }
+    "elapsed": "21:12:35"
+   },
+   "finished": "2026-11-01T14:08:56Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "amcnwm_v1_arr": {
    "status": "failed",
@@ -2388,12 +2392,12 @@
   "amcnwm_v1_arr2": {
    "status": "deferred",
    "kind": "run_plan_gpu",
-   "at": "2026-11-01T13:38:41Z",
-   "tries": 40,
+   "at": "2026-11-01T14:08:56Z",
+   "tries": 41,
    "error": "QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot"
   },
   "run_d3_sep2023_20m": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2442643",
    "kind": "run_storm",
    "env": {
@@ -2426,10 +2430,14 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T14:08:56Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "pack_d3_sep2023_20m": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2442677",
    "kind": "pack_site",
    "env": {
@@ -2453,9 +2461,101 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T14:08:56Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
+  },
+  "fcd3_e2etest_d3_2023091112": {
+   "status": "submitted",
+   "slurm_id": "2442906",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2023-09-11T12Z",
+    "MEMBERS": "2023-09-11T12Z",
+    "HOURS": "48",
+    "PFX": "e2etest_d3",
+    "REQ_AT": "2026-11-01T14:04:51Z",
+    "FORCE": "1"
+   },
+   "sbatch": {
+    "array": "0-0",
+    "partition": "quick",
+    "time": "06:00:00"
+   },
+   "after": [],
+   "at": "2026-11-01T14:08:56Z",
+   "error": null
+  },
+  "run_d3_sep2023_20m_b": {
+   "status": "submitted",
+   "slurm_id": "2442907",
+   "kind": "run_storm",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "BOX": "128000,856000,206000,946000",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "600",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0"
+   },
+   "sbatch": {
+    "partition": "quick",
+    "time": "08:00:00",
+    "mem": "96G"
+   },
+   "after": [],
+   "at": "2026-11-01T14:08:56Z",
+   "error": null
+  },
+  "pack_d3_sep2023_20m_b": {
+   "status": "submitted",
+   "slurm_id": "2442908",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_d3_sep2023",
+    "STORM": "sep2023",
+    "SITE": "d3_sep2023_t",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "10:00:00"
+   },
+   "after": [
+    "run_d3_sep2023_20m_b"
+   ],
+   "at": "2026-11-01T14:08:56Z",
+   "error": null
+  },
+  "d3all_diag1": {
+   "status": "submitted",
+   "slurm_id": "2442909",
+   "kind": "diag",
+   "env": {
+    "JOBS": "2442643,2442677,2439816,2439311,2439813,2439505",
+    "LOGS": "roadflood_2442643.out",
+    "WORKDIRS": "run_sep2023_proto_site_d3_sep2023,run_sep2023_proto_d3_sep2023_p,run_sep2023_proto_d3_sep2023_20m,run_sep2023_proto_leominster_vel,run_sep2022_proto_site_sep2022_webster",
+    "TAIL": "60"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "00:30:00"
+   },
+   "after": [],
+   "at": "2026-11-01T14:08:56Z",
+   "error": null
   }
  },
- "updated": "2026-11-01T13:38:41Z",
+ "updated": "2026-11-01T14:08:56Z",
  "paused": false
 }

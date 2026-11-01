@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T13:38:41Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T14:08:56Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -126,9 +126,13 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_v1_b5 | run_plan_gpu | failed |  |  /  | 2026-10-31T16:55:56Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
-| amcnwm_v1_collect | collect_scores | running | 2439816 | 0 / 0 | 2026-10-31T16:55:56Z |  |  |
+| amcnwm_v1_collect | collect_scores | cancelled | 2439816 | 0 / 0 | 2026-10-31T16:55:56Z | 2026-11-01T14:08:56Z | cancelled through jobs.json "cancel" |
 | amcnwm_v1_arr | run_plan_gpu | failed |  |  /  | 2026-10-31T17:26:27Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
-| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-11-01T13:38:41Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
-| run_d3_sep2023_20m | run_storm | pending | 2442643 | 0 / 0 | 2026-11-01T12:38:16Z |  |  |
-| pack_d3_sep2023_20m | pack_site | pending | 2442677 | 0 / 0 | 2026-11-01T13:08:26Z |  |  |
+| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-11-01T14:08:56Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
+| run_d3_sep2023_20m | run_storm | cancelled | 2442643 | 0 / 0 | 2026-11-01T12:38:16Z | 2026-11-01T14:08:56Z | cancelled through jobs.json "cancel" |
+| pack_d3_sep2023_20m | pack_site | cancelled | 2442677 | 0 / 0 | 2026-11-01T13:08:26Z | 2026-11-01T14:08:56Z | cancelled through jobs.json "cancel" |
+| fcd3_e2etest_d3_2023091112 | forecast_d3 | submitted | 2442906 |  /  | 2026-11-01T14:08:56Z |  |  |
+| run_d3_sep2023_20m_b | run_storm | submitted | 2442907 |  /  | 2026-11-01T14:08:56Z |  |  |
+| pack_d3_sep2023_20m_b | pack_site | submitted | 2442908 |  /  | 2026-11-01T14:08:56Z |  |  |
+| d3all_diag1 | diag | submitted | 2442909 |  /  | 2026-11-01T14:08:56Z |  |  |
