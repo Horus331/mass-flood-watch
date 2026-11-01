@@ -10,10 +10,10 @@
 # Turing limits (QUEUE.md, diag 1 Nov 2026): every array task counts against the per-user submit cap (short 100); short allows 12 GPUs per user,
 # so the 8 members can run side by side (quick allows one GPU per user). A100: the CUDA build is FP64.
 # Each task: the same flood-model set-up as the GitHub box jobs (HRRR rain of its member, 20 km / 90th percentile neighbourhood, CN x 0.88 AMC II,
-# LF_PARITY=1, 2 mm/h, LF_QOUT=1), only the box is the whole district (17.6 M cells). Task 0 (the issue cycle) also keeps 30-min depth frames
-# and solver velocity for the map. Then proto/prototype.py -> $LF_WORK/fcd3_<PFX>_<cycle>/m<j>/.
+# LF_PARITY=1, 2 mm/h, LF_QOUT=1), only the box is the whole district (17.6 M cells); 30-min depth frames (w9 default)
+# feed the map. Then proto/prototype.py -> $LF_WORK/fcd3_<PFX>_<cycle>/m<j>/.
 # Publishing (under a lock, from the task that completes it): when task 0 is done, and again when the last member is done (k-of-n complete):
-# tiled replay pack docs/site/data/<PFX>/ (docs/site/build_data.py build_tiled), k-of-n (proto/forecast_kofn.py), network.json and
+# replay pack docs/site/data/<PFX>/ (build_tiled, hourly frames, kept at the 80 m overview: no 20 m tiles on the main site), k-of-n (proto/forecast_kofn.py), network.json and
 # docs/site/data/<PFX>_status.json. The public forecast_status.json only gets a 'shadow' pointer (same cycle only); its headline, roads and map
 # stay the boxes'. One commit per publish, pushed through the deploy key.
 #   FORCE=1: run even if the gate is quiet for CYCLE (tests on past storms).  PFX other than forecast_d3: a test, live status untouched.
@@ -71,6 +71,12 @@ JD=$(basename $(dirname $DIR)); RD=$(cat $FC/$JD/OUTDIR)
 cd $REPO
 git pull -q --rebase --autostash "$(git remote get-url --push origin)" main || true
 python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 60 --budget-mb 25   # shadow map: hourly frames, no flow (repo size: every fired cycle replaces this folder in git)
+python - docs/site/data/$PFX <<'PY'
+# the main site keeps no whole-district 20 m tiles (Pages size): the shadow map shows the 80 m overview of the same depth frames
+import json, os, shutil, sys
+d = sys.argv[1]; shutil.rmtree(os.path.join(d, 'tiles'), ignore_errors=True)
+m = json.load(open(os.path.join(d, 'meta.json'))); (m.get('depthc') or {}).pop('tiles', None); json.dump(m, open(os.path.join(d, 'meta.json'), 'w'), separators=(',', ':'))
+PY
 python proto/forecast_kofn.py pack --kofn $P/kofn.json --key $PFX --box b1
 python proto/build_network.py $PFX || true
 python - $FC $P "$N" "${REQ_AT:-}" "$PFX" "$MM" <<'PY'
