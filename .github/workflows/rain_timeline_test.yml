@@ -1,0 +1,45 @@
+name: rain timeline test (Forecast tab past 48 h MRMS + next 48 h HRRR atlas, run by hand; never commits)
+# Runs proto/rain_timeline.py build and prints rain.json into the job summary / annotations; the atlas is uploaded as an artifact.
+# The live atlas is written by forecast.yml (docs/site/data/forecast_rain/, docs/proto/forecast/RAIN_TIMELINE.md).
+on:
+  workflow_dispatch:
+    inputs:
+      init: {description: 'HRRR cycle YYYY-MM-DDTHHZ (empty = latest 48 h cycle)', default: ''}
+      now: {description: 'timeline now YYYY-MM-DDTHH:00Z (empty = current hour, or the cycle time for an old cycle)', default: ''}
+      code: {description: 'development only: gzip + base64 of a replacement proto/rain_timeline.py (empty = the committed file)', default: ''}
+permissions:
+  contents: read
+jobs:
+  rain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy pandas requests pygrib pyproj pillow
+      - name: replacement code (development only)
+        if: inputs.code != ''
+        env:
+          CODE: ${{ inputs.code }}
+        run: printf '%s' "$CODE" | base64 -d | gunzip > proto/rain_timeline.py
+      - name: rain timeline
+        env:
+          INIT: ${{ inputs.init }}
+          NOW: ${{ inputs.now }}
+        run: |
+          set -o pipefail
+          python proto/rain_timeline.py selftest
+          python proto/rain_timeline.py build ${INIT:+--init $INIT} ${NOW:+--now $NOW} --out rain_out 2>&1 | tee log.txt
+          ls -la rain_out
+          { echo '### rain.json'; echo '```json'; python -m json.tool rain_out/rain.json | head -c 60000; echo '```'; echo '### log'; echo '```'; tail -n 60 log.txt; echo '```'; } >> $GITHUB_STEP_SUMMARY
+          echo "::notice title=log::$(tail -n 30 log.txt | cut -c1-400 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
+          python - <<'EOF'
+          import json
+          d = json.load(open('rain_out/rain.json'))
+          for k in ('frame_peak_mmh', 'frame_src'): d[k] = ' '.join(str(v) for v in d[k])
+          s = json.dumps(d, separators=(',', ':'))
+          for i in range(0, min(len(s), 9 * 3800), 3800):
+              print(f"::notice title=rain.json {i // 3800 + 1}/{-(-len(s) // 3800)}::" + s[i:i + 3800].replace('%', '%25').replace('\n', '%0A'))
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: rain_timeline, path: rain_out, if-no-files-found: ignore}
