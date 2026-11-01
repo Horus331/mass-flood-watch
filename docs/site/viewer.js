@@ -1758,6 +1758,12 @@
     // the model box, a quiet dashed outline so the replayed area reads at regional zoom
     map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
     map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
+    // legend: the dashed box is this replay's own flood-model run, not the area the model can cover (the forecast runs all of District 3)
+    if (runKey !== 'forecast' && runKey !== 'd3_sep2023' && $('covBox')) {
+      var km = Math.round(meta.w * (meta.pixel_m || meta.resolution_m || 20) / 1000);
+      $('covBoxT').textContent = 'this replay: one ' + km + ' × ' + km + ' km flood-model run';
+      $('covBox').hidden = false;
+    }
     var w = function (a, b) { return ['interpolate', ['linear'], ['zoom'], 9, a, 15, b]; };
     var D = PCS ? ['coalesce', ['get', 'd'], 0] : ['coalesce', ['feature-state', 'd'], 0]; RD = D;
     var RR = RS; // the road-state lines: with pieces, merged runs of the painted pieces of each segment (one continuous line per run)
