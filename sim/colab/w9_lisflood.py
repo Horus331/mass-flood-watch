@@ -683,6 +683,33 @@ def breach_depressions(Z, max_cut=4.0, chan=None, max_cut_chan=None, d4=False, p
                          chan_deep_cut=chan_deep)
 
 
+def enforce_channels(Z, chan, cap=10.0):
+    """LF_CHAN_ENFORCE=1 (opt-in; docs/proto/terrain/PREREG.md): hydro-enforce the mapped flowlines (NHDPlus HR, which include buried
+    reaches) so that every channel cell has a face-connected path along the channel network, never rising, to the box edge.  Lidar keeps
+    the streets and buildings over a stream that runs in a conduit (e.g. Mill Brook under downtown Worcester): the burnt flowline then climbs
+    over every block between two street crossings, and the depression breaching (cap LF_BREACH_MAX, any cell) leaves the hollows beside it
+    as closed basins that fill metres deep.  Here the breaching runs on the channel network only (other cells are walls), from the box edge,
+    with a separate cap (cut per cell <= cap m, default 10 m, LF_CHAN_ENFORCE_MAX), so a conduit route is carved as conveyance; reaches that
+    would need more, or channel fragments not joined to the edge through the network, are left as they are.  Corner-only steps of the
+    rasterised flowline are closed with the lower of the two face cells.  Lakes keep their lidar level (a path through a dam is cut only
+    down to the pool).  Returns (Z, mask of lowered cells, stats)."""
+    M = chan.astype(bool).copy(); Zf = Z.astype(np.float32)
+    a, b, c_, d_ = M[:-1, :-1], M[1:, 1:], M[:-1, 1:], M[1:, :-1]
+    dg1 = a & b & ~c_ & ~d_; dg2 = c_ & d_ & ~a & ~b; add = 0
+    for dg, (p, q) in ((dg1, ((0, 1), (1, 0))), (dg2, ((0, 0), (1, 1)))):
+        rr, cc = np.nonzero(dg)
+        for r, c in zip(rr, cc):
+            (r1, c1), (r2, c2) = (r + p[0], c + p[1]), (r + q[0], c + q[1])
+            if Zf[r1, c1] <= Zf[r2, c2]: M[r1, c1] = True
+            else: M[r2, c2] = True
+            add += 1
+    WALL = 1e6; ZW = np.where(M, Zf, WALL).astype(np.float32)
+    Zc, low, st = breach_depressions(ZW, cap, d4=True)
+    low &= M; Zo = np.where(low, Zc, Zf).astype(np.float32); d = Zf - Zo
+    return Zo, low, dict(chan_cells=int(M.sum()), corner_cells_added=add, cells=int(low.sum()), mean_cut_m=round(float(d[low].mean()), 2) if low.any() else 0.0,
+                         max_cut_m=round(float(d.max()), 2), kept_deep=st['kept_deep'], cap_m=cap)
+
+
 CULVERT_SHAPES = ('circular', 'elliptical', 'pipe_arch', 'box', 'arch_open', 'arch_closed')
 
 
@@ -706,22 +733,53 @@ def sized_notch(row, zmin, zcrest, res, n_min=0.035, n_max=5.0):
     return float(min(zcut, zcrest)), float(np.clip(n_eq, n_min, n_max))
 
 
-def open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, sized=False):
+def notch_outlet_path(Z0, rq, cq, ra, ca, ny, nx):
+    """LF_NOTCH_FIX: the cells of a face-connected (4-neighbour) path from the edge of the 3x3 notch centred on (rq, cq) to the cell (ra, ca)
+    that set the notch level.  Two L-shaped paths (rows first / columns first); the one whose highest unedited cell (Z0) is lower is used.
+    Cells inside the notch block are not returned."""
+    def inblk(r, c): return abs(r - rq) <= 1 and abs(c - cq) <= 1
+    paths = []
+    for rows_first in (True, False):
+        r, c = rq, cq; p = []
+        while (r, c) != (ra, ca):
+            if rows_first and r != ra or (not rows_first and c == ca): r += 1 if ra > r else -1
+            else: c += 1 if ca > c else -1
+            if 0 <= r < ny and 0 <= c < nx and not inblk(r, c): p.append((r, c))
+        paths.append(p)
+    hi = [max((float(Z0[r, c]) for r, c in p), default=-np.inf) for p in paths]
+    return paths[int(np.argmin(hi))]
+
+
+def open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, sized=False, fix=None):
     """Open a 3x3-cell notch at every crossing in the box down to the lowest ground within kw cells (default), or sized to the surveyed culvert
-    (sized_notch).  Returns (Z, NOV: Manning n of sized notches else nan, XG: one dict per opened crossing)."""
+    (sized_notch).  Returns (Z, NOV: Manning n of sized notches else nan, XG: one dict per opened crossing).
+    fix (LF_NOTCH_FIX=1, opt-in; docs/proto/terrain/PREREG.md): two corrections to the default notch.
+      (a) The lowest ground, the crest and the outlet are read from the DEM as it was before any notch (Z0).  By default each notch reads the
+          DEM already lowered by the notches opened before it, so at interchanges and dense crossings a deep cut is copied from notch to notch
+          ("chained"): on Route 2 in Leominster a 3x3 pit 25 m below the road (zraw 114.7 m, model 89.3 m), in downtown Worcester one 8.6 m
+          below the street (segment 12771).
+      (b) The notch is joined to the cell that set its level by a face-connected path cut to the same level.  The lowest cell within kw cells
+          is often only corner-adjacent to the 3x3 block (or two cells away), and LISFLOOD-FP exchanges water across cell faces only, so by
+          default the notch can be a closed pit that the depression breaching (cap LF_BREACH_MAX) refuses to open when it is deep."""
     x0, y0, x1, y1 = BOX; ny, nx = Z.shape; Z = Z.copy(); NOV = np.full((ny, nx), np.nan, np.float32); XG = []
+    Z0 = Z.copy() if fix else None
     for row, xq, yq in zip(rows_x, xx, yy):
         if not (x0 <= xq < x1 and y0 <= yq < y1): continue
         rq, cq = int((y1 - yq) // RES), int((xq - x0) // RES)
         r0_, r1_, c0_, c1_ = max(0, rq - kw), min(ny, rq + kw + 1), max(0, cq - kw), min(nx, cq + kw + 1)
-        zmin = float(Z[r0_:r1_, c0_:c1_].min()); blk = (slice(max(0, rq - 1), rq + 2), slice(max(0, cq - 1), cq + 2))
-        zcrest = float(Z[blk].max()); zcut, n_eq = zmin, None
+        ZS = Z0 if fix else Z
+        win = ZS[r0_:r1_, c0_:c1_]; zmin = float(win.min()); blk = (slice(max(0, rq - 1), rq + 2), slice(max(0, cq - 1), cq + 2))
+        zcrest = float(ZS[blk].max()); zcut, n_eq = zmin, None
         if sized:
             sz = sized_notch(row, zmin, zcrest, RES)
             if sz is not None: zcut, n_eq = sz; NOV[blk] = np.fmax(NOV[blk], n_eq)
-        Z[blk] = np.minimum(Z[blk], zcut)
+        Z[blk] = np.minimum(Z[blk], zcut); npath = 0
+        if fix:
+            ia = int(np.argmin(win)); ra, ca = r0_ + ia // win.shape[1], c0_ + ia % win.shape[1]
+            for (rp, cp) in notch_outlet_path(Z0, rq, cq, ra, ca, ny, nx):
+                if Z[rp, cp] > zcut: Z[rp, cp] = zcut; npath += 1
         XG.append(dict(id=row.get('id'), r=rq, c=cq, r0=blk[0].start, r1=min(ny, rq + 2), c0=blk[1].start, c1=min(nx, cq + 2), zmin=round(zmin, 2),
-                       zcrest=round(zcrest, 2), zcut=round(float(zcut), 2), n_eq=None if n_eq is None else round(float(n_eq), 3)))
+                       zcrest=round(zcrest, 2), zcut=round(float(zcut), 2), n_eq=None if n_eq is None else round(float(n_eq), 3), **({'outlet_cells': npath} if fix else {})))
     return Z, NOV, XG
 
 
@@ -931,8 +989,10 @@ def build_inputs(BOX, RES, S, TOK):
             rows_x = [dict(zip(C, r_)) for r_ in XJ['rows'] if r_[il] is not None]
             xx, yy = tf.transform([r_['lon'] for r_ in rows_x], [r_['lat'] for r_ in rows_x])
             kw = int(math.ceil(float(os.environ.get('LF_BREACH_M', '40')) / RES))
-            Z, NOV, XG = open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, SIZED); nb = len(XG); nsized = sum(1 for g in XG if g['n_eq'] is not None)
-            log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m' + (f'; {nsized} sized to the NAACC culvert (LF_BREACH_SIZED)' if SIZED else ''))
+            NFIX = os.environ.get('LF_NOTCH_FIX', '0') == '1'     # opt-in: notches read the un-notched DEM and are joined to their outlet (open_crossings)
+            Z, NOV, XG = open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, SIZED, fix=NFIX); nb = len(XG); nsized = sum(1 for g in XG if g['n_eq'] is not None)
+            log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m' + (f'; {nsized} sized to the NAACC culvert (LF_BREACH_SIZED)' if SIZED else '')
+                + (f"; LF_NOTCH_FIX=1: levels from the un-notched DEM, {sum(1 for g in XG if g.get('outlet_cells'))} notches joined to their outlet ({sum(g.get('outlet_cells', 0) for g in XG)} cells)" if NFIX else ''))
         except Exception as e:
             log('crossing breach skipped:', repr(e)[:150])
     DAMS = None
@@ -944,6 +1004,15 @@ def build_inputs(BOX, RES, S, TOK):
                 Z, water, DAMS = lf_dams.apply(Z, Z_RAW, ZMAX10, water, chan, CW, BOX, RES, log=log)
             except Exception as e:
                 log('LF_DAMS failed, running without dams:', repr(e)[:300]); DAMS = None
+    if os.environ.get('LF_CHAN_ENFORCE', '0') == '1' and chan.any():   # opt-in: flowlines (incl. buried conduits) carved as conveyance, enforce_channels
+        CM = chan.copy()
+        for g in XG:
+            if not g.get('blocked'): CM[g['r0']:g['r1'], g['c0']:g['c1']] = True     # the crossing notches sit on the flowline
+        if DAMS: CM &= ~DAMS['protect']
+        if XPROT is not None: CM &= ~XPROT
+        Z, _, st_ = enforce_channels(Z, CM, float(os.environ.get('LF_CHAN_ENFORCE_MAX', '10')))
+        log(f"LF_CHAN_ENFORCE=1: {st_['cells']:,} of {st_['chan_cells']:,} channel cells lowered (mean {st_['mean_cut_m']} m, max {st_['max_cut_m']} m, cap {st_['cap_m']} m), "
+            f"{st_['corner_cells_added']} corner steps closed")
     DOM = None
     if os.environ.get('LF_DOMAIN', 'box') == 'basin':  # opt-in watershed-shaped domain (sim/colab/lf_domain.py): cells outside the basin mask become walls before breaching
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_domain
@@ -1501,6 +1570,25 @@ def selftest():
     Zs, Ns, Gs = open_crossings(Zr, rows_x[:1], xs_[:1], ys_[:1], (150000, 905000, 150400, 905400), 20.0, 2, True)
     assert abs(Zs[5, 10] - (104.0 - 1.6)) < 1e-5 and np.isfinite(Ns[4:7, 9:12]).all() and Gs[0]['zcut'] == 102.4
     ok.append('crossing notches: default full opening, sized notch only where the survey gives a culvert')
+    # LF_NOTCH_FIX: (a) no chaining of a deep notch into its neighbour, (b) the notch is face-connected to the cell that set its level
+    Zn = np.full((12, 12), 110.0, np.float32); Zn[10, 1] = 90.0                       # one deep cell (a ravine) in the SW
+    bx_ = (150000, 905000, 150240, 905240); cxy = lambda r, c: (150000 + (c + 0.5) * 20, 905240 - (r + 0.5) * 20)
+    (xa, ya), (xb, yb) = cxy(8, 3), cxy(6, 5)                                       # crossing A two cells (corner) from the ravine, B 2 cells from A
+    Zd_, _, Gd_ = open_crossings(Zn, [dict(id='A'), dict(id='B')], [xa, xb], [ya, yb], bx_, 20.0, 2, False)
+    assert Zd_[6, 5] == 90.0 and Gd_[1]['zcut'] == 90.0                             # default: B copies A's 90 m cut (20 m below the ground)
+    Zf_, _, Gf_ = open_crossings(Zn, [dict(id='A'), dict(id='B')], [xa, xb], [ya, yb], bx_, 20.0, 2, False, fix=True)
+    assert Zf_[6, 5] == 110.0 and Gf_[1]['zcut'] == 110.0 and Zf_[8, 3] == 90.0      # fix: B reads the un-notched DEM; A still opens to the ravine
+    assert Zf_[10, 2] == 90.0 or Zf_[9, 1] == 90.0                                  # ... and A's 3x3 block (rows 7-9, cols 2-4) is face-joined to (10, 1)
+    Zb_, _, stb = breach_depressions(Zd_, 4.0, d4=True); Zc2, _, stc = breach_depressions(Zf_, 4.0, d4=True)
+    assert stb['kept_deep'] >= 1 and Zb_[8, 3] == 90.0 and Zb_[9, 2] == 90.0
+    ok.append('LF_NOTCH_FIX: notches read the un-notched DEM (no chained cuts) and are face-joined to their outlet cell')
+    # LF_CHAN_ENFORCE: a flowline in a conduit under a 5 m rise (lidar keeps the street) between two open reaches, a hollow beside it
+    Ze = np.full((7, 12), 50.0, np.float32); Ze[3, :] = np.linspace(40.0, 34.5, 12); Ze[3, 4:8] = 39.5 + np.r_[0, 5, 5, 0]   # buried reach climbs 5 m
+    Ze[3, 0] = 50.0; Ze[2, 3] = 36.0; che = np.zeros_like(Ze, bool); che[3, 1:] = True                                   # source at col 1; hollow beside the channel
+    Zk2, _, _ = breach_depressions(Ze, 4.0, d4=True); assert Zk2[3, 5] > 40                                              # the default keeps the hump
+    Zen, lowe, ste = enforce_channels(Ze, che, 10.0); assert Zen[3, 5] <= Ze[3, 3] and lowe[3, 5] and not lowe[2, 3] and ste['max_cut_m'] <= 10
+    Zen2, _, _ = enforce_channels(Ze, che, 2.0); assert Zen2[3, 5] > 40                                                  # over the cap: left as it is
+    ok.append('LF_CHAN_ENFORCE: a buried reach is carved along the flowline within the cap, nothing off the channel is lowered')
     # channel pits may be cut deeper than the cap (LF_BREACH_CHAN_MAX)
     Zp = np.full((7, 9), 20.0, np.float32); Zp[3, :] = [20, 10, 10, 10, 16, 9, 9, 9, 8]   # river along row 3, a 6 m road fill at column 4
     ch = np.zeros_like(Zp, bool); ch[3, :] = True
