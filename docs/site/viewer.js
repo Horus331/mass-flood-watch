@@ -3225,14 +3225,17 @@
   // with R.bars (outlook.py day_bars): one bar per model bucket on a 24-hour grid (2-hour bars where the model is hourly, 3- and 6-hour
   // bars further out); a bar is never split or smoothed
   var fmtYMD = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/New_York' });
-  function h2Strip(R) {   // 12 two-hour columns from the hourly NBM series (Open-Meteo), heights relative to the week's wettest 2 hours
+  // Fixed scale tied to the flood model's trigger (docs/proto/forecast/GATE.md): 25 mm in 6 h in a town = 8.3 mm per 2 h. Each column is
+  // the wettest town's rain in those 2 hours; the line across every column marks 8.3 mm (the trigger rate); a full column is twice that.
+  var GATE2 = 25 / 3;
+  function h2Strip(R) {
     var cols = '', lab = [];
     R.hourly2.cols.forEach(function (c, k) {
       var night = k < 3 || k > 8, t = (2 * k % 12 || 12) + (k < 6 ? 'a' : 'p');
-      if (!c) { cols += '<i class="' + (night ? 'nt ' : '') + 'na"></i>'; return; }
-      var v = c[0], hv = v < 0.05 ? 0 : Math.max(10, Math.min(100, 100 * v / BAR_FULL));
-      lab.push(t + ': ' + v.toFixed(1) + ' mm average, ' + c[1].toFixed(1) + ' mm wettest town');
-      cols += '<i class="' + (night ? 'nt' : '') + '" title="' + esc(lab[lab.length - 1]) + '">' + (hv ? '<s style="height:' + hv.toFixed(0) + '%"></s>' : '') + '</i>';
+      if (!c) { cols += '<i class="' + (night ? 'nt ' : '') + 'na"><b></b></i>'; return; }
+      var v = c[1], hv = v < 0.05 ? 0 : Math.max(6, Math.min(100, 100 * v / (2 * GATE2))), over = v >= GATE2;
+      lab.push(t + ': wettest town ' + v.toFixed(1) + ' mm, District 3 average ' + c[0].toFixed(1) + ' mm' + (over ? ' (at or over the flood-model trigger rate)' : ''));
+      cols += '<i class="' + (night ? 'nt' : '') + '" title="' + esc(lab[lab.length - 1]) + '">' + (hv ? '<s class="' + (over ? 'ov' : '') + '" style="height:' + hv.toFixed(0) + '%"></s>' : '') + '<b></b></i>';
     });
     return '<span class="six c12" role="img" aria-label="' + esc(lab.join('; ')) + '">' + cols + '</span>';
   }
@@ -3394,7 +3397,7 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    key.innerHTML = (HAS2 ? '<span>Each column is 2 hours of rain, District 3 average; the tallest column is the wettest 2 hours of the week (' + BAR_FULL.toFixed(1) + ' mm). Darker columns are night. NOAA National Blend of Models, hourly via Open-Meteo (open-meteo.com): hourly for about 36 h, smoothed from 3- and 6-hour totals after that.</span>' : days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
+    key.innerHTML = (HAS2 ? '<span>Each column is 2 hours of rain in the wettest town of District 3. The line across each column is the flood-model trigger rate, 8.3 mm in 2 hours (25 mm in 6 hours); columns that reach it turn orange, and the flood model runs on the roads once that rain is within 48 hours. Darker columns are night. NOAA National Blend of Models, hourly via Open-Meteo (open-meteo.com): hourly for about 36 h, smoothed from 3- and 6-hour totals after that.</span>' : days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
     // storms coming (runs of days at level 2 or more)
