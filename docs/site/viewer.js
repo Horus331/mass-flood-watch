@@ -3225,6 +3225,17 @@
   // with R.bars (outlook.py day_bars): one bar per model bucket on a 24-hour grid (2-hour bars where the model is hourly, 3- and 6-hour
   // bars further out); a bar is never split or smoothed
   var fmtYMD = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/New_York' });
+  function h2Strip(R) {   // 12 two-hour columns from the hourly NBM series (Open-Meteo), heights relative to the week's wettest 2 hours
+    var cols = '', lab = [];
+    R.hourly2.cols.forEach(function (c, k) {
+      var night = k < 3 || k > 8, t = (2 * k % 12 || 12) + (k < 6 ? 'a' : 'p');
+      if (!c) { cols += '<i class="' + (night ? 'nt ' : '') + 'na"></i>'; return; }
+      var v = c[0], hv = v < 0.05 ? 0 : Math.max(10, Math.min(100, 100 * v / BAR_FULL));
+      lab.push(t + ': ' + v.toFixed(1) + ' mm average, ' + c[1].toFixed(1) + ' mm wettest town');
+      cols += '<i class="' + (night ? 'nt' : '') + '" title="' + esc(lab[lab.length - 1]) + '">' + (hv ? '<s style="height:' + hv.toFixed(0) + '%"></s>' : '') + '</i>';
+    });
+    return '<span class="six c12" role="img" aria-label="' + esc(lab.join('; ')) + '">' + cols + '</span>';
+  }
   function barStrip(R, date) {
     // 12 two-hour columns like iOS Weather. Each column = District 3 average rain in those 2 hours. Where the model is hourly the
     // column is the model's own 2 hours; where it gives only 3- or 6-hour totals, those hours share that total evenly (said in the key).
@@ -3248,6 +3259,7 @@
   }
   var fmtHr24 = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/New_York' });
   function sixStrip(R, i) {
+    if (R && R.hourly2) return h2Strip(R);
     if (R && R.bars && R.bars.length) return barStrip(R, i);
     var m = R && R.six_hourly_mean_mm, x = R && R.six_hourly_max_mm, st = (R && R.six_hourly_start) || [];
     if (!m) return '<span class="six na"><i></i><i></i><i></i><i></i></span>';
@@ -3354,7 +3366,8 @@
     var ol = $('week'); ol.innerHTML = '';
     if (O && O.headline) { var hl = document.createElement('li'); hl.className = 'wk-head'; hl.textContent = O.headline; ol.appendChild(hl); }
     SIX_FULL = Math.max(10, Math.ceil(Math.max.apply(0, days.map(function (x) { return Math.max.apply(0, ((x && x.rain && x.rain.six_hourly_max_mm) || [0]).map(function (v) { return v || 0; })); })) / 5) * 5);
-    BAR_FULL = Math.max(1.5, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.bars) || []).map(function (q) { return q[2] * 2 / q[1]; }); })).concat([0])));
+    var HAS2 = days.some(function (x) { return x && x.rain && x.rain.hourly2; });
+    BAR_FULL = HAS2 ? Math.max(1, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.hourly2 && x.rain.hourly2.cols) || []).map(function (c) { return c ? c[0] : 0; }); })))) : Math.max(1.5, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.bars) || []).map(function (q) { return q[2] * 2 / q[1]; }); })).concat([0])));
     var d0 = days.filter(function (x) { return x && x.rain && x.rain.six_hourly_start && x.rain.six_hourly_start.length === 4; }).pop();
     if (days.some(function (x) { return x && x.rain && x.rain.bars; })) {
       var hd2 = document.createElement('li'); hd2.className = 'day six-hd';
@@ -3368,7 +3381,7 @@
     }
     for (var i = 0; i < 7; i++) {
       var d = days[i] || null, dd = d && d.date ? new Date(d.date + 'T12:00:00Z') : new Date(Date.now() + i * 864e5);
-      var R = d && d.rain, mean = R ? R.d3_mean_mm : null, mxv = R ? R.town_max_mm : null;
+      var R = d && d.rain, mean = R ? (R.hourly2 ? R.hourly2.mean_mm : R.d3_mean_mm) : null, mxv = R ? (R.hourly2 ? R.hourly2.town_max_mm : R.town_max_mm) : null;
       var ero = d && d.ero && ERO.indexOf(d.ero.category) >= 0 ? d.ero.category : null, lv = d ? d.level : null;
       var vc = lv === 4 ? 'run' : lv === 3 ? 'hot' : '', txt = d ? d.verdict || '' : 'Week-ahead feed not published yet';
       var det = d && d.detail && lv != null && lv >= 1 ? d.detail : '';
@@ -3381,7 +3394,7 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    key.innerHTML = (days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
+    key.innerHTML = (HAS2 ? '<span>Each column is 2 hours of rain, District 3 average; the tallest column is the wettest 2 hours of the week (' + BAR_FULL.toFixed(1) + ' mm). Darker columns are night. NOAA National Blend of Models, hourly via Open-Meteo (open-meteo.com): hourly for about 36 h, smoothed from 3- and 6-hour totals after that.</span>' : days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
     // storms coming (runs of days at level 2 or more)
