@@ -2390,11 +2390,15 @@
    "error": "sbatch: error: QOSMaxSubmitJobPerUserLimit\nsbatch: error: Batch job submission failed: Job violates accounting/QOS policy (job submit limit, user's size and/or time limits)"
   },
   "amcnwm_v1_arr2": {
-   "status": "deferred",
+   "status": "cancelled",
    "kind": "run_plan_gpu",
    "at": "2026-11-01T15:39:42Z",
    "tries": 44,
-   "error": "QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot"
+   "error": "QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot",
+   "finished": "2026-11-01T16:09:49Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "run_d3_sep2023_20m": {
    "status": "cancelled",
@@ -2626,7 +2630,7 @@
    }
   },
   "d3all_v1_a": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2443043",
    "kind": "run_plan_display",
    "env": {
@@ -2651,7 +2655,11 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-01T16:09:49Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "run_d3_sep2023_20m_c": {
    "status": "pending",
@@ -2745,7 +2753,7 @@
    "finished": "2026-11-01T15:39:42Z"
   },
   "d3all_diag3": {
-   "status": "submitted",
+   "status": "completed",
    "slurm_id": "2443094",
    "kind": "diag",
    "env": {
@@ -2760,9 +2768,73 @@
    },
    "after": [],
    "at": "2026-11-01T15:39:42Z",
+   "error": null,
+   "slurm": {
+    "state": "COMPLETED",
+    "tasks": 1,
+    "done": 1,
+    "failed": 0,
+    "elapsed": "00:00:10"
+   },
+   "finished": "2026-11-01T16:09:49Z"
+  },
+  "d3all_v1_b": {
+   "status": "submitted",
+   "slurm_id": "2443116",
+   "kind": "run_plan_display",
+   "env": {
+    "PLAN": "proto/turing/plans/d3all_v1.json",
+    "PIN": "ebcd9c318eae0fc5f3ce93f3c8e368a0dba54906",
+    "IDXS": "0-23",
+    "PER": "1"
+   },
+   "sbatch": {
+    "array": "0-23%2",
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "10:00:00",
+    "mem": "160G"
+   },
+   "after": [],
+   "at": "2026-11-01T16:09:49Z",
+   "error": null
+  },
+  "inl1_diag": {
+   "status": "submitted",
+   "slurm_id": "2443117",
+   "kind": "collect_scores",
+   "env": {
+    "PLAN": "proto/turing/plans/inlets_v1.json",
+    "WAIT_H": "0"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "00:30:00"
+   },
+   "after": [],
+   "at": "2026-11-01T16:09:49Z",
+   "error": null
+  },
+  "amcnwm_v1_arr3": {
+   "status": "submitted",
+   "slurm_id": "2443118",
+   "kind": "run_plan_gpu",
+   "env": {
+    "PLAN": "proto/turing/plans/amcnwm_v1.json",
+    "PIN": "b28f4b33fade45d188352f87e87c12eac837fac4",
+    "IDXS": "10-49"
+   },
+   "sbatch": {
+    "array": "0-39%2",
+    "partition": "short",
+    "time": "03:00:00"
+   },
+   "after": [],
+   "at": "2026-11-01T16:09:49Z",
    "error": null
   }
  },
- "updated": "2026-11-01T15:39:42Z",
+ "updated": "2026-11-01T16:09:49Z",
  "paused": false
 }
