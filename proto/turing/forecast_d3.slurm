@@ -17,12 +17,13 @@
 # docs/site/data/<PFX>_status.json. The public forecast_status.json only gets a 'shadow' pointer (same cycle only); its headline, roads and map
 # stay the boxes'. One commit per publish, pushed through the deploy key.
 #   FORCE=1: run even if the gate is quiet for CYCLE (tests on past storms).  PFX other than forecast_d3: a test, live status untouched.
+# GPU type: chosen by the request (constraint A100|H100|H200 for the live shadow run, proto/forecast_turing.py); tests may run on any free GPU.
 #SBATCH -J fcd3
 #SBATCH -p short
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=96G
-#SBATCH --gres=gpu:1                 # the GPU type is chosen by the request (constraint A100|H100|H200 for the live shadow run, forecast_turing.py)
+#SBATCH --gres=gpu:1
 #SBATCH -t 06:00:00
 #SBATCH -o fcd3_%A_%a.out
 set -eo pipefail
