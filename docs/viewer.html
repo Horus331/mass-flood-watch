@@ -13,19 +13,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<link href="site/viewer.css?v=1101p" rel="stylesheet">
-<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
+<link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link href="site/viewer.css?v=1101q" rel="stylesheet">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t;var pl=new URLSearchParams(location.search).get('pal');if(pl)document.documentElement.dataset.pal=pl}catch(e){}
 if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');</script>
 </head>
 <body>
 <div id="map" aria-label="Map of modelled rain, flood depth and road closures"></div>
 
 <section class="card" id="card" aria-labelledby="runTitle">
-  <a class="brand" href="./" title="Mass Flood Watch home">
-    <span class="who"><b>Mass Flood Watch</b><span class="long">Road flood model · MassDOT District 3 · WPI research</span><span class="short">Road flood model · District 3</span></span>
-  </a>
-  <nav class="tabs" id="tabs" aria-label="Mode"><a data-tab="map" href="?run=leominster_sep2023">Replay</a><a data-tab="whatif" href="?run=whatif">Scenarios</a><a data-tab="live" href="?run=forecast">Forecast</a></nav>
-  <p class="hlinks"><a href="about.html#how">Methods</a><a href="about.html">About</a><a id="tourLink" href="?run=leominster_sep2023&amp;tour=1" hidden>Guided tour</a></p>
+  <div class="hd">
+    <a class="brand" href="./" title="Mass Flood Watch home"><span class="plate">Mass Flood Watch</span><span class="who">Road flood model, MassDOT District 3</span></a>
+    <p class="hlinks"><a id="tourLink" class="tour-btn" href="?run=leominster_sep2023&amp;tour=1" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Tour</a><a class="how" href="about.html#how" title="How it works"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg><span>How it works</span></a></p>
+  </div>
+  <nav class="tabs" id="tabs" aria-label="Mode"><a data-tab="map" href="?run=leominster_sep2023"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/><path d="M12 8v4.5l3 2"/></svg><span>Replay</span></a><a data-tab="whatif" href="?run=whatif"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h9M18 7h1M5 17h3M12 17h7"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Scenarios</span></a><a data-tab="live" href="?run=forecast"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg><span>Forecast</span></a></nav>
   <div class="pick">
     <details class="picker" id="picker">
       <summary aria-label="Choose a storm"><h1 id="runTitle"></h1><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5"/></svg></summary>
@@ -53,7 +54,12 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
       </div>
     </details>
   </div>
-  <p class="statusline" id="statusLine"><span id="slMode"></span><b id="slNow"></b></p>
+  <div class="statusline" id="statusLine" role="group" aria-label="Roads at this moment"><span class="sl-mode" id="slMode"></span>
+    <div class="kpi k-shut"><b id="kClosed">–</b><span>closed now</span></div>
+    <div class="kpi k-risk"><b id="kRisk">–</b><span>at risk</span></div>
+    <div class="kpi k-peak"><b id="kPeak">–</b><span id="kPeakL">peak closures</span></div>
+    <b id="slNow" hidden></b>
+  </div>
   <section class="live" id="live" hidden aria-labelledby="lvTitle">
     <button type="button" class="hchip" id="hchip" aria-haspopup="dialog"><i class="dot" id="hdot"></i><span id="hchipT">Checking the forecast…</span></button>
     <h2 id="lvTitle">Next 7 days</h2>
@@ -61,11 +67,10 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
     <div class="storms" id="storms"></div>
     <div class="now" id="nowPanel" hidden></div>
     <div class="ground" id="ground" hidden></div>
-    <p class="caveat">Week-ahead rain is uncertain. Road closures are only modelled within 48 hours of a storm.</p>
   </section>
-  <details class="rank" id="rank" open hidden><summary>Roads, most severe first</summary><div class="rank-act"><button type="button" id="csvBtn">Download CSV</button><button type="button" id="shareBtn2">Share this view</button></div><ol id="rankList"></ol></details>
+  <details class="rank" id="rank" open hidden><summary>Roads, most severe first</summary><div class="rank-act"><button type="button" id="csvBtn"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10M6 9.5l4 4 4-4M4 16.5h12"/></svg>CSV</button><button type="button" id="shareBtn2"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12.5V3M7 6l3-3 3 3M6.5 9H5v8h10V9h-1.5"/></svg>Share</button></div><ol id="rankList"></ol></details>
   <details class="evid" id="evid" hidden><summary>Checked against real reports</summary><div id="evidBody"></div></details>
-  <p class="caveat-foot">Modelled results, not observed conditions. Research product, not an official MassDOT or NWS forecast; do not use for real-time road decisions.</p>
+  <p class="caveat-foot">Model output for research, not an official MassDOT or NWS forecast.</p>
 </section>
 
 <button type="button" class="side-toggle" id="sideToggle" aria-label="Hide the side panel" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
@@ -96,47 +101,53 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
 
 <section class="story" id="story" hidden aria-labelledby="stTitle">
-  <ol class="steps" id="stSteps" aria-label="Story scenes"></ol>
+  <div class="st-top"><span class="st-n" id="stN"></span><span class="st-clock" id="stClock"></span><button type="button" id="stSkip" class="st-x">Exit tour</button></div>
+  <ol class="steps" id="stSteps" aria-label="Tour scenes"></ol>
   <h2 id="stTitle"></h2>
   <p class="st-text" id="stText"></p>
   <p class="st-live" id="stLive" aria-live="polite"></p>
   <div class="st-nav">
     <button type="button" id="stPrev" aria-label="Previous scene"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
-    <button type="button" id="stPause" aria-label="Pause story"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="stPauseIcon" d="M6 4h3v12H6zM11 4h3v12h-3z"/></svg></button>
-    <button type="button" id="stNext" class="primary">Next scene</button>
-    <button type="button" id="stSkip" class="quiet">Explore the map</button>
+    <button type="button" id="stPause" aria-label="Pause tour"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="stPauseIcon" d="M6 4h3v12H6zM11 4h3v12h-3z"/></svg></button>
+    <button type="button" id="stNext" class="primary">Next<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4l6 6-6 6"/></svg></button>
+    <span class="st-keys" aria-hidden="true">← → to step, Esc to exit</span>
   </div>
 </section>
 
 <section class="legend" id="legend" aria-label="Map key and layers">
   <div class="key" id="key" aria-label="Map key">
-    <div class="k" id="rainKey" hidden><span class="kl">Rain</span><span class="kr"><i class="kramp" id="rainRamp"></i><span class="kt kt5"><span>0.5</span><span>2.5</span><span>10</span><span>25</span><span>50 mm/h</span></span><span class="ksub">light · moderate · heavy · very heavy · violent (radar, NOAA MRMS)</span></span></div>
-    <div class="k"><span class="kl">Water</span><span class="kr"><i class="kramp depth"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></i><span class="kt kt4"><span>5</span><span>15</span><span>30</span><span>100 cm</span></span><span class="ksub">15 cm reaches a car floor · 30 cm floats a small car · 1 m+ deep (modelled)</span></span></div>
-    <div class="k" id="covKey" hidden><span class="kl">Coverage</span><span class="kr kroads"><span><i class="kw cov-d3"></i>forecast area (District 3)</span><span id="covBox" hidden><i class="kw cov-box"></i><b id="covBoxT">area of this replay run</b></span><span><i class="kw cov-t"></i>tested on past storms only</span><span><i class="kw cov-o"></i>not modelled</span></span></div>
-    <div class="k kdrn" id="drnKey"><span class="kl">Trend</span><span class="kr kroads"><span><i class="kw fill"></i>filling: water rising</span><span><i class="kw drn"></i>draining or soaking in: falling</span></span></div>
-    <div class="k"><span class="kl">Roads</span><span class="kr kroads"><span><i class="kw imp"></i>impassable: 30 cm+ on the road</span><span><i class="kw shut"></i>segment closed</span><span><i class="kw risk"></i>at risk: 15–30 cm</span><span><i class="kw wet"></i>water on road, under 15 cm</span><span><i class="kw edge"></i>water at the edge</span></span></div>
+    <div class="k" id="rainKey" hidden><span class="kl">Rain, mm/h</span><span class="kr"><i class="kramp" id="rainRamp"></i><span class="kt kt5"><span>0.5</span><span>2.5</span><span>10</span><span>25</span><span>50</span></span></span></div>
+    <div class="k"><span class="kl">Water depth, cm</span><span class="kr"><i class="kramp depth"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></i><span class="kt kt4"><span>5</span><span>15</span><span>30</span><span>100</span></span></span></div>
+    <div class="k"><span class="kl">Roads</span><span class="kr kroads"><span><i class="kw wet"></i>water, under 15 cm</span><span><i class="kw risk"></i>at risk, 15–30 cm</span><span><i class="kw shut"></i>closed, 30 cm+</span><span><i class="kw imp"></i>impassable stretch</span></span></div>
   </div>
-  <button class="legend-toggle" id="legendToggle" type="button" aria-expanded="false" aria-controls="legendBody"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 1.5 6.5 10 11l8.5-4.5zM3.6 9.6 1.5 10.7 10 15.2l8.5-4.5-2.1-1.1L10 13zM3.6 13.8l-2.1 1.1L10 19.4l8.5-4.5-2.1-1.1-6.4 3.4z"/></svg>Layers</button>
+  <button class="legend-toggle" id="legendToggle" type="button" aria-expanded="false" aria-controls="legendBody"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 1.5 6.5 10 11l8.5-4.5zM3.6 9.6 1.5 10.7 10 15.2l8.5-4.5-2.1-1.1L10 13zM3.6 13.8l-2.1 1.1L10 19.4l8.5-4.5-2.1-1.1-6.4 3.4z"/></svg>Layers and full key</button>
   <div id="legendBody" class="panel">
+    <div class="grp grp-key">
+      <div class="key key-more">
+        <div class="k kdrn" id="drnKey"><span class="kl">Water trend</span><span class="kr kroads"><span><i class="kw fill"></i>filling, rising</span><span><i class="kw drn"></i>draining or soaking in</span></span></div>
+        <div class="k"><span class="kl">Road edge</span><span class="kr kroads"><span><i class="kw edge"></i>water beside the road, surface still dry</span></span></div>
+        <div class="k" id="covKey" hidden><span class="kl">Coverage</span><span class="kr kroads"><span><i class="kw cov-d3"></i>forecast area, District 3</span><span id="covBox" hidden><i class="kw cov-box"></i><b id="covBoxT">area of this replay run</b></span><span><i class="kw cov-t"></i>tested on past storms only</span><span><i class="kw cov-o"></i>not modelled</span></span></div>
+      </div>
+    </div>
     <div class="grp">
       <h2>Background</h2>
       <div class="basemaps" role="group" aria-label="Background map" id="basemaps">
-        <button data-bm="streets">Light</button><button data-bm="terrain">Terrain</button><button data-bm="satellite">Satellite</button><button data-bm="dark">Dark</button>
+        <button type="button" data-bm="streets">Light</button><button type="button" data-bm="terrain">Terrain</button><button type="button" data-bm="satellite" title="Aerial imagery: MassGIS 2023, 15 cm, leaf-off">Aerial (MassGIS 2023, 15 cm)</button><button type="button" data-bm="dark">Dark</button>
       </div>
     </div>
     <div class="grp">
       <h2>Storm and flood</h2>
       <label class="row" id="rainRow" hidden><input type="checkbox" id="lyRain" checked><span>Radar rain <small>NOAA MRMS</small></span></label>
       <label class="row"><input type="checkbox" id="lyDepth" checked><span>Water depth</span></label>
-      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow"><span>Moving water <small>direction and speed of the modelled current; zoom in to street level</small></span></label>
+      <label class="row" id="flowRow" hidden><input type="checkbox" id="lyFlow"><span>Moving water <small>at street zoom</small></span></label>
       <div id="flowKey" hidden></div>
-      <p class="soon" id="flowSoon" hidden>Current lines need the flood model’s saved velocities; this run does not have them.</p>
+      <p class="soon" id="flowSoon" hidden>No current lines for this run.</p>
     </div>
     <div class="grp">
       <h2>Roads</h2>
       <label class="row"><input type="checkbox" id="lyClosed" checked><span>Water on roads, closures</span></label>
       <label class="row"><input type="checkbox" id="lyPeak"><span><i class="sw peak"></i>Closes at some point</span></label>
-      <label class="row"><input type="checkbox" id="lyMay"><span><i class="sw may"></i>May close <small>stream reaches road level</small></span></label>
+      <label class="row"><input type="checkbox" id="lyMay"><span><i class="sw may"></i>May close <small>stream at road level</small></span></label>
       <label class="row" id="riskRow" hidden><input type="checkbox" id="lyRisk"><span>Risk class</span></label>
       <div class="riskkey" id="riskKey" hidden><span><i class="sw rx"></i>Extreme</span><span><i class="sw rh"></i>High</span><span><i class="sw rm"></i>Medium</span><span><i class="sw rl"></i>Low</span></div>
     </div>
@@ -199,11 +210,11 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   </div>
   <div class="controls">
     <button id="play" class="play" disabled aria-label="Play storm"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="playIcon" d="M5 3l12 7-12 7z"/></svg></button>
+    <div class="clock" aria-live="off"><b id="clock">–</b><span id="since"></span></div>
     <div class="jumps" role="group" aria-label="Jump to"><button type="button" id="jStart">Start</button><button type="button" id="jPeak">Peak</button></div>
-    <div class="speeds" role="group" aria-label="Playback speed, storm hours per second">
-      <button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2" aria-pressed="true">2×</button><button data-speed="4">4×</button>
+    <div class="speeds" role="group" aria-label="Playback speed">
+      <button type="button" data-speed="0.0833333" title="5 minutes of storm per second">Slow</button><button type="button" data-speed="0.25" aria-pressed="true" title="15 minutes of storm per second">Normal</button><button type="button" data-speed="0.75" title="45 minutes of storm per second">Fast</button>
     </div>
-    <div class="clock"><b id="clock">–</b><span id="since"></span></div>
     <button type="button" class="replay" id="replayStory" hidden><span class="rs-l">Replay tour</span><span class="rs-s">Tour</span></button>
     <div class="now"><b id="nClosed">–</b><span>roads closed</span></div>
   </div>
@@ -211,13 +222,14 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   <ol class="phsteps" id="phsteps" hidden aria-label="The water's journey through the storm"></ol>
   <div class="timeline" id="timeline">
     <div class="phases" id="phases" hidden aria-label="Phases of the water's journey"></div>
-    <div class="band" data-band="rain"><span class="blabel"><b>Input</b> radar rain, NOAA MRMS (box mean, mm/h)</span></div>
-    <div class="band" data-band="closed"><span class="blabel"><b>Output</b> roads closed</span></div>
+    <div class="band" data-band="rain"><span class="blabel">Rain</span></div>
+    <div class="band" data-band="closed"><span class="blabel">Roads closed</span></div>
     <div class="band" data-band="gauge" id="gaugeBand" hidden><span class="blabel"><b>Check</b> <span class="gl">river flow at </span><select id="gaugeSel" aria-label="River gauge"></select><i class="sw obs"></i><span class="gl">observed</span> <i class="sw mod" id="modKey"></i><span id="modLabel">modelled</span></span></div>
     <svg id="chart" preserveAspectRatio="none" aria-hidden="true"></svg>
-    <div class="cursor" id="cursor" aria-hidden="true"></div>
+    <div class="cursor" id="cursor" aria-hidden="true"><i></i></div>
     <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="Storm time">
   </div>
+  <div class="tl-ticks" id="tlTicks" aria-hidden="true"></div>
   <div class="sheet-body" id="sheetBody"></div>
 </section>
 
@@ -232,7 +244,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="site/viewer.js?v=1101p"></script>
+<script src="site/viewer.js?v=1101q"></script>
 <script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

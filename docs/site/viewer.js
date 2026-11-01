@@ -122,13 +122,13 @@
     // name, water in pale grey-blue; 'night' is kept as an alias of dark for stored choices and links
     streets: { layers: {} },
     terrain: { layers: { 'b-hill': 0.5 } },
-    satellite: { layers: { 'b-sat': 1 } },
+    satellite: { layers: { 'b-sat': 1, 'b-mgis': 1 } },
     dark: { layers: { 'b-hshade': 1 } },
     night: { layers: { 'b-hshade': 1 } }
   } : {
     streets: { layers: { 'b-lgt': 1, 'l-voy': 1 } },
     terrain: { layers: { 'b-hill': 1, 'b-lgt': 0.5, 'l-voy': 1 } },
-    satellite: { layers: { 'b-sat': 1, 'l-dark': 1 } },
+    satellite: { layers: { 'b-sat': 1, 'b-mgis': 1, 'l-dark': 1 } },
     dark: { layers: { 'b-dark': 1, 'l-dark': 1 } },
     night: { layers: { 'b-dark': 1, 'l-dark': 1 } }
   };
@@ -142,17 +142,19 @@
       net: ['#7C7C77', '#878782', '#9A9A95', '#A4A49F'], fill: '#ffffff', netOp: 1, box: '#5F6368' }, // streets readable from z11
     satellite: { d: ['rgba(198,219,239,.82)', 'rgba(107,174,214,.86)', 'rgba(33,113,181,.9)', 'rgba(8,48,107,.92)'],
       grey: '#c9d1d6', amber: '#FFE08A', orange: '#F5B400', closed: '#FF8A3D', cas: 'rgba(20,20,20,.85)', casDark: 'rgba(20,20,20,.85)', peak: '#ff8fa0', peakOp: 0.8, may: '#ffb020', halo: '#ff4060',
-      net: ['rgba(255,255,255,.9)', 'rgba(255,255,255,.75)', 'rgba(255,255,255,.55)', 'rgba(255,255,255,.45)'], fill: 'rgba(30,30,30,.35)', netOp: 0.85, box: '#ffffff' },
+      net: ['rgba(255,255,255,.5)', 'rgba(255,255,255,.38)', 'rgba(255,255,255,.28)', 'rgba(255,255,255,.2)'], fill: 'rgba(30,30,30,.3)', netOp: 0.85, box: '#ffffff' },   // the imagery shows the roads; lines stay light
     dark: { d: ['rgba(212,236,244,.85)', 'rgba(151,203,228,.85)', 'rgba(100,166,214,.85)', 'rgba(69,128,194,.85)'],
       grey: '#8796a3', amber: '#FFE08A', orange: '#F5B400', closed: '#FF8A3D', cas: '#1E2124', casDark: '#1E2124', peak: '#FF5C6C', peakOp: 0.55, may: '#FF8A3D', halo: '#FF5C6C',
       net: ['#7d848c', '#646a72', '#50565d', '#474c53'], fill: '#2f3439', netOp: 1, box: '#9AA0A6' }
   };
-  var BMKEY = WHATIF ? 'mfw-basemap-wi' : 'mfw-basemap', bm = store(BMKEY);
-  function basemap() { return BASEMAPS[bm] ? (bm === 'night' ? 'dark' : bm) : (isDark() ? 'dark' : 'streets'); }
+  // default on every tab: full-colour aerial imagery (MassGIS 2023, 15 cm; Esri World Imagery outside Massachusetts). New storage keys so
+  // the earlier default (light) stored on a device does not hide it; any choice made from now on is kept.
+  var BMKEY = WHATIF ? 'mfw-bm2-wi' : 'mfw-bm2', bm = store(BMKEY);
+  function basemap() { return BASEMAPS[bm] ? (bm === 'night' ? 'dark' : bm) : 'satellite'; }
   function pal() { var b = basemap(); return b === 'satellite' ? PAL.satellite : b === 'dark' || b === 'night' ? PAL.dark : PAL.light; }
 
   // ---------- state ----------
-  var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 2, last = 0;
+  var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 0.25, last = 0;
   var flowRGB = { hi: [0.216, 0.278, 0.31], dk: 0.2 }; // flow lines: blue-grey #37474F on light maps, pale on dark and satellite
   var IMP = null; // pieces.json: ~40 m pieces with the frames when 30 cm or more covers the piece (impassable stretch)
   var NETP = {}; // segment id -> { a: AADT veh/day, l: length m, c: class } from network.json
@@ -161,6 +163,10 @@
   var fmtClock = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
   var fmtCap = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   var fmtShort = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  var fmtHMZ = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' });
+  var fmtWD = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  var fmtTick = new Intl.DateTimeFormat('en-US', { hour: 'numeric', timeZone: 'America/New_York' });
+  var fmtHrN = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/New_York' });
   var t0;
   function timeAt(f) { return new Date(t0.getTime() + f * meta.frame_min * 60000); }
   function n(v) { return Math.round(v).toLocaleString('en-US'); }
@@ -972,7 +978,7 @@
     $('wiCulvH').textContent = WI_TEXT.culv[+$('wiCulv').value];
     ['wiRain', 'wiSoil', 'wiCulv'].forEach(function (id) { var e = $(id); e.style.setProperty('--v', (+e.value / +e.max * 100) + '%'); e.setAttribute('aria-valuetext', $(id + 'V').textContent); });
     $('wiCulv').style.setProperty('--b', +$('wiCulv').value ? '#ff5a6e' : '#2fdcc2');
-    ['wiSoil', 'wiCulv'].forEach(function (id) {
+    ['wiRain', 'wiSoil', 'wiCulv'].forEach(function (id) {
       var box = $(id).parentNode, tk = box.querySelectorAll('.ticks span');
       Array.prototype.forEach.call(box.querySelectorAll('.seg button'), function (b, i) { b.setAttribute('aria-checked', +b.dataset.v === +$(id).value ? 'true' : 'false'); b.classList.toggle('q', !!(tk[i] && tk[i].classList.contains('q'))); });
     });
@@ -1179,7 +1185,7 @@
   }
   function wiInitUi() {
     $('wi').hidden = false; document.documentElement.classList.add('wi-on');
-    segmented('wiSoil', ['Dry', 'Normal', 'Soaked', 'Frozen']); segmented('wiCulv', ['Clear', 'Blocked']);
+    segmented('wiRain', ['½×', '¾×', 'Actual', '1¼×']); segmented('wiSoil', ['Dry', 'Normal', 'Soaked', 'Frozen']); segmented('wiCulv', ['Clear', 'Blocked']);
     if (WION && $('drnKey')) $('drnKey').remove();
     if (WION) { // the key names the stages of the water's journey
       var k = document.querySelector('#key .kramp.depth'); if (k) k.closest('.k').outerHTML =
@@ -1385,7 +1391,7 @@
       if (!homes[id]) homes[id] = { parent: el.parentNode, next: el.nextSibling };
       if (id === 'legend') { if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
       if (id === 'tabs') { if (small()) { if (el.parentNode !== document.body) document.body.appendChild(el); } else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
-      if (id === 'inst') { if (small()) { if (el.previousElementSibling !== $('timeline')) $('timeline').insertAdjacentElement('afterend', el); } else if (el.parentNode !== card) { var after = $('live'); after.insertAdjacentElement('afterend', el); } return; }
+      if (id === 'inst') { if (small()) { if (el.previousElementSibling !== $('tlTicks')) $('tlTicks').insertAdjacentElement('afterend', el); } else if (el.parentNode !== card) { var after = $('live'); after.insertAdjacentElement('afterend', el); } return; }
       if (id === 'live') { if (small()) { if (el.parentNode !== pl) $('grab').insertAdjacentElement('afterend', el); } else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next); return; }
       if (small()) { if (el.parentNode !== body) body.appendChild(el); }
       else if (el.parentNode !== homes[id].parent) homes[id].parent.insertBefore(el, homes[id].next);
@@ -1512,7 +1518,7 @@
   function begin(m) {
     {
       meta = m; nf = m.nf;
-      if (m.kofn) { var bl = document.querySelector('[data-band=rain] .blabel'); if (bl) bl.innerHTML = '<b>Input</b> forecast rain, NOAA HRRR (box mean, mm/h)'; }
+      if (m.kofn) { var bl = document.querySelector('[data-band=rain] .blabel'); if (bl) bl.textContent = 'Forecast rain'; }
       t0 = new Date(m.storm_start.replace(/Z$/, ':00Z'));
       $('scrub').max = nf - 1;
       $('runStats').innerHTML = m.kofn ? '<b>' + n(m.kofn.likely) + '</b> road segments likely closed (2 or more of ' + m.kofn.n + ' forecast runs agree), <b>' +
@@ -1543,12 +1549,17 @@
         drk: ESRI('Canvas/World_Dark_Gray_Base', 16, 'Esri, HERE, Garmin, © OpenStreetMap contributors'),
         drkl: ESRI('Canvas/World_Dark_Gray_Reference', 16, 'Esri'),
         sat: ESRI('World_Imagery', 18, 'Imagery © Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community'),
+        // Massachusetts: MassGIS 2023 statewide orthoimagery, 15 cm, leaf-off (no restrictions; acknowledgement requested). Drawn over Esri,
+        // which then only fills the map outside Massachusetts
+        mgis: { type: 'raster', tileSize: 256, minzoom: 7, maxzoom: 20, attribution: 'Imagery: <a href="https://www.mass.gov/info-details/massgis-data-2023-aerial-imagery">MassGIS 2023 orthos (15 cm)</a>',
+          tiles: ['https://tiles.arcgis.com/tiles/hGdibHYSPO59RG1h/arcgis/rest/services/orthos2023/MapServer/tile/{z}/{y}/{x}'] },
         hill: ESRI('Elevation/World_Hillshade', 16, 'Hillshade © Esri, USGS, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap')
       },
       layers: [
         { id: 'b-hill', type: 'raster', source: 'hill', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'b-lgt', type: 'raster', source: 'lgt', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
-        { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-saturation': -0.25, 'raster-brightness-max': 0.82, 'raster-contrast': 0.05 } },
+        { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
+        { id: 'b-mgis', type: 'raster', source: 'mgis', minzoom: 7, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },   // natural colour, no veil
         { id: 'b-dark', type: 'raster', source: 'drk', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-brightness-min': 0.04 } }
       ].concat(hydroLayers(), netLayers(), [
         { id: 'l-voy', type: 'raster', source: 'voyl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
@@ -1558,7 +1569,7 @@
     if (REPLAY) {
       st.sources.dem = { type: 'raster-dem', encoding: 'terrarium', tileSize: 256, maxzoom: 14, tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
         attribution: 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> (USGS 3DEP)' };
-      st.layers.unshift({ id: 'bg', type: 'background', paint: { 'background-color': '#F2F2EF' } });
+      st.layers.unshift({ id: 'bg', type: 'background', paint: { 'background-color': css('--map-bg') || '#EDF1F3' } });
     }
     return st;
   }
@@ -1569,8 +1580,8 @@
   function netLayers() {
     var Z = ['zoom'], R = NET_RANK;
     var cw = ['interpolate', ['exponential', 1.5], Z,
-      8, ['match', R, 0, 1.1, 1, 0.6, 0.3],
-      10, ['match', R, 0, 2.2, 1, 1.4, 2, 0.8, 0.5],
+      8, ['match', R, 0, 0.8, 1, 0.45, 0.3],
+      10, ['match', R, 0, 1.6, 1, 1.0, 2, 0.6, 0.4],
       11, ['match', R, 0, 2.8, 1, 2, 2, 1.3, 3, 0.9, 0.6],
       12, ['match', R, 0, 3.8, 1, 2.8, 2, 1.8, 3, 1.3, 0.9],
       14, ['match', R, 0, 7, 1, 5.4, 2, 4, 2.8],
@@ -1578,7 +1589,7 @@
     var fw = ['interpolate', ['exponential', 1.5], Z, 11.5, 0, 13, ['match', R, 0, 2.2, 1, 1.4, 2, 0.8, 0.4],
       14, ['match', R, 0, 4.6, 1, 3.4, 2, 2.4, 1.4], 17, ['match', R, 0, 15, 1, 11.5, 2, 9, 6]];
     // minor / residential streets are drawn from z11 so a flooded street reads as one street among its neighbours
-    var op = ['interpolate', ['linear'], Z, 10.3, ['match', R, [3, 4], 0, 1], 11, ['match', R, 4, 0, 1], 13, ['match', R, 4, 0.6, 1], 14.5, 1];
+    var op = ['interpolate', ['linear'], Z, 8, ['match', R, 0, 0.55, 1, 0.35, 0], 10.3, ['match', R, [3, 4], 0, 0.85], 11, ['match', R, 4, 0, 1], 13, ['match', R, 4, 0.6, 1], 14.5, 1];
     var filt = ['all', ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service'], true, false],
       ['!=', ['get', 'brunnel'], 'tunnel']];
     return [
@@ -1619,17 +1630,31 @@
     getJson('site/data/coverage.json').then(function (C) {
       var fc = C.features.filter(function (f) { return f.properties.k === 'forecast'; })[0], ts = C.features.filter(function (f) { return f.properties.k === 'tested'; })[0];
       var outers = function (g) { return !g ? [] : g.type === 'Polygon' ? [g.coordinates[0]] : g.coordinates.map(function (p) { return p[0]; }); };
-      var mask = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-179, -85], [179, -85], [179, 85], [-179, 85], [-179, -85]]].concat(outers(fc.geometry), outers(ts && ts.geometry)) } };
+      // the veil covers everything outside District 3 (the tested-only boxes overlap the district edge, so they are not cut out of it)
+      var mask = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-179, -85], [179, -85], [179, 85], [-179, 85], [-179, -85]]].concat(outers(fc.geometry)) } };
       map.addSource('cov', { type: 'geojson', data: C }); map.addSource('cov-mask', { type: 'geojson', data: mask });
       var before = map.getLayer('depth') ? 'depth' : 'l-voy';
-      map.addLayer({ id: 'cov-out', type: 'fill', source: 'cov-mask', paint: { 'fill-color': '#5F6368', 'fill-opacity': 0.34 } }, before);
-      map.addLayer({ id: 'cov-test', type: 'fill', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'fill-color': '#5F6368', 'fill-opacity': 0.2 } }, before);
-      map.addLayer({ id: 'cov-test-ol', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'line-color': '#5F6368', 'line-width': 1, 'line-dasharray': [3, 2] } }, before);
-      map.addLayer({ id: 'cov-d3', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'forecast'], paint: { 'line-color': '#1F2328', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.2, 12, 2], 'line-opacity': 0.8 } }, before);
+      // one hierarchy: a subtle wash outside the modelled area, faint dashed boxes where the model was only tested, one clear District 3 outline
+      map.addLayer({ id: 'cov-out', type: 'fill', source: 'cov-mask', paint: { 'fill-color': '#55656F', 'fill-opacity': 0.2 } }, before);
+      map.addLayer({ id: 'cov-test', type: 'fill', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'fill-color': '#55656F', 'fill-opacity': 0.07 } }, before);
+      map.addLayer({ id: 'cov-test-ol', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'tested'], paint: { 'line-color': '#7A858D', 'line-width': 0.8, 'line-opacity': 0.75, 'line-dasharray': [2, 2] } }, before);
+      map.addLayer({ id: 'cov-d3-sh', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'forecast'], paint: { 'line-color': '#000000', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 4, 12, 6], 'line-blur': 3, 'line-opacity': 0 } }, before);
+      map.addLayer({ id: 'cov-d3', type: 'line', source: 'cov', filter: ['==', ['get', 'k'], 'forecast'], paint: { 'line-color': '#1B2A33', 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.6, 12, 2.4], 'line-opacity': 0.85 } }, before);
+      covTheme();
       $('covKey').hidden = false;
     }).catch(function (e) { console.warn('coverage', e); });
   }
 
+  function covTheme() { // the District 3 outline and the outside wash read on light, dark and aerial maps
+    if (!map || !map.getLayer('cov-d3')) return;
+    var b = basemap(), dk = b === 'dark' || b === 'night' || b === 'satellite', sat = b === 'satellite';
+    map.setPaintProperty('cov-d3', 'line-color', dk ? '#F4F7F9' : '#1B2A33'); map.setPaintProperty('cov-d3', 'line-opacity', dk ? 0.95 : 0.85);
+    map.setPaintProperty('cov-d3-sh', 'line-opacity', sat ? 0.55 : 0);
+    map.setPaintProperty('cov-out', 'fill-color', dk ? '#0B1116' : '#55656F'); map.setPaintProperty('cov-out', 'fill-opacity', sat ? 0.42 : dk ? 0.35 : 0.2);
+    // on imagery the tested-only boxes are a thin light dash, no fill (inside District 3 stays crisp)
+    map.setPaintProperty('cov-test', 'fill-opacity', 0);
+    map.setPaintProperty('cov-test-ol', 'line-color', dk ? 'rgba(241,245,247,.7)' : '#7A858D');
+  }
   function initMap() {
     map = new maplibregl.Map({
       container: 'map', bounds: boxBounds(), maxZoom: 16, minZoom: 6, dragRotate: false, pitchWithRotate: false,
@@ -1701,7 +1726,7 @@
       whenStyle(function () {
         map.addSource('mnet', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: 0.6 });
         map.addLayer({ id: 'mnet', type: 'line', source: 'mnet', minzoom: 8.5, layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': (basemap() === 'dark' || basemap() === 'night') ? '#5d646c' : basemap() === 'satellite' ? 'rgba(255,255,255,.55)' : '#a7afb6', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'c'], 0, 0.35, 0.8], 12, ['match', ['get', 'c'], 0, 0.8, 1.6], 14, ['match', ['get', 'c'], 0, 1.2, 2.2]],
+          paint: { 'line-color': (basemap() === 'dark' || basemap() === 'night') ? '#5d646c' : basemap() === 'satellite' ? 'rgba(255,255,255,.3)' : '#a7afb6', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'c'], 0, 0.35, 0.8], 12, ['match', ['get', 'c'], 0, 0.8, 1.6], 14, ['match', ['get', 'c'], 0, 1.2, 2.2]],
             'line-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 0.9, 13.5, 0.9, 14.5, 0.25] } }, map.getLayer('net-case') ? 'net-case' : undefined);
       });
     }).catch(function () { }));
@@ -1723,7 +1748,7 @@
       $('play').disabled = false;
       if (!WHATIF) { try { addKnock(); } catch (e) { console.error('knock-on', e); } }
       try { addLabels(); } catch (e) { console.error('labels', e); }
-      $('slMode').textContent = WHATIF ? 'What-if · not a forecast · ' : runKey === 'forecast' ? 'Forecast · ' : '';
+      $('slMode').textContent = WHATIF ? 'Scenario run, not a forecast' : '';
       loadCascadeNumbers().then(function (c) { instInit(); return loadEvidence(c); }).then(function () { if (refs && refs.crowd && refs.crowd.length) { try { addCrowd(); raiseLabels(); } catch (e) { console.error('crowd', e); } } });
       if (WION) wiApply(wi.first, wi.dj, true); else if (WHATIF) { wiPhases(); wiSelect(); } else wiPhases();
       try { rankBuild(); } catch (e) { console.error('rank', e); }
@@ -2383,20 +2408,20 @@
     function rainLive() { var h = t / per, s0 = sum(r, h); return '<b class="rainv">' + s0.toFixed(s0 < 10 ? 1 : 0) + ' mm</b><span>rain so far, averaged over the model area</span>'; }
     var S = [
       { title: 'The storm arrives', a: s1a, b: s1b, dur: 6500, rain: 1, cam: rain ? rain.bounds : null, zoomOut: !rain,
-        text: function () { return '<b>' + fmtShort.format(timeAt(s1b)) + '.</b> Radar rain from NOAA MRMS sweeps across central Massachusetts toward ' + esc(place) + '. The dashed outline is the area the flood model covers.'; }, live: rainLive },
+        text: function () { return 'Radar rain (NOAA MRMS) moves across central Massachusetts toward ' + esc(place) + '. The dashed box is the area the flood model runs on.'; }, live: rainLive },
       { title: 'Rain intensifies', a: s1b, b: s2b, dur: 7500, rain: 1, cam: 'box',
-        text: function () { return 'Up to ' + (M.rain_peak1h_max_mm != null ? '<b>' + M.rain_peak1h_max_mm + ' mm</b>' : 'a month’s rain') + ' falls on one spot in a single hour' + (M.rain_max_total_mm != null ? ', and the wettest place in the area collects <b>' + M.rain_max_total_mm + ' mm</b> over the storm.' : '.'); }, live: rainLive },
+        text: function () { return (M.rain_peak1h_max_mm != null ? '<b>' + M.rain_peak1h_max_mm + ' mm</b> falls on one spot in a single hour' : 'The heaviest rain arrives') + (M.rain_max_total_mm != null ? '; the wettest place gets <b>' + M.rain_max_total_mm + ' mm</b> in total.' : '.'); }, live: rainLive },
       { title: 'Runoff and rising brooks', a: s2b, b: s3b, dur: 8000, rain: 0.55, cam: hot ? 1 : 0,
-        text: function () { return 'Rain the ground cannot take runs off down streets and slopes into the brooks' + (meta.flow ? ' (turn on Moving water to see the modelled current)' : '') + '. Brooks and rivers rise and ponds fill. Blue is modelled water, faint from 1 cm and darker as it deepens.'; },
+        text: function () { return 'What the ground cannot absorb runs off into the brooks. Streams rise and low spots fill. Blue is modelled water, darker as it deepens.'; },
         live: function () { return '<b class="blue">' + n(nWet + nClosedNow) + '</b><span>road segments with water on them</span>'; } },
       { title: 'Streets flood', a: s3b, b: s4b, dur: 7500, rain: 0.3, cam: hot ? 1 : 0,
-        text: function () { return 'Where water reaches a road it turns <b>amber</b>: pale under 15 cm, darker from 15 to 30 cm (at risk).' + (hot ? ' Around ' + esc(hot.name) + ', ' + big(hot.count) + ' road segments flood during the storm.' : ''); },
+        text: function () { return 'Roads with water on them turn <b>amber</b>, darker from 15 cm (at risk).' + (hot ? ' Around ' + esc(hot.name) + ', ' + big(hot.count) + ' segments flood during the storm.' : ''); },
         live: function () { return '<b class="wet">' + n(nWet) + '</b><span>roads with water</span><b class="shut">' + n(nClosedNow) + '</b><span>closed</span>'; } },
       { title: 'Streets close', a: s4b, b: s5b, dur: 7000, rain: 0.2, cam: 0,
         text: function () {
-          return 'At 30 cm a road counts as closed: the segment turns <b>orange</b>, and <b>red</b> marks the stretches where 30 cm or more covers the road itself. At the peak, ' + big(cp[fP] || 0) + ' segments are closed at once' +
-            (M.segments_p_ge_50 != null ? ', and ' + big(M.segments_p_ge_50) + ' (' + M.km_p_ge_50 + ' km) close at some point, out of ' + n(M.segments_in_box) + ' in the area.' : '.') +
-            (rep_.length ? ' Check: ' + hits + ' of ' + rep_.length + ' storm reports fall where the model has 30 cm or more.' : '');
+          return 'At 30 cm a road is closed (<b>orange</b>; <b>red</b> where the water covers the road itself). At the peak ' + big(cp[fP] || 0) + ' segments are closed at once' +
+            (M.segments_p_ge_50 != null ? '; ' + big(M.segments_p_ge_50) + ' (' + M.km_p_ge_50 + ' km) close at some point.' : '.') +
+            (rep_.length ? ' ' + hits + ' of ' + rep_.length + ' storm reports fall where the model has 30 cm or more.' : '');
         },
         live: function () { return '<b class="shut">' + n(nClosedNow) + '</b><span>roads closed now</span>'; } },
       { title: 'Knock-on effects', a: s5b, b: s5b, dur: 0, rain: 0.15, cam: 0, peak: true, may: true, knock: true,
@@ -2408,12 +2433,11 @@
           if (M.segments_may_close) bits.push(big(M.segments_may_close) + ' more segments may close where streams reach road level (dashed)');
           if (knock.fac) bits.push(big(knock.fac) + (knock.fac > 1 ? ' hospitals, fire and police stations sit' : ' emergency station sits') + ' within 500 m of a closing road (circled)');
           var list = bits.length > 1 ? bits.slice(0, -1).join('; ') + '; and ' + bits[bits.length - 1] : bits.join('');
-          return 'Closed roads cut routes around them. ' + (list ? list + '.' : '') + ' Turn on Closes at some point (Layers) to see every road that closes during the storm.';
+          return 'Closed roads cut the routes around them. ' + (list ? list + '.' : '');
         },
         live: function () { return M.segments_p_ge_50 != null ? '<b class="shut">' + n(M.segments_p_ge_50) + '</b><span>roads close at some point</span>' + (knock.fac ? '<b class="shut">' + knock.fac + '</b><span>stations near them</span>' : '') : ''; } },
       { title: 'Draining and soaking in', a: s5b, b: cl(s5b + 8 * per), dur: 9000, rain: 0, cam: hot ? 1 : 0,
-        text: function () { return 'The rain stops. Water runs down the brooks to the river and soaks into the ground; <b>slate-grey</b> water is going down, and roads reopen as it drops below 26 cm.' +
-          (meta.surface_mm ? ' Of the rain that fell, most has soaked in or drained away (estimate: rain fallen minus the water still drawn on the land).' : ''); },
+        text: function () { return 'The rain stops. Water drains to the river and soaks in; <b>slate-grey</b> water is falling, and roads reopen below 26 cm.'; },
         live: function () { var per_ = 60 / meta.frame_min, tot = sum(r, t / per_), sf = meta.surface_mm ? meta.surface_mm[Math.round(t)] || 0 : null;
           return sf != null ? '<b class="blue">' + Math.max(0, tot - sf).toFixed(0) + ' mm</b><span>of ' + tot.toFixed(0) + ' mm soaked in or drained</span><b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>' : '<b class="shut">' + n(nClosedNow) + '</b><span>still closed</span>'; } }
     ];
@@ -2433,9 +2457,9 @@
       var sD = S[S.length - 1].b;
       S.push({ title: 'Across District 3', a: sD, b: sD, dur: 0, rain: 0, cam: D3_BOUNDS,
         text: function () {
-          return 'This box is one 20 × 20 km run. The same storm was also run over all of MassDOT District 3 at once, ' + n(D3M.segments_in_box) + ' road segments at 20 m on WPI’s Turing GPU cluster: ' +
-            big(D3M.segments_p_ge_50) + ' segments (' + D3M.km_p_ge_50 + ' km) close at some point' + (D3M.culverts_overtopped ? ' and ' + big(D3M.culverts_overtopped) + ' culverts are overtopped' : '') +
-            '. <a href="?run=d3_sep2023">Open the District 3 replay</a>.';
+          return 'The same storm, run over all of District 3 (' + n(D3M.segments_in_box) + ' road segments at 20 m, WPI Turing GPU cluster): ' +
+            big(D3M.segments_p_ge_50) + ' segments (' + D3M.km_p_ge_50 + ' km) close' + (D3M.culverts_overtopped ? ' and ' + big(D3M.culverts_overtopped) + ' culverts are overtopped' : '') +
+            '. <a href="?run=d3_sep2023">Open the District 3 replay</a>';
         },
         live: function () { return '<b class="shut">' + n(D3M.segments_p_ge_50) + '</b><span>District 3 roads close at some point</span>'; } });
     }
@@ -2481,14 +2505,15 @@
   function storyGo(i, first) {
     i = Math.max(0, Math.min(story.sc.length - 1, i));
     var sc = story.sc[i]; story.i = i; story.hold = 0; story.start = performance.now(); setStoryPaused(false);
-    $('stTitle').innerHTML = '<span class="n">' + (i + 1) + ' of ' + story.sc.length + '</span>' + esc(sc.title);
+    $('stTitle').textContent = sc.title; $('stN').textContent = 'Scene ' + (i + 1) + ' of ' + story.sc.length;
+    var last_ = i === story.sc.length - 1; $('stNext').firstChild.nodeValue = last_ ? 'Explore the map' : 'Next';
     setTime(sc.a);
     $('stText').innerHTML = sc.text();
     $('story').classList.toggle('fin', i === story.sc.length - 1);
     $('stPrev').disabled = i === 0;
     Array.prototype.forEach.call($('stSteps').children, function (li, k) { li.className = k < i ? 'done' : ''; li.firstChild.style.width = k < i ? '100%' : '0'; });
-    storyLayers(sc); storyCam(sc, first); storyLive();
-    if (i === story.sc.length - 1) setTimeout(function () { if (story.on && story.i === i) $('stSkip').focus({ preventScroll: true }); }, 50);
+    storyLayers(sc); storyCam(sc, first); storyLive(); $('stClock').textContent = fmtShort.format(timeAt(t));
+    if (i === story.sc.length - 1) setTimeout(function () { if (story.on && story.i === i) $('stNext').focus({ preventScroll: true }); }, 50);
   }
   function storyLive() { var sc = story.sc[story.i]; if (sc) $('stLive').innerHTML = sc.live(); }
   function storyTick(now) {
@@ -2521,12 +2546,12 @@
     rainOp = 0.8; applyToggles(); map.triggerRepaint();
     document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.view === currentView ? 'true' : 'false'); });
   }
-  function placeStory() { // desktop: under the identity card, in the same left column the framing already keeps clear
-    var c = $('card').getBoundingClientRect();
-    document.documentElement.style.setProperty('--story-top', Math.round(c.bottom + 10) + 'px');
+  function placeStory() { // desktop: in the sidebar, under the numbers (over the road list), so the map stays clear for the camera
+    var c = $('card').getBoundingClientRect(), ins = $('inst').getBoundingClientRect();
+    document.documentElement.style.setProperty('--story-top', Math.round(!small() && ins.height ? Math.min(ins.bottom + 14, window.innerHeight - 420) : c.bottom + 10) + 'px');
     document.documentElement.style.setProperty('--cap-top', Math.round(c.bottom + 8) + 'px');
   }
-  $('stNext').addEventListener('click', function () { storyGo(story.i + 1); });
+  $('stNext').addEventListener('click', function () { if (story.i >= story.sc.length - 1) storyEnd(); else storyGo(story.i + 1); });
   $('stPrev').addEventListener('click', function () { storyGo(story.i - 1); });
   $('stPause').addEventListener('click', function () { setStoryPaused(!story.paused); });
   $('stSkip').addEventListener('click', function () { storyEnd(); });
@@ -2542,14 +2567,14 @@
   function applyTheme() {
     if (!map || !map.getLayer('b-lgt')) return;
     var b = basemap(), L = BASEMAPS[b].layers, P = pal();
-    ['b-hill', 'b-lgt', 'b-sat', 'b-dark', 'l-voy', 'l-dark', 'b-hshade'].forEach(function (id) {
+    ['b-hill', 'b-lgt', 'b-sat', 'b-mgis', 'b-dark', 'l-voy', 'l-dark', 'b-hshade'].forEach(function (id) {
       if (!map.getLayer(id)) return;
       var on = L[id] && !(/^l-/.test(id) && map.getLayer('lb-place')); // vector street, water and place labels replace the raster ones
       map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
       if (on && id !== 'b-hshade') map.setPaintProperty(id, 'raster-opacity', L[id]);
     });
-    if (map.getLayer('bg')) map.setPaintProperty('bg', 'background-color', b === 'night' || b === 'dark' ? '#1E2124' : '#F2F2EF');
-    wiTheme(b);
+    if (map.getLayer('bg')) map.setPaintProperty('bg', 'background-color', b === 'night' || b === 'dark' ? '#1B232B' : (css('--map-bg') || '#EDF1F3'));
+    wiTheme(b); covTheme();
     document.querySelectorAll('#basemaps button').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.bm === b ? 'true' : 'false'); });
     var root = document.documentElement.style;
     ['d1', 'd2', 'd3', 'd4'].forEach(function (k, i) { root.setProperty('--' + k, P.d[i]); });
@@ -2562,7 +2587,7 @@
       map.setPaintProperty('net-fill', 'line-color', P.fill);
     }
     if (map.getLayer('box')) map.setPaintProperty('box', 'line-color', P.box);
-    if (map.getLayer('mnet')) map.setPaintProperty('mnet', 'line-color', b === 'dark' || b === 'night' ? '#5d646c' : b === 'satellite' ? 'rgba(255,255,255,.55)' : '#a7afb6');
+    if (map.getLayer('mnet')) map.setPaintProperty('mnet', 'line-color', b === 'dark' || b === 'night' ? '#5d646c' : b === 'satellite' ? 'rgba(255,255,255,.3)' : '#a7afb6');
     if (map.getLayer('wet')) {
       var D = RD || ['coalesce', ['feature-state', 'd'], 0];
       // under 15 cm water on road (amber, dark casing), 15-30 cm at risk (vermillion), 30 cm and more closed (dark red, white stripes)
@@ -2645,6 +2670,22 @@
     svg.style.height = H + 'px';
     svg.innerHTML = s;
     setCursor();
+    drawTicks();
+  }
+  // hour ticks under the timeline, in Eastern time: about one label per 80 px, midnight labelled with the day
+  var ticksSig = '';
+  function drawTicks() {
+    var el = $('tlTicks'), tl = $('timeline'); if (!el || !meta || !t0 || nf < 2) return;
+    var px = tl.clientWidth; if (!px) return;
+    var hrs = (nf - 1) * meta.frame_min / 60, step = [1, 2, 3, 6, 12, 24, 48].filter(function (h) { return px * h / hrs >= 78; })[0] || 48;
+    var sig = px + ':' + step + ':' + nf; if (sig === ticksSig) return; ticksSig = sig;
+    var out = '', h0 = Math.ceil(t0.getTime() / 3600e3) * 3600e3;
+    for (var ms = h0; ms <= t0.getTime() + hrs * 3600e3; ms += 3600e3) {
+      var d = new Date(ms), hh = +fmtHrN.format(d) % 24; if (hh % step) continue;
+      var x = (ms - t0.getTime()) / 3600e3 / hrs * 100; if (x < 3 || x > 97) continue;
+      out += '<span' + (hh === 0 ? ' class="d"' : '') + ' style="left:' + x.toFixed(2) + '%">' + (hh === 0 ? fmtWD.format(d).replace(/,.*$/, '') : fmtTick.format(d).replace(' ', '\u202f')) + '</span>';
+    }
+    el.innerHTML = out;
   }
   $('gaugeSel').addEventListener('change', function () { drawChart(); instInit(); });
   function setCursor() { var c = $('cursor'); if (c && nf > 1) c.style.left = (100 * t / (nf - 1)) + '%'; }
@@ -2758,9 +2799,11 @@
   var slLast = '';
   function statusLine(c, r, w) {
     var cp = meta.closed_per_frame || [], pk = 0; for (var i = 0; i < cp.length; i++) if (cp[i] > cp[pk]) pk = i;
-    var txt = n(c) + ' closed · ' + n(r) + ' at risk' + (small() ? '' : ' · ' + n(w) + ' with water on the road') + (cp.length ? ' · peak ' + fmtCap.format(timeAt(pk)).replace(/^\w+ /, '') : '');
+    var pkT = cp.length && cp[pk] ? fmtHM.format(timeAt(pk)) : '–', txt = c + '|' + r + '|' + pkT;
     if (txt === slLast) return; slLast = txt;
-    $('slNow').textContent = txt;
+    $('kClosed').textContent = n(c); $('kRisk').textContent = n(r); $('kPeak').textContent = pkT;
+    $('kPeakL').textContent = cp.length && cp[pk] ? 'peak, ' + n(cp[pk]) + ' closed' : 'peak closures';
+    $('slNow').textContent = n(c) + ' closed, ' + n(r) + ' at risk, ' + n(w) + ' with water on the road';
   }
   function rankBuild() {
     var rows = [];
@@ -2776,10 +2819,10 @@
     rows.slice(0, 40).forEach(function (r) {
       var p = r.s.f.properties, li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
       var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : '<span class="chip-st wet">Water on road</span>';
+      var hm = function (f) { return fmtHM.format(timeAt(f)); };
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
-        '<span class="rt">' + (r.sev === 3 ? 'Closes ' + fmtCap.format(timeAt(r.st)).replace(/^\w+ /, '') + ' · ' : 'From ' + fmtCap.format(timeAt(r.st)).replace(/^\w+ /, '') + ' · ') +
-        'Peak ' + fmtCap.format(timeAt(r.pk)).replace(/^\w+ /, '') + (r.end != null ? ' · Reopens ' + (r.end >= nf - 1 ? 'after the run' : fmtCap.format(timeAt(r.end)).replace(/^\w+ /, '')) : '') +
-        ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + '</span>';
+        '<span class="rt">' + (r.sev === 3 ? 'Closed ' + hm(r.st) + '–' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st)) +
+        ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
       b.addEventListener('click', function () {
         var g = r.s.f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
         cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
@@ -2822,11 +2865,12 @@
       if (q !== s.v || eg !== s.eg) { s.v = q; s.eg = eg; if (!PCS) map.setFeatureState({ source: 'roads', id: s.id }, { d: q, e: eg }); else s.v2 = 1; }
     }
     if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else { statusLine(closed, risk, wet - risk); segLabels(); impUpdate(); }
-    var mins = Math.round(t * meta.frame_min / 5) * 5, label = fmtClock.format(new Date(t0.getTime() + mins * 60000));
+    var mins = Math.round(t * meta.frame_min / 5) * 5, cd = new Date(t0.getTime() + mins * 60000), label = fmtClock.format(cd);
     if (label !== lastClock) {
       lastClock = label;
-      $('clock').textContent = label;
-      $('since').textContent = (mins / 60).toFixed(1) + ' h after the replay starts';
+      $('clock').textContent = fmtHMZ.format(cd);
+      $('since').textContent = fmtWD.format(cd) + ' · ' + (mins < 60 ? mins + ' min' : (mins / 60).toFixed(1) + ' h') + ' into the run';
+      if (story.on && $('stClock')) $('stClock').textContent = fmtShort.format(cd);
     }
     $('nClosed').textContent = closed;
     nWet = wet; nClosedNow = closed;
@@ -2875,11 +2919,35 @@
       if (small() && b.getAttribute('aria-pressed') === 'true') { // phones show one speed button that cycles
         var all = Array.prototype.slice.call(document.querySelectorAll('.speeds button')); b = all[(all.indexOf(b) + 1) % all.length];
       }
-      speed = +b.dataset.speed;
-      document.querySelectorAll('.speeds button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      setSpeed(+b.dataset.speed); store('mfw-speed2', b.dataset.speed);
     });
   });
-  $('scrub').addEventListener('input', function (e) { if (!ready) return; if (story.on) storyEnd(); if (playing) setPlaying(false); played = true; setTime(+e.target.value); });
+  // playback speed in storm hours per real second: Slow 5 min/s, Normal 15 min/s, Fast 45 min/s; remembered across storms and tabs
+  function setSpeed(v) {
+    var bs = Array.prototype.slice.call(document.querySelectorAll('.speeds button')), b = bs.filter(function (x) { return Math.abs(+x.dataset.speed - v) < 1e-3; })[0] || bs[1];
+    speed = +b.dataset.speed;
+    bs.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+  }
+  setSpeed(+(store('mfw-speed2') || 0.25));
+  var scrubWant = null, scrubRaf = 0;
+  function scrubTo(v) { // one map update per frame however fast the pointer or keys move
+    scrubWant = v; if (scrubRaf) return;
+    scrubRaf = requestAnimationFrame(function () { scrubRaf = 0; if (scrubWant != null) { var w = scrubWant; scrubWant = null; setTime(w); } });
+  }
+  function scrubStart() { if (story.on) storyEnd(); if (playing) setPlaying(false); played = true; }
+  $('scrub').addEventListener('input', function (e) { if (!ready) return; scrubStart(); scrubTo(+e.target.value); });
+  (function scrubPointer() {
+    var tl = $('timeline'), rect = null, id = null;
+    function at(e) { var f = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); return f * (nf - 1); }
+    tl.addEventListener('pointerdown', function (e) {
+      if (!ready || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('button,select')) return;
+      rect = tl.getBoundingClientRect(); id = e.pointerId; try { tl.setPointerCapture(id); } catch (x) { }
+      tl.classList.add('scrubbing'); scrubStart(); scrubTo(at(e)); e.preventDefault();
+    });
+    tl.addEventListener('pointermove', function (e) { if (id === e.pointerId && rect) scrubTo(at(e)); });
+    function end(e) { if (id !== e.pointerId) return; id = null; rect = null; tl.classList.remove('scrubbing'); }
+    tl.addEventListener('pointerup', end); tl.addEventListener('pointercancel', end);
+  })();
   document.addEventListener('keydown', function (e) {
     if (!ready || e.altKey || e.ctrlKey || e.metaKey) return;
     var tg = e.target, free = tg === document.body || tg === map.getCanvas() || (tg.closest && tg.closest('#story'));
@@ -2917,7 +2985,7 @@
   sheetPlace(); sheetToggle(false);
   var pl = document.querySelector('.player');
   function ph() { if (small()) return; document.documentElement.style.setProperty('--player-h', pl.offsetHeight + 'px'); }
-  if (window.ResizeObserver) new ResizeObserver(ph).observe(pl); ph();
+  if (window.ResizeObserver) { new ResizeObserver(ph).observe(pl); new ResizeObserver(function () { drawTicks(); }).observe($('timeline')); } ph();
   // the key is always on screen; the layer panel opens on demand (remembered on desktop)
   var lg = $('legend'), lgOpen = !small() && store('mfw-layers') === '1';
   lg.dataset.collapsed = lgOpen ? 'false' : 'true'; $('legendToggle').setAttribute('aria-expanded', lgOpen ? 'true' : 'false');
@@ -2981,7 +3049,7 @@
     var top = $('card').getBoundingClientRect().bottom + 8, full = Math.max(200, vh - tab - top);
     var tl = $('timeline'), peek;
     if (document.documentElement.classList.contains('no-replay')) peek = Math.min(full, Math.round(vh * 0.2));
-    else peek = Math.min(full, (tl && tl.offsetParent ? tl.offsetTop : 120) + 48);
+    else { var tk = $('tlTicks'); peek = Math.min(full, (tk && tk.offsetParent ? tk.offsetTop + tk.offsetHeight : 200) + 10); }   // through the hour ticks under the timeline
     var half = Math.max(peek + 90, Math.min(full, Math.round(vh * 0.52)));
     return { full: full, peek: Math.max(96, peek), half: half };
   }
@@ -3335,7 +3403,7 @@
     if (Sn && Sn.depth_cm) row('snow', 'Snow on the ground', Sn.depth_cm.district_max > 0 ? '<b>' + f1(Sn.depth_cm.district_mean) + ' cm</b> average, ' + f1(Sn.depth_cm.district_max) + ' cm deepest' : 'None', 'NOAA SNODAS, ' + esc(Sn.date || ''));
     var V = L.validation;
     if (V) row('validation', 'Flooding reports, 48 h', V.recent_48h && V.recent_48h.length ? '<b>' + V.recent_48h.length + '</b> (MassDOT events, SeeClickFix)' : 'None', 'Not verified; kept to score the forecast');
-    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Observations and short-range products. Checked every hour; published when something changes (at least daily). Last published ' + esc(when(L.status.made)) + '. Sources and limits: <a href="https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/live/LIVE_FEEDS.md" target="_blank" rel="noopener">live feeds</a>.</p>';
+    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Updated ' + esc(when(L.status.made)) + ' · <a href="about.html#data">sources</a></p>';
     el.hidden = false;
   }
   function groundRender(g) {
@@ -3347,7 +3415,7 @@
     var warn = g.ground === 'wet' || g.ground === 'frozen';
     el.innerHTML = '<h3>Ground before the next storm <b class="gst g-' + g.ground + '">' + lab + '</b></h3><p>' + esc(bits.join('; ')) + '.</p>' +
       '<p class="muted">' + (warn ? 'Wet or frozen ground sheds more rain than the model assumes, so closures are likely under-forecast. ' : '') +
-      'The forecast runs at normal ground (calibrated); this is context. Updated ' + esc((g.made || '').replace('T', ' ').replace('Z', ' UTC')) + '.</p>';
+      'Updated ' + esc((g.made || '').replace('T', ' ').replace('Z', ' UTC')) + '.</p>';
     el.hidden = false;
   }
   // docs/proto/forecast/OUTLOOK.md (schema outlook/1): health chip rule, day levels and verdicts come from the feed itself
@@ -3420,7 +3488,7 @@
       var a = zt(x.start), b = zt(x.end), tw = x.towns_over || [];
       var c = document.createElement('div'); c.className = 'storm lv' + (x.level || 0);
       c.innerHTML = '<h3>' + esc(x.verdict || 'Rain') + '</h3>' +
-        '<p>' + (a ? fmtShort.format(a) : esc(x.start_date || '')) + ' – ' + (b ? fmtShort.format(b) : esc(x.end_date || '')) + (x.peak_date ? ' · peak day ' + esc(x.peak_date) : '') + '</p>' +
+        '<p>' + (a ? fmtShort.format(a) : esc(x.start_date || '')) + ' – ' + (b ? fmtShort.format(b) : esc(x.end_date || '')) + (x.peak_date ? ' · peak ' + esc(fmtWD.format(new Date(x.peak_date + 'T12:00:00Z'))) : '') + '</p>' +
         '<p><b>' + (x.d3_mean_mm != null ? Math.round(x.d3_mean_mm) + ' mm' : '–') + '</b> district average, <b>' + (x.town_max_mm != null ? Math.round(x.town_max_mm) + ' mm' : '–') + '</b> in ' + esc(x.town_max || 'the wettest town') +
         (x.max6h_mm != null ? ' (' + Math.round(x.max6h_mm) + ' mm in 6 h)' : '') + '</p>' +
         (tw.length ? '<p class="tw">Over the flood-model threshold: ' + tw.map(function (t_) { return esc(t_.town || t_); }).join(', ') + '</p>' : '') +

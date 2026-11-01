@@ -8,20 +8,25 @@
 <link rel="icon" href="wpi-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
+@font-face{font-family:"Overpass";src:url(site/fonts/overpass-latin-wght.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@view-transition{navigation:auto}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+/* palette "harbour mist": soft blue-grey surfaces, slate-teal accent (shared with the map and About) */
 :root{
-  --bg:#f4f6f7;--surface:#ffffff;--surface-2:#e9eef1;--ink:#15212b;--muted:#53616c;--rule:#d3dbe0;
-  --accent:#ac2b37;--water:#2171b5;--closed:#b2182b;--may:#c4620a;--dev:#7a4b00;--dev-bg:#fff1d6;
+  --bg:#E6EDF0;--surface:#F4F7F9;--surface-2:#DFE7EB;--ink:#1B2A33;--muted:#55656F;--rule:#CBD5DA;--plate:#244B5E;
+  --accent:#2C5F73;--water:#2171b5;--closed:#b2182b;--may:#c4620a;--dev:#7a4b00;--dev-bg:#fff1d6;
   --sans:Overpass,"Segoe UI",system-ui,-apple-system,sans-serif;--serif:"Source Serif 4",Georgia,"Times New Roman",serif;
   color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e151b;--surface:#16212a;--surface-2:#1d2a35;--ink:#e3eaef;--muted:#9eacb7;--rule:#2b3945;
-  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}}
+  --bg:#121A20;--surface:#1B242C;--surface-2:#26323D;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;
+  --accent:#7FB6CB;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0e151b;--surface:#16212a;--surface-2:#1d2a35;--ink:#e3eaef;--muted:#9eacb7;--rule:#2b3945;
-  --accent:#e06470;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}
+  --bg:#121A20;--surface:#1B242C;--surface-2:#26323D;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;
+  --accent:#7FB6CB;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--serif);overflow-x:hidden}
@@ -42,11 +47,16 @@ p{margin:0 0 14px;max-width:68ch}
 .top .wrap{display:flex;align-items:center;gap:18px;min-height:68px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
 .logo{height:34px;width:auto;display:block;background:#fff;border-radius:4px;padding:3px 5px}
 .ident{display:flex;flex-direction:column;font-family:var(--sans);line-height:1.25}
-.ident b{font-size:19px;font-weight:800;letter-spacing:-.005em}
+.ident b{align-self:flex-start;font-size:16px;font-weight:800;letter-spacing:.01em;line-height:1;color:#fff;background:var(--plate);padding:7px 10px 5px;border-radius:6px;margin-bottom:5px;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),inset 0 0 0 3px var(--plate);view-transition-name:mfw-plate}
 .ident span{font-size:13.5px;color:var(--muted)}
 .nav{margin-left:auto;display:flex;gap:18px;align-items:center;font:600 14px var(--sans)}
 .nav a{text-decoration:none;color:var(--muted)}
 .nav a:hover{color:var(--ink)}
+.nav a.open-map{color:#fff;background:var(--accent);padding:8px 14px 6px;border-radius:999px}
+.nav a.open-map:hover{color:#fff;filter:brightness(1.1)}
+:root[data-theme="dark"] .nav a.open-map{color:#10202A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nav a.open-map{color:#10202A}}
 .theme{background:none;border:1px solid var(--rule);border-radius:5px;padding:4px 9px 3px;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
 
 /* hero */
@@ -219,7 +229,7 @@ html{scroll-behavior:smooth}
     <img class="logo" src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="105" height="34">
     <div class="ident"><b>Mass Flood Watch</b><span>PhD dissertation research by Mohab Eldokla, WPI</span></div>
     <nav class="nav" aria-label="Sections">
-      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a><a href="#next">What comes next</a><a href="about.html">About</a>
+      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a><a href="#next">What comes next</a><a href="about.html">About</a><a class="open-map" href="viewer.html?run=leominster_sep2023">Open the map</a>
       <button class="theme" id="theme" type="button" aria-label="Colour theme">Auto</button>
     </nav>
   </div>
