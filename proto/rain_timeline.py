@@ -172,7 +172,7 @@ def build(init=None, now=None, out='rain_out'):
                 frame_peak_mmh=[round(p, 1) for p in pk],
                 district_mean_mm=dict(past48h=round(float(sum(a.mean() for a in frames[1:k_now + 1])), 1),
                                       next48h=round(float(sum(a.mean() for a in frames[k_now + 1:])), 1)),
-                missing=missing, built=iso(dt.datetime.utcnow()), build_s=round(time.time() - t_))
+                missing=missing, built=iso(dt.datetime.now(dt.timezone.utc)), build_s=round(time.time() - t_))
     pack(frames, out, info)
     sz = os.path.getsize(os.path.join(out, 'rain.png'))
     log(f"rain timeline -> {out}: {len(frames)} frames {shape[1]}x{shape[0]}, atlas {info['cols']}x{info['rows']} cells, png {sz / 1e6:.2f} MB; "
