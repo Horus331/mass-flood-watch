@@ -3396,15 +3396,15 @@
           (ero && ero !== 'none' ? '<i class="ero-dot ' + ero + '" title="NOAA excessive rainfall risk: ' + ERO_L[ero] + '"></i>' : '') +
           (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'flood model running' : 'over threshold') + '</em>' : '') + '</span>' +
           sixStrip(R, d && d.date) +
-          '<span class="tot' + (inch && inch >= 0.005 ? '' : ' dry') + '" title="' + (mean != null ? mean.toFixed(1) + ' mm District 3 average, ' + Math.round(mxv || 0) + ' mm wettest town' : '') + '">' +
-          (inch == null ? '–' : inch < 0.005 ? '0″' : (inch < 1 ? inch.toFixed(2).replace(/^0/, '') : inch.toFixed(2)) + '″') + '</span>' +
+          '<span class="tot' + (mean && mean >= 0.05 ? '' : ' dry') + '" title="' + (mean != null ? mean.toFixed(1) + ' mm District 3 average, ' + Math.round(mxv || 0) + ' mm wettest town' : '') + '">' +
+          (mean == null ? '–' : mean < 0.05 ? '0 mm' : (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm') + '</span>' +
           '<span class="pop' + (pop ? '' : ' dry') + '">' + (pop != null ? (pop >= 10 ? '<svg viewBox="0 0 10 13" aria-hidden="true"><path d="M5 0C5 0 0 6 0 8.5A5 5 0 0 0 10 8.5C10 6 5 0 5 0Z"/></svg>' : '') + pop + '%' : '') + '</span>';
         ol.appendChild(li); continue;
       }
       li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) + '<small>' + (d ? esc(d.label.split(' ').slice(1).join(' ')) : fmtMD.format(dd)) + (d && d.partial ? ' (rest)' : '') + '</small></span>' +
         '<i class="ero ' + (ero || 'na') + '" title="NOAA WPC excessive rainfall risk: ' + (ero ? ERO_L[ero] : 'no outlook for this day') + '"></i>' +
         sixStrip(R, d && d.date) +
-        '<span class="mm">' + (mean != null ? (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm' : '–') + (mean != null && mean >= 0.05 ? '<small>' + (mean / 25.4 < 0.1 ? (mean / 25.4).toFixed(2) : (mean / 25.4).toFixed(1)) + ' in</small>' : '') + (mxv != null && mxv >= 1 ? '<small title="wettest town">max ' + Math.round(mxv) + '</small>' : '') + '</span>' +
+        '<span class="mm">' + (mean != null ? (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm' : '–') + (mxv != null && mxv >= 1 ? '<small title="wettest town">max ' + Math.round(mxv) + '</small>' : '') + '</span>' +
         '<span class="vd ' + vc + '">' + esc(txt) + (det ? ' <span class="tw">· ' + esc(det) + '</span>' : '') + (d && d.alerts && d.alerts.length ? ' <span class="al">' + esc(d.alerts.join(', ')) + '</span>' : '') + '</span>';
       ol.appendChild(li);
     }
