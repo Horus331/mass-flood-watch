@@ -42,7 +42,7 @@ NAME=fcd3_${PFX}_${TAG}_m$J
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-8} GIT_SHA=$(git rev-parse --short HEAD)
 export BOX=128000,856000,206000,946000 RES=20 STORM=forecast LF_RAIN=hrrr LF_HRRR_INIT=$MEM LF_HRRR_HOURS=$HOURS LF_ALLOW_DRY=1 LF_HRRR_NBHD=20,90
 export LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.88 LF_PARITY=1 LF_INFIL_MMH=2 LF_QOUT=1          # = forecast.yml flood job (no setting changes)
-if [ $J = 0 ]; then export LF_SAVEINT=1800 LF_VOUT=1 LF_VFRAMES=1; fi                         # replay frames (30 min) + solver velocity: output only
+# depth frames every 30 min (w9 default LF_SAVEINT) for the shadow map; no velocity output (the shadow map has no flow layer)
 export RUN_DIR=runs/forecast_$NAME
 OUT=$LF_WORK/run_forecast_$NAME/out
 if python sim/colab/w9_lisflood.py > $R/w9.txt 2>&1 && [ -f $OUT/meta.json ] && python proto/prototype.py --run-dir $OUT --out $R/proto --storm forecast > $R/proto.txt 2>&1; then
@@ -70,7 +70,7 @@ read KEY DIR BID MM < $P/viewers.txt || { echo "no member finished"; exit 1; }
 JD=$(basename $(dirname $DIR)); RD=$(cat $FC/$JD/OUTDIR)
 cd $REPO
 git pull -q --rebase --autostash "$(git remote get-url --push origin)" main || true
-python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --flow --frame-min 30 --budget-mb 40
+python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 60 --budget-mb 25   # shadow map: hourly frames, no flow (repo size: every fired cycle replaces this folder in git)
 python proto/forecast_kofn.py pack --kofn $P/kofn.json --key $PFX --box b1
 python proto/build_network.py $PFX || true
 python - $FC $P "$N" "${REQ_AT:-}" "$PFX" "$MM" <<'PY'
