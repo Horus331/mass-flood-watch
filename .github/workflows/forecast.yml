@@ -19,6 +19,10 @@ name: forecast (HRRR rain -> gate -> LISFLOOD-FP -> road closures, District 3)
 on:
   schedule:
     - cron: '40 2,8,14,20 * * *'
+    # backups: GitHub delays or drops scheduled runs (the 20:40Z run of 1 Nov never started); the 'due' job skips a backup when the cycle is
+    # already published
+    - cron: '10 4,10,16,22 * * *'
+    - cron: '50 5,11,17,23 * * *'
   workflow_dispatch:
     inputs:
       init: {description: 'HRRR cycle YYYY-MM-DDTHHZ (empty = latest 48 h cycle)', default: ''}
@@ -37,7 +41,33 @@ concurrency:
   group: forecast-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  due:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.d.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: docs/site/data/forecast_status.json, sparse-checkout-cone-mode: false}
+      - id: d
+        name: is this cycle already published? (scheduled runs only; a manual run always runs)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY' >> $GITHUB_OUTPUT
+          import json, os, datetime as dt
+          if os.environ['EVENT'] != 'schedule':
+              print('run=true'); raise SystemExit
+          now = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1, minutes=45)   # the 48 h HRRR cycle is on AWS ~1 h 45 min after issue
+          cyc = now.replace(hour=now.hour // 6 * 6, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:00Z')
+          try: issued = json.load(open('docs/site/data/forecast_status.json')).get('issued')
+          except Exception: issued = None
+          print('run=' + ('false' if issued == cyc else 'true'))
+          PY
+          cat $GITHUB_OUTPUT
   gate:
+    needs: due
+    if: needs.due.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -77,6 +107,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: {name: gate, path: gate}
   outlook:
+    needs: due
+    if: needs.due.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true
@@ -88,6 +120,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: {name: outlook, path: outlook, if-no-files-found: ignore}
   rain:
+    needs: due
+    if: needs.due.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true

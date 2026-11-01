@@ -3575,7 +3575,7 @@
   function liveRender(s, o) {
     var H = health(s, o), O = o && o.health && o.health.status === 'failed' && o.previous ? o.previous : o;
     $('hdot').className = 'dot ' + (H.st === 'partial' ? 'stale' : H.st);
-    $('hchipT').textContent = (H.issued ? 'Updated ' + ago(H.issued) : 'Not updated yet') + (H.next ? ' · next ' + fmtHM.format(H.next) : '') + ' · ' + H.label;
+    $('hchipT').textContent = (H.issued ? 'Updated ' + ago(H.issued) : 'Not updated yet') + (H.next ? (H.next > new Date() ? ' · next ' + fmtHM.format(H.next) : ' · next run due') : '') + ' · ' + H.label;
     var days = (O && O.days) || [];
     $('lvTitle').textContent = 'Next 7 days' + (O && O.headline ? '' : '');
     var mx = Math.max.apply(0, days.map(function (d) { return (d.rain && d.rain.town_max_mm) || 0; }).concat([25]));
