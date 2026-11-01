@@ -117,7 +117,7 @@ jobs:
           LF_PARITY: '1'            # infiltration in the rain + steps <= 1 s; ~2x LISFLOOD time, well inside the 330 min job limit
           LF_INFIL_MMH: '2'
           LF_QOUT: '1'
-          LF_SAVEINT: '300'         # 5-min depth snapshots, as the storm replays (output only; the model settings above are unchanged)
+          LF_SAVEINT: '900'         # 15-min depth snapshots for the map (output only; the model settings above are unchanged; 15 min keeps each fired cycle's pack small in git)
           LF_VOUT: '1'              # solver velocity (.Vx/.Vy) ...
           LF_VFRAMES: '1'           # ... at every snapshot -> out/vel_frames.npz: the replay's flow field
           GIT_SHA: ${{ github.sha }}
