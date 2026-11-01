@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T14:39:10Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-01T15:09:27Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -129,12 +129,15 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_v1_collect | collect_scores | cancelled | 2439816 | 0 / 0 | 2026-10-31T16:55:56Z | 2026-11-01T14:08:56Z | cancelled through jobs.json "cancel" |
 | amcnwm_v1_arr | run_plan_gpu | failed |  |  /  | 2026-10-31T17:26:27Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
-| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-11-01T14:39:10Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
+| amcnwm_v1_arr2 | run_plan_gpu | deferred |  |  /  | 2026-11-01T15:09:27Z |  | QOSMaxSubmitJobPerUserLimit: waiting for a free submit slot |
 | run_d3_sep2023_20m | run_storm | cancelled | 2442643 | 0 / 0 | 2026-11-01T12:38:16Z | 2026-11-01T14:08:56Z | cancelled through jobs.json "cancel" |
 | pack_d3_sep2023_20m | pack_site | cancelled | 2442677 | 0 / 0 | 2026-11-01T13:08:26Z | 2026-11-01T14:08:56Z | cancelled through jobs.json "cancel" |
 | fcd3_e2etest_d3_2023091112 | forecast_d3 | cancelled | 2442906 | 0 / 0 | 2026-11-01T14:08:56Z | 2026-11-01T14:39:10Z | cancelled through jobs.json "cancel" |
-| run_d3_sep2023_20m_b | run_storm | pending | 2442907 | 0 / 0 | 2026-11-01T14:08:56Z |  |  |
-| pack_d3_sep2023_20m_b | pack_site | pending | 2442908 | 0 / 0 | 2026-11-01T14:08:56Z |  |  |
+| run_d3_sep2023_20m_b | run_storm | cancelled | 2442907 | 0 / 0 | 2026-11-01T14:08:56Z | 2026-11-01T15:09:27Z | cancelled through jobs.json "cancel" |
+| pack_d3_sep2023_20m_b | pack_site | cancelled | 2442908 | 0 / 0 | 2026-11-01T14:08:56Z | 2026-11-01T15:09:27Z | cancelled through jobs.json "cancel" |
 | d3all_diag1 | diag | completed | 2442909 | 1 / 0 | 2026-11-01T14:08:56Z | 2026-11-01T14:39:10Z |  |
-| fcd3_e2etest_d3_2023091112_s | forecast_d3 | submitted | 2443042 |  /  | 2026-11-01T14:39:10Z |  |  |
-| d3all_v1_a | run_plan_display | submitted | 2443043 |  /  | 2026-11-01T14:39:10Z |  |  |
+| fcd3_e2etest_d3_2023091112_s | forecast_d3 | pending | 2443042 | 0 / 0 | 2026-11-01T14:39:10Z |  |  |
+| d3all_v1_a | run_plan_display | pending | 2443043 | 0 / 0 | 2026-11-01T14:39:10Z |  |  |
+| run_d3_sep2023_20m_c | run_storm | submitted | 2443072 |  /  | 2026-11-01T15:09:27Z |  |  |
+| pack_d3_sep2023_20m_c | pack_site | submitted | 2443073 |  /  | 2026-11-01T15:09:27Z |  |  |
+| d3all_diag2 | diag | submitted | 2443074 |  /  | 2026-11-01T15:09:27Z |  |  |
