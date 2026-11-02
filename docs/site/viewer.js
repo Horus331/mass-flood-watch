@@ -7,8 +7,11 @@
             masked to wet cells and faded by depth and speed; frozen still when the replay is paused
    Roads: depth on each segment per frame (cm) is interpolated in time and written to feature-state only when it changes,
    so a road turns grey -> amber -> red as the water rises and fades back as it drains.
-   Base roads: the whole street network from OpenStreetMap vector tiles (OpenFreeMap, no key), drawn over a muted
-   grey basemap and under the water, widths by road class and zoom, so streets read from district to street zoom.
+   Basemap ('Map', the default): a land-cover map drawn by this page from OpenStreetMap vector tiles (OpenFreeMap /
+   OpenMapTiles, no key): woods and fields in muted greens, towns in light warm greys, sand, wetland, grey-blue lakes and
+   rivers, buildings at street zoom, a subtle hillshade, and every street to the smallest lane in a neutral white/grey
+   hierarchy (never yellow, orange or red: those colours mean flood states here), with route shields and street names.
+   'Aerial' (MassGIS 2023, 15 cm) and 'Dark' remain in the switcher. All of it sits under the water and road layers.
    Story: opening a replay plays six short scenes on the real timeline (storm arrives, rain intensifies, water
    collects, streets flood, streets close, knock-on effects), then hands the map over for free exploration.
    Framing: the camera opens on where roads close, with one-click hotspot views and an optional 'follow the storm'. */
@@ -120,12 +123,14 @@
   };
   var BASEMAPS = REPLAY ? { // replays: a vector basemap (OpenFreeMap / OpenMapTiles) drawn by this page: muted land, every street with its
     // name, water in pale grey-blue; 'night' is kept as an alias of dark for stored choices and links
+    map: { layers: {} },   // the land-cover map (bmv-* layers, landLayers / roadLayers)
     streets: { layers: {} },
     terrain: { layers: { 'b-hill': 0.5 } },
     satellite: { layers: { 'b-sat': 1, 'b-mgis': 1 } },
     dark: { layers: { 'b-hshade': 1 } },
     night: { layers: { 'b-hshade': 1 } }
   } : {
+    map: { layers: {} },
     streets: { layers: { 'b-lgt': 1, 'l-voy': 1 } },
     terrain: { layers: { 'b-hill': 1, 'b-lgt': 0.5, 'l-voy': 1 } },
     satellite: { layers: { 'b-sat': 1, 'b-mgis': 1, 'l-dark': 1 } },
@@ -147,10 +152,10 @@
       grey: '#8796a3', amber: '#FFE08A', orange: '#F5B400', closed: '#FF8A3D', cas: '#1E2124', casDark: '#1E2124', peak: '#FF5C6C', peakOp: 0.55, may: '#FF8A3D', halo: '#FF5C6C',
       net: ['#7d848c', '#646a72', '#50565d', '#474c53'], fill: '#2f3439', netOp: 1, box: '#9AA0A6' }
   };
-  // default on every tab: full-colour aerial imagery (MassGIS 2023, 15 cm; Esri World Imagery outside Massachusetts). New storage keys so
-  // the earlier default (light) stored on a device does not hide it; any choice made from now on is kept.
-  var BMKEY = WHATIF ? 'mfw-bm2-wi' : 'mfw-bm2', bm = store(BMKEY);
-  function basemap() { return BASEMAPS[bm] ? (bm === 'night' ? 'dark' : bm) : 'satellite'; }
+  // default on every tab: the land-cover map ('map'). New storage keys (bm3) so the earlier default (aerial) stored on a device does not
+  // hide it; any choice made from now on is kept. 'streets' and 'terrain' (earlier buttons) open the map; 'night' is dark.
+  var BMKEY = WHATIF ? 'mfw-bm3-wi' : 'mfw-bm3', bm = store(BMKEY);
+  function basemap() { return !BASEMAPS[bm] || bm === 'streets' || bm === 'terrain' ? 'map' : bm === 'night' ? 'dark' : bm; }
   function pal() { var b = basemap(); return b === 'satellite' ? PAL.satellite : b === 'dark' || b === 'night' ? PAL.dark : PAL.light; }
 
   // ---------- state ----------
@@ -466,7 +471,7 @@
       'void main(){float lon=vM.x*360.0-180.0;float yy=3.14159265*(1.0-2.0*vM.y);float lat=degrees(atan((exp(yy)-exp(-yy))*0.5));' +
       'vec2 uv=vec2((lon-uB.x)/(uB.z-uB.x),(uB.w-lat)/(uB.w-uB.y));if(uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0)discard;' +
       'vec2 c=clamp(uv*uCell,uHalf,uCell-uHalf);float a=dot(texture2D(uS,uCa+c).rgb,uMa);float b=dot(texture2D(uS,uCb+c).rgb,uMb);' +
-      'float v=mix(a,b,uT);if(uK!=1.0){v=min(1.0,log(1.0+(exp(v*uLm)-1.0)*uK)/uLm);}if(v<0.03)discard;vec4 k=texture2D(uL,vec2(v,0.5));float al=k.a*uOp;' +
+      'float v=mix(a,b,uT);if(uK!=1.0){v=min(1.0,log(1.0+(exp(v*uLm)-1.0)*uK)/uLm);}if(v<0.05)discard;vec4 k=texture2D(uL,vec2(v,0.5));float al=k.a*uOp*(0.25+0.75*smoothstep(0.05,0.35,v));' +
       'float e=min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y));al*=smoothstep(0.0,0.06,e);gl_FragColor=vec4(k.rgb*al,al);}';
     return {
       layer: {
@@ -1221,6 +1226,22 @@
     var pill = document.createElement('canvas'); pill.width = pill.height = 24; var c = pill.getContext('2d');
     c.fillStyle = '#e9eef1'; c.strokeStyle = '#3c4852'; c.lineWidth = 2; rr(c, 1.5, 3.5, 21, 17, 4); c.fill(); c.stroke();
     if (!map.hasImage('shield')) map.addImage('shield', c.getImageData(0, 0, 24, 24), { pixelRatio: 2, stretchX: [[7, 17]], stretchY: [[8, 16]], content: [5, 5, 19, 19] });
+    // Interstates: a dark slate shield with white text (neutral: blue and red mean water and closures on this map)
+    c.clearRect(0, 0, 24, 24); c.fillStyle = '#2E3D48'; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; rr(c, 1.5, 3.5, 21, 17, 4); c.fill(); c.stroke();
+    if (!map.hasImage('shield-i')) map.addImage('shield-i', c.getImageData(0, 0, 24, 24), { pixelRatio: 2, stretchX: [[7, 17]], stretchY: [[8, 16]], content: [5, 5, 19, 19] });
+    // route label: 'I-90' for Interstates, 'US 20' for US routes, the bare number for state routes (as on Massachusetts route signs);
+    // refs that already carry a prefix ('I 190') are shown as they are
+    var REF = ['to-string', ['get', 'ref']], NW = ['to-string', ['get', 'network']], BARE = ['!', ['in', ' ', REF]];
+    var refText = ['case', ['all', ['==', NW, 'us-interstate'], BARE], ['concat', 'I-', REF], ['all', ['==', NW, 'us-highway'], BARE], ['concat', 'US ', REF], REF];
+    function shieldLayer(id, classes, minz) {
+      return { id: id, type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: minz,
+        filter: ['all', ['has', 'ref'], ['<=', ['length', REF], 6], ['!', ['in', ';', REF]], ['match', ['get', 'class'], classes, true, false]],
+        layout: { 'text-field': refText, 'text-font': F.b, 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 10, 15, 11.5],
+          'icon-image': ['case', ['==', NW, 'us-interstate'], 'shield-i', 'shield'], 'icon-text-fit': 'both', 'icon-text-fit-padding': [1, 4, 1, 4],
+          'symbol-placement': 'line', 'symbol-spacing': ['interpolate', ['linear'], ['zoom'], 9, 260, 15, 520], 'text-rotation-alignment': 'viewport', 'icon-rotation-alignment': 'viewport',
+          'symbol-sort-key': ['match', NW, 'us-interstate', 0, 'us-highway', 1, ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 2]] },
+        paint: { 'text-color': ['case', ['==', NW, 'us-interstate'], '#FFFFFF', '#17222c'] } };
+    }
     var L = [
       { id: 'lb-place', type: 'symbol', source: 'omt', 'source-layer': 'place', minzoom: 8, filter: ['match', ['get', 'class'], ['city', 'town', 'village', 'suburb', 'hamlet', 'neighbourhood'], true, false],
         layout: { 'text-field': ['get', 'name'], 'text-font': F.b, 'text-size': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'class'], ['city', 'town'], 13, 10], 14, ['match', ['get', 'class'], ['city', 'town'], 17, 12.5]],
@@ -1236,14 +1257,22 @@
         layout: { 'text-field': ['get', 'name'], 'text-font': F.i, 'text-size': ['interpolate', ['linear'], ['zoom'], 12, ['match', ['get', 'class'], 'river', 11.5, 10], 16, ['match', ['get', 'class'], 'river', 14, 12]],
           'symbol-placement': 'line', 'symbol-spacing': 320, 'text-letter-spacing': 0.06, 'symbol-sort-key': ['match', ['get', 'class'], 'river', 0, 1] },
         paint: { 'text-color': '#7fe0e8', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
-      { id: 'lb-shield', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 9.5,
-        filter: ['all', ['has', 'ref'], ['<=', ['length', ['to-string', ['get', 'ref']]], 5], ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false]],
-        layout: { 'text-field': ['get', 'ref'], 'text-font': F.b, 'text-size': 10.5, 'icon-image': 'shield', 'icon-text-fit': 'both', 'icon-text-fit-padding': [1, 4, 1, 4],
-          'symbol-placement': 'line', 'symbol-spacing': 420, 'text-rotation-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'symbol-sort-key': ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 2] },
-        paint: { 'text-color': '#17222c' } },
-      { id: 'lb-road', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 13.5, filter: ['has', 'name'],
-        layout: { 'text-field': ['get', 'name'], 'text-font': F.r, 'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 13], 'symbol-placement': 'line', 'symbol-spacing': 260, 'text-padding': 3 },
-        paint: { 'text-color': '#c3ccd3', 'text-halo-color': halo, 'text-halo-width': 1.3 } },
+      shieldLayer('lb-shield', ['motorway', 'trunk', 'primary'], 8.5), shieldLayer('lb-shield2', ['secondary', 'tertiary'], 10.5),
+      // names of the major roads from district zoom (Massachusetts Turnpike, Main Street through each town centre), every street name at
+      // street zoom; larger as the map comes closer
+      { id: 'lb-road-maj', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 11, maxzoom: 14,
+        filter: ['all', ['has', 'name'], ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false]],
+        layout: { 'text-field': ['get', 'name'], 'text-font': F.b, 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 14, 11.5], 'symbol-placement': 'line', 'symbol-spacing': 360, 'text-padding': 4,
+          'text-letter-spacing': 0.02, 'symbol-sort-key': ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 'primary', 2, 3] },
+        paint: { 'text-color': '#c3ccd3', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
+      { id: 'lb-road', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 14, filter: ['has', 'name'],
+        layout: { 'text-field': ['get', 'name'], 'text-font': ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], ['literal', F.b], ['literal', F.r]],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 14, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], 11.5, 10.5], 17, 13.5, 19, 15],
+          'symbol-placement': 'line', 'symbol-spacing': 260, 'text-padding': 3, 'symbol-sort-key': ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 'primary', 2, 'secondary', 3, 'tertiary', 4, 5] },
+        paint: { 'text-color': '#c3ccd3', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
+      { id: 'lb-hnum', type: 'symbol', source: 'omt', 'source-layer': 'housenumber', minzoom: 17.5,
+        layout: { 'text-field': ['get', 'housenumber'], 'text-font': F.r, 'text-size': 10, 'text-padding': 2 },
+        paint: { 'text-color': '#8b8780', 'text-halo-color': '#ffffff', 'text-halo-width': 1 } },
       { id: 'lb-poi', type: 'symbol', source: 'omt', 'source-layer': 'poi', minzoom: 13,
         filter: ['any', ['match', ['get', 'class'], ['hospital', 'school', 'college', 'police', 'fire_station', 'town_hall'], true, false], ['match', ['get', 'subclass'], ['hospital', 'fire_station', 'police', 'school'], true, false]],
         layout: { 'text-field': ['get', 'name'], 'text-font': F.r, 'text-size': 10.5, 'text-max-width': 9, 'text-padding': 4, 'text-optional': true,
@@ -1297,7 +1326,8 @@
   function labelTheme(b) { // vector labels (every tab): colours per basemap
     var night = b === 'night' || b === 'dark', sat = b === 'satellite', dk = night || sat;
     var halo = dk ? 'rgba(30,33,36,.92)' : '#FFFFFF';
-    var col = { 'lb-place': dk ? '#E8EAED' : '#1F2328', 'lb-water': dk ? '#9cc3dc' : '#2F5C80', 'lb-waterl': dk ? '#9cc3dc' : '#2F5C80', 'lb-river': dk ? '#9cc3dc' : '#2F5C80', 'lb-road': dk ? '#C3C7CC' : '#3C4043' };
+    var col = { 'lb-place': dk ? '#E8EAED' : '#1F2328', 'lb-water': dk ? '#9cc3dc' : '#2F5C80', 'lb-waterl': dk ? '#9cc3dc' : '#2F5C80', 'lb-river': dk ? '#9cc3dc' : '#2F5C80', 'lb-road': dk ? '#C3C7CC' : '#3C4043', 'lb-road-maj': dk ? '#DADDE0' : '#2E3438' };
+    if (map.getLayer('lb-hnum')) { map.setPaintProperty('lb-hnum', 'text-color', dk ? '#AEB4BA' : '#8b8780'); map.setPaintProperty('lb-hnum', 'text-halo-color', halo); }
     Object.keys(col).forEach(function (id) { if (map.getLayer(id)) { map.setPaintProperty(id, 'text-color', col[id]); map.setPaintProperty(id, 'text-halo-color', halo); } });
     if (map.getLayer('lb-poi')) map.setPaintProperty('lb-poi', 'text-color', ['match', ['get', 'class'], 'hospital', dk ? '#ff9aa8' : '#b4122c', ['fire_station', 'police'], dk ? '#ffc28a' : '#9a4a00', dk ? '#d7dde2' : '#4b5864']);
     if (map.getLayer('lb-pts')) map.setPaintProperty('lb-pts', 'text-color', ['match', ['get', 'k'], 'dam', dk ? '#9cc8ff' : '#1f5fa8', 'hospital', dk ? '#ff9aa8' : '#b4122c', dk ? '#ffc28a' : '#9a4a00']);
@@ -1307,12 +1337,12 @@
   function wiTheme(b) { // colours of the vector water per basemap (what-if tab)
     labelTheme(b);
     if (!map.getLayer('h-water')) return;
-    var night = b === 'night' || b === 'dark', sat = b === 'satellite';
-    ['h-water', 'v-park', 'v-bldg'].forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', sat ? 'none' : 'visible'); });
-    map.setPaintProperty('h-water', 'fill-color', night ? '#2B3A45' : '#D5DDE3');
+    var night = b === 'night' || b === 'dark', sat = b === 'satellite', lc = b === 'map';
+    ['h-water', 'v-park', 'v-bldg'].forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', sat || (lc && id !== 'h-water') ? 'none' : 'visible'); });
+    map.setPaintProperty('h-water', 'fill-color', night ? '#2B3A45' : lc ? MC.water : '#D5DDE3');
     map.setPaintProperty('v-park', 'fill-color', night ? '#252a26' : '#E8EBE4'); map.setPaintProperty('v-bldg', 'fill-color', night ? '#2a2e33' : '#E4E4E0');
-    map.setPaintProperty('h-stream', 'line-color', night ? '#3f6178' : sat ? '#7fd4ff' : '#A9BFCF');
-    map.setPaintProperty('h-river', 'line-color', night ? '#4a6f88' : sat ? '#8adcff' : '#9DB6C8');
+    map.setPaintProperty('h-stream', 'line-color', night ? '#3f6178' : sat ? '#7fd4ff' : lc ? MC.stream : '#A9BFCF');
+    map.setPaintProperty('h-river', 'line-color', night ? '#4a6f88' : sat ? '#8adcff' : lc ? MC.river : '#9DB6C8');
     map.setPaintProperty('h-flow', 'line-color', night || sat ? '#b9e6f5' : '#ffffff');
     wpalFor(b); WPAL.chan = WPAL.land; // rising streams stay in the one blue depth family
     WPAL.terrain = night ? [[0.09, 0.1, 0.11], [0.24, 0.26, 0.28], [0.17, 0.23, 0.27]] : [[0.8, 0.8, 0.78], [0.97, 0.97, 0.95], [0.84, 0.87, 0.89]];
@@ -1726,16 +1756,16 @@
         { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'b-mgis', type: 'raster', source: 'mgis', minzoom: 7, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },   // natural colour, no veil
         { id: 'b-dark', type: 'raster', source: 'drk', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-brightness-min': 0.04 } }
-      ].concat(hydroLayers(), netLayers(), [
+      ].concat(landLayers(), hydroLayers(), mapWaterLayers(), roadLayers(), netLayers(), [
         { id: 'l-voy', type: 'raster', source: 'voyl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'l-dark', type: 'raster', source: 'drkl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } }
       ])
     };
-    if (REPLAY) {
-      st.sources.dem = { type: 'raster-dem', encoding: 'terrarium', tileSize: 256, maxzoom: 14, tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-        attribution: 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> (USGS 3DEP)' };
-      st.layers.unshift({ id: 'bg', type: 'background', paint: { 'background-color': css('--map-bg') || '#EDF1F3' } });
-    }
+    st.sources.dem = { type: 'raster-dem', encoding: 'terrarium', tileSize: 256, maxzoom: 14, tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+      attribution: 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> (USGS 3DEP)' };
+    st.layers.unshift({ id: 'bg', type: 'background', paint: { 'background-color': basemap() === 'map' ? MC.land : (css('--map-bg') || '#EDF1F3') } });
+    var onMap = basemap() === 'map';   // the land-cover map starts visible, so the first frame is already the map
+    st.layers.forEach(function (l) { if (/^bmv-/.test(l.id)) { l.layout = l.layout || {}; l.layout.visibility = onMap ? 'visible' : 'none'; } });
     return st;
   }
   // the street network: OpenMapTiles 'transportation' classes grouped into highway (0), arterial (1), collector (2),
@@ -1762,6 +1792,100 @@
         layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['-', 3, R] }, paint: { 'line-width': cw, 'line-opacity': op, 'line-color': '#76818b' } },
       { id: 'net-fill', type: 'line', source: 'omt', 'source-layer': 'transportation', filter: filt, minzoom: 11.5,
         layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['-', 3, R] }, paint: { 'line-width': fw, 'line-opacity': op, 'line-color': '#ffffff' } }
+    ];
+  }
+  // ---------- the land-cover map ('Map', the default basemap) ----------
+  // OpenMapTiles layers (landcover, landuse, park, water, waterway, building, transportation, aeroway) styled by this page. Land hues
+  // are soft and low in saturation so the model's colours stay the loudest thing on the map: flood depth is a saturated blue ramp,
+  // road states are pale yellow / amber / orange / red, rain is purple. Lakes and rivers here are a calm grey-blue, clearly paler and
+  // greyer than even the shallowest flood blue; roads are white / cream with neutral grey casings, never warm colours.
+  var MC = {
+    land: '#EEF0E9', wood: '#CADBBE', grass: '#DCE8CF', farm: '#E6EBD4', wetland: '#D1E3DA', sand: '#EEE4C6', rock: '#E2E1DB', ice: '#F4F7F8',
+    park: '#D5E6C6', parkLine: '#B4CDA0', resid: '#E6E5E1', comm: '#E2E0DD', indus: '#DCDBD8', civic: '#E8E3DC', cem: '#D6E2CC', sport: '#D6E6C8',
+    water: '#BFCFDB', waterLine: '#A9BCCA', river: '#A6BBCA', stream: '#B3C5D2',
+    bldg: '#D9D6D1', bldgLine: '#C2BEB8', rail: '#A4A8AC', path: '#B3ACA0', runway: '#D7D9DB',
+    // casing colour per rank [motorway, trunk, primary, secondary, tertiary, minor, service]: darker at district zoom, where the casing
+    // is the whole road, lighter at street zoom where it only edges the white fill
+    caseLo: ['#66707A', '#717B84', '#838C94', '#8F979E', '#9CA2A8', '#A9AEB2', '#B8BCBF'],
+    caseHi: ['#8A9198', '#8F969D', '#9EA4A9', '#A5AAAF', '#AEB2B5', '#B9BCBE', '#C6C8CA'],
+    fill: ['#FBF8F1', '#FBF8F1', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF']
+  };
+  var M_RANK = ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 'primary', 2, 'secondary', 3, 'tertiary', 4, 'minor', 5, 6];
+  function landLayers() {
+    var Z = ['zoom'], C = ['get', 'class'];
+    return [
+      { id: 'bmv-lc', type: 'fill', source: 'omt', 'source-layer': 'landcover',
+        paint: { 'fill-antialias': false, 'fill-color': ['match', C, 'wood', MC.wood, 'grass', MC.grass, 'farmland', MC.farm, 'wetland', MC.wetland, 'sand', MC.sand, 'rock', MC.rock, 'ice', MC.ice, MC.grass],
+          'fill-opacity': ['interpolate', ['linear'], Z, 5, 0.75, 9, 1] } },
+      { id: 'bmv-lu', type: 'fill', source: 'omt', 'source-layer': 'landuse',
+        paint: { 'fill-antialias': false, 'fill-color': ['match', C,
+          ['residential', 'suburb', 'neighbourhood', 'quarter'], MC.resid, ['commercial', 'retail'], MC.comm, ['industrial', 'railway', 'garages', 'quarry', 'military', 'dam'], MC.indus,
+          ['school', 'college', 'university', 'hospital', 'kindergarten', 'library', 'theme_park', 'zoo'], MC.civic, 'cemetery', MC.cem,
+          ['pitch', 'playground', 'track', 'stadium'], MC.sport, MC.resid],
+          'fill-opacity': ['interpolate', ['linear'], Z, 6, 0.7, 12, 1] } },
+      { id: 'bmv-park', type: 'fill', source: 'omt', 'source-layer': 'park', paint: { 'fill-color': MC.park, 'fill-opacity': 0.5 } },
+      { id: 'bmv-park-ol', type: 'line', source: 'omt', 'source-layer': 'park', minzoom: 11, paint: { 'line-color': MC.parkLine, 'line-width': ['interpolate', ['linear'], Z, 11, 0.5, 16, 1.4], 'line-opacity': 0.7 } },
+      // relief: a light hillshade (AWS Terrain Tiles, USGS 3DEP) that gives the hills of central Massachusetts shape from district
+      // zoom and fades out at street zoom, where it would only muddy the streets
+      { id: 'bmv-hs', type: 'hillshade', source: 'dem', maxzoom: 16,
+        paint: { 'hillshade-exaggeration': ['interpolate', ['linear'], Z, 7, 0.32, 12, 0.24, 15, 0.1], 'hillshade-illumination-direction': 335,
+          'hillshade-shadow-color': 'rgba(70,82,70,0.55)', 'hillshade-highlight-color': 'rgba(255,255,255,0.35)', 'hillshade-accent-color': 'rgba(70,82,70,0.15)' } },
+      { id: 'bmv-aero', type: 'fill', source: 'omt', 'source-layer': 'aeroway', minzoom: 11, filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': MC.runway, 'fill-opacity': 0.9 } }
+    ];
+  }
+  // lakes, ponds and rivers on the Forecast tab (replays draw them with their own h-* layers, recoloured for the map in wiTheme)
+  function mapWaterLayers() {
+    if (REPLAY) return [];
+    var Z = ['zoom'];
+    return [
+      { id: 'bmv-water', type: 'fill', source: 'omt', 'source-layer': 'water', filter: ['!=', ['get', 'brunnel'], 'tunnel'], paint: { 'fill-color': MC.water } },
+      { id: 'bmv-stream', type: 'line', source: 'omt', 'source-layer': 'waterway', minzoom: 10, filter: ['all', ['match', ['get', 'class'], ['stream', 'drain', 'ditch'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+        layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': MC.stream, 'line-width': ['interpolate', ['exponential', 1.5], Z, 11, 0.6, 14, 1.4, 18, 4] } },
+      { id: 'bmv-river', type: 'line', source: 'omt', 'source-layer': 'waterway', filter: ['all', ['match', ['get', 'class'], ['river', 'canal'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+        layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': MC.river, 'line-width': ['interpolate', ['exponential', 1.5], Z, 9, 0.8, 13, 2, 18, 8] } }
+    ];
+  }
+  // buildings and the full road network: casing and fill per class (exponential widths up to z20, so a lane is a real street at the
+  // closest zoom), bridges drawn again on top so interchanges read, paths and rail thin. Tunnels are faint.
+  function roadLayers() {
+    var Z = ['zoom'], R = M_RANK, at = function (a) { return ['match', R, 0, a[0], 1, a[1], 2, a[2], 3, a[3], 4, a[4], 5, a[5], a[6]]; };
+    var cw = ['interpolate', ['exponential', 1.5], Z,
+      6, at([0.9, 0.8, 0.5, 0.35, 0, 0, 0]),
+      9, at([2.3, 2, 1.5, 1.1, 0.7, 0, 0]),
+      11, at([3.6, 3.2, 2.6, 2.1, 1.5, 1, 0.6]),
+      13, at([6, 5.3, 4.6, 4, 3.3, 2.5, 1.5]),
+      15, at([11, 10, 9, 8, 7, 5.5, 3.2]),
+      18, at([36, 32, 28, 26, 24, 19, 10]),
+      20, at([80, 72, 64, 58, 52, 42, 22])];
+    var fw = ['interpolate', ['exponential', 1.5], Z,
+      10, at([0, 0, 0, 0, 0, 0, 0]),
+      11, at([1.7, 1.4, 1, 0.6, 0, 0, 0]),
+      13, at([3.9, 3.3, 2.8, 2.3, 1.8, 1.1, 0.4]),
+      15, at([8.8, 7.9, 7, 6.2, 5.3, 4, 1.9]),
+      18, at([32, 28.5, 25, 23, 21, 16.5, 8]),
+      20, at([76, 68, 60, 54, 48, 38.5, 19.5])];
+    var cc = ['interpolate', ['linear'], Z, 10, at(MC.caseLo), 15, at(MC.caseHi)];
+    var tun = ['case', ['==', ['get', 'brunnel'], 'tunnel'], 0.4, 1];
+    var cls = ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service'], true, false];
+    var notBridge = ['all', cls, ['!=', ['get', 'brunnel'], 'bridge']], bridge = ['all', cls, ['==', ['get', 'brunnel'], 'bridge']];
+    var road = function (id, filt, minz, w, col) {
+      return { id: id, type: 'line', source: 'omt', 'source-layer': 'transportation', filter: filt, minzoom: minz,
+        layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['-', 10, R] }, paint: { 'line-width': w, 'line-color': col, 'line-opacity': tun } };
+    };
+    return [
+      { id: 'bmv-bldg', type: 'fill', source: 'omt', 'source-layer': 'building', minzoom: 13,
+        paint: { 'fill-color': MC.bldg, 'fill-outline-color': MC.bldgLine, 'fill-opacity': ['interpolate', ['linear'], Z, 13, 0, 14.5, 0.85, 17, 1] } },
+      { id: 'bmv-bldg-ol', type: 'line', source: 'omt', 'source-layer': 'building', minzoom: 16, paint: { 'line-color': MC.bldgLine, 'line-width': ['interpolate', ['linear'], Z, 16, 0.4, 19, 1] } },
+      { id: 'bmv-path', type: 'line', source: 'omt', 'source-layer': 'transportation', minzoom: 14.5, filter: ['match', ['get', 'class'], ['path', 'track'], true, false],
+        layout: { 'line-join': 'round' }, paint: { 'line-color': MC.path, 'line-width': ['interpolate', ['linear'], Z, 14.5, 0.6, 18, 1.8], 'line-dasharray': [2, 1.5], 'line-opacity': 0.85 } },
+      { id: 'bmv-rail', type: 'line', source: 'omt', 'source-layer': 'transportation', minzoom: 10, filter: ['all', ['match', ['get', 'class'], ['rail', 'transit'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+        paint: { 'line-color': MC.rail, 'line-width': ['interpolate', ['linear'], Z, 10, 0.5, 14, 1.2, 18, 2.6], 'line-opacity': 0.9 } },
+      { id: 'bmv-rail-x', type: 'line', source: 'omt', 'source-layer': 'transportation', minzoom: 14, filter: ['all', ['match', ['get', 'class'], ['rail', 'transit'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+        paint: { 'line-color': MC.rail, 'line-width': ['interpolate', ['linear'], Z, 14, 3, 18, 7], 'line-dasharray': [0.15, 1.6], 'line-opacity': 0.8 } },
+      road('bmv-road-case', notBridge, 6, cw, cc),
+      road('bmv-road', notBridge, 10.5, fw, at(MC.fill)),
+      road('bmv-bridge-case', bridge, 12, cw, cc),
+      road('bmv-bridge', bridge, 12, fw, at(MC.fill))
     ];
   }
   function boxBounds() {
@@ -1826,7 +1950,7 @@
   }
   function initMap() {
     map = new maplibregl.Map({
-      container: 'map', bounds: boxBounds(), maxZoom: 16, minZoom: 6, dragRotate: false, pitchWithRotate: false,
+      container: 'map', bounds: boxBounds(), maxZoom: 19, minZoom: 6, dragRotate: false, pitchWithRotate: false,
       fitBoundsOptions: { padding: framePadding() }, attributionControl: false, fadeDuration: 0, style: baseStyle()
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: ' + (meta && meta.kofn ? 'NOAA HRRR forecast' : 'NOAA MRMS') + ' · Roads: MassDOT' }));
@@ -1900,7 +2024,7 @@
         map.addSource('mnet', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: 0.6 });
         map.addLayer({ id: 'mnet', type: 'line', source: 'mnet', minzoom: 8.5, layout: { 'line-join': 'round', 'line-cap': 'round' },
           paint: { 'line-color': (basemap() === 'dark' || basemap() === 'night') ? '#5d646c' : basemap() === 'satellite' ? 'rgba(255,255,255,.3)' : '#a7afb6', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'c'], 0, 0.35, 0.8], 12, ['match', ['get', 'c'], 0, 0.8, 1.6], 14, ['match', ['get', 'c'], 0, 1.2, 2.2]],
-            'line-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 0.9, 13.5, 0.9, 14.5, 0.25] } }, map.getLayer('net-case') ? 'net-case' : undefined);
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 0.9, 13.5, 0.9, 14.5, 0.25] } }, map.getLayer('bmv-path') ? 'bmv-path' : map.getLayer('net-case') ? 'net-case' : undefined);   // under the map's own streets
       });
     }).catch(function () { }));
     if (!WHATIF && runKey === 'leominster_sep2023') jobs.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
@@ -2753,7 +2877,10 @@
       map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
       if (on && id !== 'b-hshade') map.setPaintProperty(id, 'raster-opacity', L[id]);
     });
-    if (map.getLayer('bg')) map.setPaintProperty('bg', 'background-color', b === 'night' || b === 'dark' ? '#1B232B' : (css('--map-bg') || '#EDF1F3'));
+    if (map.getLayer('bg')) map.setPaintProperty('bg', 'background-color', b === 'night' || b === 'dark' ? '#1B232B' : b === 'map' ? MC.land : (css('--map-bg') || '#EDF1F3'));
+    // the land-cover map: its own layers on, the generic street network (net-*) off, since the map draws every street itself
+    map.getStyle().layers.forEach(function (l) { if (/^bmv-/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', b === 'map' ? 'visible' : 'none'); });
+    ['net-case', 'net-fill'].forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', b === 'map' ? 'none' : 'visible'); });
     wiTheme(b); covTheme();
     document.querySelectorAll('#basemaps button').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.bm === b ? 'true' : 'false'); });
     var root = document.documentElement.style;
@@ -2767,7 +2894,7 @@
       map.setPaintProperty('net-fill', 'line-color', P.fill);
     }
     if (map.getLayer('box')) map.setPaintProperty('box', 'line-color', P.box);
-    if (map.getLayer('mnet')) map.setPaintProperty('mnet', 'line-color', b === 'dark' || b === 'night' ? '#5d646c' : b === 'satellite' ? 'rgba(255,255,255,.3)' : '#a7afb6');
+    if (map.getLayer('mnet')) map.setPaintProperty('mnet', 'line-color', b === 'dark' || b === 'night' ? '#5d646c' : b === 'satellite' ? 'rgba(255,255,255,.3)' : b === 'map' ? '#B4B9BD' : '#a7afb6');
     if (map.getLayer('wet')) {
       var D = RD || ['coalesce', ['feature-state', 'd'], 0];
       // under 15 cm water on road (amber, dark casing), 15-30 cm at risk (vermillion), 30 cm and more closed (dark red, white stripes)
