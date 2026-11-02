@@ -471,7 +471,7 @@
       'void main(){float lon=vM.x*360.0-180.0;float yy=3.14159265*(1.0-2.0*vM.y);float lat=degrees(atan((exp(yy)-exp(-yy))*0.5));' +
       'vec2 uv=vec2((lon-uB.x)/(uB.z-uB.x),(uB.w-lat)/(uB.w-uB.y));if(uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0)discard;' +
       'vec2 c=clamp(uv*uCell,uHalf,uCell-uHalf);float a=dot(texture2D(uS,uCa+c).rgb,uMa);float b=dot(texture2D(uS,uCb+c).rgb,uMb);' +
-      'float v=mix(a,b,uT);if(uK!=1.0){v=min(1.0,log(1.0+(exp(v*uLm)-1.0)*uK)/uLm);}if(v<0.03)discard;vec4 k=texture2D(uL,vec2(v,0.5));float al=k.a*uOp;' +
+      'float v=mix(a,b,uT);if(uK!=1.0){v=min(1.0,log(1.0+(exp(v*uLm)-1.0)*uK)/uLm);}if(v<0.05)discard;vec4 k=texture2D(uL,vec2(v,0.5));float al=k.a*uOp*(0.25+0.75*smoothstep(0.05,0.35,v));' +
       'float e=min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y));al*=smoothstep(0.0,0.06,e);gl_FragColor=vec4(k.rgb*al,al);}';
     return {
       layer: {
