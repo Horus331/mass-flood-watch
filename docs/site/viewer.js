@@ -2521,9 +2521,12 @@
     map.addSource('knock', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
     var vk = document.querySelector('input[data-ref="knock"]').checked ? 'visible' : 'none';
     // stations and culverts near closing roads: street zoom only (z14+), small, so they never crowd the imagery at overview zooms
-    map.addLayer({ id: 'knock-ring', type: 'circle', source: 'knock', minzoom: 14, filter: ['!=', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk },
+    map.addLayer({ id: 'knock-ring', type: 'circle', source: 'knock', minzoom: 9, filter: ['!=', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk },
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 10, 16, 13], 'circle-color': css('--closed'), 'circle-opacity': 0.12, 'circle-stroke-color': css('--closed'), 'circle-stroke-width': 1.6 } });
-    map.addLayer({ id: 'knock', type: 'symbol', source: 'knock', minzoom: 14, layout: { visibility: vk, 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.5, 0.62], 'icon-allow-overlap': true, 'symbol-sort-key': ['case', ['==', ['get', 'k'], 'culvertRisk'], 1, 0] } });
+    map.addLayer({ id: 'knock', type: 'symbol', source: 'knock', minzoom: 9, filter: ['!=', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk, 'icon-image': ['concat', 'i-', ['get', 'k']], 'icon-size': ['case', ['==', ['get', 'k'], 'culvertRisk'], 0.5, 0.62], 'icon-allow-overlap': true, 'symbol-sort-key': ['case', ['==', ['get', 'k'], 'culvertRisk'], 1, 0] } });
+    map.addLayer({ id: 'knock-c', type: 'symbol', source: 'knock', minzoom: 14, filter: ['==', ['get', 'k'], 'culvertRisk'], layout: { visibility: vk, 'icon-image': 'i-culvertRisk', 'icon-size': 0.5, 'icon-allow-overlap': true } });
+    var fb = null; feats.forEach(function (f) { if (f.properties.k === 'culvertRisk') return; var c = f.geometry.coordinates; fb = fb ? [[Math.min(fb[0][0], c[0]), Math.min(fb[0][1], c[1])], [Math.max(fb[1][0], c[0]), Math.max(fb[1][1], c[1])]] : [[c[0], c[1]], [c[0], c[1]]]; });
+    if (fb) { var pdx = Math.max(0.01, (fb[1][0] - fb[0][0]) * 0.15), pdy = Math.max(0.007, (fb[1][1] - fb[0][1]) * 0.15); knock.bounds = [[fb[0][0] - pdx, fb[0][1] - pdy], [fb[1][0] + pdx, fb[1][1] + pdy]]; }
     map.on('mouseenter', 'knock', function (e) {
       map.getCanvas().style.cursor = 'pointer'; if (small()) return;
       var p = e.features[0].properties;
@@ -2599,7 +2602,7 @@
             (rep_.length ? ' ' + hits + ' of ' + rep_.length + ' storm reports fall where the model has 30 cm or more.' : '');
         },
         live: function () { return '<b class="shut">' + n(nClosedNow) + '</b><span>roads closed now</span>'; } },
-      { title: 'Knock-on effects', a: s5b, b: s5b, dur: 0, rain: 0.15, cam: 0, peak: true, knock: true,
+      { title: 'Knock-on effects', a: s5b, b: s5b, dur: 0, rain: 0.15, cam: knock.bounds || 0, peak: true, knock: true,
         text: function () {
           if (C) return esc(C.headline || '') + (C.people_cut_off ? ' ' + big(C.people_cut_off) + ' people cut off.' : '') + (C.facilities_affected ? ' ' + big(C.facilities_affected) + ' facilities affected.' : '') +
             (C.max_added_min ? ' Detours add up to <b>' + Math.round(C.max_added_min) + ' min</b>.' : '');
@@ -2643,7 +2646,7 @@
   function storyLayers(sc) {
     if (!map) return;
     vis('peak', !!sc.peak); vis('may', !!sc.may); vis('risk', false);
-    ['knock', 'knock-ring'].concat(CX_LAYERS).forEach(function (l) { vis(l, !!sc.knock); });
+    ['knock', 'knock-ring', 'knock-c'].concat(CX_LAYERS).forEach(function (l) { vis(l, !!sc.knock); });
     vis('depth', true); vis('flow', true); vis('rain', true);
     ['wet', 'wetcase', 'halo', 'bar'].forEach(function (l) { vis(l, true); });
   }
@@ -2905,7 +2908,7 @@
       var best = runs[0], bl = -1;
       runs.forEach(function (r) { var L = 0; for (var q = 1; q < r.length; q++) L += Math.hypot(r[q][0] - r[q - 1][0], r[q][1] - r[q - 1][1]); if (L > bl) { bl = L; best = r; } });
       var mid = best[Math.floor((best.length - 1) / 2)], mid2 = best[Math.ceil((best.length - 1) / 2)];
-      var kk = meta.kofn && sg.f.properties.k, lt = kk ? (kk >= 2 ? 'Likely' : 'Possible') + ' · ' + kk + ' of ' + meta.kofn.n + ' runs' : d >= 30 ? 'closed' : Math.round(d) + ' cm';
+      var kk = meta.kofn && sg.f.properties.k, lt = kk ? (kk >= 2 ? 'Likely' : 'Possible') + ' · ' + kk + ' of ' + meta.kofn.n + ' runs' : d >= 30 ? 'closed' : sg.v >= 5 ? Math.round(d) + ' cm' : 'water';
       labs.push({ type: 'Feature', properties: { d: d, nm: nm, t: shortName(nm) + ' · ' + lt }, geometry: { type: 'Point', coordinates: [(mid[0] + mid2[0]) / 2, (mid[1] + mid2[1]) / 2] } });
     });
     // one label per street name within about 800 m, keeping the most severe (several segments of one street flood together)
@@ -2967,12 +2970,12 @@
       // A wet piece whose road water is under 5 cm shows 'water at the edge'. A closure is never hidden (whole-segment fallback).
       // a closed segment with no water on its own pieces is drawn on the pieces with water beside them (wet = 2), and only failing
       // that along the whole segment.
-      if (wet[i]) { d = q >= 5 ? q : 0; e = q < 5 ? 1 : 0; } else { d = q >= 30 && !any[PCS.seg[i]] && !anyN[PCS.seg[i]] ? q : 0; e = 0; }
+      if (wet[i]) { d = q >= 5 ? q : 5; e = 0; }   // drawn water on the piece = water on the road (at least the 5-15 cm class), even when the segment's own statistic is lower else { d = q >= 30 && !any[PCS.seg[i]] && !anyN[PCS.seg[i]] ? q : 0; e = 0; }
       if (d !== PCS.v[i] || e !== PCS.e[i]) { PCS.v[i] = d; PCS.e[i] = e; map.setFeatureState({ source: 'pieces', id: i }, { d: d, e: e }); }
     }
     if (map.getSource('runs')) runsUpdate();
     var r = 0, w = 0; // counts as drawn: segments with water on the road where the map shows it
-    Object.keys(any).forEach(function (sid) { var sg = segById[sid], q = sg ? sg.v : 0; if (q >= 30) return; if (q >= 15) r++; else if (q >= 5) w++; });
+    Object.keys(any).forEach(function (sid) { var sg = segById[sid], q = sg ? sg.v : 0; if (q >= 30) return; if (q >= 15) r++; else w++; });
     return [r, w];
   }
   // status line: what the map shows right now, in words, and which kind of run it is
@@ -3174,7 +3177,7 @@
     $('lyPeak').checked = !on; vis('peak', !on);
     $('lyMay').checked = !on; vis('may', !on);
   });
-  function refVis(key, on) { if (key === 'knock') ['knock', 'knock-ring'].concat(CX_LAYERS).forEach(function (l) { vis(l, on); }); else { vis('r-' + key, on); vis('c-' + key, on); vis('c-' + key + '-n', on); } }
+  function refVis(key, on) { if (key === 'knock') ['knock', 'knock-ring', 'knock-c'].concat(CX_LAYERS).forEach(function (l) { vis(l, on); }); else { vis('r-' + key, on); vis('c-' + key, on); vis('c-' + key + '-n', on); } }
   document.querySelectorAll('input[data-ref]').forEach(function (x) { x.addEventListener('change', function () { refVis(x.dataset.ref, x.checked); }); });
   sheetPlace(); sheetToggle(false);
   var pl = document.querySelector('.player');
@@ -3661,7 +3664,7 @@
   }
   $('hchip').addEventListener('click', function () { $('hsheet').hidden = !$('hsheet').hidden; });
   $('hsX').addEventListener('click', function () { $('hsheet').hidden = true; });
-  if (params.get('debug') === '1') window.__mfwApp = { openPlace: function (id) { var s = segById[id]; if (s) openPlace(s.f); }, closedIds: function () { return segs.filter(function (s) { return s.v >= 30; }).map(function (s) { return s.id; }); },
+  if (params.get('debug') === '1') window.__mfwApp = { map: function () { return map; }, knock: function () { return knock; }, openPlace: function (id) { var s = segById[id]; if (s) openPlace(s.f); }, closedIds: function () { return segs.filter(function (s) { return s.v >= 30; }).map(function (s) { return s.id; }); },
     detent: function (d) { sheetDetent(d); }, health: function () { $('hsheet').hidden = false; }, roads: function () { openRoads(); } };
 
 })();
