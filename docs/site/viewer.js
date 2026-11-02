@@ -202,6 +202,7 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (img && img.width) { tx._w = img.width; tx._h = img.height; }
     return tx;
   }
   function quad(corners) { // [TL, TR, BR, BL] lon/lat -> triangle strip x, y, u, v
@@ -260,8 +261,13 @@
       }
     }
     var FSC = 'precision highp float;varying vec2 vUv;uniform sampler2D uA;uniform sampler2D uB;uniform sampler2D uR;uniform vec3 uMa;uniform vec3 uMb;uniform vec3 uMr;' +
-      'uniform float uT;uniform float uDtH;uniform vec4 uC[4];uniform vec4 uDrn;' +
-      'float hd(sampler2D s,vec3 m){float v=dot(texture2D(s,vUv).rgb,m);return 3.0*v*v;}' +
+      'uniform float uT;uniform float uDtH;uniform vec4 uC[4];uniform vec4 uDrn;uniform vec2 uSz;' +
+      // smooth water edges: Catmull-Rom cubic sampling of the 20 m grid (16 taps). It passes through every cell's own value, so no
+      // pond shrinks or disappears, but shorelines curve instead of showing the cells' stair steps when zoomed in
+      'vec4 cr(float t){float t2=t*t;float t3=t2*t;return vec4(-0.5*t3+t2-0.5*t,1.5*t3-2.5*t2+1.0,-1.5*t3+2.0*t2+0.5*t,0.5*t3-0.5*t2);}' +
+      'vec4 tb(sampler2D s,vec2 uv){if(uSz.x<2.0)return texture2D(s,uv);vec2 iv=1.0/uSz;vec2 p=uv*uSz-0.5;vec2 f=fract(p);vec2 b=(p-f+0.5)*iv;vec4 wx=cr(f.x);vec4 wy=cr(f.y);vec4 r=vec4(0.0);' +
+      'for(int y=0;y<4;y++){vec4 row=vec4(0.0);for(int x=0;x<4;x++){row+=wx[x]*texture2D(s,b+vec2(float(x)-1.0,float(y)-1.0)*iv);}r+=wy[y]*row;}return max(r,vec4(0.0));}' +
+      'float hd(sampler2D s,vec3 m){float v=dot(tb(s,vUv).rgb,m);return 3.0*v*v;}' +
       'vec4 ramp(float h){vec4 c0=vec4(0.776,0.859,0.937,0.0);if(h<0.05)return mix(c0,vec4(uC[0].rgb,uC[0].a*0.75),smoothstep(0.01,0.05,h));' +
       'if(h<0.15)return mix(vec4(uC[0].rgb,uC[0].a*0.75),uC[0],(h-0.05)/0.10);if(h<0.30)return mix(uC[0],uC[1],(h-0.15)/0.15);' +
       'if(h<1.0)return mix(uC[1],uC[2],(h-0.30)/0.70);return mix(uC[2],uC[3],clamp((h-1.0)/1.0,0.0,1.0));}' +
@@ -273,14 +279,14 @@
     // one continuous-depth quad: vertex buffer b (x, y, u, v), frames A and B (and R, 15 min back, for the trend) as {tex, m}
     function drawCont(matrix, b, CA, CB, CR, hasR, fa, fb, back) {
       if (!progC) { progC = program(gl, VS, FSC); ['aPos', 'aUv'].forEach(function (k) { locC[k] = gl.getAttribLocation(progC, k); });
-        ['uM', 'uA', 'uB', 'uR', 'uMa', 'uMb', 'uMr', 'uT', 'uDtH', 'uC', 'uDrn'].forEach(function (k) { locC[k] = gl.getUniformLocation(progC, k); }); }
+        ['uM', 'uA', 'uB', 'uR', 'uMa', 'uMb', 'uMr', 'uT', 'uDtH', 'uC', 'uDrn', 'uSz'].forEach(function (k) { locC[k] = gl.getUniformLocation(progC, k); }); }
       gl.useProgram(progC); gl.uniformMatrix4fv(locC.uM, false, matrix);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, CA.tex); gl.uniform1i(locC.uA, 0);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, CB.tex); gl.uniform1i(locC.uB, 1);
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, hasR ? CR.tex : CA.tex); gl.uniform1i(locC.uR, 2);
       gl.uniform3fv(locC.uMa, CA.m); gl.uniform3fv(locC.uMb, CB.m); gl.uniform3fv(locC.uMr, hasR ? CR.m : CA.m);
       gl.uniform1f(locC.uT, fb === fa ? 0 : t - fa); gl.uniform1f(locC.uDtH, hasR ? back * meta.frame_min / 60 : 0);
-      gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol);
+      gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol); gl.uniform2f(locC.uSz, CA.tex._w || 1, CA.tex._h || 1);
       gl.bindBuffer(gl.ARRAY_BUFFER, b);
       gl.enableVertexAttribArray(locC.aPos); gl.vertexAttribPointer(locC.aPos, 2, gl.FLOAT, false, 16, 0);
       gl.enableVertexAttribArray(locC.aUv); gl.vertexAttribPointer(locC.aUv, 2, gl.FLOAT, false, 16, 8);
