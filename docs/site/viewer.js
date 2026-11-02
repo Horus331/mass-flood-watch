@@ -3607,15 +3607,28 @@
       var li = document.createElement('li'); li.className = 'day' + (mean == null ? ' na' : '');
       if (HAS2) {   // iOS Weather layout: day · 12 slim 2-hour bars · total · chance
         var pop = R ? (R.pop != null ? R.pop : R.hourly2 ? R.hourly2.pop : null) : null;
+        // the total is the wettest town's, like the bars; which flood-model rule the day crosses (GATE.md: 25 mm in 6 h or 40 mm in 24 h)
+        var TH = (O && O.thresholds) || {}, t6 = TH.max6h_mm || 25, t24 = TH.max24h_mm || 40;
+        var tv = mxv != null ? mxv : mean, r6 = !!(R && R.max6h_mm >= t6), r24 = !!(R && R.max24h_mm >= t24);
+        if (lv >= 3 && !r6 && !r24) r6 = !!(d.towns_over_6h && d.towns_over_6h.length), r24 = !!(d.towns_over_24h && d.towns_over_24h.length);
         li.className = 'day ios' + (mean == null ? ' na' : '');
         li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) +
           (ero && ero !== 'none' ? '<i class="ero-dot ' + ero + '" title="NOAA excessive rainfall risk: ' + ERO_L[ero] + '"></i>' : '') +
-          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'flood model running' : 'over threshold') + '</em>' : '') + '</span>' +
+          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'model running' : r24 && r6 ? '6 h + 24 h' : r24 ? '24 h limit' : '6 h limit') + '</em>' : '') + '</span>' +
           sixStrip(R, d && d.date) +
-          '<span class="tot' + (mean && mean >= 0.05 ? '' : ' dry') + '" title="' + (mean != null ? mean.toFixed(1) + ' mm District 3 average, ' + Math.round(mxv || 0) + ' mm wettest town' : '') + '">' +
-          (mean == null ? '–' : mean < 0.05 ? '0 mm' : (mean < 10 ? mean.toFixed(1) : Math.round(mean)) + ' mm') + '</span>' +
+          '<span class="tot' + (tv != null && tv >= 0.05 ? '' : ' dry') + (r24 ? ' over' : '') + '" title="' + (mean != null ? (mxv != null ? mxv.toFixed(1) + ' mm in the wettest town' + (R.town_max ? ' (' + esc(R.town_max) + ')' : '') + ', ' : '') + mean.toFixed(1) + ' mm District 3 average' : '') + '">' +
+          (tv == null ? '–' : tv < 0.05 ? '0 mm' : (tv < 10 ? tv.toFixed(1) : Math.round(tv)) + ' mm') + '</span>' +
           '<span class="pop' + (pop >= 10 ? '' : ' dry') + '">' + (pop != null ? (pop >= 10 ? '<svg viewBox="0 0 10 13" aria-hidden="true"><path d="M5 0C5 0 0 6 0 8.5A5 5 0 0 0 10 8.5C10 6 5 0 5 0Z"/></svg>' : '') + pop + '%' : '') + '</span>';
-        ol.appendChild(li); continue;
+        ol.appendChild(li);
+        if (lv >= 3 && R) {   // the reason, in numbers, under the row
+          var tw = (d.towns_over || []), why = document.createElement('li'); why.className = 'day-why ' + vc;
+          why.innerHTML = (r24 ? 'Up to <b>' + Math.round(R.max24h_mm) + ' mm in 24 h</b> (limit ' + t24 + ')' : '') + (r24 && r6 ? ' · ' : '') +
+            (r6 ? 'up to <b>' + Math.round(R.max6h_mm) + ' mm in 6 h</b> (limit ' + t6 + ')' : '') +
+            (tw.length ? ' · ' + tw.length + ' town' + (tw.length > 1 ? 's' : '') + ': ' + esc(tw.slice(0, 4).join(', ')) + (tw.length > 4 ? ' +' + (tw.length - 4) : '') : '') +
+            (lv === 4 ? ' · <b>flood model running</b>' : ' · the flood model runs once this is within 48 h');
+          ol.appendChild(why);
+        }
+        continue;
       }
       li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) + '<small>' + (d ? esc(d.label.split(' ').slice(1).join(' ')) : fmtMD.format(dd)) + (d && d.partial ? ' (rest)' : '') + '</small></span>' +
         '<i class="ero ' + (ero || 'na') + '" title="NOAA WPC excessive rainfall risk: ' + (ero ? ERO_L[ero] : 'no outlook for this day') + '"></i>' +
@@ -3625,7 +3638,7 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    if (HAS2) { key.className = 'wk-key'; key.innerHTML = 'Bars: rain every 2 hours in the wettest town · <i class="trig"></i> flood-model trigger (25 mm in 6 h) · total: District 3 average · NOAA NBM via Open-Meteo · <a href="about.html#forecast-rain">how this works</a>'; ol.appendChild(key); }
+    if (HAS2) { key.className = 'wk-key'; key.innerHTML = 'Bars and total: the wettest town in District 3 · <i class="trig"></i> 25 mm in 6 h · the flood model also runs at 40 mm in 24 h, which a steady rain can reach with every bar under the line · after about 36 h NOAA gives 6-hour totals, shared evenly across their bars · NOAA NBM via Open-Meteo · <a href="about.html#forecast-rain">how this works</a>'; ol.appendChild(key); }
     else if (!HAS2) key.innerHTML = ( days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);
