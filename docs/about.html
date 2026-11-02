@@ -75,29 +75,64 @@ tr.grp th{background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:
 .tag-dev{font-size:12px;font-weight:700;color:var(--muted)}
 footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font-size:13px}
 
-/* model and data diagram */
-.mm{position:relative;margin:14px 0 22px;width:min(1180px,calc(100vw - 32px));left:50%;transform:translateX(-50%);display:grid;grid-template-columns:1fr 1fr minmax(210px,1.1fr) 1fr;grid-template-areas:"in in2 hub out" "chk chk chk chk";gap:12px 26px;align-items:start}
-.mm-in{grid-area:in}.mm-in2{grid-area:in2}.mm-out{grid-area:out}.mm-hub{grid-area:hub;align-self:center;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
-.mm-check{grid-area:chk;position:relative;z-index:1;border-top:1px dashed var(--rule);padding-top:10px;margin-top:6px}
-.mm-col{display:flex;flex-direction:column;gap:7px;position:relative;z-index:1}
-.mm h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
-.mm-card{display:grid;grid-template-columns:30px 1fr;column-gap:9px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:7px 9px;font-size:12px;line-height:1.3}
-.mm-card b{font-size:12.5px;grid-column:2}.mm-card span{grid-column:2;color:var(--muted)}
-.mm-ic{grid-row:1/3;width:30px;height:30px;border-radius:7px;display:grid;place-items:center;background:var(--bg)}
-.mm-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.mm-card[data-k="in"] .mm-ic{color:#2171B5}.mm-card[data-k="out"] .mm-ic{color:#B3261E}.mm-card[data-k="chk"] .mm-ic{color:#5F6368}
-.mm-core{border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;
-  background:radial-gradient(circle at 50% 40%,#2171B5,#08306B);color:#fff;box-shadow:0 6px 24px rgba(8,48,107,.28)}
-.mm-core small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}.mm-core b{font-size:18px;margin:2px 0 6px}
-.mm-core span{font-size:11.5px;line-height:1.3;opacity:.92}.mm-core .mm-run{margin-top:6px;font-size:10.5px;opacity:.75}
-.mm-rule{border:1px solid var(--rule);background:var(--surface);border-radius:8px;padding:7px 9px;font-size:12px;text-align:center}.mm-rule b{display:block;font-size:12.5px}.mm-rule span{color:var(--muted)}
-.mm-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
-.mm-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
-.mm-wires path{fill:none;stroke-width:1.3}
-@media (max-width:900px){
-  .mm{grid-template-columns:1fr;grid-template-areas:"hub" "in" "in2" "out" "chk"}.mm-core{max-width:260px;margin:0 auto}.mm-row{grid-template-columns:1fr 1fr}.mm-wires{display:none}
-  .mm-in::after,.mm-in2::after{content:"↓ into the model";text-align:center;color:var(--muted);font-size:12px}
-}
+/* model tree diagram (#modelmap): one inline SVG, drawn by the script at the end of the page */
+:root{--ft-in:#E2EDF6;--ft-in-line:#8FB5D3;--ft-in-ic:#2171B5;--ft-grp:#EDF3F8;
+  --ft-core:#2C5F73;--ft-core-2:#1E4757;--ft-core-ink:#FFFFFF;
+  --ft-res:#FFF6E2;--ft-res-line:#E0B85C;
+  --ft-out:#FBEBDD;--ft-out-line:#E0AE85;--ft-out-ic:#B4530A;
+  --ft-chk:#EEF1F2;--ft-chk-line:#9AA4AA;--ft-chk-ic:#5F6368;--ft-wire-out:#D58A4E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ft-in:#172A3A;--ft-in-line:#3B6788;--ft-in-ic:#86BCE6;--ft-grp:#141F28;
+  --ft-core:#2C6075;--ft-core-2:#1C4150;--ft-core-ink:#FFFFFF;--ft-res:#2C2716;--ft-res-line:#8A7330;
+  --ft-out:#2E2219;--ft-out-line:#7D5434;--ft-out-ic:#F0A35E;--ft-chk:#1F262B;--ft-chk-line:#5A6770;--ft-chk-ic:#AEB8BF;--ft-wire-out:#C27A42}}
+:root[data-theme="dark"]{--ft-in:#172A3A;--ft-in-line:#3B6788;--ft-in-ic:#86BCE6;--ft-grp:#141F28;
+  --ft-core:#2C6075;--ft-core-2:#1C4150;--ft-core-ink:#FFFFFF;--ft-res:#2C2716;--ft-res-line:#8A7330;
+  --ft-out:#2E2219;--ft-out-line:#7D5434;--ft-out-ic:#F0A35E;--ft-chk:#1F262B;--ft-chk-line:#5A6770;--ft-chk-ic:#AEB8BF;--ft-wire-out:#C27A42}
+.ft{position:relative;margin:14px 0 8px;width:min(1240px,calc(100vw - 32px));left:50%;transform:translateX(-50%)}
+.ft-view{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--rule);border-radius:14px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;outline:none}
+.ft-view:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+.ft-view.ft-drag{cursor:grabbing}
+.ft-view.ft-zoomed{touch-action:none}
+.ft-view svg{display:block;width:100%;height:100%}
+.ft-tools{position:sticky;top:70px;z-index:3;display:flex;justify-content:flex-end;gap:6px;margin:0 0 8px;pointer-events:none}.ft-tools button{pointer-events:auto}
+.ft-tools button{font:inherit;font-size:14px;font-weight:700;min-width:40px;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.ft-tools button:hover{border-color:var(--accent)}
+.ft-tools .ft-z{font-size:20px;line-height:1;padding:0}
+.ft-tools .ft-close{display:none}
+.ft-hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:2}
+.ft-hint.on{opacity:.92}
+.ft-cap{font-size:13px;color:var(--muted);margin:8px 2px 0}
+.ft.ft-full{position:fixed;inset:0;width:auto;left:0;transform:none;margin:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.ft-full .ft-tools{position:static;margin:0;padding:8px 10px;border-bottom:1px solid var(--rule)}
+.ft-full .ft-view{flex:1;min-height:0;height:auto !important;border:0;border-radius:0;touch-action:none}
+.ft-full .ft-cap{display:none}
+.ft-full .ft-tools .ft-close{display:inline-block;background:var(--accent);color:#fff;border-color:var(--accent)}
+.ft-full .ft-tools .ft-open{display:none}
+html.ft-lock,html.ft-lock body{overflow:hidden}
+.ft-svg text{font-family:"Overpass",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;white-space:pre}
+.ft-svg .t-h{fill:var(--ink);font-weight:800}
+.ft-svg .t-b{fill:var(--ink);font-weight:700}
+.ft-svg .t-m{fill:var(--muted)}
+.ft-svg .t-m .b{fill:var(--ink);font-weight:700}
+.ft-svg .t-k{fill:var(--muted);font-weight:800;letter-spacing:.08em}
+.ft-svg .t-w{fill:var(--ft-core-ink)}
+.ft-svg .t-w .b{font-weight:700}
+.ft-svg .n-in{fill:var(--ft-in);stroke:var(--ft-in-line)}
+.ft-svg .n-grp{fill:var(--ft-grp);stroke:var(--ft-in-line);stroke-width:1.2}
+.ft-svg .n-res{fill:var(--ft-res);stroke:var(--ft-res-line);stroke-width:1.5}
+.ft-svg .n-out{fill:var(--ft-out);stroke:var(--ft-out-line)}
+.ft-svg .n-chk{fill:var(--ft-chk);stroke:var(--ft-chk-line)}
+.ft-svg .n-chkp{fill:none;stroke:var(--ft-chk-line);stroke-width:1.5;stroke-dasharray:7 6}
+.ft-svg .ic-bg{fill:var(--surface)}
+.ft-svg .ic{fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ft-svg .ic-in{stroke:var(--ft-in-ic)}.ft-svg .ic-out{stroke:var(--ft-out-ic)}.ft-svg .ic-chk{stroke:var(--ft-chk-ic)}.ft-svg .ic-w{stroke:#fff}
+.ft-svg .w-in{fill:none;stroke:var(--ft-in-line);stroke-width:2.2}
+.ft-svg .w-core{fill:none;stroke:var(--ft-core);stroke-width:5}
+.ft-svg .w-out{fill:none;stroke:var(--ft-wire-out);stroke-width:2.2}
+.ft-svg .w-chk{fill:none;stroke:var(--ft-chk-line);stroke-width:2;stroke-dasharray:7 6}
+.ft-svg .a-in{fill:var(--ft-in-line)}.ft-svg .a-core{fill:var(--ft-core)}.ft-svg .a-out{fill:var(--ft-wire-out)}.ft-svg .a-chk{fill:var(--ft-chk-line)}
+.ft-svg .num{fill:var(--accent)}.ft-svg .num-t{fill:var(--surface);font-weight:800}
+.ft-svg .lbl{fill:var(--surface);stroke:var(--ft-chk-line);stroke-width:1}
+@media (max-width:699px){.ft{width:100vw;margin-top:10px}.ft-view{border-left:0;border-right:0;border-radius:0}.ft-cap{margin:8px 16px 0}.ft-tools{padding:0 10px}}
 </style>
 </head>
 <body>
@@ -142,49 +177,14 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 <p>The Scenarios tab reruns the real Leominster 2023 storm with one input changed at a time: rain scaled to ½, ¾ or 1¼ of the radar storm; the ground before the storm dry (the driest soil class), normal (the calibrated setting), soaked (the wettest soil class) or frozen (nothing soaks in, an upper bound); and culverts clear or blocked (road embankments then hold water back like dams; bridges stay open). Each combination is a full LISFLOOD-FP run on WPI’s Turing GPU cluster, not an extrapolation. A combination marked with a dot is still queued, and the map keeps the last run that has landed. People cut off counts residents with no route to a hospital, fire or police station at the worst moment.</p>
 
 <h2 id="modelmap">The model and its data</h2>
-<p class="muted">Everything that goes into the flood model, what comes out of it, and what it is checked against. Each card names the source and how it is used; the full table is under <a href="#data">Data behind the model</a>.</p>
-<figure class="mm" id="mm" aria-label="Diagram: data sources feeding the flood model, its outputs, and the observations used to check it">
-<svg class="mm-wires" id="mmWires" aria-hidden="true"></svg>
-<div class="mm-col mm-in">
-  <h3>Weather</h3>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M9 21a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 12a5 5 0 0 1-1 9.9z"/><path d="M12 24l-1.5 3M17 24l-1.5 3M22 24l-1.5 3"/></svg></i><b>Radar rainfall</b><span>NOAA MRMS, gauge-corrected. 1 km, hourly. Rain on every model cell for past storms.</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M9 19a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 10a5 5 0 0 1-1 9.9z"/><path d="M6 26h20M10 23v6M16 23v6M22 23v6" opacity=".7"/></svg></i><b>Forecast rainfall</b><span>NOAA HRRR, 3 km, next 48 h, new run every 6 h. Drives the live forecast (8-run ensemble).</span></div>
-  <h3>Land</h3>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 25l8-12 5 7 4-5 9 10z"/><path d="M3 28h26"/></svg></i><b>Ground elevation</b><span>USGS 3DEP lidar, 10 m, averaged to the 20 m grid the water flows over.</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M5 6c6 2 4 8 10 10s5 8 12 10"/><path d="M9 4c5 3 2 8 9 10" opacity=".55"/></svg></i><b>Streams</b><span>USGS NHDPlus HR. Carved into the terrain so rivers carry water downstream.</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M4 9h24M4 15h24M4 21h24M4 27h24"/><path d="M8 12h2M18 18h2M12 24h2" stroke-width="3"/></svg></i><b>Soils</b><span>USDA SSURGO soil groups A–D: how fast the ground absorbs rain.</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><rect x="4" y="4" width="11" height="11"/><rect x="17" y="4" width="11" height="11"/><rect x="4" y="17" width="11" height="11"/><rect x="17" y="17" width="11" height="11"/><path d="M6 6l7 7M19 19l7 7"/></svg></i><b>Land cover</b><span>USGS NLCD 2021, % paved. With soils, sets runoff (curve number) and roughness.</span></div>
+<p class="muted">How the whole model fits together, read from left to right (top to bottom on a phone): the data that goes in, the flood model, the result on every road, what people see, and what it is checked against. Drag to move, pinch or use + and − to zoom, or open it full screen. The full table is under <a href="#data">Data behind the model</a>.</p>
+<figure class="ft" id="ft">
+<div class="ft-tools"><button type="button" class="ft-z" id="ftOut" aria-label="Zoom out">−</button><button type="button" class="ft-z" id="ftIn" aria-label="Zoom in">+</button><button type="button" id="ftReset">Reset</button><button type="button" class="ft-open" id="ftFull">Full screen</button><button type="button" class="ft-close" id="ftClose">Close</button></div>
+<div class="ft-view" id="ftView" tabindex="0" aria-label="Diagram of how Mass Flood Watch works. Drag or use the arrow keys to move, plus and minus to zoom.">
+<svg class="ft-svg" id="ftSvg" xmlns="http://www.w3.org/2000/svg" role="group" aria-labelledby="ftTitle"><title id="ftTitle">How Mass Flood Watch works: inputs, the flood model, road results, outputs and checks</title><g id="ftCam"></g></svg>
+<div class="ft-hint" id="ftHint" aria-hidden="true"></div>
 </div>
-<div class="mm-col mm-in2">
-  <h3>Infrastructure</h3>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M11 3L7 29M21 3l4 26"/><path d="M16 5v4M16 14v4M16 23v4"/></svg></i><b>Roads</b><span>MassDOT Road Inventory: every segment, class, town and traffic (AADT).</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 12h26M3 22h26"/><circle cx="16" cy="17" r="5"/><path d="M3 17h8M21 17h8" opacity=".55"/></svg></i><b>Culverts and crossings</b><span>MA Stream Crossings (NAACC), USGS crossings, MassDOT structures. Checked with FHWA HDS-5.</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M2 12h28"/><path d="M5 12v13M27 12v13M5 25c4-9 18-9 22 0"/></svg></i><b>Bridges</b><span>MassDOT bridges, FHWA National Bridge Inventory. Water under a deck is not water on the road.</span></div>
-  <h3>People</h3>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><circle cx="11" cy="10" r="4"/><circle cx="22" cy="12" r="3"/><path d="M4 27c0-6 3-10 7-10s7 4 7 10M17 27c0-4 2-8 5-8s5 4 5 8"/></svg></i><b>Population</b><span>2020 US Census blocks: where people live.</span></div>
-  <div class="mm-card" data-k="in"><i class="mm-ic"><svg viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="20" rx="3"/><path d="M16 10v12M10 16h12" stroke-width="3"/></svg></i><b>Emergency services</b><span>Hospitals, fire and police (OpenStreetMap), with response-time standards.</span></div>
-</div>
-<div class="mm-hub" id="mmHub">
-  <div class="mm-core"><small>Flood model</small><b>LISFLOOD-FP 8.2</b><span>2-D shallow-water physics on a 20 m grid, every road segment read every 5 min</span><span class="mm-run">Runs on WPI’s Turing GPU cluster and GitHub Actions</span></div>
-  <div class="mm-rule"><b>Closure rule</b><span>30 cm stops an ordinary car: chance of closing = Φ((depth − 0.30 m) / 0.10 m)</span></div>
-</div>
-<div class="mm-col mm-out">
-  <h3>What comes out</h3>
-  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 20c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/><path d="M3 26c4-3 6 3 10 0s6 3 10 0 4 3 6 1" opacity=".55"/><path d="M8 5l6 6M14 5v6H8"/></svg></i><b>Water depth and speed</b><span>On every 20 m cell, every 5 min, for 48 h.</span></div>
-  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M11 3L7 29M21 3l4 26"/><rect x="9" y="13" width="14" height="6" rx="1"/><path d="M12 13l3 6M17 13l3 6"/></svg></i><b>Road closures</b><span>Each segment: when it closes and reopens, peak depth, chance of closing.</span></div>
-  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M3 12h26M3 22h26"/><circle cx="16" cy="17" r="5"/><path d="M12 6c2-3 6-3 8 0" stroke-width="2.4"/></svg></i><b>Culverts overtopped</b><span>Crossings where modelled flow exceeds culvert capacity.</span></div>
-  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><circle cx="9" cy="9" r="3"/><circle cx="23" cy="23" r="3"/><path d="M11 11c6 2 2 8 10 10" stroke-dasharray="3 3"/><path d="M12 22l-4 4M8 22l4 4"/></svg></i><b>Network impact</b><span>Detour delay (vehicle-hours) and residents cut off from hospital, fire and police.</span></div>
-  <div class="mm-card" data-k="out"><i class="mm-ic"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12"/><path d="M16 8v8l6 4"/></svg></i><b>Live forecast</b><span>Rain checked over all of District 3 every 6 h, next 48 h. When heavy rain is forecast, the flood model runs up to four 20 × 20 km boxes on the heaviest rain; roads outside them are not modelled, and the map says so. A whole-district run on WPI’s Turing GPU cluster is computed beside it as a test only (it still flags about 3 times too many roads: the spread forecast rain carries about 1.8 times the radar’s rain over the district, confirmed on 14 held-out forecasts; a first fix was tested and not adopted).</span></div>
-</div>
-<div class="mm-check">
-  <h3>Checked against what really happened</h3>
-  <div class="mm-row">
-    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M8 28V6l16 6-16 6"/><path d="M4 28h24"/></svg></i><b>River gauges</b><span>USGS Water Data API, every 15 min: river rise and timing.</span></div>
-    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M16 3l13 24H3z"/><path d="M16 12v7M16 22v1" stroke-width="2.6"/></svg></i><b>Storm reports</b><span>NWS Local Storm Reports, NOAA Storm Events, news and agency reports.</span></div>
-    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><rect x="6" y="4" width="20" height="25" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/></svg></i><b>City and MassDOT records</b><span>Leominster DPW damage list (Sept 2023), MassDOT District 3 repeat-flood sites.</span></div>
-    <div class="mm-card" data-k="chk"><i class="mm-ic"><svg viewBox="0 0 32 32"><path d="M16 29s-9-9-9-16a9 9 0 0 1 18 0c0 7-9 16-9 16z"/><circle cx="16" cy="13" r="3"/></svg></i><b>Residents’ reports</b><span>MRPC / BSC Group crowdsource map, Leominster.</span></div>
-  </div>
-</div>
+<figcaption class="ft-cap">Blue: data that goes in. Teal: the flood model. Yellow: the result on each road. Orange: what people see. Grey dashed: what every run is checked against.</figcaption>
 </figure>
 
 <h2 id="how">How it works</h2>
@@ -294,23 +294,463 @@ footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script>
-(function () { // wires from every source card into the model and from the model to every output; the checks loop back
-  var fig = document.getElementById('mm'), svg = document.getElementById('mmWires'), hub = document.getElementById('mmHub');
-  function draw() {
-    if (!fig || getComputedStyle(svg).display === 'none') return;
-    var F = fig.getBoundingClientRect(), H = hub.querySelector('.mm-core').getBoundingClientRect(), cx = H.left + H.width / 2 - F.left, cy = H.top + H.height / 2 - F.top, r = H.width / 2, out = '';
-    fig.querySelectorAll('.mm-card').forEach(function (c) {
-      var B = c.getBoundingClientRect(), k = c.dataset.k, x, y, tx, ty, col;
-      if (k === 'in') { x = B.right - F.left; y = B.top + B.height / 2 - F.top; tx = cx - r * 0.96; ty = cy + (y - cy) * 0.18; col = '#6BAED6'; }
-      else if (k === 'out') { x = cx + r * 0.96; y = cy + ((B.top + B.height / 2 - F.top) - cy) * 0.18; tx = B.left - F.left; ty = B.top + B.height / 2 - F.top; col = '#E3A39F'; }
-      else { x = B.left + B.width / 2 - F.left; y = B.top - F.top; tx = cx; ty = cy + r; col = '#B7BBC0'; }
-      var mx = (x + tx) / 2;
-      out += k === 'chk' ? '<path d="M' + x + ' ' + y + ' C' + x + ' ' + (y - 40) + ' ' + tx + ' ' + (ty + 60) + ' ' + tx + ' ' + ty + '" stroke="' + col + '" stroke-dasharray="4 4"/>'
-        : '<path d="M' + x + ' ' + y + ' C' + mx + ' ' + y + ' ' + mx + ' ' + ty + ' ' + tx + ' ' + ty + '" stroke="' + col + '"/>';
+(function () { // the model tree (#modelmap): builds one SVG (left to right on wide screens, top to bottom on phones) and lets it pan and zoom
+  var fig = document.getElementById('ft'), view = document.getElementById('ftView'), svg = document.getElementById('ftSvg'), cam = document.getElementById('ftCam');
+  if (!fig || !svg) return;
+  var NS = 'http://www.w3.org/2000/svg';
+
+  var IC = {
+    radar: '<path d="M9 21a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 12a5 5 0 0 1-1 9.9z"/><path d="M12 24l-1.5 3M17 24l-1.5 3M22 24l-1.5 3"/>',
+    fcst: '<path d="M9 19a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 10a5 5 0 0 1-1 9.9z"/><path d="M8 25h16M20 22l4 3-4 3"/>',
+    terrain: '<path d="M3 25l8-12 5 7 4-5 9 10z"/><path d="M3 28h26"/>',
+    soil: '<path d="M4 9h24M4 15h24M4 21h24M4 27h24"/><path d="M8 12h2M18 18h2M12 24h2" stroke-width="3"/>',
+    land: '<rect x="4" y="4" width="11" height="11"/><rect x="17" y="4" width="11" height="11"/><rect x="4" y="17" width="11" height="11"/><rect x="17" y="17" width="11" height="11"/><path d="M6 6l7 7M19 19l7 7"/>',
+    drop: '<path d="M16 4c5 7 8 11 8 15a8 8 0 0 1-16 0c0-4 3-8 8-15z"/><path d="M4 28h24"/>',
+    stream: '<path d="M5 6c6 2 4 8 10 10s5 8 12 10"/><path d="M9 4c5 3 2 8 9 10"/>',
+    culvert: '<path d="M3 12h26M3 22h26"/><circle cx="16" cy="17" r="5"/><path d="M3 17h8M21 17h8"/>',
+    bridge: '<path d="M2 12h28"/><path d="M5 12v13M27 12v13M5 25c4-9 18-9 22 0"/>',
+    road: '<path d="M11 3L7 29M21 3l4 26"/><path d="M16 5v4M16 14v4M16 23v4"/>',
+    rain: '<path d="M9 17a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 8a5 5 0 0 1-1 9.9z"/><path d="M12 21l-1.5 4M17 21l-1.5 4M22 21l-1.5 4"/>',
+    ground: '<path d="M3 20l7-9 5 6 4-4 10 7"/><path d="M3 24h26M3 28h26"/>',
+    drain: '<path d="M4 8c6 0 6 6 12 6s6 6 12 6"/><path d="M24 16l4 4-4 4"/>',
+    play: '<circle cx="16" cy="16" r="12"/><path d="M13 11l8 5-8 5z"/>',
+    sliders: '<path d="M6 8h20M6 16h20M6 24h20"/><circle cx="12" cy="8" r="2.6"/><circle cx="21" cy="16" r="2.6"/><circle cx="10" cy="24" r="2.6"/>',
+    clock: '<circle cx="16" cy="16" r="12"/><path d="M16 8v8l6 4"/>',
+    knock: '<circle cx="8" cy="9" r="3"/><circle cx="24" cy="23" r="3"/><path d="M11 10c6 2 2 8 10 11" stroke-dasharray="3 3"/><path d="M13 22l-4 4M9 22l4 4"/>',
+    gauge: '<path d="M8 28V6l16 6-16 6"/><path d="M4 28h24"/>',
+    alert: '<path d="M16 3l13 24H3z"/><path d="M16 12v7M16 22v1" stroke-width="2.6"/>',
+    doc: '<rect x="6" y="4" width="20" height="25" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/>',
+    repeat: '<path d="M7 14a9 9 0 0 1 16-5l2 2"/><path d="M25 5v6h-6"/><path d="M25 18a9 9 0 0 1-16 5l-2-2"/><path d="M7 27v-6h6"/>',
+    pin: '<path d="M16 29s-9-9-9-16a9 9 0 0 1 18 0c0 7-9 16-9 16z"/><circle cx="16" cy="13" r="3"/>',
+    held: '<rect x="4" y="6" width="24" height="22" rx="2"/><path d="M4 12h24M10 3v6M22 3v6M11 20l4 4 7-8"/>',
+    model: '<path d="M3 13c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/><path d="M3 20c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/><path d="M3 27c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/>'
+  };
+
+  var D = {
+    title: 'How Mass Flood Watch works',
+    sub: 'Data goes in, a physics flood model moves the rain water over the ground, and every road segment gets a depth. That depth drives the replays, scenarios and forecast, and every run is checked against what really happened.',
+    inputs: [
+      { g: 'Rain', s: 'how much water falls', icon: 'rain', items: [
+        { i: 'radar', t: 'Radar rain (past storms)', d: 'NOAA MRMS: radar corrected with rain gauges. 1 km squares, every hour.' },
+        { i: 'fcst', t: 'Forecast rain (next 48 h)', d: 'NOAA HRRR weather model: 3 km squares, a new forecast every 6 h.' }] },
+      { g: 'Ground', s: 'where water runs and soaks in', icon: 'ground', items: [
+        { i: 'terrain', t: 'Terrain', d: 'USGS 3DEP lidar (laser-scanned ground heights, about 10 m), averaged to the 20 m grid.' },
+        { i: 'soil', t: 'Soils', d: 'USDA SSURGO groups A (sandy, soaks in fast) to D (clay, slow).' },
+        { i: 'land', t: 'Land cover', d: 'USGS NLCD 2021, share paved. With soils it sets the curve number (how much rain runs off) and how rough the surface is.' },
+        { i: 'drop', t: 'How wet the ground was', d: 'The normal (calibrated) setting. Scenarios also try dry, soaked and frozen ground.' }] },
+      { g: 'Drainage', s: 'where water can get away', icon: 'drain', items: [
+        { i: 'stream', t: 'Streams and rivers', d: 'USGS NHDPlus HR, carved into the terrain so rivers carry water downstream.' },
+        { i: 'culvert', t: 'Culverts (pipes under roads)', d: 'NAACC surveys, USGS and MassDOT crossings. Capacity by the FHWA HDS-5 method.' },
+        { i: 'bridge', t: 'Bridges', d: 'MassDOT, FHWA National Bridge Inventory. Water under a deck is not water on the road.' }] },
+      { g: 'Roads', s: 'what gets checked', icon: 'road', items: [
+        { i: 'road', t: 'Road network', d: 'MassDOT Road Inventory: every segment, its town, class and traffic (AADT, vehicles per day).' }] }
+    ],
+    model: { k: 'PHYSICS SIMULATION', t: 'LISFLOOD-FP 8.2', d: 'Simulates where the rain water flows and how deep it gets, on every 20 m square of ground, every 5 minutes.',
+      pts: [['Physics:', '2-D shallow-water equations (the math of water spreading over land).'],
+            ['Same setting for every storm:', 'the one runoff setting was chosen on Leominster 2023, then frozen.'],
+            ['Runs on', 'WPI’s Turing GPU cluster and GitHub Actions.']] },
+    res: { k: 'THE RESULT FOR EACH ROAD', t: 'Depth on every road segment', d: 'Read along each segment every 5 min: when water arrives, how deep it gets, and for how long.',
+      tiers: [['Closed', '30 cm or more', 'Stops an ordinary car. Reopens below 26 cm.', '#E8590C'],
+              ['At risk', '15 to 30 cm', 'Reaches a car floor.', '#F0A202'],
+              ['Water on road', '5 to 15 cm', '', '#F2C14E']],
+      foot: 'The chance of closing rises steeply past 30 cm.' },
+    outputs: [
+      { i: 'play', t: 'Replay past storms', p: [['', 'Watch radar rain arrive, water rise and roads close.'], ['', 'Leominster 2023 (tuned), Worcester 2021 (blind test) and eight more storms.']] },
+      { i: 'sliders', t: 'What-if scenarios', p: [['', 'The real Leominster 2023 storm rerun with one change at a time: rain ×½, ×¾ or ×1¼; ground dry, normal, soaked or frozen; culverts clear or blocked.']] },
+      { i: 'clock', t: 'Live forecast (next 48 h)', p: [['Watch:', 'week-ahead rain by town (NOAA National Blend of Models).'], ['Trigger:', '25 mm in 6 h in any town, within 48 h.'], ['Run:', 'the flood model on NOAA HRRR rain every 6 h, in up to four 20 × 20 km boxes on the heaviest rain. A road is flagged when at least 2 of the last 8 forecasts close it.']] },
+      { i: 'knock', t: 'Knock-on effects', p: [['Culverts overtopped:', 'modelled flow above culvert capacity.'], ['People cut off:', 'residents (2020 Census) who lose a hospital within 30 min, a fire station within 8 min or police within 10 min (OpenStreetMap).'], ['Detours:', 'extra delay, weighted by traffic.']] }
+    ],
+    checks: { t: 'Checked against what really happened', d: 'Every run is scored against these, compared with random road points.',
+      items: [
+        { i: 'gauge', t: 'River gauges', d: 'USGS, every 15 min: does the river rise as much, and when?' },
+        { i: 'alert', t: 'Storm reports', d: 'NWS Local Storm Reports, NOAA Storm Events, news and agency reports.' },
+        { i: 'doc', t: 'City DPW records', d: 'Leominster DPW list of damaged roads and culverts, Sept 2023.' },
+        { i: 'repeat', t: 'MassDOT repeat-flood sites', d: 'District 3 road spots that flood again and again.' },
+        { i: 'pin', t: 'Residents’ reports', d: 'MRPC / BSC Group crowdsource map, Leominster.' },
+        { i: 'held', t: 'Held-out storms', d: '23 storms never used for tuning: the riskiest 3% of roads catch 20 of 98 reported sites, 3.1 times chance.' }] }
+  };
+
+  // ---- text measuring and wrapping ----
+  var cx2d = document.createElement('canvas').getContext('2d');
+  function tw(s, size, wt) { cx2d.font = (wt || 400) + ' ' + size + 'px Overpass, sans-serif'; return cx2d.measureText(s).width; }
+  function wrap(runs, size, maxW, wt) { // runs: [[bold, text]] -> lines of [[bold, text]]
+    var lines = [], cur = [], w = 0;
+    runs.forEach(function (r) {
+      r[1].split(/\s+/).filter(Boolean).forEach(function (word) {
+        var b = !!r[0], ww = tw(word, size, b ? 700 : (wt || 400)), sp = cur.length ? tw(' ', size, wt || 400) : 0;
+        if (cur.length && w + sp + ww > maxW) { lines.push(cur); cur = []; w = 0; sp = 0; }
+        var last = cur[cur.length - 1];
+        if (last && last[0] === b) last[1] += ' ' + word; else cur.push([b, (cur.length ? ' ' : '') + word]);
+        w += sp + ww;
+      });
     });
-    svg.setAttribute('viewBox', '0 0 ' + F.width + ' ' + F.height); svg.innerHTML = out;
+    if (cur.length) lines.push(cur);
+    return lines;
   }
-  window.addEventListener('resize', draw); window.addEventListener('load', draw); if (document.fonts) document.fonts.ready.then(draw); draw();
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  var out;
+  function put(s) { out.push(s); }
+  function lines(x, y, ls, size, lh, cls, anchor) { // y = top of first line box
+    ls.forEach(function (l, i) {
+      var by = y + i * lh + size * 0.98;
+      put('<text x="' + x + '" y="' + by.toFixed(1) + '" font-size="' + size + '" class="' + cls + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' +
+        l.map(function (r) { return r[0] ? '<tspan class="b">' + esc(r[1]) + '</tspan>' : esc(r[1]); }).join('') + '</text>');
+    });
+    return ls.length * lh;
+  }
+  function icon(x, y, name, kind, sz) {
+    sz = sz || 32;
+    var s = (sz - 8) / 32;
+    put('<rect x="' + x + '" y="' + y + '" width="' + sz + '" height="' + sz + '" rx="8" class="ic-bg"' + (kind === 'w' ? ' fill-opacity=".14" style="fill:#fff"' : '') + '/>');
+    put('<g class="ic ic-' + kind + '" transform="translate(' + (x + 4) + ' ' + (y + 4) + ') scale(' + s + ')">' + IC[name] + '</g>');
+  }
+
+  // a card: icon, bold title, muted description paragraphs. Returns its height (draw=false measures only)
+  var TS = 15.5, DS = 13.5, DLH = 18.5, TLH = 20;
+  function card(x, y, w, o, kind, draw) {
+    var pad = 12, ix = x + pad, tx = ix + 32 + 11, mw = x + w - pad - tx;
+    var tl = wrap([[1, o.t]], TS, mw, 700);
+    var paras = o.p || [['', o.d]];
+    var pl = paras.map(function (p) { return wrap(p[0] ? [[1, p[0]], [0, p[1]]] : [[0, p[1]]], DS, mw); });
+    var h = pad + tl.length * TLH + 3;
+    pl.forEach(function (l, i) { h += l.length * DLH + (i ? 5 : 0); });
+    h = Math.max(h + pad - 2, 56);
+    if (!draw) return h;
+    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="11" class="n-' + kind + '"/>');
+    icon(ix, y + pad, o.i, kind);
+    var cy = y + pad;
+    cy += lines(tx, cy, tl, TS, TLH, 't-b') + 3;
+    pl.forEach(function (l, i) { cy += (i ? 5 : 0); cy += lines(tx, cy, l, DS, DLH, 't-m'); });
+    return h;
+  }
+
+  // the input group: a soft panel with a heading and its cards
+  function group(x, y, w, g, draw) {
+    var pad = 10, hh = 46, h = hh, cw = w - 2 * pad;
+    g.items.forEach(function (it, i) { h += card(0, 0, cw, it, 'in', false) + (i ? 8 : 0); });
+    h += pad;
+    if (!draw) return h;
+    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="14" class="n-grp"/>');
+    icon(x + pad + 2, y + 9, g.icon, 'in', 28);
+    put('<text x="' + (x + pad + 40) + '" y="' + (y + 29) + '" font-size="15" class="t-k">' + g.g.toUpperCase() + '</text>');
+    put('<text x="' + (x + pad + 40 + tw(g.g.toUpperCase(), 15, 800) + g.g.length * 1.2 + 10) + '" y="' + (y + 29) + '" font-size="13.5" class="t-m">' + esc(g.s) + '</text>');
+    var cy = y + hh;
+    g.items.forEach(function (it, i) { cy += (i ? 8 : 0); cy += card(x + pad, cy, cw, it, 'in', true); });
+    return h;
+  }
+
+  function modelNode(x, y, w, draw) {
+    var pad = 20, mw = w - 2 * pad, m = D.model;
+    var dl = wrap([[0, m.d]], 16.5, mw);
+    var pls = m.pts.map(function (p) { return wrap([[1, p[0]], [0, p[1]]], 13.5, mw - 16); });
+    var h = pad + 18 + 34 + dl.length * 23 + 14;
+    pls.forEach(function (l) { h += l.length * 18.5 + 8; });
+    h += pad - 6;
+    if (!draw) return h;
+    put('<defs><linearGradient id="ftCoreG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ft-core)"/><stop offset="1" style="stop-color:var(--ft-core-2)"/></linearGradient></defs>');
+    put('<rect x="' + x + '" y="' + (y + 3) + '" width="' + w + '" height="' + h + '" rx="18" fill="#000" opacity=".10"/>');
+    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="18" fill="url(#ftCoreG)"/>');
+    icon(x + w - pad - 36, y + pad - 2, 'model', 'w', 36);
+    put('<text x="' + (x + pad) + '" y="' + (y + pad + 12) + '" font-size="12.5" class="t-w" font-weight="800" letter-spacing="1.2" opacity=".8">' + m.k + '</text>');
+    put('<text x="' + (x + pad) + '" y="' + (y + pad + 44) + '" font-size="26" class="t-w" font-weight="800">' + m.t + '</text>');
+    var cy = y + pad + 56;
+    cy += lines(x + pad, cy, dl, 16.5, 23, 't-w') + 12;
+    put('<path d="M' + (x + pad) + ' ' + (cy - 4) + 'H' + (x + w - pad) + '" stroke="#fff" stroke-opacity=".25"/>');
+    cy += 6;
+    pls.forEach(function (l) {
+      put('<circle cx="' + (x + pad + 4) + '" cy="' + (cy + 9) + '" r="3" fill="#fff" opacity=".7"/>');
+      cy += lines(x + pad + 16, cy, l, 13.5, 18.5, 't-w') + 8;
+    });
+    return h;
+  }
+
+  function resNode(x, y, w, draw) {
+    var pad = 16, mw = w - 2 * pad, r = D.res;
+    var tl = wrap([[1, r.t]], 17.5, mw), dl = wrap([[0, r.d]], 13.5, mw);
+    var tiers = r.tiers.map(function (t) { return { t: t, l: t[2] ? wrap([[0, t[2]]], 13, mw - 30) : [] }; });
+    var fl = wrap([[0, r.foot]], 13, mw);
+    var h = pad + 16 + tl.length * 23 + 4 + dl.length * 18.5 + 12;
+    tiers.forEach(function (t) { h += 22 + t.l.length * 17.5 + 10; });
+    h += fl.length * 17.5 + pad;
+    if (!draw) return h;
+    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" class="n-res"/>');
+    put('<text x="' + (x + pad) + '" y="' + (y + pad + 10) + '" font-size="12.5" class="t-k">' + r.k + '</text>');
+    var cy = y + pad + 18;
+    cy += lines(x + pad, cy, tl, 17.5, 23, 't-h') + 4;
+    cy += lines(x + pad, cy, dl, 13.5, 18.5, 't-m') + 12;
+    tiers.forEach(function (t) {
+      put('<rect x="' + (x + pad) + '" y="' + (cy + 2) + '" width="20" height="' + (18 + t.l.length * 17.5) + '" rx="5" fill="' + t.t[3] + '"/>');
+      put('<text x="' + (x + pad + 30) + '" y="' + (cy + 16) + '" font-size="15" class="t-b">' + esc(t.t[0]) + '<tspan class="t-m" font-weight="600" dx="8">' + esc(t.t[1]) + '</tspan></text>');
+      cy += 22;
+      cy += lines(x + pad + 30, cy, t.l, 13, 17.5, 't-m') + 10;
+    });
+    lines(x + pad, cy, fl, 13, 17.5, 't-m');
+    return h;
+  }
+
+  function checksPanel(x, y, w, cols, draw) {
+    var pad = 14, gap = 10, c = D.checks, cw = (w - 2 * pad - (cols - 1) * gap) / cols;
+    var hl = wrap([[1, c.t]], 16, w - 2 * pad - 40), dl = wrap([[0, c.d]], 13.5, w - 2 * pad);
+    var head = pad + hl.length * 21 + dl.length * 18.5 + 12;
+    var rows = [], hs = c.items.map(function (it) { return card(0, 0, cw, it, 'chk', false); });
+    for (var i = 0; i < hs.length; i += cols) rows.push(Math.max.apply(null, hs.slice(i, i + cols)));
+    var h = head + rows.reduce(function (a, b) { return a + b + gap; }, 0) - gap + pad;
+    if (!draw) return h;
+    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" class="n-chkp"/>');
+    var cy = y + pad;
+    cy += lines(x + pad, cy, hl, 16, 21, 't-h');
+    cy += lines(x + pad, cy, dl, 13.5, 18.5, 't-m') + 12;
+    c.items.forEach(function (it, i) {
+      var r = Math.floor(i / cols), col = i % cols, ry = cy;
+      for (var k = 0; k < r; k++) ry += rows[k] + gap;
+      // draw each card at its row height so rows line up
+      var save = out.length; card(x + pad + col * (cw + gap), ry, cw, it, 'chk', true);
+      out[save] = out[save].replace(/height="[\d.]+"/, 'height="' + rows[r] + '"');
+    });
+    return h;
+  }
+
+  function stepLabel(x, y, n, t) {
+    put('<circle cx="' + (x + 12) + '" cy="' + (y + 12) + '" r="12" class="num"/>');
+    put('<text x="' + (x + 12) + '" y="' + (y + 17) + '" font-size="14" text-anchor="middle" class="num-t">' + n + '</text>');
+    put('<text x="' + (x + 32) + '" y="' + (y + 17.5) + '" font-size="14" class="t-k">' + esc(t.toUpperCase()) + '</text>');
+  }
+  function arrow(x, y, dir, cls, s) { // tip at (x,y)
+    s = s || 9; var a = { r: [-1, 0], l: [1, 0], d: [0, -1], u: [0, 1] }[dir], px = -a[1], py = a[0];
+    put('<path class="' + cls + '" d="M' + x + ' ' + y + 'L' + (x + a[0] * s + px * s * 0.6) + ' ' + (y + a[1] * s + py * s * 0.6) + 'L' + (x + a[0] * s - px * s * 0.6) + ' ' + (y + a[1] * s - py * s * 0.6) + 'z"/>');
+  }
+  function pill(x, y, text, anchor) {
+    var w = tw(text, 13, 600) + 18, x0 = anchor === 'middle' ? x - w / 2 : x;
+    put('<rect x="' + x0 + '" y="' + (y - 13) + '" width="' + w + '" height="24" rx="12" class="lbl"/>');
+    put('<text x="' + (x0 + 9) + '" y="' + (y + 4) + '" font-size="13" font-weight="600" class="t-m">' + esc(text) + '</text>');
+  }
+  function header(x, y, w) {
+    put('<text x="' + x + '" y="' + (y + 26) + '" font-size="' + (w < 600 ? 23 : 28) + '" class="t-h">' + D.title + '</text>');
+    var sl = wrap([[0, D.sub]], 14.5, Math.min(w, 1000));
+    return 40 + lines(x, y + 38, sl, 14.5, 20.5, 't-m');
+  }
+
+  // ---- layout: left to right ----
+  function buildLR() {
+    var M = 36, W = 1700, gap1 = 104, gap2 = 92, gap3 = 92;
+    var inW = 380, mW = 300, rW = 320, oW = W - 2 * M - inW - mW - rW - gap1 - gap2 - gap3;
+    var inX = M, mX = inX + inW + gap1, rX = mX + mW + gap2, oX = rX + rW + gap3;
+    out = [];
+    var top = M + header(M, M, W - 2 * M) + 22;
+    var y0 = top + 40;
+    var gs = [], y = y0;
+    D.inputs.forEach(function (g) { var h = group(0, 0, inW, g, false); gs.push({ y: y, h: h }); y += h + 16; });
+    var inBot = y - 16;
+    var os = [], oy = y0;
+    D.outputs.forEach(function (o) { var h = card(0, 0, oW, o, 'out', false); os.push({ y: oy, h: h }); oy += h + 18; });
+    var outBot = oy - 18, mid = (y0 + outBot) / 2;
+    var mH = modelNode(0, 0, mW, false), rH = resNode(0, 0, rW, false);
+    var mY = Math.max(y0, mid - mH / 2), rY = Math.max(y0, mid - rH / 2);
+    var cY = Math.max(outBot, mY + mH, rY + rH) + 96, cX = mX, cW = oX + oW - mX;
+    var cH = checksPanel(0, 0, cW, 3, false);
+    var H = Math.max(inBot, cY + cH) + M;
+    // wires first so they sit under the boxes
+    var body = out; out = [];
+    gs.forEach(function (g, i) {
+      var sx = inX + inW, sy = g.y + Math.min(g.h / 2, 60), tx = mX, ty = mY + mH * (0.2 + 0.6 * i / (gs.length - 1)), mx = sx + gap1 * 0.55;
+      put('<path class="w-in" d="M' + sx + ' ' + sy + 'C' + mx + ' ' + sy + ' ' + (tx - gap1 * 0.5) + ' ' + ty + ' ' + (tx - 9) + ' ' + ty + '"/>');
+      arrow(tx, ty, 'r', 'a-in');
+      put('<circle cx="' + sx + '" cy="' + sy + '" r="4" class="a-in"/>');
+    });
+    var my = mY + mH / 2, ry = rY + rH / 2;
+    put('<path class="w-core" d="M' + (mX + mW) + ' ' + my + 'C' + (mX + mW + gap2 / 2) + ' ' + my + ' ' + (rX - gap2 / 2) + ' ' + ry + ' ' + (rX - 12) + ' ' + ry + '"/>');
+    arrow(rX, ry, 'r', 'a-core', 13);
+    os.forEach(function (o) {
+      var sy = ry, ty = o.y + 30, sx = rX + rW;
+      put('<path class="w-out" d="M' + sx + ' ' + sy + 'C' + (sx + gap3 * 0.55) + ' ' + sy + ' ' + (oX - gap3 * 0.5) + ' ' + ty + ' ' + (oX - 9) + ' ' + ty + '"/>');
+      arrow(oX, ty, 'r', 'a-out');
+    });
+    // checks: road results are scored against them; the gauges set the one runoff setting
+    var rx1 = rX + rW * 0.5;
+    put('<path class="w-chk" d="M' + rx1 + ' ' + (rY + rH) + 'V' + (cY - 10) + '"/>'); arrow(rx1, cY, 'd', 'a-chk');
+    var mx1 = mX + mW * 0.5;
+    put('<path class="w-chk" d="M' + mx1 + ' ' + cY + 'V' + (mY + mH + 10) + '"/>'); arrow(mx1, mY + mH, 'u', 'a-chk');
+    var lblY = (Math.max(rY + rH, mY + mH) + cY) / 2;
+    pill(rx1 + 10, lblY, 'scored against', 'start');
+    pill(mx1 - 10 - (tw('runoff setting chosen here', 13, 600) + 18), lblY, 'runoff setting chosen here', 'start');
+    var wires = out; out = body;
+    // column labels
+    stepLabel(inX, top, 1, 'What goes in'); stepLabel(mX, top, 2, 'The flood model'); stepLabel(rX, top, 3, 'Water on every road'); stepLabel(oX, top, 4, 'What people see');
+    gs.forEach(function (g, i) { group(inX, g.y, inW, D.inputs[i], true); });
+    modelNode(mX, mY, mW, true); resNode(rX, rY, rW, true);
+    os.forEach(function (o, i) { card(oX, o.y, oW, D.outputs[i], 'out', true); });
+    checksPanel(cX, cY, cW, 3, true);
+    return { W: W, H: H, svg: wires.join('') + out.join('') };
+  }
+
+  // ---- layout: top to bottom (phones) ----
+  function buildTB() {
+    var W = 384, L = 32, R = W - 26, w = R - L, tL = 14, tR = W - 11;
+    out = [];
+    var y = 14 + header(14, 14, W - 28) + 18;
+    var parts = [];
+    function label(n, t) { parts.push(['lab', y, n, t]); y += 36; }
+    label(1, 'What goes in');
+    var gs = [];
+    D.inputs.forEach(function (g) { var h = group(0, 0, w, g, false); gs.push({ y: y, h: h }); y += h + 14; });
+    y += 12; label(2, 'The flood model');
+    var mY = y, mH = modelNode(0, 0, w, false); y += mH + 40;
+    label(3, 'Water on every road');
+    var rY = y, rH = resNode(0, 0, w, false); y += rH + 30;
+    label(4, 'What people see');
+    var os = [];
+    D.outputs.forEach(function (o) { var h = card(0, 0, w, o, 'out', false); os.push({ y: y, h: h }); y += h + 12; });
+    y += 34;
+    var cY = y, cH = checksPanel(0, 0, W - 2 * 12, 1, false); y += cH + 28;
+    var H = y;
+    var body = out; out = [];
+    // input trunk on the left, into the model
+    var ty = mY + 34;
+    put('<path class="w-in" d="M' + tL + ' ' + (gs[0].y + 24) + 'V' + (ty - 12) + 'Q' + tL + ' ' + ty + ' ' + (tL + 12) + ' ' + ty + 'H' + (L - 9) + '"/>');
+    arrow(L, ty, 'r', 'a-in');
+    gs.forEach(function (g) { put('<path class="w-in" d="M' + tL + ' ' + (g.y + 24) + 'H' + L + '"/><circle cx="' + tL + '" cy="' + (g.y + 24) + '" r="4" class="a-in"/>'); });
+    var cx = L + w * 0.78;
+    put('<path class="w-core" d="M' + cx + ' ' + (mY + mH) + 'V' + (rY - 12) + '"/>'); arrow(cx, rY, 'd', 'a-core', 13);
+    // output trunk on the left
+    var sy = rY + rH - 26;
+    put('<path class="w-out" d="M' + L + ' ' + sy + 'H' + (tL + 12) + 'Q' + tL + ' ' + sy + ' ' + tL + ' ' + (sy + 12) + 'V' + (os[os.length - 1].y + 28) + '"/>');
+    os.forEach(function (o) { put('<path class="w-out" d="M' + tL + ' ' + (o.y + 28) + 'H' + (L - 9) + '"/>'); arrow(L, o.y + 28, 'r', 'a-out'); });
+    // checks: dashed line down the right edge from the road results
+    var ry0 = rY + 40;
+    put('<path class="w-chk" d="M' + R + ' ' + ry0 + 'H' + (tR - 10) + 'Q' + tR + ' ' + ry0 + ' ' + tR + ' ' + (ry0 + 10) + 'V' + (cY - 10) + '"/>');
+    arrow(tR, cY, 'd', 'a-chk');
+    var wires = out; out = body;
+    parts.forEach(function (p) { stepLabel(L, p[1], p[2], p[3]); });
+    gs.forEach(function (g, i) { group(L, g.y, w, D.inputs[i], true); });
+    modelNode(L, mY, w, true); resNode(L, rY, w, true);
+    os.forEach(function (o, i) { card(L, o.y, w, D.outputs[i], 'out', true); });
+    checksPanel(12, cY, W - 24, 1, true);
+    return { W: W, H: H, svg: wires.join('') + out.join('') };
+  }
+
+  // ---- viewer: pan and zoom ----
+  var Lay = null, mode = '', full = false, engaged = false;
+  var st = { k: 1, x: 0, y: 0 }, fit = { k: 1, x: 0, y: 0 };
+  var hint = document.getElementById('ftHint'), hintT = 0;
+  function showHint(s) { hint.textContent = s; hint.classList.add('on'); clearTimeout(hintT); hintT = setTimeout(function () { hint.classList.remove('on'); }, 1600); }
+  function build() {
+    var m = window.innerWidth < 700 ? 'tb' : 'lr';
+    Lay = m === 'tb' ? buildTB() : buildLR(); mode = m;
+    cam.innerHTML = Lay.svg;
+    size(); reset();
+  }
+  function size() {
+    var w = view.clientWidth;
+    if (!full) view.style.height = (mode === 'tb' ? Math.round(w * Lay.H / Lay.W) : Math.round(Math.min(w * Lay.H / Lay.W, window.innerHeight * 0.92))) + 'px';
+    svg.setAttribute('viewBox', '0 0 ' + view.clientWidth + ' ' + view.clientHeight);
+  }
+  function computeFit() {
+    var w = view.clientWidth, h = view.clientHeight, k = mode === 'tb' ? w / Lay.W : Math.min(w / Lay.W, h / Lay.H);
+    var pad = full && mode === 'lr' ? 0.97 : 1;
+    k *= pad;
+    fit = { k: k, x: (w - Lay.W * k) / 2, y: mode === 'tb' ? 0 : (h - Lay.H * k) / 2 };
+  }
+  function apply() {
+    cam.setAttribute('transform', 'translate(' + st.x.toFixed(2) + ' ' + st.y.toFixed(2) + ') scale(' + st.k.toFixed(5) + ')');
+    view.classList.toggle('ft-zoomed', st.k > fit.k * 1.02);
+  }
+  function clamp() {
+    var w = view.clientWidth, h = view.clientHeight, cw = Lay.W * st.k, ch = Lay.H * st.k, m = 60;
+    var lo = Math.min(w - cw - m, (w - cw) / 2), hi = Math.max(m, (w - cw) / 2);
+    st.x = Math.min(hi, Math.max(lo, st.x));
+    lo = Math.min(h - ch - m, (h - ch) / 2); hi = Math.max(m, (h - ch) / 2);
+    if (mode === 'tb' && ch > h) hi = Math.max(0, hi);
+    st.y = Math.min(hi, Math.max(lo, st.y));
+  }
+  function reset() { computeFit(); st = { k: fit.k, x: fit.x, y: fit.y }; apply(); }
+  function zoomAt(px, py, f) {
+    var nk = Math.min(Math.max(st.k * f, fit.k * 0.7), Math.max(fit.k * 8, 3));
+    st.x = px - (px - st.x) * nk / st.k; st.y = py - (py - st.y) * nk / st.k; st.k = nk; clamp(); apply();
+  }
+  function centre() { return [view.clientWidth / 2, view.clientHeight / 2]; }
+  function pos(e) { var r = view.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+
+  view.addEventListener('wheel', function (e) {
+    if (!(full || engaged || e.ctrlKey || e.metaKey)) { showHint('Click the diagram, then scroll to zoom'); return; }
+    e.preventDefault();
+    var p = pos(e), dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    zoomAt(p[0], p[1], Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0018)));
+  }, { passive: false });
+  var drag = null;
+  view.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch' || e.button !== 0 || e.target.closest('button')) return;
+    engaged = true; drag = { x: e.clientX, y: e.clientY, sx: st.x, sy: st.y };
+    view.setPointerCapture(e.pointerId); view.classList.add('ft-drag');
+  });
+  view.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    st.x = drag.sx + e.clientX - drag.x; st.y = drag.sy + e.clientY - drag.y; clamp(); apply();
+  });
+  function endDrag() { drag = null; view.classList.remove('ft-drag'); }
+  view.addEventListener('pointerup', endDrag); view.addEventListener('pointercancel', endDrag);
+  view.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch' && !drag) engaged = false; });
+  view.addEventListener('dblclick', function (e) { if (e.target.closest('button')) return; var p = pos(e); zoomAt(p[0], p[1], e.shiftKey ? 1 / 1.6 : 1.6); });
+
+  // touch: two fingers pinch and pan; one finger pans once zoomed in or full screen, otherwise the page scrolls
+  var tt = null;
+  function tinfo(e) {
+    var r = view.getBoundingClientRect(), a = e.touches[0], b = e.touches[1];
+    if (!b) return { n: 1, x: a.clientX - r.left, y: a.clientY - r.top, d: 1 };
+    return { n: 2, x: (a.clientX + b.clientX) / 2 - r.left, y: (a.clientY + b.clientY) / 2 - r.top, d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1 };
+  }
+  function tstart(e) {
+    if (e.target.closest && e.target.closest('button')) { tt = null; return; }
+    var t = tinfo(e);
+    if (t.n === 2 || full || st.k > fit.k * 1.02) { if (e.cancelable) e.preventDefault(); tt = { t: t, k: st.k, x: st.x, y: st.y }; }
+    else tt = null;
+  }
+  view.addEventListener('touchstart', tstart, { passive: false });
+  view.addEventListener('touchmove', function (e) {
+    if (!tt) return;
+    if (e.cancelable) e.preventDefault();
+    var t = tinfo(e);
+    if (t.n !== tt.t.n) { tstart(e); return; }
+    var k = t.n === 2 ? Math.min(Math.max(tt.k * t.d / tt.t.d, fit.k * 0.7), Math.max(fit.k * 8, 3)) : tt.k;
+    st.k = k; st.x = t.x - (tt.t.x - tt.x) * k / tt.k; st.y = t.y - (tt.t.y - tt.y) * k / tt.k; clamp(); apply();
+  }, { passive: false });
+  view.addEventListener('touchend', function (e) { if (e.touches.length) tstart(e); else tt = null; });
+
+  view.addEventListener('keydown', function (e) {
+    var c = centre(), s = 60;
+    if (e.key === '+' || e.key === '=') zoomAt(c[0], c[1], 1.3);
+    else if (e.key === '-' || e.key === '_') zoomAt(c[0], c[1], 1 / 1.3);
+    else if (e.key === '0') reset();
+    else if (e.key === 'ArrowLeft') { st.x += s; clamp(); apply(); }
+    else if (e.key === 'ArrowRight') { st.x -= s; clamp(); apply(); }
+    else if (e.key === 'ArrowUp' && st.k > fit.k * 1.02) { st.y += s; clamp(); apply(); }
+    else if (e.key === 'ArrowDown' && st.k > fit.k * 1.02) { st.y -= s; clamp(); apply(); }
+    else return;
+    e.preventDefault();
+  });
+  document.getElementById('ftIn').addEventListener('click', function () { var c = centre(); zoomAt(c[0], mode === 'tb' && !full ? Math.min(c[1], window.innerHeight / 2 - view.getBoundingClientRect().top) : c[1], 1.4); });
+  document.getElementById('ftOut').addEventListener('click', function () { var c = centre(); zoomAt(c[0], c[1], 1 / 1.4); });
+  document.getElementById('ftReset').addEventListener('click', reset);
+  var openBtn = document.getElementById('ftFull'), closeBtn = document.getElementById('ftClose');
+  function setFull(on) {
+    full = on; fig.classList.toggle('ft-full', on); document.documentElement.classList.toggle('ft-lock', on);
+    if (on) { view.style.height = ''; }
+    size(); reset();
+    (on ? closeBtn : openBtn).focus({ preventScroll: true });
+    if (!on) fig.scrollIntoView({ block: 'nearest' });
+  }
+  openBtn.addEventListener('click', function () { setFull(true); });
+  closeBtn.addEventListener('click', function () { setFull(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && full) setFull(false); });
+
+  var lastW = 0;
+  window.addEventListener('resize', function () {
+    var m = window.innerWidth < 700 ? 'tb' : 'lr';
+    if (m !== mode) { build(); return; }
+    if (view.clientWidth === lastW && !full) return;
+    lastW = view.clientWidth; size(); reset();
+  });
+  build(); lastW = view.clientWidth;
+  if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('400 14px Overpass'), document.fonts.load('700 14px Overpass'), document.fonts.load('800 14px Overpass')]).then(function () { build(); lastW = view.clientWidth; });
 })();
 </script>
 </body>
