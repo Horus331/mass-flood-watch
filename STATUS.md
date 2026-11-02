@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-01T23:44:08Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-02T00:14:23Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -218,13 +218,13 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | run_t2b_sep2018m_milford_s | run_storm | completed | 2444000 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:14:02Z |  |
 | run_t2b_sep2018m_milford_p | run_storm | completed | 2444001 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
 | pack_t2b_sep2018m_milford | pack_site | completed | 2444002 | 1 / 0 | 2026-11-01T22:43:15Z | 2026-11-01T23:44:08Z |  |
-| d3all_v1_b5_s | run_plan_display | running | 2444003 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v1_b5_s | run_plan_display | running | 2444003 | 2 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v1_b5_p | run_plan_display | pending | 2444004 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| d3all_v1_c2_s | run_plan_display | running | 2444005 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v1_c2_s | run_plan_display | running | 2444005 | 2 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v1_c2_p | run_plan_display | pending | 2444006 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
-| d3all_v2_b_s | run_plan_display | running | 2444007 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
+| d3all_v2_b_s | run_plan_display | running | 2444007 | 2 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_v2_b_p | run_plan_display | pending | 2444008 | 0 / 0 | 2026-11-01T22:43:15Z |  |  |
 | d3all_diag10 | diag | completed | 2444162 | 1 / 0 | 2026-11-01T23:14:02Z | 2026-11-01T23:44:08Z |  |
-| d3all_v1_adopt2 | run_plan_display | submitted | 2444265 |  /  | 2026-11-01T23:44:08Z |  |  |
-| run_d3_sep2023_20m_t2b_p2 | run_storm | submitted | 2444266 |  /  | 2026-11-01T23:44:08Z |  |  |
-| pack_d3_sep2023_20m_t2b2 | pack_site | submitted | 2444267 |  /  | 2026-11-01T23:44:08Z |  |  |
+| d3all_v1_adopt2 | run_plan_display | completed | 2444265 | 1 / 0 | 2026-11-01T23:44:08Z | 2026-11-02T00:14:23Z |  |
+| run_d3_sep2023_20m_t2b_p2 | run_storm | running | 2444266 | 0 / 0 | 2026-11-01T23:44:08Z |  |  |
+| pack_d3_sep2023_20m_t2b2 | pack_site | pending | 2444267 | 0 / 0 | 2026-11-01T23:44:08Z |  |  |
