@@ -289,7 +289,15 @@ def day_hourly2(d, H):
     if H.get('pop'):
         Pp = np.array([[np.nan if v is None else v for v in row] for row in H['pop']], np.float32)
         if Pp.shape == M.shape and not np.isnan(Pp[:, ix]).all(): pop = int(round(float(np.nanmax(Pp[:, ix]))))   # highest hourly chance in any town (as the bars: wettest town)
-    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1), pop=pop)
+    # running 24 h total at the end of each column, per town, then the wettest town (the flood model's 24 h rule, GATE.md, is per town):
+    # the Forecast tab draws it as a line over the bars, the top of the strip being the 24 h limit
+    cum = []
+    for k in range(12):
+        e = s + dt.timedelta(hours=2 * k + 2)
+        jx = [i for i, t in enumerate(T) if e - dt.timedelta(hours=24) < t <= e]
+        if len(jx) < 20 or np.isnan(M[:, jx]).all(): cum.append(None); continue
+        cum.append(round(float(np.nanmax(np.nansum(M[:, jx], axis=1))), 1))
+    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1), pop=pop, cum24=cum)
 
 
 # ------------------------------------------------------------------ WPC Excessive Rainfall Outlook
