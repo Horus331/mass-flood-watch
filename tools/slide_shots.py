@@ -18,7 +18,7 @@ def maps():
     from shapely.geometry import Point, box
     plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 15})
     G = gpd.read_file('zip://docs/proto/arcgis/d3_road_flood_vulnerability_shp.zip').to_crs(3857)
-    POS = ctx.providers.Esri.WorldGrayCanvas; REF = ctx.providers.Esri.WorldGrayReference   # no API key (CartoDB now needs one)
+    POS = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'; REF = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'   # no API key (CartoDB now needs one)
 
     def north(ax, x=0.965, y=0.86):
         ax.annotate('N', xy=(x, y + 0.07), xytext=(x, y), xycoords='axes fraction', ha='center', va='center', fontsize=20, fontweight='bold',
@@ -59,7 +59,7 @@ def maps():
     fig, ax = plt.subplots(figsize=(W, H)); b = G.total_bounds
     cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2; hw = max((b[2] - b[0]) / 2, (b[3] - b[1]) / 2 * W / H) * 1.04
     frame(ax, cx, cy, hw); draw(ax, G)
-    ctx.add_basemap(ax, source=POS, zoom=10, attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=10, attribution=False, zorder=10)
+    ctx.add_basemap(ax, source=POS, zoom=10, attribution='Basemap: Esri, HERE, Garmin, OpenStreetMap contributors', attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=10, attribution=False, zorder=10)
     legend(ax, G, 'Flood vulnerability, MassDOT District 3'); north(ax); scalebar(ax, 20)
     finish(fig, ax, '1_district3_vulnerability.png')
 
@@ -76,7 +76,7 @@ def maps():
             ax.scatter([m.x], [m.y], s=650, marker='*', color='#1F4E79', edgecolor='white', linewidth=2, zorder=12)
             ax.annotate(marker[1], (m.x, m.y), xytext=(18, -34), textcoords='offset points', fontsize=15, color='#1F4E79', fontweight='bold', zorder=13,
                         bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=2))
-        ctx.add_basemap(ax, source=POS, zoom=min(zoom, 16), attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=min(zoom, 16), attribution=False, zorder=10)
+        ctx.add_basemap(ax, source=POS, zoom=min(zoom, 16), attribution='Basemap: Esri, HERE, Garmin, OpenStreetMap contributors', attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=min(zoom, 16), attribution=False, zorder=10)
         legend(ax, sub, title); north(ax); scalebar(ax, 0.2 if half_w_m < 1500 else 0.5)
         if card_rows: card(ax, 0.02, 0.97, card_rows[0], card_rows[1])
         finish(fig, ax, name)
@@ -125,7 +125,7 @@ def maps():
     for cat in CC:
         s = A[A.cat == cat]
         if len(s): ax.scatter(s.geometry.x, s.geometry.y, s=np.clip(s['pop'] / 3, 12, 400), color=CC[cat], alpha=0.85, edgecolor='white', linewidth=0.6, zorder=7)
-    ctx.add_basemap(ax, source=POS, zoom=13, attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=13, attribution=False, zorder=10)
+    ctx.add_basemap(ax, source=POS, zoom=13, attribution='Basemap: Esri, HERE, Garmin, OpenStreetMap contributors', attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=13, attribution=False, zorder=10)
     t_loc = (dt.datetime.strptime(C['storm_start'], '%Y-%m-%dT%H:%MZ') + dt.timedelta(hours=th[k]) - dt.timedelta(hours=4))
     h = [Line2D([0], [0], marker='o', color='w', markerfacecolor=CC[c_], markersize=14, label=f'{c_}  ({int(A[A.cat == c_]["pop"].sum()):,} people)') for c_ in CC if (A.cat == c_).any()]
     h.append(Line2D([0], [0], color='#1B2A33', lw=4, label=f'Road closed, 30 cm or more ({len(closed)} segments)'))
