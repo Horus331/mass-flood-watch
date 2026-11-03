@@ -1,0 +1,30 @@
+name: Slide images (static GIS maps from the ArcGIS layer and cascade output, live-site screenshots), run by hand
+on:
+  workflow_dispatch:
+    inputs:
+      what: {description: 'maps | site | both', default: 'both'}
+permissions:
+  contents: read
+jobs:
+  maps:
+    if: inputs.what != 'site'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: "tools\ndocs/proto/arcgis\ndocs/site/data/leominster_sep2023", sparse-checkout-cone-mode: true}
+      - run: pip install -q geopandas contextily matplotlib pandas numpy shapely pyogrio
+      - run: python tools/slide_shots.py maps
+      - uses: actions/upload-artifact@v4
+        with: {name: maps, path: shots}
+  site:
+    if: inputs.what != 'maps'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: tools, sparse-checkout-cone-mode: true}
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - run: python tools/slide_shots.py site
+      - uses: actions/upload-artifact@v4
+        with: {name: site, path: shots}
