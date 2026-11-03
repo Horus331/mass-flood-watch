@@ -229,5 +229,100 @@ def dpw():
     print('wrote 7; closed', len(shut), 'at risk', len(risk), 'impassable pieces', len(imp))
 
 
+def _depth_rgba(D, F, faint=1.0):
+    import numpy as np
+    from PIL import Image
+    from pyproj import Transformer
+    m = json.load(open(D + 'meta.json')); T = Transformer.from_crs(4326, 26986, always_xy=True)
+    cx, cy = zip(*[T.transform(*c) for c in m['corners']])
+    a = np.asarray(Image.open(D + m['depthc']['sheets'][F // 3]).convert('RGB'))[..., F % 3].astype(float); h = 3 * (a / 255) ** 2
+    stops = [(0.05, (158, 202, 225, .78)), (0.15, (107, 174, 214, .82)), (0.30, (33, 113, 181, .86)), (1.00, (8, 48, 107, .90))]
+    rgba = np.zeros(h.shape + (4,))
+    for i, (lo, c) in enumerate(stops):
+        hi = stops[i + 1][0] if i + 1 < len(stops) else 99; k = (h >= lo) & (h < hi)
+        rgba[k] = [c[0] / 255, c[1] / 255, c[2] / 255, c[3] * faint]
+    return rgba, (min(cx), max(cx), min(cy), max(cy))
+
+
+def detour():
+    """Exchange St / Kingman Dr / Constitution Dr / Granite St closure, Leominster Sept 11 2023 at 7:35 PM: the model's detour (proto/resilience.py
+    closure_detours on the live pack, computed into tools/slide_detour_exchange.json)."""
+    import numpy as np, geopandas as gpd, matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt, contextily as ctx
+    from matplotlib.lines import Line2D
+    from shapely.geometry import MultiLineString
+    plt.rcParams.update({'font.family': 'DejaVu Sans'})
+    J = json.load(open('tools/slide_detour_exchange.json'))
+    def gdf(parts_list): return gpd.GeoDataFrame(geometry=[MultiLineString(p) for p in parts_list], crs=4326).to_crs(26986)
+    DRY, WET, CLS, U, V = gdf(J['dry']), gdf(J['wet']), gdf(J['closed']), gdf([J['u_geo']]), gdf([J['v_geo']])
+    b = np.array([DRY.total_bounds, WET.total_bounds, CLS.total_bounds]); x0, y0 = b[:, 0].min(), b[:, 1].min(); x1, y1 = b[:, 2].max(), b[:, 3].max()
+    cx, cy = (x0 + x1) / 2 + 0.25 * (x1 - x0), (y0 + y1) / 2 + 0.16 * (y1 - y0); hw = max((x1 - x0) / 2 * 2.2, (y1 - y0) / 2 * 2.4 * W / H, 900); hh = hw * H / W
+    fig, ax = plt.subplots(figsize=(W, H)); ax.set_xlim(cx - hw, cx + hw); ax.set_ylim(cy - hh, cy + hh)
+    rgba, ext = _depth_rgba('docs/site/data/leominster_sep2023/', 91); ax.imshow(rgba, extent=ext, origin='upper', zorder=5, interpolation='bilinear')
+    CLS.plot(ax=ax, color='#1B2A33', linewidth=16, zorder=7); CLS.plot(ax=ax, color='#C62828', linewidth=12, zorder=8)
+    WET.plot(ax=ax, color='white', linewidth=10, zorder=9); WET.plot(ax=ax, color='#E8590C', linewidth=6, linestyle=(0, (2.2, 1.4)), zorder=10)
+    DRY.plot(ax=ax, color='white', linewidth=7, zorder=11); DRY.plot(ax=ax, color='#1F5FA8', linewidth=4.5, zorder=12)
+    ctx.add_basemap(ax, crs='EPSG:26986', source=EBASE, zoom=16, attribution='Basemap: Esri, HERE, Garmin, OpenStreetMap contributors', attribution_size=10)
+    ctx.add_basemap(ax, crs='EPSG:26986', source=EREF, zoom=16, attribution=False, zorder=13)
+    for G_, lab, col in ((U, 'A', '#1B2A33'), (V, 'B', '#1B2A33')):
+        pt = G_.geometry.iloc[0].interpolate(0.5, normalized=True)
+        ax.scatter([pt.x], [pt.y], s=1300, color=col, edgecolor='white', linewidth=3, zorder=20); ax.text(pt.x, pt.y, lab, color='white', fontsize=22, fontweight='bold', ha='center', va='center', zorder=21)
+    def lab_line(G_, text, col, frac, off):
+        geom = G_.geometry.union_all() if hasattr(G_.geometry, 'union_all') else G_.unary_union
+        from shapely.ops import linemerge
+        L = linemerge(geom) if geom.geom_type == 'MultiLineString' else geom
+        L = max(L.geoms, key=lambda g: g.length) if L.geom_type == 'MultiLineString' else L
+        pt = L.interpolate(frac, normalized=True)
+        ax.annotate(text, (pt.x, pt.y), xytext=off, textcoords='offset points', fontsize=20, fontweight='bold', color=col, zorder=25,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor=col, linewidth=2), arrowprops=dict(arrowstyle='-', color=col, lw=2))
+    lab_line(DRY, f"Normal (dry day): {J['dry_min']:.1f} min", '#1F5FA8', 0.5, (-430, -110))
+    lab_line(WET, f"Detour: {J['wet_min']:.1f} min", '#E8590C', 0.5, (110, 30))
+    ex = J['wet_min'] - J['dry_min']; vph = J['aadt'] / 24
+    box = (f"Extra time per trip:  {ex:.1f} min\n"
+           f"Daily traffic on the closed stretch:  {J['aadt']:,.0f} vehicles/day\n(MassDOT AADT, busiest segment = Kingman Dr)\n"
+           f"Vehicles per hour (flat daily profile):  {vph:,.0f}\n"
+           f"Delay:  {vph:,.0f} veh/h x {ex:.1f} min / 60 = {vph * ex / 60:,.1f} vehicle-hours per hour closed\n"
+           f"Stretch closed {J['hours_closed']:.1f} h in this run")
+    ax.text(0.012, 0.975, box, transform=ax.transAxes, fontsize=17, va='top', ha='left', zorder=30, linespacing=1.5,
+            bbox=dict(boxstyle='round,pad=0.7', facecolor='white', edgecolor='#C9D2D8', alpha=0.97))
+    h = [Line2D([0], [0], color='#C62828', lw=7, label='Closed stretch (30 cm or more): Exchange St, Kingman Dr, Constitution Dr, Granite St'),
+         Line2D([0], [0], color='#1F5FA8', lw=6, label='Normal route A to B (through the now-closed streets)'), Line2D([0], [0], color='#E8590C', lw=6, ls=(0, (2.2, 1.4)), label='Detour the model finds with roads over 30 cm closed'),
+         Line2D([0], [0], marker='s', color='w', markerfacecolor=(33/255, 113/255, 181/255), markersize=16, label='Modelled water depth, 7:35 PM')]
+    Lg = ax.legend(handles=h, loc='lower right', bbox_to_anchor=(0.996, 0.035), fontsize=16, framealpha=0.96, borderpad=0.8); Lg.get_frame().set_edgecolor('#C9D2D8')
+    ax.set_axis_off(); fig.subplots_adjust(0, 0, 1, 1); fig.savefig(f'{OUT}/8_detour_exchange_st_leominster.png', dpi=DPI); plt.close(fig); print('wrote 8')
+
+
+def services():
+    """All of District 3: road network, hospitals / fire / police the lost-access step uses (docs/network/facilities.json, OpenStreetMap),
+    faint Leominster Sept 2023 peak depth. No title (background image)."""
+    import numpy as np, geopandas as gpd, matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt, contextily as ctx
+    from matplotlib.lines import Line2D
+    G = gpd.read_file('zip://docs/proto/arcgis/d3_road_flood_vulnerability_shp.zip')
+    hull = (G.geometry.union_all() if hasattr(G.geometry, 'union_all') else G.unary_union).convex_hull
+    F = json.load(open('docs/network/facilities.json'))['facilities']
+    pts = {}
+    for k in ('hospital', 'fire_station', 'police'):
+        P = gpd.GeoDataFrame(geometry=gpd.points_from_xy([r[0] for r in F[k]], [r[1] for r in F[k]]), crs=4326).to_crs(26986)
+        keep = [len(G.sindex.query(p.buffer(300), predicate='intersects')) > 0 for p in P.geometry]; pts[k] = P[keep]
+    fig, ax = plt.subplots(figsize=(W, H)); x0, y0, x1, y1 = G.total_bounds
+    cc = G.geometry.centroid; bx = [cc.x.quantile(.002), cc.y.quantile(.002), cc.x.quantile(.998), cc.y.quantile(.998)]
+    cx, cy = (bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2; hw = max((bx[2] - bx[0]) / 2, (bx[3] - bx[1]) / 2 * W / H) * 1.1; hh = hw * H / W
+    ax.set_xlim(cx - hw, cx + hw); ax.set_ylim(cy - hh, cy + hh)
+    G.plot(ax=ax, color='#9AA3AB', linewidth=0.35, zorder=4)
+    rgba, ext = _depth_rgba('docs/site/data/leominster_sep2023/', 91, faint=0.55); ax.imshow(rgba, extent=ext, origin='upper', zorder=5, interpolation='bilinear')
+    st = {'hospital': ('#C62828', 'Hospitals', 95), 'fire_station': ('#F08C00', 'Fire stations', 32), 'police': ('#1F5FA8', 'Police stations', 32)}
+    for k in ('fire_station', 'police', 'hospital'):
+        c, _, sz = st[k]; ax.scatter(pts[k].geometry.x, pts[k].geometry.y, s=sz, color=c, edgecolor='white', linewidth=0.8, zorder=7 + (k == 'hospital'))
+    ctx.add_basemap(ax, crs='EPSG:26986', source=EBASE, zoom=10, attribution='Basemap: Esri, HERE, Garmin, OpenStreetMap contributors · facilities: OpenStreetMap', attribution_size=10)
+    h = [Line2D([0], [0], marker='o', color='w', markerfacecolor=st[k][0], markersize=14 if k == 'hospital' else 11, label=f'{st[k][1]} ({len(pts[k])})') for k in ('hospital', 'fire_station', 'police')]
+    h.append(Line2D([0], [0], color='#9AA3AB', lw=2, label='District 3 roads (48,945 segments)'))
+    Lg = ax.legend(handles=h, loc='lower left', bbox_to_anchor=(0.004, 0.035), fontsize=16, framealpha=0.95, borderpad=0.8); Lg.get_frame().set_edgecolor('#C9D2D8')
+    ax.set_axis_off(); fig.subplots_adjust(0, 0, 1, 1); fig.savefig(f'{OUT}/9_district3_services_background.png', dpi=DPI); plt.close(fig)
+    print('wrote 9; counts', {k: len(v) for k, v in pts.items()})
+
+
 if __name__ == '__main__':
-    {'maps': maps, 'site': site, 'dpw': dpw}[sys.argv[1]]()
+    {'maps': maps, 'site': site, 'dpw': dpw, 'detour': detour, 'services': services}[sys.argv[1]]()
