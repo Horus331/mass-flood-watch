@@ -330,7 +330,7 @@ def live():
     import asyncio
     from playwright.async_api import async_playwright
     BASE = 'https://horus331.github.io/mass-flood-watch/viewer.html'
-    HIDE = ('#card,#fabs,section.player,#fplayer,#story,#toast,#place,#hsheet,#loading,#tourLink,.maplibregl-ctrl-top-left,'
+    HIDE = ('#sideToggle,.maplibregl-popup,#card,#fabs,section.player,#fplayer,#story,#toast,#place,#hsheet,#loading,#tourLink,.maplibregl-ctrl-top-left,'
             '.maplibregl-ctrl-top-right,.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group{display:none !important}'
             '.mfw-box{position:absolute;z-index:50;background:rgba(255,255,255,.97);border:1.5px solid #1B2A33;border-radius:10px;padding:10px 14px;'
             'font:600 17px/1.4 Overpass,system-ui,sans-serif;color:#1B2A33;box-shadow:0 2px 10px rgba(0,0,0,.18);white-space:pre;pointer-events:none}'
