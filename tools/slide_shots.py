@@ -373,7 +373,7 @@ def live():
                    dict(n='2', lon=-71.73814, lat=42.51078, col='#1B2A33', pos='right:24px;top:640px', txt='Lancaster St (Rte 117) @ Malburn St\nCaught: 1.07 m peak, over 30 cm for 9.3 h\nDPW: closed 1 week'),
                    dict(n='3', lon=-71.75831, lat=42.52616, col='#5B6770', pos='left:24px;top:110px', txt='Mechanic St @ Manning Ave\nMechanic St itself: 0.07 m (miss)\nWater St, 44 m away: 1.55 m (flagged)\nDPW: closed 1 week'),
                    dict(n='4', lon=-71.74024, lat=42.54048, col='#8A1C1C', pos='right:24px;top:330px', txt='Hamilton St near Main St\nMissed: 0.13 m; blocked by debris from a\nrailroad-embankment washout, not water\nDPW: closed 1 week')])
-            await settle(pg); await pg.screenshot(path=f'{OUT}/7_live_leominster_model_vs_dpw.png'); print('wrote 7'); await pg.close()
+            await settle(pg); await pg.screenshot(path=f'{OUT}/7_live_leominster_model_vs_dpw.png', timeout=240000); print('wrote 7'); await pg.close()
             # 2. detour example, Exchange St stretch
             pg = await page(b, '?run=leominster_sep2023&t=91&debug=1')
             ex = J['wet_min'] - J['dry_min']; vph = J['aadt'] / 24
@@ -403,7 +403,7 @@ def live():
                             f"Vehicles per hour (flat daily profile):  {vph:,.0f}\n"
                             f"Delay:  {vph:,.0f} veh/h × {ex:.1f} min ÷ 60 = {vph * ex / 60:,.1f} vehicle-hours per hour closed\n"
                             f"Stretch closed {J['hours_closed']:.1f} h in this run")))
-            await settle(pg); await pg.screenshot(path=f'{OUT}/8_live_detour_exchange_st.png'); print('wrote 8'); await pg.close()
+            await settle(pg); await pg.screenshot(path=f'{OUT}/8_live_detour_exchange_st.png', timeout=240000); print('wrote 8'); await pg.close()
             # 3. District 3 with every hospital / fire / police the lost-access step uses
             pg = await page(b, '?run=d3_sep2023&t=54&debug=1')
             await pg.add_style_tag(content='#legend{display:none !important}')
@@ -417,7 +417,7 @@ def live():
               lg.innerHTML = '<div>' + dot('#C62828', 18) + 'Hospitals (' + A.n.hospital + ')</div><div>' + dot('#F08C00', 13) + 'Fire stations (' + A.n.fire_station + ')</div><div>' + dot('#1F5FA8', 13) + 'Police stations (' + A.n.police + ')</div>';
               document.body.appendChild(lg);
             }""", dict(fac=FAC, n=CNT))
-            await settle(pg, 30000); await pg.screenshot(path=f'{OUT}/9_live_district3_services.png'); print('wrote 9'); await pg.close()
+            await settle(pg, 45000); await pg.screenshot(path=f'{OUT}/9_live_district3_services.png', timeout=300000); print('wrote 9'); await pg.close()
             await b.close()
     asyncio.run(run())
 

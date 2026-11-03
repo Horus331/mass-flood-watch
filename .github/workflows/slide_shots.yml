@@ -42,6 +42,7 @@ jobs:
       - run: pip install -q geopandas contextily matplotlib pandas numpy shapely pyogrio pillow pyproj playwright && python -m playwright install --with-deps chromium
       - run: if [ "${{ inputs.what }}" = live ]; then python tools/slide_shots.py live; exit 0; fi; if [ "${{ inputs.what }}" = extra ]; then python tools/slide_shots.py detour && python tools/slide_shots.py services; else python tools/slide_shots.py dpw; fi
       - name: push the image to branch slide-dpw
+        if: always()
         run: |
           cd shots && git init -q -b slide-dpw && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "slide image (dpw)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:slide-dpw
