@@ -40,7 +40,7 @@ def maps():
 
     def legend(ax, g, title, loc='lower right'):
         n = g.vuln.value_counts()
-        h = [Line2D([0], [0], color=COL[v], lw=LW[v] * 2 + 1, label=f'{v}  ({n.get(v, 0):,} segments)') for v in ('High', 'Medium', 'Low')]
+        h = [Line2D([0], [0], color=COL[v], lw=LW[v] * 2 + 1, label=f'{v}  ({n.get(v, 0):,} segment{"" if n.get(v, 0) == 1 else "s"})') for v in ('High', 'Medium', 'Low')]
         L = ax.legend(handles=h, title=title, loc=loc, fontsize=15, title_fontsize=16, frameon=True, framealpha=0.95, borderpad=0.9)
         L.get_frame().set_edgecolor('#C9D2D8')
 
@@ -56,8 +56,8 @@ def maps():
                 bbox=dict(boxstyle='round,pad=0.8', facecolor='white', edgecolor='#C9D2D8', alpha=0.97))
 
     # 1. all of District 3
-    fig, ax = plt.subplots(figsize=(W, H)); b = G.total_bounds
-    cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2; hw = max((b[2] - b[0]) / 2, (b[3] - b[1]) / 2 * W / H) * 1.04
+    fig, ax = plt.subplots(figsize=(W, H)); cc = G.geometry.centroid; b = [cc.x.quantile(.002), cc.y.quantile(.002), cc.x.quantile(.998), cc.y.quantile(.998)]
+    cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2; hw = max((b[2] - b[0]) / 2, (b[3] - b[1]) / 2 * W / H) * 1.12
     frame(ax, cx, cy, hw); draw(ax, G)
     ctx.add_basemap(ax, source=POS, zoom=10, attribution='Basemap: Esri, HERE, Garmin, OpenStreetMap contributors', attribution_size=9); ctx.add_basemap(ax, source=REF, zoom=10, attribution=False, zorder=10)
     legend(ax, G, 'Flood vulnerability, MassDOT District 3'); north(ax); scalebar(ax, 20)
@@ -70,7 +70,10 @@ def maps():
         draw(ax, sub, 2.4)
         if sid is not None:
             s = G[G.seg_id == sid]
-            s.plot(ax=ax, color='white', linewidth=13, zorder=8); s.plot(ax=ax, color=COL[s.vuln.iloc[0]], linewidth=8, zorder=9)
+            s.plot(ax=ax, color='#1B2A33', linewidth=16, zorder=8); s.plot(ax=ax, color=COL[s.vuln.iloc[0]], linewidth=9, zorder=9)
+            e = s.geometry.iloc[0].interpolate(0.5, normalized=True)
+            ax.annotate('this segment', (e.x, e.y), xytext=(60, 40), textcoords='offset points', fontsize=16, fontweight='bold', color='#1B2A33', zorder=14,
+                        arrowprops=dict(arrowstyle='->', color='#1B2A33', lw=2.5), bbox=dict(facecolor='white', edgecolor='#1B2A33', pad=3))
         if marker:
             m = gpd.GeoSeries([Point(*marker[0])], crs=4326).to_crs(3857)[0]
             ax.scatter([m.x], [m.y], s=650, marker='*', color='#1F4E79', edgecolor='white', linewidth=2, zorder=12)
@@ -112,9 +115,9 @@ def maps():
     import pandas as pd
     A = pd.DataFrame(rows, columns=['lon', 'lat', 'pop', 'mask', 'h', 'iv'])
     A = gpd.GeoDataFrame(A, geometry=gpd.points_from_xy(A.lon, A.lat), crs=4326).to_crs(3857)
-    A['cat'] = np.where(A['mask'] & 8, 'Cut off from all three', np.where((A['mask'] & 7) == 7, 'Lose hospital, fire and police reach',
+    A['cat'] = np.where(A['mask'] & 8, 'Isolated: no open road to any service', np.where((A['mask'] & 7) == 7, 'Lose hospital, fire and police reach',
                 np.where(A['mask'] & 2, 'Lose fire-station reach (8 min)', 'Lose hospital (30 min) or police (10 min) reach')))
-    CC = {'Cut off from all three': '#7B1E1E', 'Lose hospital, fire and police reach': '#C62828', 'Lose fire-station reach (8 min)': '#F08C00',
+    CC = {'Isolated: no open road to any service': '#7B1E1E', 'Lose hospital, fire and police reach': '#C62828', 'Lose fire-station reach (8 min)': '#F08C00',
           'Lose hospital (30 min) or police (10 min) reach': '#E8B33A'}
     R = json.load(open('docs/site/data/leominster_sep2023/roads.json'))['features']
     vf = int(round(th[k] * 60 / 5)); closed = [f for f in R if len(f['properties'].get('d', [])) > vf and f['properties']['d'][vf] >= 30]
