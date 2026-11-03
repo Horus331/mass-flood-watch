@@ -324,5 +324,103 @@ def services():
     print('wrote 9; counts', {k: len(v) for k, v in pts.items()})
 
 
+def live():
+    """The same three slide images taken from the live site itself (real map, real layers); slide marks are drawn on top at screenshot time
+    only (markers, route lines, text boxes), nothing is added to the site."""
+    import asyncio
+    from playwright.async_api import async_playwright
+    BASE = 'https://horus331.github.io/mass-flood-watch/viewer.html'
+    HIDE = ('#card,#fabs,section.player,#fplayer,#story,#toast,#place,#hsheet,#loading,#tourLink,.maplibregl-ctrl-top-left,'
+            '.maplibregl-ctrl-top-right,.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group{display:none !important}'
+            '.mfw-box{position:absolute;z-index:50;background:rgba(255,255,255,.97);border:1.5px solid #1B2A33;border-radius:10px;padding:10px 14px;'
+            'font:600 17px/1.4 Overpass,system-ui,sans-serif;color:#1B2A33;box-shadow:0 2px 10px rgba(0,0,0,.18);white-space:pre;pointer-events:none}'
+            '.mfw-pin{width:42px;height:42px;border-radius:50%;border:3px solid #fff;color:#fff;font:800 22px/36px Overpass,system-ui,sans-serif;'
+            'text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.35)}')
+    J = json.load(open('tools/slide_detour_exchange.json'))
+    def ml(parts_list): return {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'properties': {}, 'geometry': {'type': 'MultiLineString', 'coordinates': p}} for p in parts_list]}
+    import geopandas as gpd
+    G = gpd.read_file('zip://docs/proto/arcgis/d3_road_flood_vulnerability_shp.zip')
+    F = json.load(open('docs/network/facilities.json'))['facilities']; FAC = []; CNT = {}
+    for k in ('hospital', 'fire_station', 'police'):
+        P = gpd.GeoDataFrame({'i': range(len(F[k]))}, geometry=gpd.points_from_xy([r[0] for r in F[k]], [r[1] for r in F[k]]), crs=4326).to_crs(26986)
+        keep = [len(G.sindex.query(p.buffer(300), predicate='intersects')) > 0 for p in P.geometry]; CNT[k] = int(sum(keep))
+        FAC += [{'type': 'Feature', 'properties': {'k': k}, 'geometry': {'type': 'Point', 'coordinates': F[k][i][:2]}} for i, ok in enumerate(keep) if ok]
+    print('facility counts', CNT)
+
+    async def page(b, url):
+        pg = await b.new_page(viewport={'width': 1920, 'height': 1080}, device_scale_factor=2)
+        await pg.goto(BASE + url, wait_until='load'); await pg.wait_for_timeout(9000)
+        await pg.evaluate("var r=document.getElementById('lyRain'); if(r&&r.checked) r.click()")
+        await pg.add_style_tag(content=HIDE); await pg.mouse.move(1919, 1079)
+        return pg
+
+    async def settle(pg, ms=20000):
+        await pg.wait_for_timeout(ms)
+
+    async def run():
+        async with async_playwright() as p:
+            b = await p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+            # 1. Leominster peak vs the 4 DPW-confirmed closures
+            pg = await page(b, '?run=leominster_sep2023&t=91&debug=1')
+            await pg.evaluate("""(S) => { const m = window.__mfwApp.map();
+              m.fitBounds([[-71.7745, 42.5040], [-71.7310, 42.5440]], {padding: {top: 120, bottom: 60, left: 520, right: 520}, duration: 0});
+              S.forEach(s => { const el = document.createElement('div'); el.className = 'mfw-pin'; el.style.background = s.col; el.textContent = s.n;
+                new maplibregl.Marker({element: el}).setLngLat([s.lon, s.lat]).addTo(m); });
+              const cap = document.createElement('div'); cap.className = 'mfw-box'; cap.style.cssText += 'left:24px;top:20px;font-size:26px;font-weight:800';
+              cap.textContent = 'Leominster, Sept 11, 2023, 7:35 PM — model vs. DPW-confirmed closures'; document.body.appendChild(cap);
+              S.forEach(s => { const bx = document.createElement('div'); bx.className = 'mfw-box'; bx.style.cssText += s.pos; bx.textContent = s.n + '  ' + s.txt; document.body.appendChild(bx); });
+            }""", [dict(n='1', lon=-71.76727, lat=42.52065, col='#1B2A33', pos='left:24px;top:470px', txt='Pleasant St @ Colburn St\nCaught: 0.79 m peak, over 30 cm for 3.7 h\nDPW: closed 2 weeks'),
+                   dict(n='2', lon=-71.73814, lat=42.51078, col='#1B2A33', pos='right:24px;top:640px', txt='Lancaster St (Rte 117) @ Malburn St\nCaught: 1.07 m peak, over 30 cm for 9.3 h\nDPW: closed 1 week'),
+                   dict(n='3', lon=-71.75831, lat=42.52616, col='#5B6770', pos='left:24px;top:110px', txt='Mechanic St @ Manning Ave\nMechanic St itself: 0.07 m (miss)\nWater St, 44 m away: 1.55 m (flagged)\nDPW: closed 1 week'),
+                   dict(n='4', lon=-71.74024, lat=42.54048, col='#8A1C1C', pos='right:24px;top:330px', txt='Hamilton St near Main St\nMissed: 0.13 m; blocked by debris from a\nrailroad-embankment washout, not water\nDPW: closed 1 week')])
+            await settle(pg); await pg.screenshot(path=f'{OUT}/7_live_leominster_model_vs_dpw.png'); print('wrote 7'); await pg.close()
+            # 2. detour example, Exchange St stretch
+            pg = await page(b, '?run=leominster_sep2023&t=91&debug=1')
+            ex = J['wet_min'] - J['dry_min']; vph = J['aadt'] / 24
+            await pg.evaluate("""(A) => { const m = window.__mfwApp.map();
+              m.addSource('x-cls', {type: 'geojson', data: A.cls}); m.addSource('x-dry', {type: 'geojson', data: A.dry}); m.addSource('x-wet', {type: 'geojson', data: A.wet});
+              m.addLayer({id: 'x-cls-c', type: 'line', source: 'x-cls', layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#1B2A33', 'line-width': 15}});
+              m.addLayer({id: 'x-cls', type: 'line', source: 'x-cls', layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#C62828', 'line-width': 10}});
+              m.addLayer({id: 'x-wet-c', type: 'line', source: 'x-wet', layout: {'line-join': 'round'}, paint: {'line-color': '#fff', 'line-width': 10}});
+              m.addLayer({id: 'x-wet', type: 'line', source: 'x-wet', layout: {'line-join': 'round'}, paint: {'line-color': '#E8590C', 'line-width': 6, 'line-dasharray': [2, 1.4]}});
+              m.addLayer({id: 'x-dry-c', type: 'line', source: 'x-dry', layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#fff', 'line-width': 7}});
+              m.addLayer({id: 'x-dry', type: 'line', source: 'x-dry', layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#1F5FA8', 'line-width': 4.5}});
+              const xs = [], ys = []; [A.cls, A.dry, A.wet].forEach(fc => fc.features.forEach(f => f.geometry.coordinates.forEach(l => l.forEach(c => { xs.push(c[0]); ys.push(c[1]); }))));
+              m.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], {padding: {top: 300, bottom: 260, left: 560, right: 420}, duration: 0});
+              [['A', A.a], ['B', A.b]].forEach(([t, c]) => { const el = document.createElement('div'); el.className = 'mfw-pin'; el.style.background = '#1B2A33'; el.textContent = t;
+                new maplibregl.Marker({element: el}).setLngLat(c).addTo(m); });
+              const box = document.createElement('div'); box.className = 'mfw-box'; box.style.cssText += 'left:24px;top:20px'; box.textContent = A.box; document.body.appendChild(box);
+              const lg = document.createElement('div'); lg.className = 'mfw-box'; lg.style.cssText += 'left:24px;bottom:24px;white-space:normal;width:560px';
+              lg.innerHTML = '<div><span style="display:inline-block;width:40px;height:9px;background:#C62828;border:2px solid #1B2A33;vertical-align:middle;margin-right:10px"></span>Closed stretch (30 cm or more): Exchange St, Kingman Dr, Constitution Dr, Granite St</div>' +
+                '<div><span style="display:inline-block;width:40px;height:5px;background:#1F5FA8;vertical-align:middle;margin-right:10px"></span>Normal route A to B: ' + A.dmin + ' min (through the now-closed streets)</div>' +
+                '<div><span style="display:inline-block;width:40px;border-top:5px dashed #E8590C;vertical-align:middle;margin-right:10px"></span>Detour the model finds with roads over 30 cm closed: ' + A.wmin + ' min</div>';
+              document.body.appendChild(lg);
+            }""", dict(cls=ml(J['closed']), dry=ml(J['dry']), wet=ml(J['wet']),
+                       a=J['u_geo'][0][len(J['u_geo'][0]) // 2], b=J['v_geo'][0][len(J['v_geo'][0]) // 2], dmin=f"{J['dry_min']:.1f}", wmin=f"{J['wet_min']:.1f}",
+                       box=(f"Leominster, Sept 11, 2023, 7:35 PM: detour around a closed stretch\n"
+                            f"Extra time per trip:  {ex:.1f} min  ({J['dry_min']:.1f} → {J['wet_min']:.1f} min)\n"
+                            f"Daily traffic on the closed stretch:  {J['aadt']:,.0f} vehicles/day (MassDOT AADT, Kingman Dr)\n"
+                            f"Vehicles per hour (flat daily profile):  {vph:,.0f}\n"
+                            f"Delay:  {vph:,.0f} veh/h × {ex:.1f} min ÷ 60 = {vph * ex / 60:,.1f} vehicle-hours per hour closed\n"
+                            f"Stretch closed {J['hours_closed']:.1f} h in this run")))
+            await settle(pg); await pg.screenshot(path=f'{OUT}/8_live_detour_exchange_st.png'); print('wrote 8'); await pg.close()
+            # 3. District 3 with every hospital / fire / police the lost-access step uses
+            pg = await page(b, '?run=d3_sep2023&t=54&debug=1')
+            await pg.add_style_tag(content='#legend{display:none !important}')
+            await pg.evaluate("""(A) => { const m = window.__mfwApp.map();
+              m.addSource('x-fac', {type: 'geojson', data: {type: 'FeatureCollection', features: A.fac}});
+              m.addLayer({id: 'x-fac', type: 'circle', source: 'x-fac', paint: {'circle-radius': ['match', ['get', 'k'], 'hospital', 8, 5],
+                'circle-color': ['match', ['get', 'k'], 'hospital', '#C62828', 'fire_station', '#F08C00', '#1F5FA8'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
+              m.fitBounds([[-72.37, 41.95], [-71.42, 42.76]], {padding: 40, duration: 0});
+              const lg = document.createElement('div'); lg.className = 'mfw-box'; lg.style.cssText += 'left:24px;bottom:24px;white-space:normal';
+              const dot = (c, s) => '<span style="display:inline-block;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:' + c + ';border:2px solid #fff;box-shadow:0 0 0 1px #aaa;vertical-align:middle;margin-right:10px"></span>';
+              lg.innerHTML = '<div>' + dot('#C62828', 18) + 'Hospitals (' + A.n.hospital + ')</div><div>' + dot('#F08C00', 13) + 'Fire stations (' + A.n.fire_station + ')</div><div>' + dot('#1F5FA8', 13) + 'Police stations (' + A.n.police + ')</div>';
+              document.body.appendChild(lg);
+            }""", dict(fac=FAC, n=CNT))
+            await settle(pg, 30000); await pg.screenshot(path=f'{OUT}/9_live_district3_services.png'); print('wrote 9'); await pg.close()
+            await b.close()
+    asyncio.run(run())
+
+
 if __name__ == '__main__':
-    {'maps': maps, 'site': site, 'dpw': dpw, 'detour': detour, 'services': services}[sys.argv[1]]()
+    {'maps': maps, 'site': site, 'dpw': dpw, 'detour': detour, 'services': services, 'live': live}[sys.argv[1]]()
