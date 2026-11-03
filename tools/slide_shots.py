@@ -224,7 +224,7 @@ def dpw():
            Line2D([0], [0], color='#E8590C', lw=5, label='Road closed (30 cm +)'), Line2D([0], [0], color='#F0A202', lw=5, label='Road at risk (15–30 cm)'),
            Line2D([0], [0], color='#C62828', lw=5, label='Impassable stretch'),
            Line2D([0], [0], marker='o', color='w', markerfacecolor='#1B2A33', markersize=20, label='DPW-confirmed closure (numbered)')]
-    L = ax.legend(handles=hnd, loc='lower left', fontsize=16, ncol=2, framealpha=0.96, borderpad=0.8, columnspacing=1.4); L.get_frame().set_edgecolor('#C9D2D8')
+    L = ax.legend(handles=hnd, loc='lower left', bbox_to_anchor=(0.004, 0.035), fontsize=16, ncol=2, framealpha=0.96, borderpad=0.8, columnspacing=1.4); L.get_frame().set_edgecolor('#C9D2D8')
     ax.set_axis_off(); fig.subplots_adjust(0, 0, 1, 1); fig.savefig(f'{OUT}/7_leominster_model_vs_dpw_closures.png', dpi=DPI); plt.close(fig)
     print('wrote 7; closed', len(shut), 'at risk', len(risk), 'impassable pieces', len(imp))
 
