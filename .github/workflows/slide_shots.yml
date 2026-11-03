@@ -2,7 +2,7 @@ name: Slide images (static GIS maps from the ArcGIS layer and cascade output, li
 on:
   workflow_dispatch:
     inputs:
-      what: {description: 'maps | site | both | dpw | extra', default: 'both'}
+      what: {description: 'maps | site | both | dpw | extra | live', default: 'both'}
 permissions:
   contents: write
 jobs:
@@ -33,14 +33,14 @@ jobs:
           cd shots && git init -q -b slide-site && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "slide images (site)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:slide-site
   dpw:
-    if: inputs.what == 'dpw' || inputs.what == 'extra'
+    if: inputs.what == 'dpw' || inputs.what == 'extra' || inputs.what == 'live'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with: {sparse-checkout: "tools\ndocs/site/data/leominster_sep2023\ndocs/proto/arcgis\ndocs/network", sparse-checkout-cone-mode: true}
-      - run: pip install -q geopandas contextily matplotlib pandas numpy shapely pyogrio pillow pyproj
-      - run: if [ "${{ inputs.what }}" = extra ]; then python tools/slide_shots.py detour && python tools/slide_shots.py services; else python tools/slide_shots.py dpw; fi
+      - run: pip install -q geopandas contextily matplotlib pandas numpy shapely pyogrio pillow pyproj playwright && python -m playwright install --with-deps chromium
+      - run: if [ "${{ inputs.what }}" = live ]; then python tools/slide_shots.py live; exit 0; fi; if [ "${{ inputs.what }}" = extra ]; then python tools/slide_shots.py detour && python tools/slide_shots.py services; else python tools/slide_shots.py dpw; fi
       - name: push the image to branch slide-dpw
         run: |
           cd shots && git init -q -b slide-dpw && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "slide image (dpw)"
