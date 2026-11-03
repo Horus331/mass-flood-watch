@@ -1,0 +1,29 @@
+name: Daily archive (ECMWF open-data rain forecasts, NWM short-range streamflow at the crossings) for District 3
+# Replaces the Colab 'daily saver' (it needed Google Drive and the laptop). proto/archive_daily.py; the Hugging Face dataset is the
+# archive and the state, so missed runs are caught up by the next one (ECMWF keeps ~2-3 days, NWM short range ~2 days on AWS).
+# The MassDOT events log (events_log.yml) and REFS / SPoRT-LIS (archive_feeds.yml) already run on their own schedules.
+on:
+  schedule:
+    - cron: '35 9,21 * * *'
+  workflow_dispatch:
+    inputs:
+      what: {description: 'ecmwf | nwm | all', default: 'all'}
+      dry: {description: 'do not upload', type: boolean, default: false}
+permissions:
+  contents: read
+concurrency:
+  group: archive-daily
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: "proto\ndocs/proto/live", sparse-checkout-cone-mode: true}
+      - run: pip install -q numpy pyproj requests netCDF4 huggingface_hub ecmwf-opendata xarray cfgrib eccodes
+      - name: archive -> HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PYTHONUNBUFFERED: "1"
+        run: python proto/archive_daily.py "${{ inputs.what || 'all' }}" ${{ inputs.dry && '--dry' || '' }}
