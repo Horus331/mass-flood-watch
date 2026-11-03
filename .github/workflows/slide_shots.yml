@@ -2,12 +2,12 @@ name: Slide images (static GIS maps from the ArcGIS layer and cascade output, li
 on:
   workflow_dispatch:
     inputs:
-      what: {description: 'maps | site | both', default: 'both'}
+      what: {description: 'maps | site | both | dpw', default: 'both'}
 permissions:
   contents: write
 jobs:
   maps:
-    if: inputs.what != 'site'
+    if: inputs.what == 'maps' || inputs.what == 'both'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -20,7 +20,7 @@ jobs:
           cd shots && git init -q -b slide-maps && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "slide images (maps)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:slide-maps
   site:
-    if: inputs.what != 'maps'
+    if: inputs.what == 'site' || inputs.what == 'both'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -32,3 +32,16 @@ jobs:
         run: |
           cd shots && git init -q -b slide-site && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "slide images (site)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:slide-site
+  dpw:
+    if: inputs.what == 'dpw'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: "tools\ndocs/site/data/leominster_sep2023", sparse-checkout-cone-mode: true}
+      - run: pip install -q geopandas contextily matplotlib pandas numpy shapely pyogrio pillow pyproj
+      - run: python tools/slide_shots.py dpw
+      - name: push the image to branch slide-dpw
+        run: |
+          cd shots && git init -q -b slide-dpw && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "slide image (dpw)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:slide-dpw
