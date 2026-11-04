@@ -3771,7 +3771,7 @@
         else {
           map.addSource('wk', { type: 'geojson', data: g }); map.addSource('wk-l', { type: 'geojson', data: pts });
           var before = map.getLayer('mnet') ? 'mnet' : undefined;
-          map.addLayer({ id: 'wk-fill', type: 'fill', source: 'wk', paint: { 'fill-color': ['step', ['get', 'mm'], 'rgba(0,0,0,0)', 1, '#E9E4F7', 5, '#CFC4EE', 10, '#A996E0', 25, '#7D63C9', 40, '#5236A3'], 'fill-opacity': 0.62 } }, before);
+          map.addLayer({ id: 'wk-fill', type: 'fill', source: 'wk', paint: { 'fill-color': ['interpolate', ['linear'], ['get', 'mm'], 0, 'rgba(238,234,248,0)', 1, '#EEEAF8', 10, '#BDB0E8', 20, '#8E76D4', 30, '#6347B6', 50, '#3B1F7A'], 'fill-opacity': 0.7 } }, before);
           map.addLayer({ id: 'wk-line', type: 'line', source: 'wk', paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.8 } }, before);
           map.addLayer({ id: 'wk-lab', type: 'symbol', source: 'wk-l', filter: ['>=', ['get', 'mm'], 5], layout: { 'text-field': ['get', 't'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'symbol-sort-key': ['-', 0, ['get', 'mm']] },
             paint: { 'text-color': '#2B1D5C', 'text-halo-color': 'rgba(255,255,255,.95)', 'text-halo-width': 1.6 } });
@@ -3779,7 +3779,7 @@
         var cap = $('wkCap'); if (!cap) { cap = document.createElement('div'); cap.id = 'wkCap'; cap.className = 'wk-cap'; $('map').appendChild(cap); }
         var lab = d.label || d.date;
         cap.innerHTML = '<b>Rain forecast, ' + esc(lab) + '</b> · total for the day by town (NOAA NBM)' + (mx >= 1 ? ' · wettest: ' + esc(top) + ' ' + Math.round(mx) + ' mm' : ' · dry') +
-          '<span class="wk-k"><i style="background:#E9E4F7"></i>1<i style="background:#CFC4EE"></i>5<i style="background:#A996E0"></i>10<i style="background:#7D63C9"></i>25<i style="background:#5236A3"></i>40 mm</span>';
+          '<span class="wk-k"><i style="background:#EEEAF8"></i>1<i style="background:#BDB0E8"></i>10<i style="background:#8E76D4"></i>20<i style="background:#6347B6"></i>30<i style="background:#3B1F7A"></i>50 mm</span>';
       });
     }).catch(function (e) { console.warn('towns', e); });
   }
