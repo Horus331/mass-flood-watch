@@ -297,7 +297,8 @@ def day_hourly2(d, H):
         jx = [i for i, t in enumerate(T) if e - dt.timedelta(hours=24) < t <= e]
         if len(jx) < 20 or np.isnan(M[:, jx]).all(): cum.append(None); continue
         cum.append(round(float(np.nanmax(np.nansum(M[:, jx], axis=1))), 1))
-    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1), pop=pop, cum24=cum)
+    return dict(cols=out, mean_mm=round(float(np.nanmean(tot)), 1), town_max_mm=round(float(np.nanmax(tot)), 1), pop=pop, cum24=cum,
+                town_mm=[None if np.isnan(v) else round(float(v), 1) for v in tot])   # per town, order of outlook['towns'] (the Forecast map)
 
 
 # ------------------------------------------------------------------ WPC Excessive Rainfall Outlook
@@ -607,7 +608,7 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
                if os.environ.get('GITHUB_RUN_ID') and os.environ.get('GITHUB_REPOSITORY') else None)
     out = dict(schema=SCHEMA, issued=iso(now), tz=TZ, headline=headline,
                thresholds=dict(max6h_mm=GATE_6H_MM, max24h_mm=GATE_24H_MM, rain_day_mm=RAIN_MM, light_mm=LIGHT_MM, basis='docs/proto/forecast/GATE.md'),
-               days=days, storms=storms, alerts=(al.get('alerts') or [])[:20],
+               days=days, storms=storms, alerts=(al.get('alerts') or [])[:20], towns=((raw or {}).get('hourly') or {}).get('towns'),
                sources=dict(rain={k: v for k, v in rain.items() if not k.startswith('_') and k != 'buckets'},
                             ero={k: v for k, v in ero.items() if k != 'days'} | dict(days=[{k: v for k, v in x.items() if k != 'towns'} for x in ero.get('days') or []]),
                             alerts={k: v for k, v in al.items() if k != 'alerts'},
