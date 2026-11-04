@@ -1,0 +1,60 @@
+name: Keeper (re-runs the live feeds and the forecast when GitHub's schedule skips them)
+# GitHub delays or drops scheduled runs (on 3 Nov the hourly live feeds ran 4 times in 13 hours). This job stays up ~5 h 45 min, checks
+# every 5 minutes, and starts by hand (workflow_dispatch, which GitHub always honours) whatever is overdue:
+#   live_feeds.yml   no run started in the last 55 min
+#   forecast.yml     no run started in the last 60 min (its 'due' job skips the run when the newest HRRR cycle is already published)
+#   events_log.yml   no run started in the last 20 min
+#   refresh.yml      no run started in the last 6 h 10 min
+# Then it starts its own next run, so the chain does not depend on the schedule; the cron entries below only restart a broken chain.
+on:
+  schedule:
+    - cron: '3 */3 * * *'
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: keeper
+  cancel-in-progress: false
+jobs:
+  keep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: watch and re-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, time, datetime as dt
+          R = os.environ['REPO']; me = int(os.environ['RUN_ID'])
+          def gh(*a):
+              p = subprocess.run(['gh', *a, '-R', R] if a[0] in ('run', 'workflow') else ['gh', *a], capture_output=True, text=True)
+              return p.stdout
+          def runs(wf):
+              out = gh('run', 'list', '-w', wf, '-L', '5', '--json', 'databaseId,status,createdAt')
+              try: return json.loads(out or '[]')
+              except Exception: return []
+          def age_min(wf):
+              rs = runs(wf)
+              if not rs: return 1e9, False
+              busy = any(r['status'] in ('queued', 'in_progress', 'waiting', 'pending') for r in rs)
+              t = max(dt.datetime.fromisoformat(r['createdAt'].replace('Z', '+00:00')) for r in rs)
+              return (dt.datetime.now(dt.timezone.utc) - t).total_seconds() / 60, busy
+          # one keeper at a time
+          other = [r for r in runs('keeper.yml') if r['status'] == 'in_progress' and r['databaseId'] != me]
+          if other: print('another keeper is running; exit'); raise SystemExit
+          RULES = [('live_feeds.yml', 55, []), ('forecast.yml', 60, ['-f', 'turing=0']), ('events_log.yml', 20, []), ('refresh.yml', 370, [])]
+          end = time.time() + 5 * 3600 + 45 * 60
+          while time.time() < end:
+              for wf, lim, extra in RULES:
+                  a, busy = age_min(wf)
+                  if a > lim and not busy:
+                      print(dt.datetime.utcnow().strftime('%H:%MZ'), f'{wf}: last run {a:.0f} min ago -> start', flush=True)
+                      subprocess.run(['gh', 'workflow', 'run', wf, '-R', R, '--ref', 'main', *extra])
+              time.sleep(300)
+          subprocess.run(['gh', 'workflow', 'run', 'keeper.yml', '-R', R, '--ref', 'main'])
+          print('next keeper started')
+          PY
