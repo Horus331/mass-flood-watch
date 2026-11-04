@@ -3748,41 +3748,6 @@
     var running = (cyc.state || (s && s.state)) === 'run';
     return { st: st, issued: issued, next: next, cyc: cyc, h: h, label: { ok: running ? 'OK · flood model running' : 'OK', partial: 'Partial', stale: 'Stale', fail: 'Broken' }[st] };
   }
-  // Forecast map: the week table's rain, town by town (NOAA NBM via Open-Meteo, the same numbers as the bars), for the day picked in the
-  // table (default: the wettest day ahead). Without this the map is empty whenever the 48 h HRRR window is dry.
-  var WK = { towns: null, day: null, o: null };
-  function weekMap(o, di) {
-    if (runKey !== 'forecast' || !map || !o || !o.towns || !o.days) return;
-    WK.o = o;
-    var days = o.days;
-    if (di == null) { var best = -1; days.forEach(function (d, i) { var v = d && d.rain && d.rain.hourly2 && d.rain.hourly2.town_max_mm || 0; if (v > best) { best = v; di = i; } }); }
-    var d = days[di], tm = d && d.rain && d.rain.hourly2 && d.rain.hourly2.town_mm;
-    if (!tm) return;
-    WK.day = di;
-    document.querySelectorAll('#week li.day.ios').forEach(function (li) { li.classList.toggle('picked', +li.dataset.di === di); });
-    var by = {}; o.towns.forEach(function (n, i) { by[n] = tm[i]; });
-    (WK.towns ? Promise.resolve(WK.towns) : getJson('site/data/d3_towns.json').then(function (g) { WK.towns = g; return g; })).then(function (g) {
-      var mx = 0, top = null;
-      g.features.forEach(function (f) { var v = by[f.properties.n]; f.properties.mm = v == null ? 0 : v; if (f.properties.mm > mx) { mx = f.properties.mm; top = f.properties.n; } });
-      var pts = { type: 'FeatureCollection', features: g.features.filter(function (f) { return f.properties.mm >= 1; }).map(function (f) {
-        return { type: 'Feature', properties: { t: f.properties.n + ' ' + (f.properties.mm < 10 ? f.properties.mm.toFixed(1) : Math.round(f.properties.mm)) + ' mm', mm: f.properties.mm }, geometry: { type: 'Point', coordinates: [f.properties.lx, f.properties.ly] } }; }) };
-      whenStyle(function () {
-        if (map.getSource('wk')) { map.getSource('wk').setData(g); map.getSource('wk-l').setData(pts); }
-        else {
-          map.addSource('wk', { type: 'geojson', data: g }); map.addSource('wk-l', { type: 'geojson', data: pts });
-          var before = map.getLayer('mnet') ? 'mnet' : undefined;
-          map.addLayer({ id: 'wk-fill', type: 'fill', source: 'wk', paint: { 'fill-color': ['interpolate', ['linear'], ['get', 'mm'], 0, 'rgba(238,234,248,0)', 1, '#EEEAF8', 10, '#BDB0E8', 20, '#8E76D4', 30, '#6347B6', 50, '#3B1F7A'], 'fill-opacity': 0.7 } }, before);
-          map.addLayer({ id: 'wk-line', type: 'line', source: 'wk', paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.8 } }, before);
-          map.addLayer({ id: 'wk-lab', type: 'symbol', source: 'wk-l', filter: ['>=', ['get', 'mm'], 5], layout: { 'text-field': ['get', 't'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'symbol-sort-key': ['-', 0, ['get', 'mm']] },
-            paint: { 'text-color': '#2B1D5C', 'text-halo-color': 'rgba(255,255,255,.95)', 'text-halo-width': 1.6 } });
-        }
-        var cap = $('wkCap'); if (!cap) { cap = document.createElement('div'); cap.id = 'wkCap'; cap.className = 'wk-cap'; $('map').appendChild(cap); }
-        var lab = d.label || d.date;
-        cap.innerHTML = '<b>Rain forecast, ' + esc(lab) + '</b> · total for the day by town (NOAA NBM)' + (mx >= 1 ? ' · wettest: ' + esc(top) + ' ' + Math.round(mx) + ' mm' : ' · dry') +
-          '<span class="wk-k"><i style="background:#EEEAF8"></i>1<i style="background:#BDB0E8"></i>10<i style="background:#8E76D4"></i>20<i style="background:#6347B6"></i>30<i style="background:#3B1F7A"></i>50 mm</span>';
-      });
-    }).catch(function (e) { console.warn('towns', e); });
-  }
   function liveRender(s, o) {
     var H = health(s, o), O = o && o.health && o.health.status === 'failed' && o.previous ? o.previous : o;
     $('hdot').className = 'dot ' + (H.st === 'partial' ? 'stale' : H.st);
@@ -3823,7 +3788,6 @@
         var tv = mxv != null ? mxv : mean, r6 = !!(R && R.max6h_mm >= t6), r24 = !!(R && R.max24h_mm >= t24);
         if (lv >= 3 && !r6 && !r24) r6 = !!(d.towns_over_6h && d.towns_over_6h.length), r24 = !!(d.towns_over_24h && d.towns_over_24h.length);
         li.className = 'day ios' + (mean == null ? ' na' : '');
-        li.dataset.di = i; li.addEventListener('click', (function (k) { return function () { weekMap(WK.o || O, k); }; })(i));
         li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) +
           (ero && ero !== 'none' ? '<i class="ero-dot ' + ero + '" title="NOAA excessive rainfall risk: ' + ERO_L[ero] + '"></i>' : '') +
           (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'model running' : r24 && r6 ? '6 h + 24 h' : r24 ? '24 h limit' : '6 h limit') + '</em>' : '') + '</span>' +
@@ -3886,7 +3850,6 @@
       ((H.h.problems || []).length ? '<p class="tw">' + H.h.problems.map(esc).join('<br>') + '</p>' : '') +
       '<table class="hs-t">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
       '<p>' + (H.h.run_url ? '<a href="' + esc(H.h.run_url) + '" target="_blank" rel="noopener">The run that built it</a> · ' : '') + '<a href="' + REPO + 'docs/proto/forecast/HINDCAST.md" target="_blank" rel="noopener">How the forecast scores on past storms</a> · <a href="' + REPO + 'docs/proto/forecast/OUTLOOK.md" target="_blank" rel="noopener">How the week view works</a></p>';
-    try { weekMap(O, null); } catch (e) { console.warn('week map', e); }
   }
   $('hchip').addEventListener('click', function () { $('hsheet').hidden = !$('hsheet').hidden; });
   $('hsX').addEventListener('click', function () { $('hsheet').hidden = true; });
