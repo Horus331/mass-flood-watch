@@ -1676,6 +1676,11 @@
       if (s.title) $('runTitle').textContent = s.title;
       fcStat = s;   // display: 'boxes' (the public forecast); s.coverage says what was modelled, in words
       $('runKind').textContent = (s.coverage && s.kind && s.kind.indexOf(s.coverage) < 0 ? s.coverage + '. ' : '') + (s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.'));
+      if (s.gate && s.gate.forced) {   // run on request although the rain is below the trigger: shown, never a warning (not scored: storm_archive.py)
+        var fa = document.createElement('span'); fa.className = 'forced-note';
+        fa.textContent = ' Preview run: the forecast rain is below the flood-model trigger (25 mm in 6 h or 40 mm in 24 h in a town), so this is not a warning. The model was run anyway to show what this rain would do on the roads.';
+        $('runKind').appendChild(fa);
+      }
       if (s.shadow && s.shadow.dir) {   // the whole-district shadow run of the same cycle (Turing): linked, never the headline (forecast/DISTRICT.md)
         var sk = String(s.shadow.dir).replace(/^(site\/)?data\//, '').replace(/\/$/, ''), sa = document.createElement('span');
         sa.innerHTML = ' Test only: a <a href="?run=' + encodeURIComponent(sk) + '">whole-district shadow run</a> of this cycle (Turing GPU, 20 m' +
