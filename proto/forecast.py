@@ -163,24 +163,37 @@ def cmd_gate(a):
 
 
 # ------------------------------------------------------------------ status for the viewer
+RAIN_ONSET_MM = 1.0     # = proto/prototype.py RC_RAIN_ONSET_MM
+
+
+def onset_frame(rain, fh, hours=None):
+    """Frame index at which the box-mean rain since the start of the run first reaches RAIN_ONSET_MM (0 if never or no rain series).
+    hours: the frames' times in hours (summary.json frame_hours) when known, else frames are fh hours apart."""
+    c = np.cumsum([v or 0 for v in rain]); k = np.nonzero(c >= RAIN_ONSET_MM)[0]
+    if not len(k): return 0
+    if hours: return next((i for i, h in enumerate(hours) if h >= float(k[0]) - 1e-6), len(hours) - 1)
+    return int(round(float(k[0]) / fh)) if fh else 0
+
+
 def run_summary(key, pdir, fdir=None, box=None):
-    """Forecast closures from one prototype run.  Segments already at >= 30 cm in the first hour of the run while the box has had < 2 mm of
-    rain are the model's start state (river / pond cells beside the road, channels start a third full), not forecast closures: listed apart."""
+    """Forecast closures from one prototype run.  Segments already at >= 30 cm when the rain begins (box-mean rain since the start reaches
+    RAIN_ONSET_MM) are the model's start state (river / pond cells beside the road, channels start a third full), not forecast closures:
+    counted apart.  The live runs also measure closure depth above that start state (PROTO_RC_START_H=rain, docs/proto/prospective/CHANGE_2026-11-05.md)."""
     S = json.load(open(os.path.join(pdir, 'summary.json'))); g = json.load(open(os.path.join(pdir, 'segments.geojson')))
     import pandas as pd
     T0 = pd.Timestamp(S['storm_start'].replace('Z', ''))
     def at(h): return (T0 + pd.Timedelta(hours=h)).strftime('%Y-%m-%dT%H:%MZ')
-    rain = S.get('rain_hourly_mean_mm') or []; early = 2 if sum(rain[:1]) < 2 else 0
+    rain = S.get('rain_hourly_mean_mm') or []
     fh = (S.get('frame_min') or S.get('out_min') or 0) / 60   # hours per output frame (forecast runs write 15-min frames; the old code assumed 30)
     if not fh:
         nd = max((len(f['properties'].get('d') or []) for f in g['features']), default=0)
         fh = len(rain) / (nd - 1) if rain and nd > 1 else 0.5
+    i0 = onset_frame(rain, fh, S.get('frame_hours'))
     segs, standing = [], 0
     for f in g['features']:
-        q = f['properties']
+        q = f['properties']; d = q.get('d') or []
+        if len(d) > i0 and d[i0] >= 30: standing += 1; continue          # under 30 cm of water before the rain begins: start state, not a forecast
         if q['p_close'] < CLOSE_P: continue
-        d = q.get('d') or []
-        if early and len(d) > early and max(d[:early + 1]) >= 30: standing += 1; continue
         k = int(np.argmax(d)) if d else None; f30 = next((i for i, v in enumerate(d) if v >= 30), None)
         segs.append(dict(segment=q['segment'], road=q.get('road') or '', town=q.get('town') or '', road_class=q.get('road_class'), p=round(q['p_close'], 2),
                          peak_depth_m=q.get('peak_depth_m'), first30_h=None if f30 is None else f30 * fh, peak_h=None if k is None else k * fh,

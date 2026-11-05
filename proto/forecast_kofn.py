@@ -47,13 +47,18 @@ def closures(pdir):
     """Segments at P >= 0.5 in one prototype run (segments.geojson), minus water already standing at the start (as forecast.run_summary)."""
     from pyproj import Transformer
     S = json.load(open(os.path.join(pdir, 'summary.json'))); g = json.load(open(os.path.join(pdir, 'segments.geojson')))
-    rain = S.get('rain_hourly_mean_mm') or []; early = 2 if sum(rain[:1]) < 2 else 0
+    from forecast import onset_frame
+    rain = S.get('rain_hourly_mean_mm') or []; fh = (S.get('frame_min') or 0) / 60
+    if not fh:
+        nd = max((len(f['properties'].get('d') or []) for f in g['features']), default=0)
+        fh = len(rain) / (nd - 1) if rain and nd > 1 else 0.5
+    i0 = onset_frame(rain, fh, S.get('frame_hours'))
     tr = Transformer.from_crs(4326, 26986, always_xy=True); out = []
     for f in g['features']:
         q = f['properties']
         if q.get('p_close', 0) < CLOSE_P: continue
         d = q.get('d') or []
-        if early and len(d) > early and max(d[:early + 1]) >= 30: continue
+        if len(d) > i0 and d[i0] >= 30: continue
         c = np.array(_coords(f['geometry']), float)
         if not len(c): continue
         x, y = tr.transform(float(c[:, 0].mean()), float(c[:, 1].mean()))

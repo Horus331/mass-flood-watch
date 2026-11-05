@@ -42,7 +42,7 @@ nvidia-smi || true
 NAME=fcd3_${PFX}_${TAG}_m$J
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-8} GIT_SHA=$(git rev-parse --short HEAD)
 export BOX=128000,856000,206000,946000 RES=20 STORM=forecast LF_RAIN=hrrr LF_HRRR_INIT=$MEM LF_HRRR_HOURS=$HOURS LF_ALLOW_DRY=1 LF_HRRR_NBHD=20,90
-export LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.88 LF_PARITY=1 LF_INFIL_MMH=2 LF_QOUT=1          # = forecast.yml flood job (no setting changes)
+export LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.88 LF_PARITY=1 LF_INFIL_MMH=2 LF_QOUT=1 LF_NOTCH_FIX=1 LF_CHAN_ENFORCE=1 PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain          # = forecast.yml flood job (same settings)
 # depth frames every 30 min (w9 default LF_SAVEINT) for the shadow map; no velocity output (the shadow map has no flow layer)
 export RUN_DIR=runs/forecast_$NAME
 OUT=$LF_WORK/run_forecast_$NAME/out

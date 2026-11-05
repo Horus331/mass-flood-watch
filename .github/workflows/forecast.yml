@@ -168,6 +168,8 @@ jobs:
           LF_CN_AMC: II
           LF_CN_SCALE: '0.88'       # clean parity baseline (docs/proto/parity/BASELINE.md, docs/proto/STATUS.md)
           LF_PARITY: '1'            # infiltration in the rain + steps <= 1 s; ~2x LISFLOOD time, well inside the 330 min job limit
+          LF_NOTCH_FIX: '1'         # terrain fix T2 (docs/proto/terrain/TERRAIN.md), live from 5 Nov 2026 (docs/proto/prospective/CHANGE_2026-11-05.md)
+          LF_CHAN_ENFORCE: '1'
           LF_INFIL_MMH: '2'
           LF_QOUT: '1'
           LF_SAVEINT: '900'         # 15-min depth snapshots for the map (output only; the model settings above are unchanged; 15 min keeps each fired cycle's pack small in git)
@@ -179,6 +181,9 @@ jobs:
           set -o pipefail
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: road closures
+        env:
+          PROTO_RES_CONSISTENT: '1'   # closure depth = water above what was on the road when the rain began (CHANGE_2026-11-05.md)
+          PROTO_RC_START_H: rain
         run: |
           set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
@@ -288,7 +293,7 @@ jobs:
         run: |
           K=""; [ -f kofn.json ] && K="--kofn kofn.json"
           python proto/storm_archive.py ledger --gate arts/gate/gate.json --status docs/site/data/forecast_status.json --alerts arts/gate/alerts.json \
-            --reports arts/gate/reports.json $K --flag archived.txt --settings "ensemble=$ENS nbhd=20,90 cn=0.88 parity=1 infil=2 res=20"
+            --reports arts/gate/reports.json $K --flag archived.txt --settings "ensemble=$ENS nbhd=20,90 cn=0.88 parity=1 infil=2 res=20 terrain=T2 start=rain"
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish
         run: |
