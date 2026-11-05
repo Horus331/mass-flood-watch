@@ -304,4 +304,4 @@ jobs:
           git diff --cached --quiet && { echo "no change"; exit 0; }
           P=${{ inputs.prefix || 'forecast_latest' }}; ST=docs/site/data/forecast_status.json; [ "$P" = "forecast_latest" ] || ST=docs/site/data/${P}_status.json
           git commit -qm "Forecast $P $(python -c "import json;s=json.load(open('$ST'));print(s['issued'], s['state'], s['likely_closed'], 'segments')")$([ -f archived.txt ] && echo " + archived storm $(cat archived.txt)")"
-          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
+          for i in 1 2 3 4 5; do { git pull --rebase -X theirs -q || { git rebase --abort; false; }; } && git push -q && break; sleep $((RANDOM % 20 + 5)); done
