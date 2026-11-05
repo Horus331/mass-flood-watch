@@ -41,7 +41,7 @@ jobs:
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add docs/proto/forecast/qmap.json docs/proto/forecast/ensemble/href_probe.txt; git commit -qm "forecast ensemble: quantile-mapping fit + HREF probe" || exit 0
-          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
+          for i in 1 2 3 4 5; do { git pull --rebase -X theirs -q || { git rebase --abort; false; }; } && git push -q && break; sleep $((RANDOM % 20 + 5)); done
   setup:
     if: inputs.what == 'runs'
     runs-on: ubuntu-latest

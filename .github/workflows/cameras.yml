@@ -62,4 +62,4 @@ jobs:
           git config user.name 'flood-watch-bot'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A docs/proto/cameras; git diff --cached --quiet && { echo "no change"; exit 0; }
           git commit -qm "USGS cameras: ${{ inputs.mode }} ${{ inputs.ids }}"
-          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
+          for i in 1 2 3 4 5; do { git pull --rebase -X theirs -q || { git rebase --abort; false; }; } && git push -q && break; sleep $((RANDOM % 20 + 5)); done

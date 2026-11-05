@@ -144,4 +144,4 @@ jobs:
           git add -A $AROOT; [ -d docs/proto/prospective ] && git add -A docs/proto/prospective; ls $LDIR/labels_*_auto.csv >/dev/null 2>&1 && git add $LDIR/labels_*_auto.csv
           git diff --cached --quiet && { echo "no change"; exit 0; }
           git commit -qm "Storm archive follow-up: $(python -c "import json; p=json.load(open('arts/plan/plan.json')); print('radar', sorted({r['sid'] for r in p['radar']}) or '-', 'labels', p['labels'] or '-')")"
-          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
+          for i in 1 2 3 4 5; do { git pull --rebase -X theirs -q || { git rebase --abort; false; }; } && git push -q && break; sleep $((RANDOM % 20 + 5)); done
