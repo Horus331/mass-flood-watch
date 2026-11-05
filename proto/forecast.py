@@ -171,6 +171,10 @@ def run_summary(key, pdir, fdir=None, box=None):
     T0 = pd.Timestamp(S['storm_start'].replace('Z', ''))
     def at(h): return (T0 + pd.Timedelta(hours=h)).strftime('%Y-%m-%dT%H:%MZ')
     rain = S.get('rain_hourly_mean_mm') or []; early = 2 if sum(rain[:1]) < 2 else 0
+    fh = (S.get('frame_min') or S.get('out_min') or 0) / 60   # hours per output frame (forecast runs write 15-min frames; the old code assumed 30)
+    if not fh:
+        nd = max((len(f['properties'].get('d') or []) for f in g['features']), default=0)
+        fh = len(rain) / (nd - 1) if rain and nd > 1 else 0.5
     segs, standing = [], 0
     for f in g['features']:
         q = f['properties']
@@ -179,8 +183,8 @@ def run_summary(key, pdir, fdir=None, box=None):
         if early and len(d) > early and max(d[:early + 1]) >= 30: standing += 1; continue
         k = int(np.argmax(d)) if d else None; f30 = next((i for i, v in enumerate(d) if v >= 30), None)
         segs.append(dict(segment=q['segment'], road=q.get('road') or '', town=q.get('town') or '', road_class=q.get('road_class'), p=round(q['p_close'], 2),
-                         peak_depth_m=q.get('peak_depth_m'), first30_h=None if f30 is None else f30 * 0.5, peak_h=None if k is None else k * 0.5,
-                         first30=None if f30 is None else at(f30 * 0.5), peak=None if k is None else at(k * 0.5),
+                         peak_depth_m=q.get('peak_depth_m'), first30_h=None if f30 is None else f30 * fh, peak_h=None if k is None else k * fh,
+                         first30=None if f30 is None else at(f30 * fh), peak=None if k is None else at(k * fh),
                          why=q.get('why') or ''))
     segs.sort(key=lambda s: (-s['p'], -(s['peak_depth_m'] or 0)))
     cls = {}
