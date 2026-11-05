@@ -1,5 +1,8 @@
 # Terrain conditioning: results (1 Nov 2026)
 
+**Update 5 Nov 2026:** T2 adopted for the live forecast too, with the advisors' approval, on a non-inferiority reading; pre-registered in
+`docs/proto/prospective/CHANGE_2026-11-05.md` before it was applied. The displayed replays use T2 since 1 Nov (owner decision).
+
 Pre-registration: `PREREG.md` (commit cee7c90b, before any run). Runs: GitHub Actions `parity_test.yml`, branch `terrain-fix`, run
 41319171613, 100 CPU runs at one commit (in-run baseline, T1, T2 and the B0 arm of `runoff/B0_V2.md`), all 25 non-locked storms, all
 succeeded. Run folders `runs/<arm>/<storm>_<area>_20m/` (230 MB) are kept on branch `terrain-fix` only, not on main; scores `score_<arm>.json`; verdicts `compare_t1.json`, `compare_t2.json`;

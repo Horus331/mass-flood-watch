@@ -3751,7 +3751,7 @@
     var st = !o && !s ? 'fail' : issued && Date.now() - issued.getTime() > staleH * 3600e3 ? 'stale' : h.status === 'failed' ? 'fail' : h.status === 'partial' ? 'partial' : 'ok';
     if (!next && issued) { next = new Date(issued.getTime() + 6 * 3600e3); }
     var running = (cyc.state || (s && s.state)) === 'run';
-    return { st: st, issued: issued, next: next, cyc: cyc, h: h, label: { ok: running ? 'OK · flood model running' : 'OK', partial: 'Partial', stale: 'Stale', fail: 'Broken' }[st] };
+    return { st: st, issued: issued, next: next, cyc: cyc, h: h, label: { ok: running ? 'OK · flood model ran' : 'OK', partial: 'Partial', stale: 'Stale', fail: 'Broken' }[st] };
   }
   function liveRender(s, o) {
     var H = health(s, o), O = o && o.health && o.health.status === 'failed' && o.previous ? o.previous : o;
@@ -3795,7 +3795,7 @@
         li.className = 'day ios' + (mean == null ? ' na' : '');
         li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) +
           (ero && ero !== 'none' ? '<i class="ero-dot ' + ero + '" title="NOAA excessive rainfall risk: ' + ERO_L[ero] + '"></i>' : '') +
-          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'model running' : r24 && r6 ? '6 h + 24 h' : r24 ? '24 h limit' : '6 h limit') + '</em>' : '') + '</span>' +
+          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'flood model ran' : r24 && r6 ? '6 h + 24 h' : r24 ? '24 h limit' : '6 h limit') + '</em>' : '') + '</span>' +
           sixStrip(R, d && d.date) +
           '<span class="tot' + (tv != null && tv >= 0.05 ? '' : ' dry') + (r24 ? ' over' : '') + '" title="' + (mean != null ? (mxv != null ? mxv.toFixed(1) + ' mm in the wettest town' + (R.town_max ? ' (' + esc(R.town_max) + ')' : '') + ', ' : '') + mean.toFixed(1) + ' mm District 3 average' : '') + '">' +
           (tv == null ? '–' : tv < 0.05 ? '0 mm' : (tv < 10 ? tv.toFixed(1) : Math.round(tv)) + ' mm') + '</span>' +
@@ -3806,7 +3806,7 @@
           why.innerHTML = (r24 ? 'Up to <b>' + Math.round(R.max24h_mm) + ' mm in 24 h</b> (limit ' + t24 + ')' : '') + (r24 && r6 ? ' · ' : '') +
             (r6 ? 'up to <b>' + Math.round(R.max6h_mm) + ' mm in 6 h</b> (limit ' + t6 + ')' : '') +
             (tw.length ? ' · ' + tw.length + ' town' + (tw.length > 1 ? 's' : '') + ': ' + esc(tw.slice(0, 4).join(', ')) + (tw.length > 4 ? ' +' + (tw.length - 4) : '') : '') +
-            (lv === 4 ? ' · <b>flood model running</b>' : ' · the flood model runs once this is within 48 h');
+            (lv === 4 ? ' · <b>flood model ran</b>: closures on the Forecast map' : ' · the flood model runs once this is within 48 h');
           ol.appendChild(why);
         }
         continue;

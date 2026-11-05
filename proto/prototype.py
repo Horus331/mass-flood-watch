@@ -199,7 +199,8 @@ def seg_top2(n, seg, vals):
 # point spacing (k = 2 at 20 m: the default rule; 4 at 10 m), i.e. >= 0.30 m over at least RC_MIN_LEN_M of road at any resolution.
 RC_TOL_M = 0.10        # hmax may exceed the snapshot peak by a flash peak between snapshots up to this much (flags at 20 m unchanged)
 RC_START_H = 0.5       # the first saved snapshot at or after this time is the start-up state (runs start before the rain)
-RC_MIN_LEN_M = 20.0    # water >= the closure depth over at least this length of road (the 20 m default: 2 points 10 m apart)
+RC_MIN_LEN_M = 20.0
+RC_RAIN_ONSET_MM = 1.0  # PROTO_RC_START_H=rain: start-up snapshot = the hour the box-mean rain since the start first reaches this total    # water >= the closure depth over at least this length of road (the 20 m default: 2 points 10 m apart)
 
 
 def res_consistent_on():
@@ -222,7 +223,15 @@ def res_consistent_depth(H, run_dir):
     if FRM is not None and FRM['depth_cm'].shape[1:] == H.shape:
         DC = FRM['depth_cm']; hrs = np.asarray(FRM['hours'], float)
         hs = DC.max(axis=0).astype(np.float32) / 100.0; info['snapshots'] = int(len(DC))
-        j = np.nonzero(hrs >= RC_START_H - 1e-6)[0]
+        h_start = RC_START_H; sh = os.environ.get('PROTO_RC_START_H', '')
+        if sh == 'rain':   # forecast runs: the start-up state is the water on the ground when the rain begins (HRRR cycles often open with dry hours,
+            RSx = load_npz(os.path.join(run_dir, 'rainstats.npz'))   # during which channels started a third full spread into low ground and pits)
+            hm = np.asarray(RSx['hourly_mean'], float) if RSx is not None and 'hourly_mean' in RSx else np.zeros(0)
+            k_ = np.nonzero(np.cumsum(np.nan_to_num(hm)) >= RC_RAIN_ONSET_MM)[0]
+            h_start = max(RC_START_H, float(k_[0])) if len(k_) else RC_START_H; info['rain_onset_mm'] = RC_RAIN_ONSET_MM
+        elif sh: h_start = float(sh)
+        info['start_h'] = h_start
+        j = np.nonzero(hrs >= h_start - 1e-6)[0]
         if len(j) and os.environ.get('PROTO_RC_STARTUP', '1') == '1':      # PROTO_RC_STARTUP=0: keep start-up water (spike cap and k only)
             h0 = DC[j[0]].astype(np.float32) / 100.0; info['start_snapshot_h'] = round(float(hrs[j[0]]), 2)
     hp = os.path.join(run_dir, 'hsnap.npy')

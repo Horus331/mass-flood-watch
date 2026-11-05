@@ -557,7 +557,7 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
         r_ = day.get('rain') or {}; tmx = r_.get('town_max_mm') or 0; el = (er or {}).get('level', 0)
         heavy = bool(day['towns_over']) or el >= 2 or any(('watch' in x['event'].lower() or 'warning' in x['event'].lower()) for x in floodal)
         if inwin and S.get('state') == 'run':
-            lev, verdict, det = 4, 'Flood model running', S.get('headline') or ''
+            lev, verdict, det = 4, 'Flood model ran', S.get('headline') or ''
         elif inwin and S.get('state') == 'error':
             lev, verdict, det = 4, 'Flood model run failed', S.get('headline') or ''
         elif heavy:
@@ -599,7 +599,7 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
     elif not storms: headline = f'No storm in District 3 in the next {NDAYS} days'
     else:
         s0 = max(storms, key=lambda s: (s['level'], s.get('town_max_mm') or 0)); amt = f", up to {s0['town_max_mm']:.0f} mm in a town" if s0.get('town_max_mm') is not None else ''
-        headline = {4: f"Flood model running for the storm {span(s0)}", 3: f"Heavy rain possible {span(s0)}{amt}"}.get(s0['level'], f"Rain {span(s0)}{amt}, below the flood threshold")
+        headline = {4: f"Flood model run for the storm {span(s0)}: see the Forecast map", 3: f"Heavy rain possible {span(s0)}{amt}"}.get(s0['level'], f"Rain {span(s0)}{amt}, below the flood threshold")
         if len(storms) > 1: headline += f" ({len(storms)} rain spells this week)"
     # ---- health
     status_ = 'failed' if not rain.get('ok') else 'ok' if not problems else 'partial'
@@ -685,7 +685,7 @@ def selftest():
     assert len(O['storms']) == 1 and O['storms'][0]['days'] == [3, 4] and O['storms'][0]['peak_date'] == '2026-10-31', O['storms']
     assert O['health']['status'] == 'ok' and O['health']['next_update'] == '2026-10-29T08:40Z', O['health']
     S2 = dict(S, state='run', gate=dict(trigger=True), headline='3 road segments likely closed')
-    assert build(raw, S2, now=now)['days'][1]['verdict'] == 'Flood model running'
+    assert build(raw, S2, now=now)['days'][1]['verdict'] == 'Flood model ran'
     F = build(dict(fetched=iso(now), rain=dict(ok=False, error='x'), ero=raw['ero'], alerts=raw['alerts']), S, prev=O, now=now)
     assert F['health']['status'] == 'failed' and F['previous']['days'], F['health']
     P = build(dict(raw, alerts=dict(ok=False, error='down')), S, now=now); assert P['health']['status'] == 'partial'
