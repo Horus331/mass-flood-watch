@@ -1448,7 +1448,13 @@ def main():
     OUT = f'{wd}/out'; os.makedirs(OUT, exist_ok=True)
     np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', (I['Z'] if DOM is None else np.where(MSK, I['Z'], I['Z_RAW'])).astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
-    if FR: np.savez_compressed(f'{OUT}/frames_cm.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32))
+    if FR:   # Turing scratch (Ceph) has failed this large write with EAGAIN (Errno 11) under load: retry, writing to a temp name first
+        for _try in range(5):
+            try:
+                np.savez_compressed(f'{OUT}/frames_cm.tmp.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32)); os.replace(f'{OUT}/frames_cm.tmp.npz', f'{OUT}/frames_cm.npz'); break
+            except BlockingIOError as e_:
+                log(f'frames_cm.npz write failed ({e_}); retry {_try + 1} of 5 in 30 s'); time.sleep(30)
+        else: raise RuntimeError('frames_cm.npz could not be written (EAGAIN 5 times)')
     np.save(f'{OUT}/watermask.npy', (I['water'] | I['chan'] | I['carved']).astype(np.uint8))
     np.savez_compressed(f'{OUT}/z_raw.npz', z_raw=I['Z_RAW'], z_raw_max10=I['ZMAX10'],
                         note='lidar DEM at RES before channel burn / crossing notches / depression breaching (m); z_raw_max10 = highest 10 m cell in each cell')
