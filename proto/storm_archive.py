@@ -382,6 +382,36 @@ def find_storm(root, sid):
     raise SystemExit(f'storm {sid} not in {root}')
 
 
+def cmd_history(a):
+    """Forecast history of the current storm for the Forecast tab (docs/site/data/forecast_history.json): every archived cycle of the storm
+    that holds the latest issued cycle, with its headline, rain maxima, model version (ledger settings) and likely / possible roads, so a
+    reader sees whether a road is forecast cycle after cycle or only once.  A quiet latest cycle with no open storm writes an empty history."""
+    St = jload(a.status, {}) if a.status and os.path.exists(a.status) else {}
+    issued = St.get('issued'); out = dict(issued=issued, storm=None, cycles=[])
+    led = {}
+    lp = os.path.join(PROSPECTIVE, 'ledger.csv')
+    if os.path.exists(lp):
+        for r in csv.DictReader(open(lp)): led[r['issued']] = r.get('settings') or ''
+    S = None
+    for s_ in storms(a.root):
+        if any(c['cycle'] == iso(utc(issued)) for c in s_['cycles']) if issued else False: S = s_; break
+    if S is not None:
+        out['storm'] = dict(id=S['id'], evidence=S['evidence'], window=S.get('window'))
+        for c in S['cycles']:
+            cd = os.path.join(S['_dir'], c['dir']) if c.get('dir') else None
+            cs = jload(os.path.join(cd, 'status.json'), {}) if cd else {}
+            rows = list(csv.DictReader(open(os.path.join(cd, 'kofn.csv')))) if cd and os.path.exists(os.path.join(cd, 'kofn.csv')) else []
+            d = ((cs.get('rain') or {}).get('district') or {})
+            st_ = led.get(c['cycle'].replace(':00Z', 'Z'), led.get(c['cycle'], ''))
+            out['cycles'].append(dict(cycle=c['cycle'], state=c.get('state'), forced=c.get('forced'), headline=cs.get('headline'),
+                                      model='v2' if 'terrain=T2' in st_ else 'v1', likely=c.get('likely_closed'), possible=c.get('possible'),
+                                      max6h_mm=d.get('max6h_mm'), max24h_mm=d.get('max24h_mm'), max6h_window=d.get('max6h_window'),
+                                      towns_over=(c.get('towns_over') or [])[:8], alerts=len(c.get('alerts') or []), reports=len(c.get('reports') or []),
+                                      roads=[dict(segment=int(r['segment']), road=r['road'], town=r['town'], k=int(r['k']), cls=r['cls']) for r in rows][:60]))
+    jsave(a.out, out)
+    log('history:', (out['storm'] or {}).get('id'), len(out['cycles']), 'cycle(s) ->', a.out)
+
+
 # ------------------------------------------------------------------ flood reports since the previous cycle (catches storms nothing flagged)
 TRIGGER_RE = re.compile(r'flood|washout|washed out|ponding|standing water|high water|water (on|in|across|over|covering) (the )?(road|street|roadway|lanes?)|'
                         r'impassable|submerged|road closed due to water', re.I)      # stricter than FLOOD_RE: no culvert / drain work
@@ -975,7 +1005,8 @@ if __name__ == '__main__':
     p = sp.add_parser('finalize'); p.add_argument('--plan', required=True); p.add_argument('--root', default=ARCHIVE); p.add_argument('--labels-dir', default=LABELS_DIR)
     p = sp.add_parser('verify'); p.add_argument('--storm', required=True); p.add_argument('--root', default=ARCHIVE); p.add_argument('--labels-dir', default=LABELS_DIR)
     p = sp.add_parser('index'); p.add_argument('--root', default=ARCHIVE)
+    p = sp.add_parser('history'); p.add_argument('--root', default=ARCHIVE); p.add_argument('--status', required=True); p.add_argument('--out', required=True)
     sp.add_parser('selftest')
     a = ap.parse_args()
-    dict(alerts=cmd_alerts, reports=cmd_reports, ledger=cmd_ledger, prospective=cmd_prospective, archive=cmd_archive, due=cmd_due, labels=cmd_labels, segcsv=cmd_segcsv, finalize=cmd_finalize, verify=cmd_verify, index=cmd_index,
+    dict(alerts=cmd_alerts, reports=cmd_reports, ledger=cmd_ledger, prospective=cmd_prospective, archive=cmd_archive, due=cmd_due, labels=cmd_labels, segcsv=cmd_segcsv, finalize=cmd_finalize, verify=cmd_verify, index=cmd_index, history=cmd_history,
          selftest=lambda a: selftest())[a.cmd](a)
