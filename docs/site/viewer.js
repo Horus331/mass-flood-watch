@@ -3176,7 +3176,9 @@
       var hm = function (f) { return fmtHM.format(timeAt(f)); };
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
         '<span class="rt">' + (r.sev === 3 ? 'Closed ' + hm(r.st) + '–' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st)) +
-        ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
+        ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>'
+      var sn = runKey === 'forecast' && meta.kofn ? fhSeen(+r.s.id) : null;
+      if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
       b.addEventListener('click', function () {
         var g = r.s.f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
         cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
@@ -3685,6 +3687,34 @@
     oc.then(function (o) { liveRender(s, o); });
     getJson('site/data/ground.json').then(groundRender).catch(function () { });
     nowLoad();
+    fhLoad();
+  }
+  // this storm, forecast by forecast (proto/storm_archive.py history): does the forecast hold from one 6-hourly run to the next?
+  var FH = null;
+  function fhLoad() {
+    getJson('site/data/forecast_history.json').then(function (h) { FH = h; fhRender(h); if (rankRows && rankRows.length) rankBuild(); }).catch(function () { });
+  }
+  function fhSeen(seg) {   // earlier forecasts of this storm (not the latest) that listed this road segment
+    if (!FH || !FH.cycles || FH.cycles.length < 2) return null;
+    var c = FH.cycles.slice(0, -1), k = 0; c.forEach(function (x) { if ((x.roads || []).some(function (r) { return r.segment === seg; })) k++; });
+    return [k, c.length];
+  }
+  function fhRender(h) {
+    var el = $('fhist'); if (!el) return;
+    var C = (h && h.cycles) || []; if (C.length < 2) { el.hidden = true; return; }
+    var cur = C[C.length - 1].roads || [], ids = {}; cur.forEach(function (r) { ids[r.segment] = 1; });
+    var rows = C.slice().reverse().map(function (c, i) {
+      var d = zt(c.cycle), roads = c.roads || [], lk = roads.filter(function (r) { return r.cls === 'likely'; });
+      var keep = i ? roads.filter(function (r) { return ids[r.segment]; }).length : null;
+      var nm = lk.slice(0, 3).map(function (r) { return esc(r.road || 'unnamed road') + (r.town ? ' (' + esc(r.town) + ')' : ''); }).join(', ');
+      return '<li' + (i ? '' : ' class="cur"') + '><span class="fh-t">' + (d ? esc(fmtShort.format(d)) : '') + (i ? '' : ' <em>latest</em>') + '</span>' +
+        '<span class="fh-n"><b>' + n(c.likely || 0) + '</b> likely · ' + n(c.possible || 0) + ' possible</span>' +
+        '<span class="fh-r">' + (c.max24h_mm != null ? 'up to ' + Math.round(c.max24h_mm) + ' mm in 24 h' : '') + (c.model === 'v2' && i < C.length - 1 && C[C.length - 1 - i - 1] && C[C.length - 1 - i - 1].model !== 'v2' ? ' · <span class="fh-m">updated model from here</span>' : '') + '</span>' +
+        (nm ? '<span class="fh-w">' + nm + (lk.length > 3 ? ' +' + (lk.length - 3) : '') + '</span>' : '') +
+        (keep != null && roads.length ? '<span class="fh-k">' + (keep ? keep + ' of its ' + roads.length + ' roads are in the latest forecast' : 'none of its roads are in the latest forecast') + '</span>' : '') + '</li>';
+    });
+    el.innerHTML = '<h3 id="fhT">This storm, forecast by forecast</h3><p class="muted">Each run uses the newest NOAA rain forecast. Roads that stay on the list from run to run are the firmer calls.</p><ol>' + rows.join('') + '</ol>';
+    el.hidden = false;
   }
   // ground before the next storm (proto/ground_state.py): 5-day rain wetness (NRCS NEH-4) and the frozen-ground index (CFGI)
   // Right now: docs/proto/live/LIVE_FEEDS.md (hourly MRMS rain, 0-2 h nowcast, FLASH, NWM at culverts, SNODAS, reports) + USGS gauges
