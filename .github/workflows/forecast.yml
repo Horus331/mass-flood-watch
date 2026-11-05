@@ -144,6 +144,7 @@ jobs:
     timeout-minutes: 330
     strategy:
       fail-fast: false
+      max-parallel: 14      # the account runs 20 jobs at once: leave room for the Pages deploy and the live feeds, or the site goes stale while the model runs
       matrix:
         b: ${{ fromJSON(needs.gate.outputs.jobs) }}
     steps:
