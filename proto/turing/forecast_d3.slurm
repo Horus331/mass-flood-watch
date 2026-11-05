@@ -53,7 +53,7 @@ else
 fi
 # ---- publish (one task at a time): after the issue member, and when the last member finishes
 exec 9>$FC/pack.lock; flock 9
-NDONE=$(ls -d $FC/m*/DONE $FC/m*/FAILED 2>/dev/null | wc -l)
+NDONE=$( (ls -d $FC/m*/DONE $FC/m*/FAILED 2>/dev/null || true) | wc -l)   # ls exits 2 when one pattern matches nothing: under set -eo pipefail that ended every task
 if [ $J != 0 ] && [ $NDONE -lt $N ]; then echo "member $J done; $NDONE of $N finished, publishing later"; exit 0; fi
 if [ $J != 0 ] && [ ! -f $FC/m0/DONE ] && [ ! -f $FC/m0/FAILED ]; then echo "last member but the issue member is still running: it publishes"; exit 0; fi
 P=$FC/pack; mkdir -p $P
