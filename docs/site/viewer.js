@@ -3172,11 +3172,12 @@
     });
     rows.sort(function (a, b) { return b.sev - a.sev || a.st - b.st; });
     rankRows = rows;
+    var multiDay = nf > 1 && (timeAt(nf - 1) - timeAt(0)) > 18 * 3600e3;   // forecast runs span two days: say which day
     var ol = $('rankList'); ol.innerHTML = '';
     rows.slice(0, 40).forEach(function (r) {
       var p = r.s.f.properties, li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
       var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : '<span class="chip-st wet">Water on road</span>';
-      var hm = function (f) { return fmtHM.format(timeAt(f)); };
+      var hm = function (f) { return (multiDay ? fmtWdHM : fmtHM).format(timeAt(f)); };
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
         '<span class="rt">' + (r.sev === 3 ? 'Closed ' + hm(r.st) + '–' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st)) +
         ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>'
@@ -3610,6 +3611,7 @@
   var REPO = 'https://github.com/Horus331/mass-flood-watch/blob/main/';
   var fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }), fmtMD = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   var fmtHM = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  var fmtWdHM = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   // iOS-weather-style rain strip: one bar per 6 hours (NBM QPF in the outlook feed), height = district-average rain in that block,
   // colour = the same radar rain classes as the map (by the block's average rate), line = wettest town
   var BAR_FULL = 3, SIX_FULL = 15, fmtH6 = new Intl.DateTimeFormat('en-US', { hour: 'numeric', timeZone: 'America/New_York' });
@@ -3828,7 +3830,7 @@
         li.className = 'day ios' + (mean == null ? ' na' : '');
         li.innerHTML = '<span class="dn">' + (i === 0 ? 'Today' : d ? esc(d.label.split(' ')[0]) : fmtDay.format(dd)) +
           (ero && ero !== 'none' ? '<i class="ero-dot ' + ero + '" title="NOAA excessive rainfall risk: ' + ERO_L[ero] + '"></i>' : '') +
-          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'flood model ran' : r24 && r6 ? '6 h + 24 h' : r24 ? '24 h limit' : '6 h limit') + '</em>' : '') + '</span>' +
+          (lv >= 3 ? '<em class="fl ' + vc + '">' + (lv === 4 ? 'model ran' : r24 && r6 ? '6 h + 24 h' : r24 ? '24 h limit' : '6 h limit') + '</em>' : '') + '</span>' +
           sixStrip(R, d && d.date) +
           '<span class="tot' + (tv != null && tv >= 0.05 ? '' : ' dry') + (r24 ? ' over' : '') + '" title="' + (mean != null ? (mxv != null ? mxv.toFixed(1) + ' mm in the wettest town' + (R.town_max ? ' (' + esc(R.town_max) + ')' : '') + ', ' : '') + mean.toFixed(1) + ' mm District 3 average' : '') + '">' +
           (tv == null ? '–' : tv < 0.05 ? '0 mm' : (tv < 10 ? tv.toFixed(1) : Math.round(tv)) + ' mm') + '</span>' +
