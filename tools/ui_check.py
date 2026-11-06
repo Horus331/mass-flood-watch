@@ -11,7 +11,7 @@ ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshade
 
 def main():
     from playwright.async_api import async_playwright
-    S = json.load(urllib.request.urlopen(BASE + 'site/data/forecast_status.json'))
+    S = json.load(urllib.request.urlopen(BASE + 'site/data/forecast_status.json?m=' + str(int(__import__('time').time()))))
     tr = Transformer.from_crs(26986, 4326, always_xy=True)
     segs = [s for s in (S.get('k_of_n') or {}).get('segments', []) if s.get('class') == 'likely'][:3]
     report = dict(issued=S.get('issued'), built=S.get('built'), headline=S.get('headline'), shots=[], errors=[])

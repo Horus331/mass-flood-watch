@@ -1477,6 +1477,7 @@
     return window.createImageBitmap ? createImageBitmap(b, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }).catch(function () { return imgFromBlob(b); }) : imgFromBlob(b);
   }
   function getBitmap(url) {
+    if (/forecast_/.test(url) && url.indexOf('?') < 0) url += '?m=' + Math.floor(Date.now() / 60000);   // forecast packs are replaced every cycle
     return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.blob(); })
       .then(function (b) {
         if (window.createImageBitmap) {
@@ -1489,7 +1490,9 @@
   function imgFromBlob(b) {
     return new Promise(function (res, rej) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = rej; im.src = URL.createObjectURL(b); });
   }
-  function getJson(url) { return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }); }
+  // live files change every few minutes; GitHub Pages lets browsers and its CDN keep them for 10 min, so a minute stamp is added
+  var LIVE_RE = /(forecast_|outlook|live|now|ground|alerts|events|rain\.json)/;
+  function getJson(url) { if (LIVE_RE.test(url) && url.indexOf('?') < 0) url += '?m=' + Math.floor(Date.now() / 60000); return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }); }
   var done = 0, total = 1;
   function progress(label) {
     done++;
