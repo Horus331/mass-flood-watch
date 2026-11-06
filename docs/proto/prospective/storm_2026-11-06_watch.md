@@ -32,3 +32,15 @@ cycle to cycle. No road was named by two cycles. Model v2 (terrain fix T2 + dept
   (it was the forecast-cycle time, 5 h old); live data and forecast packs bypass the 10-min Pages cache; the live refresh / live feeds /
   events log workflows no longer drop a push on a race. Map check, 00Z: closed stretches follow low ground (Paine St along the Peters
   River, Wrentham Rd at Bungay Brook, Pulaski Blvd by Jenks Pond).
+
+## During the storm (6 Nov 23:30Z = 6:30 PM EST)
+
+| | forecast (latest on the site: 12Z cycle, published 22:09Z) | observed so far |
+|---|---|---|
+| rain | 6 h maximum 61 mm near Groton / Pepperell, 11 AM–5 PM EST; 24 h up to 89 mm | MRMS 3 h maximum 19.6 mm (to 23Z), district mean 4.8 mm in 3 h; peak rate 40 mm/h in a cell |
+| rivers | – | North Nashua near Leominster 143 → 325 cfs, Nashua at East Pepperell 377 cfs: rising, well inside the banks |
+| roads | 6 likely (West Brookfield Rd New Braintree 3/8; Depot Sq, Water St, Kingman Dr Leominster, 1 Leominster and 1 Groton unnamed 2/8), 10 possible | MassDOT feed: no flood events; no news reports of flooded roads found |
+
+Reading: the HRRR was too wet for this storm so far (about a third of the forecast 6 h maximum fell). The 2-of-8 Leominster calls have not
+verified as of 6:30 PM. Operations: the 12Z cycle reached the site 10 h after its issue time; fixed by reusing older members' runs
+(only new members run) and by giving the live timeline the wall-clock 'now' (it was frozen at 12Z because the cycle was over 8 h old).
