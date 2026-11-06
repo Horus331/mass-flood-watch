@@ -285,7 +285,6 @@ jobs:
           RP=""; [ -f arts/gate/reports.json ] && RP="--reports arts/gate/reports.json"
           python proto/storm_archive.py archive --gate arts/gate/gate.json --alerts arts/gate/alerts.json $RP --status $ST $K --root $R --flag archived.txt
           if [ -f archived.txt ]; then echo "AROOT=$R" >> $GITHUB_ENV; fi     # ARCHIVE.md is rebuilt by archive_followup.yml (one writer, no rebase conflicts)
-          if [ "$PFX" = "forecast_latest" ]; then python proto/storm_archive.py history --root $R --status $ST --out docs/site/data/forecast_history.json || true; fi   # cycle-by-cycle record of this storm for the Forecast tab
       - name: forward-test ledger (live cycles only; one row per cycle, quiet ones too; docs/proto/prospective/PROSPECTIVE.md)
         if: (inputs.prefix || 'forecast_latest') == 'forecast_latest'
         continue-on-error: true
@@ -296,6 +295,7 @@ jobs:
           K=""; [ -f kofn.json ] && K="--kofn kofn.json"
           python proto/storm_archive.py ledger --gate arts/gate/gate.json --status docs/site/data/forecast_status.json --alerts arts/gate/alerts.json \
             --reports arts/gate/reports.json $K --flag archived.txt --settings "ensemble=$ENS nbhd=20,90 cn=0.88 parity=1 infil=2 res=20 terrain=T2 start=rain"
+          python proto/storm_archive.py history --status docs/site/data/forecast_status.json --out docs/site/data/forecast_history.json || true   # cycle-by-cycle record of this storm for the Forecast tab (after the ledger: it reads each cycle's model version there)
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish
         run: |
