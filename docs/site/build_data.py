@@ -490,14 +490,15 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
             if re.match(r'depthc_\d+\.png$', old):
                 os.remove(os.path.join(od, old))
         dsheets = []
+        h0 = D['depth_cm'][keep].min(axis=0).astype(np.float32) / 100.0 if wm is not None else None   # rivers and ponds at their lowest in the run (normal level)
         for s0 in range(0, nf, 3):
             rgb = np.zeros((h, w, 3), np.uint8)
             for j in range(3):
                 if s0 + j >= nf:
                     continue
                 hm = D['depth_cm'][keep[s0 + j]].astype(np.float32) / 100.0
-                if wm is not None:
-                    hm = np.where(wm, 0, hm)
+                if wm is not None:   # rivers and ponds: only the rise above their start level, so a river out of its banks shows and a
+                    hm = np.where(wm, np.maximum(hm - h0, 0), hm)   # full lake or channel does not paint the map blue all storm
                 if f > 1:
                     hh, ww = (hm.shape[0] // f) * f, (hm.shape[1] // f) * f
                     hm = hm[:hh, :ww].reshape(hh // f, f, ww // f, f).max(axis=(1, 3))
@@ -506,7 +507,7 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
             name = 'depthc_%03d.png' % (s0 // 3)
             Image.fromarray(rgb, 'RGB').save(os.path.join(od, name), optimize=True)
             dsheets.append(name)
-        depthc = {'sheets': dsheets, 'per': 3, 'enc': 'v = 255 * sqrt(depth_m / 3), 1 cm floor, permanent water 0'}
+        depthc = {'sheets': dsheets, 'per': 3, 'enc': 'v = 255 * sqrt(depth_m / 3), 1 cm floor; permanent water: rise above its lowest level in the run'}
 
     risk = {}
     for rsrc in (src, risk_src):
@@ -765,6 +766,7 @@ def _build_tiled_once(key, src, run_dir, step, do_flow, risk_src):
     def submit(a, p):
         while len(futs) > 80: futs.pop(0).result()             # bounded queue of PNGs being written
         futs.append(ex.submit(save, a, p))
+    h0d = None
     for j, h_cm in enumerate(npz_frames(fp, 'depth_cm')):
         if use_flow and j in fl_need:   # the solver's velocity at this snapshot, depth-weighted over f_out x f_out blocks
             while vnext <= fl_need[j]: ucur = next(uS); vcur = next(vS); vnext += 1
@@ -779,7 +781,8 @@ def _build_tiled_once(key, src, run_dir, step, do_flow, risk_src):
             del hm, u, v, w
         if j not in kset: continue
         i = kset[j]
-        hc = h_cm if wm is None else np.where(wm, 0, h_cm)
+        if wm is not None and h0d is None: h0d = h_cm.copy()   # rivers and ponds at the first snapshot: only their rise is drawn
+        hc = h_cm if wm is None else np.where(wm, np.maximum(h_cm.astype(np.int32) - h0d, 0), h_cm)
         hm = hc.astype(np.float32) / 100.0
         # continuous depth: tiles at full resolution, overview max-pooled
         v = enc_depth(hm)
