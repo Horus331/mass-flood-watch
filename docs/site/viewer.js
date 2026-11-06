@@ -3186,10 +3186,13 @@
     rows.slice(0, 40).forEach(function (r) {
       var p = r.s.f.properties, li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
       var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : '<span class="chip-st wet">Water on road</span>';
-      var hm = function (f) { return (multiDay ? fmtWdHM : fmtHM).format(timeAt(f)); };
+      var lastDay = null, hm = function (f) {   // the weekday only where the day changes (Mon 5:15 PM – Tue 12:45 AM · up to 131 cm at 6:10 PM)
+        var t = timeAt(f), d = multiDay ? fmtWd.format(t) : null, out = (d && d !== lastDay ? d + ' ' : '') + fmtHM.format(t); lastDay = d; return out;
+      };
+      var tSpan = r.sev === 3 ? hm(r.st) + ' – ' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st);
+      lastDay = multiDay ? fmtWd.format(timeAt(r.st)) : null;   // the peak is said relative to the start day
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
-        '<span class="rt">' + (r.sev === 3 ? 'Closed ' + hm(r.st) + '–' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st)) +
-        ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>'
+        '<span class="rt">' + tSpan + ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
       var sn = runKey === 'forecast' && meta.kofn ? fhSeen(+r.s.id) : null;
       if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
       b.addEventListener('click', function () {
@@ -3620,7 +3623,7 @@
   var REPO = 'https://github.com/Horus331/mass-flood-watch/blob/main/';
   var fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }), fmtMD = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   var fmtHM = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
-  var fmtWdHM = new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  var fmtWd = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' });
   // iOS-weather-style rain strip: one bar per 6 hours (NBM QPF in the outlook feed), height = district-average rain in that block,
   // colour = the same radar rain classes as the map (by the block's average rate), line = wettest town
   var BAR_FULL = 3, SIX_FULL = 15, fmtH6 = new Intl.DateTimeFormat('en-US', { hour: 'numeric', timeZone: 'America/New_York' });

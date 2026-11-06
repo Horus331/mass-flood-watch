@@ -37,7 +37,7 @@ def main():
             await shot('viewer.html?run=forecast', 'fc_panel_history.png', js="var h=document.getElementById('fhist'); if(h) h.scrollIntoView({block:'start'})", el='#card')
             await shot('viewer.html?run=forecast', 'fc_phone.png', phone=True)
             await shot('viewer.html?run=forecast', 'fc_click_road.png', js="var b=document.querySelector('#rankList li button, #rankList li'); if(b) b.click()")
-            await shot('viewer.html?run=leominster_sep2023', 'replay_leominster.png')
+            await shot('viewer.html?run=leominster_sep2023', 'replay_leominster.png', wait=60000)
             await shot('viewer.html?run=whatif', 'scenarios.png')
             await shot('index.html', 'home.png')
             for i, s in enumerate(segs):
