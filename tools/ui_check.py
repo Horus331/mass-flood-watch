@@ -36,6 +36,10 @@ def main():
             await shot('viewer.html?run=forecast', 'fc_desktop.png')
             await shot('viewer.html?run=forecast', 'fc_panel_history.png', js="var h=document.getElementById('fhist'); if(h) h.scrollIntoView({block:'start'})", el='#card')
             await shot('viewer.html?run=forecast', 'fc_phone.png', phone=True)
+            await shot('viewer.html?run=forecast', 'fc_click_road.png', js="var b=document.querySelector('#rankList li button, #rankList li'); if(b) b.click()")
+            await shot('viewer.html?run=leominster_sep2023', 'replay_leominster.png')
+            await shot('whatif.html', 'scenarios.png')
+            await shot('index.html', 'home.png')
             for i, s in enumerate(segs):
                 lon, lat = tr.transform(s['x'], s['y'])
                 await shot(f'viewer.html?run=forecast&c={lon:.5f},{lat:.5f}&z=16', f'fc_road{i + 1}.png')
