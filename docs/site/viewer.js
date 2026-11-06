@@ -1600,7 +1600,7 @@
       $('kClosed').textContent = $('kRisk').textContent = '–'; slLast = '';
     }
     var a = t0, b = t0 && new Date(t0.getTime() + (nf - 1) * meta.frame_min * 60000);
-    $('slMode').textContent = on ? 'Flood model, NOAA HRRR forecast' : 'Flood model covers ' + fmtFr.format(new Date(Math.max(a.getTime(), frMs(FR._now)))) + ' to ' + fmtFr.format(b) + ': move the slider there';
+    $('slMode').textContent = on ? (meta && meta.kofn ? 'Newest of the ' + meta.kofn.n + ' forecast runs (the headline counts all ' + meta.kofn.n + ')' : 'Flood model, NOAA HRRR forecast') : 'Flood model covers ' + fmtFr.format(new Date(Math.max(a.getTime(), frMs(FR._now)))) + ' to ' + fmtFr.format(b) + ': move the slider there';
   }
   var frLastLabel = '';
   function frSetTime(v) {
