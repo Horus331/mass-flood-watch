@@ -2258,6 +2258,11 @@
 
   function kofnLegend() {
     var lb = $('legendBody'); if (!lb || $('kofnKey')) return;
+    var rr = document.querySelector('#legend .kroads'); if (rr && !$('kofnMini')) {   // the visible key: say what the wide forecast lines mean
+      var row = document.createElement('div'); row.className = 'k'; row.id = 'kofnMini';
+      row.innerHTML = '<span class="kl">Forecast, next 48 h</span><span class="kr kroads"><span><i class="kw shut kwide"></i>likely closed (' + 2 + '+ of ' + meta.kofn.n + ' runs)</span><span><i class="kw risk kwide"></i>possible (1 of ' + meta.kofn.n + ')</span></span>';
+      rr.parentNode.parentNode.insertBefore(row, rr.parentNode.nextSibling);
+    }
     var k = document.createElement('div'); k.id = 'kofnKey'; k.className = 'grp kofn';
     k.innerHTML = '<h2>Forecast agreement</h2><label class="row"><input type="checkbox" id="lyAgree" checked><span>Roads closed in the ' + meta.kofn.n + ' forecast runs</span></label>' +
       '<p class="note"><i style="display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;background:var(--closed)"></i> likely closed: 2 or more of ' + meta.kofn.n + ' agree<br>' +
