@@ -109,6 +109,8 @@ def evaluate(init, H, R, gate, force=False):
             k = int(np.argmax(np.where(left, score, -1)))
             cx = min(max(round(gate.X[k] / 1000) * 1000, x0d + half), x1d - half); cy = min(max(round(gate.Y[k] / 1000) * 1000, y0d + half), y1d - half)
             b = [cx - half, cy - half, cx + half, cy + half]
+            if any(x['box'] == [int(v) for v in b] for x in boxes):   # the peak lies outside the modelled area (towns east of D3_BOX, e.g.
+                left &= ~(np.hypot(gate.X - gate.X[k], gate.Y - gate.Y[k]) < half + 5000); continue   # Natick, Wayland): same clamped box again
             inb = (gate.X >= b[0]) & (gate.X < b[2]) & (gate.Y >= b[1]) & (gate.Y < b[3])
             cov = (gate.X >= b[0] - 5000) & (gate.X < b[2] + 5000) & (gate.Y >= b[1] - 5000) & (gate.Y < b[3] + 5000)
             tw = sorted({t['town'] for t, idx in zip([dict(town=n.title()) for n, _, _ in gate.towns], gate.town_pts) if inb[idx].any()})
@@ -116,7 +118,7 @@ def evaluate(init, H, R, gate, force=False):
                               max6h_mm=round(float(S['max6h'][inb & ins].max()), 1) if (inb & ins).any() else 0.0,
                               max24h_mm=round(float(S['max24h'][inb & ins].max()), 1) if (inb & ins).any() else 0.0,
                               max6h_window=[iso(S['t6'][k]), iso(S['t6'][k] + min(6, H))], towns=tw))
-            left &= ~cov
+            left &= ~(cov | (np.hypot(gate.X - gate.X[k], gate.Y - gate.Y[k]) < half + 5000))   # always retire the peak itself, even when the box was clamped away from it
     k6 = int(np.argmax(np.where(ins, S['max6h'], -1)))
     d3 = dict(max1h_mm=round(float(S['max1h'][ins].max()), 1), max6h_mm=round(float(S['max6h'][ins].max()), 1), max24h_mm=round(float(S['max24h'][ins].max()), 1),
               max_total_mm=round(float(S['total'][ins].max()), 1), mean_total_mm=round(float(S['total'][ins].mean()), 1),
