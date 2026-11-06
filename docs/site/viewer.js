@@ -1670,7 +1670,11 @@
   var fcStat = null;
   if (runKey === 'forecast') {
     getJson('site/data/forecast_status.json').then(function (s) {
-      var run0 = s && s.runs && s.runs[0], dir = s && (s.dir || (run0 && run0.viewer) || (s.state === 'run' && s.run));
+      // open on the box with the most likely closures (the first box is the heaviest rain, which may close nothing: 6 Nov 06Z opened on
+      // Pepperell with 0 likely while all 22 were in Worcester); ?box=<key> still picks one
+      var rq = (location.search.match(/[?&]box=([^&]+)/) || [])[1], R = (s && s.runs) || [];
+      var run0 = R.filter(function (r) { return r.key === rq; })[0] || R.slice().sort(function (a, b) { return (b.likely_closed || 0) - (a.likely_closed || 0) || (b.possible || 0) - (a.possible || 0); })[0];
+      var dir = s && ((run0 && run0.viewer) || s.dir || (s.state === 'run' && s.run));
       if (s && s.state === 'quiet') { forecastQuiet(s); liveInit(s); return; }
       var ok = s && (s.ready === true || s.status === 'ok' || s.state === 'run') && dir;
       if (!ok) throw new Error('forecast not ready');
