@@ -30,7 +30,7 @@ def main():
                 report['shots'].append(dict(name=name, url=url, **txt)); report['errors'] += [e[:200] for e in errs if '404' not in e][:5]
                 print('wrote', name); await ctx.close()
             await shot('viewer.html?run=forecast', 'fc_desktop.png')
-            await shot('viewer.html?run=forecast', 'fc_panel_history.png', js="var h=document.getElementById('fhist'); if(h) h.scrollIntoView({block:'start'})", el='.side, #side, aside')
+            await shot('viewer.html?run=forecast', 'fc_panel_history.png', js="var h=document.getElementById('fhist'); if(h) h.scrollIntoView({block:'start'})", el='#card')
             await shot('viewer.html?run=forecast', 'fc_phone.png', phone=True)
             for i, s in enumerate(segs):
                 lon, lat = tr.transform(s['x'], s['y'])
