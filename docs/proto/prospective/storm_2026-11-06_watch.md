@@ -26,3 +26,8 @@ cycle to cycle. No road was named by two cycles. Model v2 (terrain fix T2 + dept
   unmerged files until it gave up, while the job still reported success. Fixed for all six data-publishing workflows: `-X theirs`
   (the job's own data wins) and `git rebase --abort` on failure. A fresh forecast was dispatched at 02:30Z on the fixed workflow.
 - 6 Nov 00Z: first v2 cycle on the site (published 06:38Z). The duplicate-box bug above was found in it and fixed (CHANGE_2026-11-05.md, operational fix). The forecast-history card now reads each cycle's model version after the ledger is written.
+- 6 Nov 06–08Z, Forecast-tab review (screenshots from `ui_check.yml`): closure times now carry the weekday in 48 h runs; the visible key
+  explains the wide forecast lines (likely 2+ of 8 / possible 1 of 8); the timeline's 'Now' is refreshed hourly by the live-feeds job
+  (it was the forecast-cycle time, 5 h old); live data and forecast packs bypass the 10-min Pages cache; the live refresh / live feeds /
+  events log workflows no longer drop a push on a race. Map check, 00Z: closed stretches follow low ground (Paine St along the Peters
+  River, Wrentham Rd at Bungay Brook, Pulaski Blvd by Jenks Pond).
