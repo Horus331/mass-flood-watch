@@ -1,0 +1,19 @@
+name: UI check - screenshots of the live Forecast tab (run by hand)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: tools, sparse-checkout-cone-mode: true}
+      - run: pip install -q playwright pyproj && python -m playwright install --with-deps chromium
+      - run: python tools/ui_check.py
+      - name: push the images to branch ui-check (orphan, replaced each run)
+        if: always()
+        run: |
+          cd shots && git init -q -b ui-check && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "ui check"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:ui-check
