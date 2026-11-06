@@ -149,9 +149,24 @@ jobs:
         b: ${{ fromJSON(needs.gate.outputs.jobs) }}
     steps:
       - uses: actions/checkout@v4
+      # an older member (not the issue cycle) on the same box and window gives the same result every cycle it is in the ensemble: reuse it
+      # (key = member init, box, hours, and the model and closure code), so a cycle runs only its new members and is on the site hours sooner
+      - name: reuse this member's closures if an earlier cycle ran it
+        id: c
+        if: matrix.b.init != needs.gate.outputs.init
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/pcache
+          key: mem-v2-${{ matrix.b.init }}-${{ matrix.b.box }}-${{ needs.gate.outputs.hours }}-${{ hashFiles('sim/colab/w9_lisflood.py', 'proto/prototype.py', 'proto/hrrr_rain.py', '.github/workflows/forecast.yml') }}
+      - name: reused
+        if: steps.c.outputs.cache-hit == 'true'
+        run: mkdir -p art && cp -r ${{ runner.temp }}/pcache art/proto_${{ matrix.b.m }}_${{ matrix.b.id }} && ls art/* | head && echo "::notice title=reused::member ${{ matrix.b.init }} box ${{ matrix.b.box }} from an earlier cycle"
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+        if: steps.c.outputs.cache-hit != 'true'
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+        if: steps.c.outputs.cache-hit != 'true'
       - name: flood depth (LISFLOOD-FP 8.2, CPU, HRRR rain)
+        if: steps.c.outputs.cache-hit != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           LF_WORK: ${{ runner.temp }}/lf
@@ -182,6 +197,7 @@ jobs:
           set -o pipefail
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
       - name: road closures
+        if: steps.c.outputs.cache-hit != 'true'
         env:
           PROTO_RES_CONSISTENT: '1'   # closure depth = water above what was on the road when the rain began (CHANGE_2026-11-05.md)
           PROTO_RC_START_H: rain
@@ -200,6 +216,13 @@ jobs:
             du -sh $P/run_out || true
           fi
           mkdir -p art && cp -r $P art/
+          if [ "${{ matrix.b.init }}" != "${{ needs.gate.outputs.init }}" ] && [ -f $P/summary.json ]; then rm -rf ${{ runner.temp }}/pcache && cp -r $P ${{ runner.temp }}/pcache; fi
+      - name: keep this member's closures for the next cycles
+        if: steps.c.outputs.cache-hit != 'true' && matrix.b.init != needs.gate.outputs.init && success()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/pcache
+          key: mem-v2-${{ matrix.b.init }}-${{ matrix.b.box }}-${{ needs.gate.outputs.hours }}-${{ hashFiles('sim/colab/w9_lisflood.py', 'proto/prototype.py', 'proto/hrrr_rain.py', '.github/workflows/forecast.yml') }}
       - name: diagnostics (annotation)
         if: always()
         run: |
