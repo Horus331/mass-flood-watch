@@ -71,7 +71,7 @@ jobs:
           AGE=$(python -c "import json,datetime as d; n=json.load(open('docs/site/data/forecast_rain/rain.json'))['now']; print(int((d.datetime.utcnow()-d.datetime.strptime(n,'%Y-%m-%dT%H:%MZ')).total_seconds()//60))" 2>/dev/null || echo 999)
           echo "rain timeline now is $AGE min old (HRRR $INIT)"
           if [ "$AGE" -ge 60 ] && [ -n "$INIT" ]; then
-            python proto/rain_timeline.py build --init "$INIT" --out /tmp/rt 2>&1 | tail -2
+            python proto/rain_timeline.py build --init "$INIT" --now "$(date -u +%Y-%m-%dT%H:00Z)" --out /tmp/rt 2>&1 | tail -2   # explicit now: else a cycle over 8 h old is taken for a hindcast
             if [ -f /tmp/rt/rain.json ] && [ -f /tmp/rt/rain.png ]; then cp /tmp/rt/rain.json /tmp/rt/rain.png docs/site/data/forecast_rain/ && echo "changed=true" >> $GITHUB_OUTPUT; fi
           fi
       - name: commit (only when decided)
