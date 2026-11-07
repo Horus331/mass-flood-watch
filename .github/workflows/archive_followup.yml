@@ -18,6 +18,7 @@ on:
       now: {description: 'pretend current UTC time, ISO (tests)', default: ''}
       force_radar: {description: 'run the radar job even if it already ran', type: boolean, default: false}
       publish: {description: 'commit the result', type: boolean, default: true}
+      model: {description: 'flood model for the radar run: baseline (frozen BASELINE.md) or v2 (also terrain fix T2 and depth from rain onset, as the live forecast since 5 Nov)', default: 'baseline'}
 permissions:
   contents: write
 concurrency:
@@ -78,6 +79,8 @@ jobs:
           HOURS: ${{ matrix.r.hours }}
           RUN_DIR: runs/${{ matrix.r.sid }}_radar_${{ matrix.r.id }}
           LF_PARITY: '1'
+          LF_NOTCH_FIX: ${{ inputs.model == 'v2' && '1' || '' }}
+          LF_CHAN_ENFORCE: ${{ inputs.model == 'v2' && '1' || '' }}
           LF_LOSS: cn
           LF_CN_AMC: II
           LF_CN_SCALE: '0.88'
@@ -98,7 +101,9 @@ jobs:
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out 2>/dev/null | head -1); [ -n "$OUTDIR" ] || exit 0
           LBL=$LDIR/labels_${S}_auto.csv; LA=""; [ -s $LBL ] && LA="--labels $LBL"
           P=${{ runner.temp }}/proto
+          if [ "${{ inputs.model }}" = v2 ]; then export PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain; fi
           python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S $LA 2>&1 | tail -5
+          python -c "import json; s=json.load(open('$P/summary.json')); print('RADAR-RUN', '${{ inputs.model || 'baseline' }}', '${{ matrix.r.id }}', {k: s.get(k) for k in ('segments_in_box', 'segments_p_ge_50', 'segments_p_ge_90', 'segments_may_close', 'closures_expected')})" || true
           [ -f $A/obs/gauges.json ] && python proto/score.py --run-dir $OUTDIR --storm $S --obs $A/obs/gauges.json --out $D/score.json | tail -5 || true
           python proto/validate_points.py --run-dir $OUTDIR --storm $S --lsr $A/obs/lsr.csv --stormevents $A/obs/stormevents.csv $LA --out $D/points.json | tail -5 || true
           cp $P/summary.json $D/ && python proto/storm_archive.py segcsv $P/segments.geojson $D/segments.csv
