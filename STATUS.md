@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-07T13:14:37Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-07T14:44:55Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -252,3 +252,5 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | live_t2rise_aug2026_leominster_retry | pack_site | failed | 2482706 | 0 / 1 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z | log: logs/live_t2rise_aug2026_leominster_retry.txt |
 | live_t2rise_sep2018_fitchburg_retry | pack_site | completed | 2482707 | 1 / 0 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z |  |
 | live_t2rise_sep2018m_milford_retry | pack_site | failed | 2482708 | 0 / 1 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z | log: logs/live_t2rise_sep2018m_milford_retry.txt |
+| live_t2rise_aug2026_leominster_r2 | pack_site | submitted | 2482782 |  /  | 2026-11-07T14:44:55Z |  |  |
+| live_t2rise_sep2018m_milford_r2 | pack_site | submitted | 2482783 |  /  | 2026-11-07T14:44:55Z |  |  |
