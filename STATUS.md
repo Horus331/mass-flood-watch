@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-07T09:43:38Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-07T10:43:52Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -239,3 +239,13 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | fcd3_forecast_d3_2026110618 | forecast_d3 | completed | 2480897 | 8 / 0 | 2026-11-06T22:38:53Z | 2026-11-07T00:40:26Z |  |
 | fcd3_forecast_d3_2026110700 | forecast_d3 | completed | 2481743 | 8 / 0 | 2026-11-07T03:11:24Z | 2026-11-07T05:12:15Z |  |
 | pack_rise2_leominster_sep2023 | pack_site | completed | 2482622 | 1 / 0 | 2026-11-07T09:13:23Z | 2026-11-07T09:43:38Z |  |
+| live_t2rise_leominster_sep2023 | pack_site | submitted | 2482674 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_worcester_aug2021 | pack_site | submitted | 2482675 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_aug2026_leominster | pack_site | submitted | 2482676 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_sep2021_worcester | pack_site | submitted | 2482677 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_sep2022_webster | pack_site | submitted | 2482678 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_aug2023_metrowest | pack_site | submitted | 2482679 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_jun2020_northbridge | pack_site | submitted | 2482680 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_jul2023_worcester | pack_site | submitted | 2482681 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_sep2018_fitchburg | pack_site | submitted | 2482682 |  /  | 2026-11-07T10:43:52Z |  |  |
+| live_t2rise_sep2018m_milford | pack_site | submitted | 2482683 |  /  | 2026-11-07T10:43:52Z |  |  |
