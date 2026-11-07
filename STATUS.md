@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-07T12:44:37Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-07T13:14:37Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -34,7 +34,7 @@ Updated 2026-11-07T12:44:37Z by `proto/turing/queue_runner.py` on Turing. Reques
 | amcnwm_nwm_aug2021 | run_storm | completed | 2439673 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T23:30:22Z |  |
 | amcnwm_base_aug2023 | run_storm | completed | 2439674 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:44Z |  |
 | amcnwm_nwm_aug2023 | run_storm | completed | 2439675 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:44Z |  |
-| amcnwm_collect_1 | collect_group | failed | 2439676 | 0 / 1 | 2026-10-31T16:25:37Z | 2026-10-31T23:30:22Z |  |
+| amcnwm_collect_1 | collect_group | failed | 2439676 | 0 / 1 | 2026-10-31T16:25:37Z | 2026-10-31T23:30:22Z | log: logs/amcnwm_collect_1.txt |
 | amcnwm_base_aug2023b | run_storm | completed | 2439677 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:45Z |  |
 | amcnwm_nwm_aug2023b | run_storm | completed | 2439678 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:45Z |  |
 | amcnwm_base_aug2026 | run_storm | completed | 2439679 | 1 / 0 | 2026-10-31T16:25:37Z | 2026-10-31T22:29:45Z |  |
@@ -115,7 +115,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_nwm_sep2023 | run_storm | failed |  |  /  | 2026-10-31T16:25:38Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
 sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | amcnwm_collect_5 |  | rejected |  |  /  | 2026-10-31T16:25:38Z |  | a dependency failed or was rejected |
-| inl1_runs | run_inlets | failed | 2439813 | 0 / 50 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z |  |
+| inl1_runs | run_inlets | failed | 2439813 | 0 / 50 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z | log: logs/inl1_runs.txt |
 | inl1_collect | collect_scores | completed | 2439814 | 1 / 0 | 2026-10-31T16:55:56Z | 2026-10-31T18:57:29Z |  |
 | amcnwm_v1_b1 | run_plan_gpu | completed | 2439815 | 1 / 0 | 2026-10-31T16:55:56Z | 2026-10-31T23:30:22Z |  |
 | amcnwm_v1_b2 | run_plan_gpu | failed |  |  /  | 2026-10-31T16:55:56Z |  | sbatch: error: QOSMaxSubmitJobPerUserLimit
@@ -151,10 +151,10 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | pack_d3_sep2023_20m_d | pack_site | cancelled | 2443211 | 0 / 0 | 2026-11-01T17:10:19Z | 2026-11-01T21:12:35Z | cancelled through jobs.json "cancel" |
 | run_d3_sep2023_20m_any | run_storm | completed | 2443418 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T22:12:56Z |  |
 | pack_d3_sep2023_20m_any | pack_site | completed | 2443419 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T22:12:56Z |  |
-| fcd3_e2etest2_d3_2023091112_any | forecast_d3 | failed | 2443420 | 0 / 1 | 2026-11-01T18:10:56Z | 2026-11-01T20:42:07Z |  |
+| fcd3_e2etest2_d3_2023091112_any | forecast_d3 | failed | 2443420 | 0 / 1 | 2026-11-01T18:10:56Z | 2026-11-01T20:42:07Z | log: logs/fcd3_e2etest2_d3_2023091112_any.txt |
 | d3all_diag5 | diag | completed | 2443421 | 1 / 0 | 2026-11-01T18:10:56Z | 2026-11-01T18:41:02Z |  |
 | d3all_v1_b2 | run_plan_display | cancelled | 2443460 | 0 / 0 | 2026-11-01T18:41:02Z | 2026-11-01T21:12:35Z | cancelled through jobs.json "cancel" |
-| d3all_v1_c | run_plan_display | failed | 2443461 | 0 / 6 | 2026-11-01T18:41:02Z | 2026-11-01T23:14:01Z | array tasks cancelled: d3all_v1_c@5-11 |
+| d3all_v1_c | run_plan_display | failed | 2443461 | 0 / 6 | 2026-11-01T18:41:02Z | 2026-11-01T23:14:01Z | array tasks cancelled: d3all_v1_c@5-11; log: logs/d3all_v1_c.txt |
 | d3all_diag6 | diag | completed | 2443650 | 1 / 0 | 2026-11-01T19:41:34Z | 2026-11-01T20:11:44Z |  |
 | d3all_diag7 | diag | completed | 2443757 | 1 / 0 | 2026-11-01T20:42:07Z | 2026-11-01T21:12:35Z |  |
 | d3all_v1_b3 | run_plan_display | cancelled | 2443788 | 0 / 0 | 2026-11-01T21:12:35Z | 2026-11-01T21:42:47Z | cancelled through jobs.json "cancel" |
@@ -223,14 +223,14 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | d3all_v1_c2_s | run_plan_display | completed | 2444005 | 4 / 0 | 2026-11-01T22:43:15Z | 2026-11-02T00:44:31Z |  |
 | d3all_v1_c2_p | run_plan_display | completed | 2444006 | 2 / 0 | 2026-11-01T22:43:15Z | 2026-11-02T05:47:42Z |  |
 | d3all_v2_b_s | run_plan_display | completed | 2444007 | 12 / 0 | 2026-11-01T22:43:15Z | 2026-11-02T04:16:38Z |  |
-| d3all_v2_b_p | run_plan_display | failed | 2444008 | 4 / 2 | 2026-11-01T22:43:15Z | 2026-11-02T13:21:05Z |  |
+| d3all_v2_b_p | run_plan_display | failed | 2444008 | 4 / 2 | 2026-11-01T22:43:15Z | 2026-11-02T13:21:05Z | log: logs/d3all_v2_b_p.txt |
 | d3all_diag10 | diag | completed | 2444162 | 1 / 0 | 2026-11-01T23:14:02Z | 2026-11-01T23:44:08Z |  |
 | d3all_v1_adopt2 | run_plan_display | completed | 2444265 | 1 / 0 | 2026-11-01T23:44:08Z | 2026-11-02T00:14:23Z |  |
 | run_d3_sep2023_20m_t2b_p2 | run_storm | completed | 2444266 | 1 / 0 | 2026-11-01T23:44:08Z | 2026-11-02T02:15:11Z |  |
 | pack_d3_sep2023_20m_t2b2 | pack_site | completed | 2444267 | 1 / 0 | 2026-11-01T23:44:08Z | 2026-11-02T02:45:29Z |  |
-| fcd3_forecast_d3_2026110500 | forecast_d3 | failed | 2461812 | 0 / 8 | 2026-11-05T04:18:51Z | 2026-11-05T07:19:49Z |  |
-| fcd3_forecast_d3_2026110506 | forecast_d3 | failed | 2464861 | 0 / 8 | 2026-11-05T10:20:53Z | 2026-11-05T12:52:24Z |  |
-| fcd3_forecast_d3_2026110512 | forecast_d3 | failed | 2467491 | 0 / 8 | 2026-11-05T15:54:13Z | 2026-11-05T17:55:04Z |  |
+| fcd3_forecast_d3_2026110500 | forecast_d3 | failed | 2461812 | 0 / 8 | 2026-11-05T04:18:51Z | 2026-11-05T07:19:49Z | log: logs/fcd3_forecast_d3_2026110500.txt |
+| fcd3_forecast_d3_2026110506 | forecast_d3 | failed | 2464861 | 0 / 8 | 2026-11-05T10:20:53Z | 2026-11-05T12:52:24Z | log: logs/fcd3_forecast_d3_2026110506.txt |
+| fcd3_forecast_d3_2026110512 | forecast_d3 | failed | 2467491 | 0 / 8 | 2026-11-05T15:54:13Z | 2026-11-05T17:55:04Z | log: logs/fcd3_forecast_d3_2026110512.txt |
 | d3all_v2_b_p_retry | run_plan_display | completed | 2470315 | 2 / 0 | 2026-11-05T20:56:26Z | 2026-11-05T21:26:40Z |  |
 | fcd3_forecast_d3_2026110518 | forecast_d3 | completed | 2471838 | 8 / 0 | 2026-11-05T23:27:38Z | 2026-11-06T00:57:51Z |  |
 | fcd3_forecast_d3_2026110600 | forecast_d3 | completed | 2472674 | 8 / 0 | 2026-11-06T02:29:08Z | 2026-11-06T05:00:57Z |  |
@@ -241,14 +241,14 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | pack_rise2_leominster_sep2023 | pack_site | completed | 2482622 | 1 / 0 | 2026-11-07T09:13:23Z | 2026-11-07T09:43:38Z |  |
 | live_t2rise_leominster_sep2023 | pack_site | completed | 2482674 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
 | live_t2rise_worcester_aug2021 | pack_site | completed | 2482675 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
-| live_t2rise_aug2026_leominster | pack_site | failed | 2482676 | 0 / 1 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
+| live_t2rise_aug2026_leominster | pack_site | failed | 2482676 | 0 / 1 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z | log: logs/live_t2rise_aug2026_leominster.txt |
 | live_t2rise_sep2021_worcester | pack_site | completed | 2482677 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
 | live_t2rise_sep2022_webster | pack_site | completed | 2482678 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
 | live_t2rise_aug2023_metrowest | pack_site | completed | 2482679 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
 | live_t2rise_jun2020_northbridge | pack_site | completed | 2482680 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
 | live_t2rise_jul2023_worcester | pack_site | completed | 2482681 | 1 / 0 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
-| live_t2rise_sep2018_fitchburg | pack_site | failed | 2482682 | 0 / 1 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
-| live_t2rise_sep2018m_milford | pack_site | failed | 2482683 | 0 / 1 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z |  |
-| live_t2rise_aug2026_leominster_retry | pack_site | failed | 2482706 | 0 / 1 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z |  |
+| live_t2rise_sep2018_fitchburg | pack_site | failed | 2482682 | 0 / 1 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z | log: logs/live_t2rise_sep2018_fitchburg.txt |
+| live_t2rise_sep2018m_milford | pack_site | failed | 2482683 | 0 / 1 | 2026-11-07T10:43:52Z | 2026-11-07T11:13:53Z | log: logs/live_t2rise_sep2018m_milford.txt |
+| live_t2rise_aug2026_leominster_retry | pack_site | failed | 2482706 | 0 / 1 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z | log: logs/live_t2rise_aug2026_leominster_retry.txt |
 | live_t2rise_sep2018_fitchburg_retry | pack_site | completed | 2482707 | 1 / 0 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z |  |
-| live_t2rise_sep2018m_milford_retry | pack_site | failed | 2482708 | 0 / 1 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z |  |
+| live_t2rise_sep2018m_milford_retry | pack_site | failed | 2482708 | 0 / 1 | 2026-11-07T12:14:27Z | 2026-11-07T12:44:37Z | log: logs/live_t2rise_sep2018m_milford_retry.txt |
