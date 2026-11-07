@@ -44,3 +44,21 @@ cycle to cycle. No road was named by two cycles. Model v2 (terrain fix T2 + dept
 Reading: the HRRR was too wet for this storm so far (about a third of the forecast 6 h maximum fell). The 2-of-8 Leominster calls have not
 verified as of 6:30 PM. Operations: the 12Z cycle reached the site 10 h after its issue time; fixed by reusing older members' runs
 (only new members run) and by giving the live timeline the wall-clock 'now' (it was frozen at 12Z because the cycle was over 8 h old).
+
+## After the storm (7 Nov 09Z, preliminary; automatic scoring follows from archive_followup.yml)
+
+- Where the rain fell: the heavy core was south-east of District 3: NWS flood / flash-flood warnings on 6 Nov were for Barnstable
+  (2–3 in by 1:53 PM), Bristol MA / RI and Plymouth (1.5–2.5 in, road closures in Acushnet and New Bedford by 9 PM); Brockton
+  (Westgate Dr) and Falmouth flooded. District 3: MRMS district mean about 31 mm over 48 h, 3 h maxima about 20 mm; gauges rose but
+  stayed in their banks (North Nashua near Leominster 143 → 325 cfs, Blackstone at Woonsocket 941 cfs).
+- Flood reports in District 3: none found (MassDOT roadway-events feed: no flooding entries 6–7 Nov; news; NWS warnings did not
+  cover the district). Absence of reports is not proof of dry roads; the automatic follow-up checks the remaining sources.
+- Forecast: every cycle from 5 Nov 06Z to 6 Nov 12Z named likely closures in District 3 (22, 10, 25, 22, 6), in a different part of the
+  district each time, following the HRRR core (Worcester / Berlin → Leominster–Westford → Franklin–Bellingham (110 mm) →
+  Bellingham (97 mm) → Pepperell (42 mm) → Groton (89 mm)). The HRRR placed the storm 50–100 km too far west and north and too wet
+  over the district; the flood model inherited it. Provisional verdict: false alarms in District 3, caused by the rain forecast.
+- Operations lost the 6 Nov 18Z – 7 Nov 06Z cycles (cache-key error in the member-reuse change, fixed 09Z) and delayed others by up to
+  10 h; the forward-test ledger has no rows for them.
+- Lessons for the model (to be pre-registered before any change): (1) the k-of-8 rule kept 2-of-8 calls although the members disagreed
+  on where the storm would be; a location-agreement check (do the members put heavy rain in the same box?) could have lowered these to
+  'possible'. (2) Cycle-to-cycle stability: no road was named by two cycles, which the forecast-history card now shows to users.
