@@ -36,7 +36,7 @@ FEEDS = ('rain', 'nowcast', 'flash', 'nwm', 'snow', 'validation')
 # Alert levels (fixed in advance, not tuned): 1 h rain max >= 10 / 25 / 50 mm (NWS heavy-rain rates ~ 0.4 / 1 / 2 in/h)
 RAIN_LEVELS = (10.0, 25.0, 50.0)
 FLASH_UNITQ = 2.0      # m3 s-1 km-2 (CREST max unit streamflow; flash-flood guidance in the FLASH literature: > 2 likely, > 5 significant)
-FLASH_RATIO = 1.0      # QPE / FFG
+FLASH_RATIO = 1.0      # QPE / FFG as a fraction (MRMS stores percent; converted on read)
 CADENCE_H, HEARTBEAT_H = 3.0, 24.0
 
 
@@ -333,7 +333,9 @@ def feed_flash(now=None):
                source='NOAA MRMS FLASH (CREST hydrologic model; QPE-to-flash-flood-guidance ratios), AWS s3://noaa-mrms-pds/CONUS/FLASH_*')
     per = {}
     for k, (t, V, la, lo, u) in G.items():
-        V = np.nan_to_num(V, nan=0.0); T, (mx, mn) = town_stats(V, la, lo, ('max',), d=2)
+        V = np.nan_to_num(V, nan=0.0)
+        if k.startswith('ffg'): V = V / 100.0   # MRMS FLASH QPE/FFG ratios are stored in percent (steps of 5, 100 = rain equals guidance)
+        T, (mx, mn) = town_stats(V, la, lo, ('max',), d=2)
         out['products'][k] = dict(product=FLASH[k], valid=iso(t), district_max=mx, url=u); per[k] = {x[0]: x[1] for x in T}
     out['town_fields'] = ['town', 'unitq_max', 'ffg01h_ratio_max', 'ffg03h_ratio_max', 'ffg06h_ratio_max']
     out['towns'] = [[n] + [per.get(k, {}).get(n) for k in FLASH] for n, _, _ in towns()]
@@ -342,7 +344,7 @@ def feed_flash(now=None):
         why = []
         if (t[1] or 0) > FLASH_UNITQ: why.append(f'unit streamflow {t[1]} m3/s/km2')
         for k, v in zip(('1h', '3h', '6h'), t[2:]):
-            if (v or 0) > FLASH_RATIO: why.append(f'QPE/FFG {k} {v}')
+            if (v or 0) >= FLASH_RATIO: why.append(f'{k} rain {v * 100:.0f}% of flash-flood guidance')
         if why: out['flagged'].append(dict(town=t[0], why=why))
     flagged = sorted(f['town'] for f in out['flagged'])
     material = dict(flagged=flagged, q=round(out['products'].get('unitq', {}).get('district_max') or 0, 1),
