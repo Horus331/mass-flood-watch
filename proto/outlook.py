@@ -600,6 +600,9 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
     else:
         s0 = max(storms, key=lambda s: (s['level'], s.get('town_max_mm') or 0)); amt = f", up to {s0['town_max_mm']:.0f} mm in a town" if s0.get('town_max_mm') is not None else ''
         headline = {4: f"Flood model run for the storm {span(s0)}: see the Forecast map", 3: f"Heavy rain possible {span(s0)}{amt}"}.get(s0['level'], f"Rain {span(s0)}{amt}, below the flood threshold")
+        fw = [a_ for a_ in s0.get('alerts') or [] if 'watch' in a_.lower() or 'warning' in a_.lower()]
+        if s0['level'] == 3 and not s0.get('towns_over') and ERO_LEVELS.index(s0.get('ero_max') or 'none') < 2 and fw:
+            headline = f"NWS {fw[0]} {span(s0)}{amt}, below the flood-model threshold"   # level 3 only because of an NWS alert: do not call 12 mm heavy rain
         if len(storms) > 1: headline += f" ({len(storms)} rain spells this week)"
     # ---- health
     status_ = 'failed' if not rain.get('ok') else 'ok' if not problems else 'partial'
