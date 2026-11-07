@@ -217,6 +217,7 @@ def cmd_ensemble(a):
             try: rk[f'{m}:{bid}'] = json.load(open(f))
             except Exception: pass
     if rk: K['rain_km'] = rk
+    log('ensemble: 1 km rain kept for', len(rk), 'of', len(M), 'member runs')
     json.dump(K, open(a.out, 'w'), separators=(',', ':'))
     log('ensemble:', K['likely'], 'likely,', K['possible'], 'possible; finished', {k: len(v) for k, v in K['finished'].items()})
     if a.viewers:

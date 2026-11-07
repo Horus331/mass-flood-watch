@@ -11,6 +11,8 @@ Solomon Pond Road ramps, "up to 27 cm at Fri 5:00 AM", the first frame).
 
 **Change.** A segment counts as closed only where depth >= 30 cm AND depth minus its depth at rain onset >= 30 cm, at the same frame.
 (v2 already measures depth from rain onset in the probability; this applies the same to the closure rule and to the k-of-8 count.)
+Note 7 Nov 23:30Z: the forecast count already drops segments at >= 30 cm at onset; on the b4 radar run that removes 1 of 11. The other 10
+are below 30 cm at onset and reach it within about 0.5 h, so the test must look at the rise, not only at the onset depth.
 
 **Test.** All archived storms with labels (`docs/proto/forecast/ensemble.json` storms and the 23 district T2 storms): site recall (score_v2)
 and flagged share, current rule vs rise rule. Adopt only if pooled recall does not drop by more than 1 site and flagged share falls.
