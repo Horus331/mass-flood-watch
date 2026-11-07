@@ -135,3 +135,42 @@ closes none there, matching the reports.
 - b4: 11 closures from the radar rain with 0 reports: a possible flood-model false positive (road list pending, rerun with names).
 - The archive's radar boxes were first-come (cap 4), so the boxes of the later, wettest forecasts (incl. 6 Nov 06Z Worcester, 22 likely,
   East Park Terrace 8 of 8) had no radar run. Cap raised to 8 and the 4 later boxes added; rerun pending.
+
+### 7 Nov, 19:00Z: all 8 boxes on the radar rain; main error sources
+
+Radar-driven reruns (archive_followup, publish=false, window 5 Nov 20Z + 48 h; last 2 h not yet on radar). Segments at P >= 0.5:
+
+| box | area | radar rain max / mean (mm) | baseline model | v2 (live settings) | reports |
+| --- | --- | --- | --- | --- | --- |
+| b1 | Bellingham, Mendon, Milford, Uxbridge | 96 / 72 | 2 | 0 | 0 |
+| b2 | Holden, Spencer, Rutland | 50 / 28 | 1 | 0 | 0 |
+| b3 | Fitchburg, Gardner | 30 / 20 | 0 | 0 | 0 |
+| b4 | Clinton, Berlin, Lancaster, Northborough | 56 / 43 | 22 | 11 | 0 |
+| b5 | Groton, Pepperell, Dunstable | 43 / 33 | – | 0 | 0 |
+| b6 | Holden, Princeton, Hubbardston | 38 / 25 | – | 0 | 0 |
+| b7 | Franklin, Grafton, Holliston | 84 / 61 | – | 0 | 0 |
+| b8 | Worcester, Northborough, Grafton | 66 / 48 | – | 7 | 0 |
+
+v2 roads closed by the radar rain:
+- b8: East Park Terrace (0.75 m, 11.5 h over 30 cm), Shrewsbury Street x2, Cambridge Street, Fantasia Drive, Hudson Street (Northborough),
+  Martin Luther King Jr Blvd. All reach 30 cm 37 to 41 h into the run (7 Nov 09Z to 13Z, the second rain band). These are the same roads
+  the 6 Nov 06Z forecast listed as likely (East Park Terrace 8 of 8 members, Hudson Street 6 of 8, Shrewsbury and Cambridge Street 5 of 8).
+- b4: Ash Street (Clinton) x2, Water Street (Clinton), Route 62 and South Street (Berlin), the Route 290 / Solomon Pond Road ramps
+  (Northborough), Route 117 (Lancaster). Most reach 30 cm 0.5 h into the run, before the storm's rain, so the depth comes from water
+  already next to the road at the start (streams, ponds), not from this storm.
+
+**Main error sources, by area.**
+1. North and west (Leominster, Fitchburg, Gardner, Pepperell, Holden): the rain forecast, about twice too wet. With the real rain the
+   model closes nothing, matching the reports.
+2. South (Bellingham to Franklin): the forecast storm total was about right but the members put too much of it into one 6 h burst. With
+   the real rain the model closes nothing (v2), matching the reports. Error source: rain intensity of the forecast members.
+3. Worcester (b8): not the rain forecast. The model closes the same 7 roads with the observed rain; no one reported them. Either these
+   are real, unreported street-flooding spots (East Park Terrace / Shrewsbury Street / Cambridge Street are low streets under or next to
+   rail lines), or the model floods them because it has no storm drains. Storm-drain experiments were already rejected twice
+   (docs/proto/drains), so this needs evidence first (city 311 records, cameras), not a model change.
+4. b4: start-state water on roads next to streams and ponds (depth at the start of the run). The closure rule should only count water
+   that the storm adds.
+
+**Proposed changes, pre-registered in `CHANGE_PROPOSAL_2026-11-07.md`, not adopted.**
+P1 rise rule for closures (start-state water), P2 rain-location agreement for "likely", P3 radar boxes follow the forecasts (cap raised
+to 8: done), P4 evidence for the Worcester hot spots before any model change.
