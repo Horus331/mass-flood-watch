@@ -81,3 +81,12 @@ verified as of 6:30 PM. Operations: the 12Z cycle reached the site 10 h after it
 - The better test is the location-agreement check (do the members put the heavy rain in the same place?). It needs each member's rain field
   per cycle, which the archive does not keep yet (only `gate.json` of the issue cycle and `kofn.csv`). Not tested; nothing changed in the model.
 - Two cycles (6 Nov 18Z, 7 Nov 00Z) show n = 1 in the archive: those are the cycles lost to the cache-key bug (only the issue member ran).
+
+### 7 Nov, 12:30Z: operations
+
+- Member cache tested (prefix `test_cache`, init 6 Nov 18Z, 1 box): first pass 8 members 55 to 110 min; second pass the 7 older members
+  restored from the cache in about 35 s each, only the issue-cycle member reruns. A forecast update during a storm is now one flood run per box.
+- Storm replays repacked from their terrain-fix (T2) runs, with rivers and ponds drawn where they rise >= 20 cm above their lowest level
+  (`RISE_MIN_M`). Segments at P >= 0.5, old -> T2: Leominster Sep 2023 102 -> 73, Worcester Aug 2021 98 -> 73, Sep 2021 Worcester 187 -> 104,
+  Aug 2023 MetroWest 108 -> 96, Jun 2020 Northbridge 22 -> 20, Sep 2022 Webster 15 -> 11, Jul 2023 Worcester 6 -> 0.
+  Aug 2026 Leominster, Sep 2018 Fitchburg and Sep 2018 Milford failed on Turing on the first try and were requeued.
