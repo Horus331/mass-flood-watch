@@ -104,6 +104,10 @@ jobs:
           if [ "${{ inputs.model }}" = v2 ]; then export PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain; fi
           python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S $LA 2>&1 | tail -5
           python -c "import json; s=json.load(open('$P/summary.json')); print('RADAR-RUN', '${{ inputs.model || 'baseline' }}', '${{ matrix.r.id }}', {k: s.get(k) for k in ('segments_in_box', 'segments_p_ge_50', 'segments_p_ge_90', 'segments_may_close', 'closures_expected')})" || true
+          ( cd proto && python -c "
+          import forecast_kofn as K, sys
+          C = K.closures('$P'); print('RADAR-KOFN', '${{ matrix.r.id }}', len(C), 'closed under the forecast rule (P >= 0.5, not standing at rain onset):', '; '.join(f\"{c['road'] or 'unnamed'} ({c['town']})\" for c in C[:15]))
+          " ) || true
           python -c "import csv; R=[r for r in csv.DictReader(open('$P/watchlist.csv')) if float(r['p_close']) >= 0.5]; [print('RADAR-ROAD', '${{ matrix.r.id }}', r['p_close'], r['road'], '|', r['town'], '| depth', r['peak_depth_m'], '| hours>30cm', r['hours_over_30cm'], '|', r['why'][:120]) for r in R[:25]]" || true
           [ -f $A/obs/gauges.json ] && python proto/score.py --run-dir $OUTDIR --storm $S --obs $A/obs/gauges.json --out $D/score.json | tail -5 || true
           python proto/validate_points.py --run-dir $OUTDIR --storm $S --lsr $A/obs/lsr.csv --stormevents $A/obs/stormevents.csv $LA --out $D/points.json | tail -5 || true
