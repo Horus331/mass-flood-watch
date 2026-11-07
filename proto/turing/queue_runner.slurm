@@ -28,7 +28,7 @@ git -C $QDIR/repo pull -q --rebase "$R" turing-queue || echo "pull turing-queue 
 # 3. tick
 python proto/turing/queue_runner.py tick --qdir $QDIR || echo "tick failed"
 # 4. status back (only if it changed)
-cd $QDIR/repo && git add -A status.json STATUS.md 2>/dev/null
+cd $QDIR/repo && git add -A status.json STATUS.md 2>/dev/null; [ -d logs ] && git add -A logs 2>/dev/null
 if ! git diff --cached --quiet; then
   git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "queue status $(date -u +%FT%TZ)"
   for i in 1 2 3; do git pull -q --rebase "$R" turing-queue && git push -q "$R" HEAD:turing-queue && break; sleep 10; done

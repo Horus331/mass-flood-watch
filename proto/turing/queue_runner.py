@@ -82,6 +82,23 @@ def sh(cmd, env=None, timeout=300):
     return r.returncode, (r.stdout or '').strip(), (r.stderr or '').strip()
 
 
+SECRET = re.compile(r'(token|passw|secret|api[_-]?key|BEGIN [A-Z ]*PRIVATE)', re.I)
+
+
+def log_tail(jid, n=25):
+    """Last n lines of a failed job's Slurm output (#SBATCH -o <name>_%j.out, written in the repository), secrets-looking lines dropped."""
+    import glob
+    if not re.match(r'^[0-9]{1,12}$', str(jid or '')): return None
+    fs = sorted(glob.glob(os.path.join(REPO, f'*_{jid}.out')) + glob.glob(os.path.join(REPO, f'*_{jid}_*.out')))
+    if not fs: return None
+    out = []
+    for f in fs[:4]:
+        try: L = open(f, errors='replace').read().splitlines()[-n:]
+        except Exception: continue
+        out += [f'== {os.path.basename(f)}'] + [('[line removed]' if SECRET.search(l) else l.replace(os.path.expanduser('~'), '~'))[:300] for l in L]
+    return '\n'.join(out) or None
+
+
 def slurm_state(jid):
     rc, out, _ = sh(['sacct', '-n', '-X', '-P', '-j', str(jid), '--format=JobID,State,ExitCode,Elapsed'])
     if rc != 0 or not out: return None
@@ -107,6 +124,13 @@ def tick(qdir, dry=False, kinds_path=None, jobs_path=None, state_path=None):
             if q and q['state']:
                 s.update(slurm=q); s['status'] = {'PENDING': 'pending', 'RUNNING': 'running', 'COMPLETED': 'completed', 'FAILED': 'failed'}.get(q['state'], s['status'])
                 if s['status'] in ('completed', 'failed'): s['finished'] = s.get('finished') or now()
+    # 1a. a failed job's log tail goes to logs/<id>.txt on the queue branch, so a failure can be read without logging in to Turing
+    for rid, s in St.items():
+        if s.get('status') == 'failed' and s.get('slurm_id') and not s.get('log_checked') and ID.match(rid):
+            s['log_checked'] = True; t = None if dry else log_tail(s['slurm_id'])
+            if t:
+                ld = os.path.join(os.path.dirname(state_path or os.path.join(qdir, 'repo', 'status.json')), 'logs'); os.makedirs(ld, exist_ok=True)
+                open(os.path.join(ld, rid + '.txt'), 'w').write(t + '\n'); s['why'] = (s.get('why') or []) + [f'log: logs/{rid}.txt']
     # 1b. cancel: "cancel": [request ids] in jobs.json cancels those requests' own Slurm jobs (only jobs this queue submitted; nothing else)
     for rid in J.get('cancel') or []:
         m_ = re.match(r'^([A-Za-z0-9_.-]{1,60})@([0-9]{1,4}(-[0-9]{1,4})?)$', str(rid))
