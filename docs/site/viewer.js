@@ -3723,11 +3723,12 @@
     var rows = C.slice().reverse().map(function (c, i) {
       var d = zt(c.cycle), roads = c.roads || [], lk = roads.filter(function (r) { return r.cls === 'likely'; });
       var keep = i ? roads.filter(function (r) { return ids[r.segment]; }).length : null;
-      var nm = lk.slice(0, 3).map(function (r) { return esc(r.road || 'unnamed road') + (r.town ? ' (' + esc(r.town) + ')' : ''); }).join(', ');
+      var seen = {}, uq = lk.map(function (r) { return esc(r.road || 'unnamed road') + (r.town ? ' (' + esc(r.town) + ')' : ''); }).filter(function (t) { return seen[t] ? false : (seen[t] = 1); });   // one road, several segments: name it once
+      var nm = uq.slice(0, 3).join(', ');
       return '<li' + (i ? '' : ' class="cur"') + '><span class="fh-t">' + (d ? esc(fmtShort.format(d)) : '') + (i ? '' : ' <em>latest</em>') + '</span>' +
         '<span class="fh-n"><b>' + n(c.likely || 0) + '</b> likely · ' + n(c.possible || 0) + ' possible</span>' +
         '<span class="fh-r">' + (c.max24h_mm != null ? 'up to ' + Math.round(c.max24h_mm) + ' mm in 24 h' : '') + (c.model === 'v2' && i < C.length - 1 && C[C.length - 1 - i - 1] && C[C.length - 1 - i - 1].model !== 'v2' ? ' · <span class="fh-m">updated model from here</span>' : '') + '</span>' +
-        (nm ? '<span class="fh-w">' + nm + (lk.length > 3 ? ' +' + (lk.length - 3) : '') + '</span>' : '') +
+        (nm ? '<span class="fh-w">' + nm + (uq.length > 3 ? ' and ' + (uq.length - 3) + ' more' : '') + '</span>' : '') +
         (keep != null && roads.length ? '<span class="fh-k">' + (keep ? keep + ' of its ' + roads.length + ' roads are in the latest forecast' : 'none of its roads are in the latest forecast') + '</span>' : '') + '</li>';
     });
     el.innerHTML = '<h3 id="fhT">This storm, forecast by forecast</h3><p class="muted">Each run uses the newest NOAA rain forecast. Roads that stay on the list from run to run are the firmer calls.</p><ol>' + rows.join('') + '</ol>';
