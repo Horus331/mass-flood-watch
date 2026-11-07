@@ -22,6 +22,8 @@ python proto/validate_points.py --run-dir $OUT --storm $STORM --out $R/points.js
 python proto/prototype.py --run-dir $OUT --storm $STORM --out $R | tail -3
 python docs/site/build_data.py --run $SITE --src $R --run-dir $OUT $([ "${FLOW:-1}" = 1 ] && echo --flow) ${POOL:+--pool $POOL}
 du -sh docs/site/data/$SITE
+# several packs and the queue runner share this repository: take turns on git (index.lock clashes failed 2 of 10 repacks on 7 Nov)
+exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo 'git lock wait timed out'
 # whole-district packs (tiled, docs/site/build_data.py build_tiled) are too big for the main site (Pages ~1 GB): they go to the branch
 # district-data of this repository (never deployed; the Turing deploy key only reaches this repository), one commit per storm folder.
 # From there they are copied to the data site (Horus331/mfw-data-d3, GitHub Pages) and the main site gets a small stub with meta.data_base.

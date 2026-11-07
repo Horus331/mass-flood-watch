@@ -12,6 +12,7 @@ set -eo pipefail
 cd ~/mass-flood-watch
 source proto/turing/env.sh
 python -c "import shapely" 2>/dev/null || pip install -q shapely
+exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo "git lock wait timed out"   # take turns with other jobs on this shared repository
 R=$(git remote get-url --push origin)
 git pull -q --rebase --autostash "$R" main || true
 python proto/whatif.py pack --results results ${ONLY:+--only $ONLY}

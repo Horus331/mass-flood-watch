@@ -20,6 +20,7 @@ if [ ! -f $QDIR/STOP ]; then
 else echo "STOP file present: not resubmitting"; fi
 source proto/turing/env.sh >/dev/null 2>&1
 # compute nodes cannot fetch over https here ("could not read Username"); use the deploy-key ssh URL (the pushurl) for every fetch
+exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 900 8 || { echo "repository busy (a pack is pushing): skip this tick"; exit 0; }
 R=$(git remote get-url --push origin)
 git pull -q --rebase --autostash "$R" main || echo "pull main failed"
 # 2. the request branch

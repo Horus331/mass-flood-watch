@@ -70,7 +70,9 @@ python proto/forecast_kofn.py ensemble --gate $P/gate.json $MA --out $P/kofn.jso
 read KEY DIR BID MM < $P/viewers.txt || { echo "no member finished"; exit 1; }
 JD=$(basename $(dirname $DIR)); RD=$(cat $FC/$JD/OUTDIR)
 cd $REPO
+exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo "git lock wait timed out"   # take turns with other jobs on this shared repository
 git pull -q --rebase --autostash "$(git remote get-url --push origin)" main || true
+flock -u 8
 python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 60 --budget-mb 25   # shadow map: hourly frames, no flow (repo size: every fired cycle replaces this folder in git)
 python - docs/site/data/$PFX <<'PY'
 # the main site keeps no whole-district 20 m tiles (Pages size): the shadow map shows the 80 m overview of the same depth frames
@@ -109,6 +111,7 @@ json.dump(out, open(sys.argv[1], 'w'), separators=(',', ':'))
 PY
   then ADD="$ADD docs/site/data/forecast_status.json"; fi
 fi
+exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo "git lock wait timed out"   # take turns with other jobs on this shared repository
 for X in $ADD; do git add -A $X; done
 git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Forecast $PFX $CYCLE: whole District 3 at 20 m on Turing, shadow run ($(python -c "import json;s=json.load(open('docs/site/data/${PFX}_status.json'));print(s.get('likely_closed'), 'likely,', s.get('possible'), 'possible')"))" || { echo "nothing to commit"; exit 0; }
 RM=$(git remote get-url --push origin)
