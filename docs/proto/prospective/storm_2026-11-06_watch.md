@@ -62,3 +62,22 @@ verified as of 6:30 PM. Operations: the 12Z cycle reached the site 10 h after it
 - Lessons for the model (to be pre-registered before any change): (1) the k-of-8 rule kept 2-of-8 calls although the members disagreed
   on where the storm would be; a location-agreement check (do the members put heavy rain in the same box?) could have lowered these to
   'possible'. (2) Cycle-to-cycle stability: no road was named by two cycles, which the forecast-history card now shows to users.
+
+### 7 Nov, 10:50Z: would a stricter "likely" rule have helped?
+
+- In this storm's forecasts most "likely" roads were closed by exactly 2 of the 8 members (archive `kofn.csv`):
+  5 Nov 06Z 3 of 22 likely at k = 2; 5 Nov 12Z 10 of 10; 6 Nov 00Z 21 of 25; 6 Nov 06Z 14 of 22; 6 Nov 12Z 5 of 6.
+  A "3 of 8" rule would have cut the likely list to 0 to 8 roads per cycle.
+- But on the 7 out-of-sample past storms (`docs/proto/forecast/ensemble.json`, `by_threshold`) a higher k loses real flood sites:
+
+  | rule | long lead: recall / mean flagged | short lead: recall / mean flagged |
+  | --- | --- | --- |
+  | 2 of 8 (live) | 0.345 / 3.1 % | 0.276 / 2.3 % |
+  | 3 of 8 | 0.276 / 2.5 % | 0.241 / 2.0 % |
+  | 4 of 8 | 0.172 / 1.9 % | 0.207 / 1.7 % |
+
+  3 of 8 drops 2 of the 29 sites at long lead (Sep 2021, Jul 2023) and 1 at short lead (Aug 2026) for a small cut in flagged roads.
+  So raising k is not the fix; the live rule stays.
+- The better test is the location-agreement check (do the members put the heavy rain in the same place?). It needs each member's rain field
+  per cycle, which the archive does not keep yet (only `gate.json` of the issue cycle and `kofn.csv`). Not tested; nothing changed in the model.
+- Two cycles (6 Nov 18Z, 7 Nov 00Z) show n = 1 in the archive: those are the cycles lost to the cache-key bug (only the issue member ran).
