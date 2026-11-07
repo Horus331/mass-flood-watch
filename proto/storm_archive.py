@@ -31,7 +31,7 @@ ARCHIVE = os.path.join('docs', 'proto', 'archive')
 LABELS_DIR = os.path.join('proto', 'data')
 UA = {'User-Agent': 'mass-flood-watch research (github.com/Horus331/mass-flood-watch)', 'Accept': 'application/geo+json, application/json'}
 D3_BOX = (128000.0, 856000.0, 206000.0, 946000.0)          # EPSG:26986, as proto/forecast.py
-BOX_M = 20000.0; MAX_BOXES = 4
+BOX_M = 20000.0; MAX_BOXES = 8   # 8 radar boxes per storm (was 4: the first-come cap left out the 6 Nov 2026 Worcester box with 22 likely closures)
 # NWS products that archive a storm (event names as api.weather.gov; VTEC phenomena.significance as IEM)
 ALERT_EVENTS = tuple(s.strip() for s in os.environ.get('ARCHIVE_ALERT_EVENTS', 'Flash Flood Warning,Flood Advisory').split(','))
 VTEC = {'FF.W': 'Flash Flood Warning', 'FA.Y': 'Flood Advisory', 'FL.Y': 'Flood Advisory', 'FA.W': 'Flood Warning', 'FL.W': 'Flood Warning'}
