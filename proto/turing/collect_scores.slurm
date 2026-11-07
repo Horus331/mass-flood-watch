@@ -53,6 +53,7 @@ print({k: sum(1 for v in man['tasks'].values() if v['status'].startswith(k)) for
 PY
 DEST=$(python -c "import json; print(json.load(open('$PLAN'))['dest'])")
 [[ "$DEST" =~ ^docs/proto/[a-z0-9_]+/[A-Za-z0-9_]+$ ]] || exit 2
+exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo "git lock wait timed out"   # take turns with other jobs on this shared repository
 git add -A "$DEST"
 git -c user.name="Mohab Eldokla" -c user.email="Horus331@users.noreply.github.com" commit -qm "Turing scores: $DEST ($(basename $PLAN))" || { echo "nothing to commit"; exit 0; }
 R=$(git remote get-url --push origin)
