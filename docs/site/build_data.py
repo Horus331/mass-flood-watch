@@ -20,6 +20,8 @@ A new model run straight from its LISFLOOD-FP output folder (e.g. 5-min snapshot
   --frame-min  keep one frame every N minutes (default: every snapshot)
 """
 import argparse
+RISE_MIN_M = 0.20   # rivers and ponds are drawn only where they rise this much above normal: a river out of its banks shows, a lake
+                    # a few cm up (the whole surface light blue on the 6 Nov test pack) does not
 import datetime as dt
 import json
 import math
@@ -498,7 +500,7 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
                     continue
                 hm = D['depth_cm'][keep[s0 + j]].astype(np.float32) / 100.0
                 if wm is not None:   # rivers and ponds: only the rise above their start level, so a river out of its banks shows and a
-                    hm = np.where(wm, np.maximum(hm - h0, 0), hm)   # full lake or channel does not paint the map blue all storm
+                    hm = np.where(wm, np.where(hm - h0 >= RISE_MIN_M, hm - h0, 0), hm)   # full lake or channel does not paint the map blue all storm
                 if f > 1:
                     hh, ww = (hm.shape[0] // f) * f, (hm.shape[1] // f) * f
                     hm = hm[:hh, :ww].reshape(hh // f, f, ww // f, f).max(axis=(1, 3))
@@ -507,7 +509,7 @@ def build(key, src, f, run_dir=None, frame_min=None, do_flow=False, risk_src=Non
             name = 'depthc_%03d.png' % (s0 // 3)
             Image.fromarray(rgb, 'RGB').save(os.path.join(od, name), optimize=True)
             dsheets.append(name)
-        depthc = {'sheets': dsheets, 'per': 3, 'enc': 'v = 255 * sqrt(depth_m / 3), 1 cm floor; permanent water: rise above its lowest level in the run'}
+        depthc = {'sheets': dsheets, 'per': 3, 'enc': 'v = 255 * sqrt(depth_m / 3), 1 cm floor; permanent water: rise above its lowest level in the run where >= 20 cm'}
 
     risk = {}
     for rsrc in (src, risk_src):
@@ -782,7 +784,7 @@ def _build_tiled_once(key, src, run_dir, step, do_flow, risk_src):
         if j not in kset: continue
         i = kset[j]
         if wm is not None and h0d is None: h0d = h_cm.copy()   # rivers and ponds at the first snapshot: only their rise is drawn
-        hc = h_cm if wm is None else np.where(wm, np.maximum(h_cm.astype(np.int32) - h0d, 0), h_cm)
+        rz = h_cm.astype(np.int32) - h0d; hc = h_cm if wm is None else np.where(wm, np.where(rz >= RISE_MIN_M * 100, rz, 0), h_cm)
         hm = hc.astype(np.float32) / 100.0
         # continuous depth: tiles at full resolution, overview max-pooled
         v = enc_depth(hm)
