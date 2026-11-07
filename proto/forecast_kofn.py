@@ -209,7 +209,15 @@ def cmd_ensemble(a):
     G = json.load(open(a.gate)); M = []
     for spec in a.member or []:
         mb, _, d = spec.partition('='); m, _, bid = mb.partition(':'); M.append((m, bid, d or None))
-    K = ensemble(G, M); json.dump(K, open(a.out, 'w'), separators=(',', ':'))
+    K = ensemble(G, M)
+    rk = {}                                     # each member's 1 km rain (rain_km.json, written by forecast.yml) -> kofn_meta.json in the storm archive
+    for m, bid, d in M:
+        f = os.path.join(d or '', 'rain_km.json')
+        if d and os.path.exists(f):
+            try: rk[f'{m}:{bid}'] = json.load(open(f))
+            except Exception: pass
+    if rk: K['rain_km'] = rk
+    json.dump(K, open(a.out, 'w'), separators=(',', ':'))
     log('ensemble:', K['likely'], 'likely,', K['possible'], 'possible; finished', {k: len(v) for k, v in K['finished'].items()})
     if a.viewers:
         mem = K['members']; lines = []

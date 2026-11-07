@@ -20,11 +20,11 @@ and flagged share, current rule vs rise rule. Adopt only if pooled recall does n
 **Problem.** Most "likely" roads in this storm were closed by exactly 2 of 8 members, and the place of the heavy rain moved every cycle.
 A stricter k (3 of 8) costs 2 of 29 past sites at long lead (7 Nov analysis), so k alone is not the fix.
 
-**Change.** "Likely" requires k >= 2 AND at least 3 of the 8 members put >= 70 % of the box's heaviest 6 h rain within 10 km of the road.
+**Change.** "Likely" requires k >= 2 AND at least 3 of the 8 members put >= 70 % of the box's heaviest 3 h rain within 10 km of the road.
 Otherwise the road is shown as "possible".
 
-**Test.** Needs each member's 6 h rain maximum per cycle. Step 1 (safe, no model change): archive per-member 6 h rain fields (coarse,
-1 km) with each cycle. Step 2: evaluate on this storm and on hindcasts of the 7 out-of-sample storms. Adopt only if no past site is lost.
+**Test.** Needs each member's rain per cycle. Step 1 (safe, no model change; in place from 7 Nov): each member writes `rain_km.json`
+(storm total and wettest 3 h, 1 km grid, from rainstats.npz) and the ensemble step keeps them in `kofn_meta.json` of the storm archive. Step 2: evaluate on this storm and on hindcasts of the 7 out-of-sample storms. Adopt only if no past site is lost.
 
 ## P3. Radar boxes follow the forecasts (done, operations only)
 
