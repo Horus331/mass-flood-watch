@@ -174,3 +174,11 @@ v2 roads closed by the radar rain:
 **Proposed changes, pre-registered in `CHANGE_PROPOSAL_2026-11-07.md`, not adopted.**
 P1 rise rule for closures (start-state water), P2 rain-location agreement for "likely", P3 radar boxes follow the forecasts (cap raised
 to 8: done), P4 evidence for the Worcester hot spots before any model change.
+
+### 7 Nov, 23:30Z: radar closures under the forecast's own rule
+
+The forecast's k-of-8 count drops segments already >= 30 cm at rain onset; the radar counts above did not. Applying the same rule
+(`forecast_kofn.closures`) to the v2 radar runs: b8 Worcester 7 -> 7, b4 Clinton/Berlin/Northborough 11 -> 10, all other boxes 0.
+So the onset exclusion removes only one: the b4 roads are under 30 cm at onset but reach 30 cm within about half an hour of it, i.e. they
+respond to the first hour of rain, not to the storm total. P1 stays as proposed (rise >= 30 cm above the onset depth); its test will show
+how many of these 10 it removes and whether any past site is lost.
