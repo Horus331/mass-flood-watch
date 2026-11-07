@@ -38,7 +38,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: forecast-${{ github.ref }}
+  group: forecast-${{ github.ref }}-${{ inputs.prefix || 'forecast_latest' }}   # a test prefix never queues behind or cancels the live forecast
   cancel-in-progress: false
 jobs:
   due:
