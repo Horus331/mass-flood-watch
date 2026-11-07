@@ -98,3 +98,40 @@ verified as of 6:30 PM. Operations: the 12Z cycle reached the site 10 h after it
 - Bug found and fixed: the live FLASH feed compared MRMS QPE/FFG ratios, which MRMS stores in percent, with 1.0, so every District 3 town
   showed as "at or over flash-flood guidance" from 6 Nov 05Z to 7 Nov 12Z. Real maximum ratio through the storm was 0.75 (3 h, 7 Nov 09Z).
   After the fix: 0 towns flagged; district maximum 0.2 (1 h), 0.3 (3 h), 0.6 (6 h).
+
+### 7 Nov, 17:00Z: forecast vs outcome (correction and radar-driven reruns)
+
+**Correction.** The "about 31 mm 48 h mean" above was the District 3 mean. The south of the district was much wetter: the radar-driven
+model input (MRMS, gauge-corrected) gives box b1 (Bellingham, Mendon, Milford, Uxbridge) 96 mm max and 72 mm mean over 48 h, with
+two bursts of about 40 mm in 6 h (6 Nov 05-11Z, 7 Nov 00-06Z). The north was drier than forecast. So "the rain went elsewhere" is only
+true for the north and west of the district.
+
+**Reports in District 3 (6 to 7 Nov):** none. NWS LSRs 0 of 210 Massachusetts rows, MassDOT events 0 of 23, SeeClickFix 0, news none
+found; NCEI Storm Events not yet published. Rivers rose a lot but stayed below flood stage (Blackstone at Millbury 119 -> 928 cfs,
+Woonsocket 1330 cfs at 3.6 ft).
+
+**Forecast rain vs radar, 48 h totals (forecast = the cycle's town value, mm):**
+
+| cycle | Bellingham | Milford | Worcester | Leominster | Fitchburg | likely / possible |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5 Nov 00Z | 50 | 36 | 30 | 21 | 27 | 0 / 5 |
+| 5 Nov 06Z | 38 | 28 | 44 | 45 | 31 | 22 / 7 |
+| 5 Nov 12Z | 30 | 22 | 20 | 41 | 49 | 10 / 5 |
+| 6 Nov 00Z | 104 | 65 | 36 | 36 | 34 | 25 / 44 |
+| 6 Nov 06Z | 43 | 42 | 39 | 39 | 53 | 22 / 6 |
+| 6 Nov 12Z | 44 | 53 | 54 | 71 | 63 | 6 / 10 |
+| radar (box) | b1 max 96, mean 72 | in b1 | b8 pending | b4 max 52, mean 40 | b3 max 30, mean 20 | |
+
+**Flood model on the radar rain (model v2 = live settings: T2 terrain, depth from rain onset), segments at P >= 0.5:**
+b1 Bellingham–Milford 0 (expected closures 6.2), b2 Holden–Spencer 0, b3 Fitchburg–Gardner 0, b4 Berlin–Leominster–Northborough 11
+(P >= 0.9: 5). The 6 Nov 00Z forecast had 22 likely closures in the Bellingham–Mendon area; with the rain that fell, the same model
+closes none there, matching the reports.
+
+**What this says so far.**
+- South (b1): forecast totals were about right (104 vs 96 mm) but the forecast put 50 mm in 6 h on Bellingham, and the members with
+  closures were wetter still; observed 6 h bursts were about 40 mm and the model closes nothing. Error source: rain intensity of the
+  forecast members, amplified by a closure response that is steep near the threshold.
+- North (b3, b4, Leominster/Fitchburg): forecast about twice too wet. Error source: rain forecast.
+- b4: 11 closures from the radar rain with 0 reports: a possible flood-model false positive (road list pending, rerun with names).
+- The archive's radar boxes were first-come (cap 4), so the boxes of the later, wettest forecasts (incl. 6 Nov 06Z Worcester, 22 likely,
+  East Park Terrace 8 of 8) had no radar run. Cap raised to 8 and the 4 later boxes added; rerun pending.
