@@ -151,13 +151,18 @@ jobs:
       - uses: actions/checkout@v4
       # an older member (not the issue cycle) on the same box and window gives the same result every cycle it is in the ensemble: reuse it
       # (key = member init, box, hours, and the model and closure code), so a cycle runs only its new members and is on the site hours sooner
+      - name: cache key (no commas allowed)
+        id: k
+        run: |
+          B="${{ matrix.b.box }}"; H=$(cat sim/colab/w9_lisflood.py proto/prototype.py proto/hrrr_rain.py .github/workflows/forecast.yml | sha256sum | cut -c1-16)
+          echo "key=mem-v2-${{ matrix.b.init }}-${B//,/_}-${{ needs.gate.outputs.hours }}-$H" >> $GITHUB_OUTPUT
       - name: reuse this member's closures if an earlier cycle ran it
         id: c
         if: matrix.b.init != needs.gate.outputs.init
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/pcache
-          key: mem-v2-${{ matrix.b.init }}-${{ matrix.b.box }}-${{ needs.gate.outputs.hours }}-${{ hashFiles('sim/colab/w9_lisflood.py', 'proto/prototype.py', 'proto/hrrr_rain.py', '.github/workflows/forecast.yml') }}
+          key: ${{ steps.k.outputs.key }}
       - name: reused
         if: steps.c.outputs.cache-hit == 'true'
         run: mkdir -p art && cp -r ${{ runner.temp }}/pcache art/proto_${{ matrix.b.m }}_${{ matrix.b.id }} && ls art/* | head && echo "::notice title=reused::member ${{ matrix.b.init }} box ${{ matrix.b.box }} from an earlier cycle"
@@ -222,7 +227,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/pcache
-          key: mem-v2-${{ matrix.b.init }}-${{ matrix.b.box }}-${{ needs.gate.outputs.hours }}-${{ hashFiles('sim/colab/w9_lisflood.py', 'proto/prototype.py', 'proto/hrrr_rain.py', '.github/workflows/forecast.yml') }}
+          key: ${{ steps.k.outputs.key }}
       - name: diagnostics (annotation)
         if: always()
         run: |
