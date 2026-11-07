@@ -39,6 +39,10 @@ if [ -n "$BR" ]; then
   git worktree remove --force $W || true
   exit 0
 fi
+# start from origin/main: an earlier failed pack can leave an unpushed commit or a half-moved folder that blocks every later pull
+# (aug2026_leominster, 7 Nov). Safe under the git lock: no other job is between commit and push; untracked pack folders are kept.
+git rebase --abort 2>/dev/null || true
+git fetch -q origin main && git reset -q --hard FETCH_HEAD || echo "reset to origin/main failed"
 if [ -n "${LIVE:-}" ] && [ -d docs/site/data/$LIVE ]; then   # replace a live replay, keeping its radar-rain loop
   cp docs/site/data/$LIVE/rain.* docs/site/data/$SITE/ 2>/dev/null || true
   git rm -rq docs/site/data/$LIVE; rm -rf docs/site/data/$LIVE; mv docs/site/data/$SITE docs/site/data/$LIVE; SITE=$LIVE
