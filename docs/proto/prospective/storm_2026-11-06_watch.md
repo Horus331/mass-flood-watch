@@ -90,3 +90,11 @@ verified as of 6:30 PM. Operations: the 12Z cycle reached the site 10 h after it
   (`RISE_MIN_M`). Segments at P >= 0.5, old -> T2: Leominster Sep 2023 102 -> 73, Worcester Aug 2021 98 -> 73, Sep 2021 Worcester 187 -> 104,
   Aug 2023 MetroWest 108 -> 96, Jun 2020 Northbridge 22 -> 20, Sep 2022 Webster 15 -> 11, Jul 2023 Worcester 6 -> 0.
   Aug 2026 Leominster, Sep 2018 Fitchburg and Sep 2018 Milford failed on Turing on the first try and were requeued.
+
+### 7 Nov, 12:40Z: second rain band; flash-flood panel bug
+
+- Radar at 12:34Z: rain rates up to 25 to 28 mm/h in the south of the district (Bellingham, Blackstone, Franklin, Mendon), but short:
+  most in one hour 8 mm, in 3 h 17 mm (Millis / Blackstone). Under the flood-model trigger (25 mm in 6 h).
+- Bug found and fixed: the live FLASH feed compared MRMS QPE/FFG ratios, which MRMS stores in percent, with 1.0, so every District 3 town
+  showed as "at or over flash-flood guidance" from 6 Nov 05Z to 7 Nov 12Z. Real maximum ratio through the storm was 0.75 (3 h, 7 Nov 09Z).
+  After the fix: 0 towns flagged; district maximum 0.2 (1 h), 0.3 (3 h), 0.6 (6 h).
