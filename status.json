@@ -7496,7 +7496,7 @@
    "finished": "2026-11-08T20:52:40Z"
   },
   "fcd3_test5_d3_2026110612": {
-   "status": "running",
+   "status": "completed",
    "slurm_id": "2485192",
    "kind": "forecast_d3",
    "env": {
@@ -7518,14 +7518,64 @@
    "at": "2026-11-08T20:22:38Z",
    "error": null,
    "slurm": {
-    "state": "RUNNING",
+    "state": "COMPLETED",
     "tasks": 1,
-    "done": 0,
+    "done": 1,
     "failed": 0,
-    "elapsed": "01:58:28"
-   }
+    "elapsed": "02:14:11"
+   },
+   "finished": "2026-11-08T23:23:18Z"
+  },
+  "fcd3_test5b_d3_2026110612": {
+   "status": "submitted",
+   "slurm_id": "2485503",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2026-11-06T12Z",
+    "MEMBERS": "2026-11-06T12Z",
+    "HOURS": "48",
+    "PFX": "test5b_d3",
+    "REQ_AT": "2026-11-08T23:17:59Z",
+    "FORCE": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "array": "0-0",
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "03:00:00"
+   },
+   "after": [],
+   "at": "2026-11-08T23:23:18Z",
+   "error": null
+  },
+  "fcd3_test5b_d3_2026110612_post": {
+   "status": "submitted",
+   "slurm_id": "2485504",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2026-11-06T12Z",
+    "MEMBERS": "2026-11-06T12Z",
+    "HOURS": "48",
+    "PFX": "test5b_d3",
+    "REQ_AT": "2026-11-08T23:17:59Z",
+    "FORCE": "1",
+    "STAGE": "post"
+   },
+   "sbatch": {
+    "array": "0-0",
+    "partition": "short",
+    "mem": "160G",
+    "time": "08:00:00"
+   },
+   "after": [
+    "fcd3_test5b_d3_2026110612"
+   ],
+   "at": "2026-11-08T23:23:18Z",
+   "error": null
   }
  },
- "updated": "2026-11-08T22:53:03Z",
+ "updated": "2026-11-08T23:23:18Z",
  "paused": false
 }
