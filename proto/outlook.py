@@ -252,7 +252,7 @@ def fetch_hourly(now):
     import forecast as FC
     towns = FC.d3_towns()
     lat = ','.join(f'{lab[1]:.4f}' for _, lab, _ in towns); lon = ','.join(f'{lab[0]:.4f}' for _, lab, _ in towns)
-    r = http(OM, params=dict(latitude=lat, longitude=lon, hourly='precipitation,precipitation_probability', models='ncep_nbm_conus', timezone='UTC', forecast_days=8), timeout=60)
+    r = http(OM, params=dict(latitude=lat, longitude=lon, hourly='precipitation,precipitation_probability', models='ncep_nbm_conus', timezone='UTC', forecast_days=8, past_days=1), timeout=60)   # past_days: the running 24 h total is complete from midnight (8 Nov: the line jumped at noon)
     if r is None: return dict(ok=False, error='Open-Meteo request failed')
     J = r.json(); J = J if isinstance(J, list) else [J]
     if not J or 'hourly' not in J[0]: return dict(ok=False, error=str(J)[:200])

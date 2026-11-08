@@ -3769,9 +3769,15 @@
     });
     var ov = '';
     if (WK === 'line' && R.hourly2.cum && Math.max.apply(0, R.hourly2.cum) >= 0.5) {   // running 24 h total (wettest-town 2-hour values), top of the strip = the 40 mm limit
-      var L = R.hourly2.lim || 40, pts = R.hourly2.cum.map(function (v, k) { return ((k + 0.5) / 12 * 100).toFixed(2) + ',' + (100 - Math.min(100, v / L * 100)).toFixed(2); });
-      var hit = R.hourly2.cum.some(function (v) { return v >= L; });
-      ov = '<svg class="cum' + (hit ? ' hit' : '') + '" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="0.8" x2="100" y2="0.8" class="cap"/><polyline points="' + pts.join(' ') + '"/></svg>';
+      var L = R.hourly2.lim || 40, lines = [], cur = [];   // one polyline per run of known values: an unknown 24 h total is a gap, not 0
+      R.hourly2.cum.forEach(function (v, k) {
+        if (v == null) { if (cur.length) lines.push(cur); cur = []; return; }
+        cur.push(((k + 0.5) / 12 * 100).toFixed(2) + ',' + (100 - Math.min(100, v / L * 100)).toFixed(2));
+      });
+      if (cur.length) lines.push(cur);
+      var hit = R.hourly2.cum.some(function (v) { return v != null && v >= L; });
+      ov = '<svg class="cum' + (hit ? ' hit' : '') + '" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="0.8" x2="100" y2="0.8" class="cap"/>' +
+        lines.map(function (p) { return '<polyline points="' + p.join(' ') + '"/>'; }).join('') + '</svg>';
     }
     var bat = '';
     if (WK === 'bat' && R.max24h_mm != null) { var L2 = 40, f = Math.min(1, R.max24h_mm / L2); bat = '<span class="bat' + (R.max24h_mm >= L2 ? ' hit' : '') + '"><i style="width:' + (f * 100).toFixed(0) + '%"></i></span>'; }
@@ -3938,7 +3944,7 @@
     SIX_FULL = Math.max(10, Math.ceil(Math.max.apply(0, days.map(function (x) { return Math.max.apply(0, ((x && x.rain && x.rain.six_hourly_max_mm) || [0]).map(function (v) { return v || 0; })); })) / 5) * 5);
     var HAS2 = days.some(function (x) { return x && x.rain && x.rain.hourly2; });
     if (WK === 'line') { var flat = []; days.forEach(function (x) { var c = x && x.rain && x.rain.hourly2 && x.rain.hourly2.cols; for (var k = 0; k < 12; k++) flat.push(c && c[k] ? c[k][1] : 0); });
-      days.forEach(function (x, di) { if (!(x && x.rain && x.rain.hourly2)) return; x.rain.hourly2.lim = (O && O.thresholds && O.thresholds.max24h_mm) || 40; if (x.rain.hourly2.cum24) { x.rain.hourly2.cum = x.rain.hourly2.cum24.map(function (v) { return v == null ? 0 : v; }); return; } var cum = []; for (var k = 0; k < 12; k++) { var j = di * 12 + k, sm = 0; for (var q = Math.max(0, j - 11); q <= j; q++) sm += flat[q]; cum.push(sm); }
+      days.forEach(function (x, di) { if (!(x && x.rain && x.rain.hourly2)) return; x.rain.hourly2.lim = (O && O.thresholds && O.thresholds.max24h_mm) || 40; if (x.rain.hourly2.cum24) { x.rain.hourly2.cum = x.rain.hourly2.cum24.slice(); return; }   /* null = not known: a gap in the line, never drawn as 0 */ var cum = []; for (var k = 0; k < 12; k++) { var j = di * 12 + k, sm = 0; for (var q = Math.max(0, j - 11); q <= j; q++) sm += flat[q]; cum.push(sm); }
         x.rain.hourly2.cum = cum; x.rain.hourly2.lim = (O && O.thresholds && O.thresholds.max24h_mm) || 40; }); }
     BAR_FULL = HAS2 ? Math.max(1, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.hourly2 && x.rain.hourly2.cols) || []).map(function (c) { return c ? c[0] : 0; }); })))) : Math.max(1.5, Math.max.apply(0, [].concat.apply([], days.map(function (x) { return ((x && x.rain && x.rain.bars) || []).map(function (q) { return q[2] * 2 / q[1]; }); })).concat([0])));
     var d0 = days.filter(function (x) { return x && x.rain && x.rain.six_hourly_start && x.rain.six_hourly_start.length === 4; }).pop();
