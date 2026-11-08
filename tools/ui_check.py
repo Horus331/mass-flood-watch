@@ -51,6 +51,7 @@ def page_checks(shots):
     import re
     P = []
     for sh in shots:
+        if sh.get('stuck'): P.append(f"{sh['name']}: page never finished loading ({sh.get('loadtext')!r}): the map is dead")
         t = ' '.join((sh.get('rank') or []) + [sh.get('fhist') or '', sh.get('body') or ''])
         for bad, why in (('Closed Closed', 'repeated "Closed" on a road row (6 Nov)'), ('undefined', 'undefined in the page'), ('NaN', 'NaN in the page'),
                          (' null ', 'null in the page'), ('[object Object]', 'object printed in the page')):
@@ -77,7 +78,7 @@ def main():
                 if js: await pg.evaluate(js); await pg.wait_for_timeout(4000)
                 if el and await pg.query_selector(el): await (await pg.query_selector(el)).screenshot(path=f'{OUT}/{name}', timeout=180000)
                 else: await pg.screenshot(path=f'{OUT}/{name}', timeout=180000)
-                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist');return {fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
+                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist'),lt=document.getElementById('loadText');return {stuck:!!(lt&&lt.offsetParent&&/Loading|did not load/.test(lt.innerText)), loadtext:lt?lt.innerText:'',fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
                 report['shots'].append(dict(name=name, url=url, **txt)); report['errors'] += [e[:200] for e in errs if '404' not in e][:5]
                 print('wrote', name); await ctx.close()
             _shot = shot
@@ -97,7 +98,7 @@ def main():
                 report['shots'][-1]['road'] = f"{s.get('road') or 'unnamed'} ({s.get('town')}) {s.get('k')}/8"
             await b.close()
     asyncio.run(run())
-    report['problems'] = data_checks(S) + page_checks(report['shots']) + [f'console error: {e}' for e in report['errors'] if 'net::' not in e and not __import__('re').search(r'status of 5\d\d', e)][:10]   # a 5xx from a tile or data host is transient, not a site bug
+    report['problems'] = data_checks(S) + page_checks(report['shots']) + [f'console error: {e}' for e in report['errors'] if 'net::' not in e and 'Failed to load resource' not in e and not __import__('re').search(r'status of 5\d\d', e)][:10]   # a 5xx from a tile or data host is transient, not a site bug
     for sh in report['shots']: sh.pop('body', None)
     json.dump(report, open(f'{OUT}/ui_check.json', 'w'), indent=1)
     print('problems:', len(report['problems'])); [print(' -', x) for x in report['problems']]
