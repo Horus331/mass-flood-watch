@@ -1669,7 +1669,8 @@
   // ---------- forecast tab ----------
   var fcStat = null;
   if (runKey === 'forecast') {
-    getJson('site/data/forecast_status.json').then(function (s) {
+    var fcp = /^[a-z0-9_]{3,40}$/.test(params.get('fc') || '') ? params.get('fc') + '_status.json' : 'forecast_status.json';   // ?fc=<test prefix>: preview a test forecast (not linked)
+    getJson('site/data/' + fcp).then(function (s) {
       // open on the box with the most likely closures (the first box is the heaviest rain, which may close nothing: 6 Nov 06Z opened on
       // Pepperell with 0 likely while all 22 were in Worcester); ?box=<key> still picks one
       var rq = (location.search.match(/[?&]box=([^&]+)/) || [])[1], R = (s && s.runs) || [];
@@ -1685,7 +1686,7 @@
       $('runKind').textContent = (s.coverage && s.kind && s.kind.indexOf(s.coverage) < 0 ? s.coverage + '. ' : '') + (s.kind || ('Forecast issued ' + (s.issued ? fmtShort.format(new Date(s.issued)) : '') + ' from the NOAA HRRR rain forecast.'));
       if (s.gate && s.gate.forced) {   // run on request although the rain is below the trigger: shown, never a warning (not scored: storm_archive.py)
         var fa = document.createElement('span'); fa.className = 'forced-note';
-        fa.textContent = ' Preview run: the forecast rain is below the flood-model trigger (25 mm in 6 h or 40 mm in 24 h in a town), so this is not a warning. The model was run anyway to show what this rain would do on the roads.';
+        fa.textContent = ' The forecast rain is below the storm trigger (25 mm in 6 h or 40 mm in 24 h in a town), so this is not a warning: the flood model runs anyway on the wettest area so the map shows where the water collects and how deep it gets on each road.';
         $('runKind').appendChild(fa);
       }
       if (s.shadow && s.shadow.dir) {   // the whole-district shadow run of the same cycle (Turing): linked, never the headline (forecast/DISTRICT.md)
