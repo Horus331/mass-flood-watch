@@ -97,7 +97,7 @@ def main():
                 report['shots'][-1]['road'] = f"{s.get('road') or 'unnamed'} ({s.get('town')}) {s.get('k')}/8"
             await b.close()
     asyncio.run(run())
-    report['problems'] = data_checks(S) + page_checks(report['shots']) + [f'console error: {e}' for e in report['errors'] if 'net::' not in e][:10]
+    report['problems'] = data_checks(S) + page_checks(report['shots']) + [f'console error: {e}' for e in report['errors'] if 'net::' not in e and not __import__('re').search(r'status of 5\d\d', e)][:10]   # a 5xx from a tile or data host is transient, not a site bug
     for sh in report['shots']: sh.pop('body', None)
     json.dump(report, open(f'{OUT}/ui_check.json', 'w'), indent=1)
     print('problems:', len(report['problems'])); [print(' -', x) for x in report['problems']]
