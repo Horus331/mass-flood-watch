@@ -27,8 +27,14 @@ def make_request(G, prefix, force=False, hours=None, now=None):
     env = dict(CYCLE=cyc, MEMBERS=','.join(mem), HOURS=str(int(hours or G.get('horizon_h') or 48)), PFX=pfx,
                REQ_AT=(now or dt.datetime.now(dt.timezone.utc)).strftime('%Y-%m-%dT%H:%M:%SZ'))
     if force: env['FORCE'] = '1'
-    return dict(id=f'fcd3_{pfx}_{tag}'[:60], kind='forecast_d3', env=env,
-                sbatch=dict(array=f'0-{len(mem) - 1}', partition='short', gres='gpu:1', constraint='A100|H100|H200', time='06:00:00'))   # strong FP64 GPUs
+    return dict(id=f'fcd3_{pfx}_{tag}'[:55], kind='forecast_d3', env=dict(env, STAGE='solve'),
+                sbatch=dict(array=f'0-{len(mem) - 1}', partition='short', gres='gpu:1', constraint='A100|H100|H200', time='03:00:00'))   # strong FP64 GPUs; solver only
+
+
+def make_post(req):
+    """The CPU half of a district forecast (forecast_d3.slurm STAGE=post): after the GPU solve request, no GPU held while 5-min frames are post-processed."""
+    return dict(id=req['id'] + '_post', kind='forecast_d3', env=dict(req['env'], STAGE='post'), after=[req['id']],
+                sbatch=dict(array=req['sbatch']['array'], partition='short', mem='160G', time='08:00:00'))
 
 
 def insert_front(J, req):
@@ -53,7 +59,7 @@ def cmd_request(a):
             git('fetch', '-q', 'origin', '+refs/heads/turing-queue:refs/remotes/origin/turing-queue', cwd=a.repo)
             wt = os.path.join(d, f'tq{i}'); git('worktree', 'add', '-q', '--detach', wt, 'origin/turing-queue', cwd=a.repo)
             p = os.path.join(wt, 'jobs.json'); J = json.load(open(p))
-            if not insert_front(J, req): print('already queued:', req['id']); return
+            if not insert_front(J, make_post(req)) or not insert_front(J, req): print('already queued:', req['id']); return   # solve first, its post right after
             open(p, 'w').write(json.dumps(J, indent=1) + '\n')
             git('add', 'jobs.json', cwd=wt)
             git('-c', 'user.name=flood-watch-bot', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-qm',
@@ -106,6 +112,8 @@ def selftest():
     assert make_request(G, 'test1')['env']['PFX'] == 'test1_d3'
     V = re.compile(r'^[A-Za-z0-9_.,:=/@+%~-]{0,300}$'); assert all(V.match(v) for v in r['env'].values()), r
     J = dict(jobs=[dict(id='research')]); assert insert_front(J, r) and J['jobs'][0]['id'] == r['id'] and not insert_front(J, r)
+    q = make_post(r); assert q['after'] == [r['id']] and 'gres' not in q['sbatch'] and q['env']['STAGE'] == 'post' and r['env']['STAGE'] == 'solve' and r['sbatch']['gres'] == 'gpu:1'
+    assert all(V.match(v) for v in q['env'].values()) and len(q['id']) <= 60
     B = dict(state='run', issued='2026-11-01T12:00Z', runs=[1, 2])
     s, x = prefer(B, None); assert s['display'] == 'boxes' and '2 boxes' in s['coverage'] and 'shadow' not in s
     T = dict(state='run', issued='2026-11-01T12:00Z', display='turing', dir='data/forecast_d3/', likely_closed=9, coverage='Shadow run')

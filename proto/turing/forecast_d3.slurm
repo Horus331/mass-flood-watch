@@ -17,13 +17,16 @@
 # docs/site/data/<PFX>_status.json. The public forecast_status.json only gets a 'shadow' pointer (same cycle only); its headline, roads and map
 # stay the boxes'. One commit per publish, pushed through the deploy key.
 #   FORCE=1: run even if the gate is quiet for CYCLE (tests on past storms).  PFX other than forecast_d3: a test, live status untouched.
+#   STAGE (8 Nov 2026): solve = GPU array job, solver only (w9 LF_STAGE=solve), always exits 0 and marks the member SOLVED or FAILED, so the
+#   post job's afterok dependency can never hang; post = CPU array job "after" the solve request (no gres): w9 LF_STAGE=post, prototype.py,
+#   publish. 5-min frames of 17.6 M cells take hours to post-process: on the GPU node that held a GPU idle (Turing alert, job 2485192).
+#   No STAGE: both in one job (old behaviour; only with a GPU).
 # GPU type: chosen by the request (constraint A100|H100|H200 for the live shadow run, proto/forecast_turing.py); tests may run on any free GPU.
 #SBATCH -J fcd3
 #SBATCH -p short
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=96G
-#SBATCH --gres=gpu:1
 #SBATCH -t 06:00:00
 #SBATCH -o fcd3_%A_%a.out
 set -eo pipefail
@@ -35,10 +38,10 @@ PFX=${PFX:-forecast_d3}; [[ "$PFX" =~ ^[a-z0-9_]{3,40}$ ]] || exit 2
 REPO=$PWD
 IFS=, read -ra M <<< "$MEMBERS"; N=${#M[@]}; J=${SLURM_ARRAY_TASK_ID:-0}
 [ $J -lt $N ] || { echo "task $J: no member"; exit 0; }
-MEM=${M[$J]}; TAG=$(echo $CYCLE | tr -dc 0-9); FC=$LF_WORK/fcd3_${PFX}_$TAG; R=$FC/m$J; mkdir -p $FC; rm -rf $R; mkdir -p $R
+STAGE=${STAGE:-}; [[ "$STAGE" =~ ^(|solve|post)$ ]] || { echo "STAGE must be solve or post"; exit 2; }
+MEM=${M[$J]}; TAG=$(echo $CYCLE | tr -dc 0-9); FC=$LF_WORK/fcd3_${PFX}_$TAG; R=$FC/m$J; mkdir -p $FC
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-echo "start=$(now)" > $R/times; echo "member=$MEM" >> $R/times
-nvidia-smi || true
+if [ "$STAGE" != post ]; then rm -rf $R; mkdir -p $R; echo "start=$(now)" > $R/times; echo "member=$MEM" >> $R/times; nvidia-smi || true; fi
 NAME=fcd3_${PFX}_${TAG}_m$J
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-8} GIT_SHA=$(git rev-parse --short HEAD)
 export BOX=128000,856000,206000,946000 RES=20 STORM=forecast LF_RAIN=hrrr LF_HRRR_INIT=$MEM LF_HRRR_HOURS=$HOURS LF_ALLOW_DRY=1 LF_HRRR_NBHD=20,90
@@ -47,9 +50,15 @@ export LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.88 LF_PARITY=1 LF_INFIL_MMH=2 LF_QO
 # (5-min ASCII snapshots of the whole district would be ~400 GB), PROTO_FRAME_PNG=0 skips prototype.py's per-frame PNGs (unused here).
 # No velocity output (the shadow map has no flow layer)
 export LF_SAVEINT=300 LF_COMPACT=1 PROTO_FRAME_PNG=0
-export RUN_DIR=runs/forecast_$NAME
+export RUN_DIR=runs/forecast_$NAME LF_STAGE=$STAGE
 OUT=$LF_WORK/run_forecast_$NAME/out
-if python sim/colab/w9_lisflood.py > $R/w9.txt 2>&1 && [ -f $OUT/meta.json ] && python proto/prototype.py --run-dir $OUT --out $R/proto --storm forecast > $R/proto.txt 2>&1; then
+if [ "$STAGE" = solve ]; then   # GPU: the solver only; never a non-zero exit (the post job depends on this one with afterok)
+  if python sim/colab/w9_lisflood.py > $R/w9_solve.txt 2>&1 && [ -f $LF_WORK/run_forecast_$NAME/stage_solve.json ]; then echo "solved=$(now)" >> $R/times; touch $R/SOLVED
+  else tail -30 $R/w9_solve.txt || true; rm -rf $LF_WORK/run_forecast_$NAME/results; echo "finish=$(now)" >> $R/times; touch $R/FAILED; fi
+  exit 0
+fi
+if [ "$STAGE" = post ] && [ ! -f $R/SOLVED ]; then echo "member $J: no solve ($( [ -f $R/FAILED ] && echo failed || echo missing))"; [ -f $R/FAILED ] || { echo "finish=$(now)" >> $R/times; touch $R/FAILED; }
+elif python sim/colab/w9_lisflood.py > $R/w9.txt 2>&1 && [ -f $OUT/meta.json ] && python proto/prototype.py --run-dir $OUT --out $R/proto --storm forecast > $R/proto.txt 2>&1; then
   cp $OUT/meta.json $R/proto/flood_meta.json; echo "$OUT" > $R/OUTDIR; rm -rf $LF_WORK/run_forecast_$NAME/results; echo "finish=$(now)" >> $R/times; touch $R/DONE
 else
   tail -30 $R/w9.txt || true; tail -10 $R/proto.txt 2>/dev/null || true; echo "finish=$(now)" >> $R/times; touch $R/FAILED
