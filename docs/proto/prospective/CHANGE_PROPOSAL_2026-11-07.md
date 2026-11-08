@@ -17,6 +17,24 @@ are below 30 cm at onset and reach it within about 0.5 h, so the test must look 
 **Test.** All archived storms with labels (`docs/proto/forecast/ensemble.json` storms and the 23 district T2 storms): site recall (score_v2)
 and flagged share, current rule vs rise rule. Adopt only if pooled recall does not drop by more than 1 site and flagged share falls.
 
+### P1 test result, 8 Nov 2026 (`proto/p1_rise_test.py`, `p1_rise_test.json`)
+
+Scored with `score_v2.py` on the published labelled runs; alert tier = p_close >= 0.5. R0 published, RA = R0 and < 30 cm at rain onset
+(the live k-of-8 rule), RB = RA and a rise >= 30 cm above the onset depth (P1). Site hits / sites, flagged segments, mean flagged share:
+
+| pool | runs | R0 | RA | RB |
+| --- | --- | --- | --- | --- |
+| held-out 7 | parity catalog (clean baseline, the live model's base) | 8 / 40, 398, 0.91 % | 8 / 40, 386, 0.89 % | **8 / 40, 251, 0.56 %** |
+| new 16 | parity catalog | 1 / 58, 188, 0.23 % | 1 / 58, 180, 0.22 % | **1 / 58, 108, 0.14 %** |
+| dev 2 (in-sample) | parity catalog | 31 / 91, 193, 1.63 % | 31 / 91, 190 | 31 / 91, 154, 1.31 % |
+| held-out 7 | older Turing runs (pre-parity model) | 12 / 40, 845, 2.01 % | 12 / 40, 791 | 10 / 40, 423, 0.97 % (aug2026 -1, sep2021 -1) |
+| dev 2 | older Turing runs | 34 / 91, 312 | 31 / 91, 294 (sep2023 -3) | 31 / 91, 221 |
+
+Pre-registered rule (pooled recall drops by at most 1 site and flagged share falls): **passes on the parity catalog** (no site lost in any
+pool, 37 % to 42 % fewer flagged segments out of sample); fails on the older Turing runs (2 held-out sites lost). Not adopted: the parity
+runs are the baseline model without terrain fix T2 and without depth-from-onset; the test must be repeated on T2 + onset runs (the live
+model) before a decision, and the decision is Mo's and the advisors'.
+
 ## P2. Rain agreement before "likely" (location-agreement check)
 
 **Problem.** Most "likely" roads in this storm were closed by exactly 2 of 8 members, and the place of the heavy rain moved every cycle.
