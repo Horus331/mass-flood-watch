@@ -35,6 +35,25 @@ pool, 37 % to 42 % fewer flagged segments out of sample); fails on the older Tur
 runs are the baseline model without terrain fix T2 and without depth-from-onset; the test must be repeated on T2 + onset runs (the live
 model) before a decision, and the decision is Mo's and the advisors'.
 
+#### Repeat on terrain-fix (T2) runs, 8 Nov 2026 (Turing job `p1test_t2c`, `p1_rise_test_t2.json`)
+
+The 9 labelled T2 site runs kept on Turing (`results/site_*_t2`; T2 terrain, depth not yet measured from rain onset):
+
+| pool | R0 published | RA not standing at onset | RB rise >= 30 cm (P1) |
+| --- | --- | --- | --- |
+| held-out (aug2023, aug2026, jul2023, jun2020, sep2021, sep2022: 33 sites) | 4 hits, 215 flagged, 0.66 % | 4, 203, 0.63 % | **4, 112, 0.34 %** |
+| new (sep2018 Fitchburg, sep2018 Milford: 15 sites) | 1, 42, 0.34 % | 1, 42 | **1, 34, 0.28 %** |
+| dev (sep2023 Leominster district box: 80 sites) | 28, 242, 0.54 % | 28, 232 | **28, 124, 0.27 %** |
+
+Per storm, P1 removes flags without losing a hit: aug2023 96 -> 24, sep2023 242 -> 124, sep2021 104 -> 81, jun2020 20 -> 15,
+sep2022 11 -> 7, sep2018 Milford 13 -> 10, aug2026 4 -> 0 (0 hits either way), jul2023 0, sep2018 Fitchburg 9 -> 9.
+
+**Verdict under the pre-registered rule: passes on T2 runs as well** (0 sites lost in every pool; flagged roads down 48 % held-out,
+19 % new, 49 % dev). Together with the parity-catalogue result, P1 is ready for Mo and the advisors to decide. Still open before switching
+it on: the live model also measures depth from rain onset (`PROTO_RES_CONSISTENT`), not in these runs; and the 6 Nov storm shows what it
+would change live (b4 Clinton/Berlin: most of its 10 radar closures rise to 30 cm within 0.5 h of onset, so P1's effect there needs the
+frame-level check, not assumed).
+
 ## P2. Rain agreement before "likely" (location-agreement check)
 
 **Problem.** Most "likely" roads in this storm were closed by exactly 2 of 8 members, and the place of the heavy rain moved every cycle.
