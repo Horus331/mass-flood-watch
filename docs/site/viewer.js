@@ -39,6 +39,18 @@
       kind: 'The real storm, rerun by the flood model with heavier or lighter rain, wetter or frozen ground, and blocked culverts.'
     },
     // held-out replays (PROTOCOL.md storm roles: decision set, no setting chosen on them); 20 x 20 km box at 20 m, 5-minute frames
+    nov2026_worcester: {
+      title: 'Worcester · Nov 5–7, 2026',
+      kind: 'The storm the live forecast warned about (forward test), replayed on the radar rain that fell: up to 66 mm in the box, 18 mm in the wettest hour. Nobody reported a road flooded here; 6 drain complaints came in on other streets.'
+    },
+    nov2026_bellingham: {
+      title: 'Bellingham · Nov 5–7, 2026',
+      kind: 'The storm the live forecast warned about (forward test), replayed on the radar rain that fell: up to 96 mm in the box, 25 mm in the wettest hour. No road flooding was reported.'
+    },
+    nov2026_franklin: {
+      title: 'Franklin · Nov 5–7, 2026',
+      kind: 'The storm the live forecast warned about (forward test), replayed on the radar rain that fell: up to 84 mm in the box, 25 mm in the wettest hour. No road flooding was reported.'
+    },
     aug2026_leominster: {
       title: 'Leominster · Aug 3, 2026',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 118 mm of rain in the box (81 mm on average), up to 46 mm in the wettest hour.'
