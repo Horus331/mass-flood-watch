@@ -126,8 +126,14 @@ def chance_hit(n, k, m):
 def avg_precision(y, s):
     y = np.asarray(y, bool)
     if y.sum() == 0: return None
-    from sklearn.metrics import average_precision_score
-    return float(average_precision_score(y, s))
+    try:
+        from sklearn.metrics import average_precision_score
+        return float(average_precision_score(y, s))
+    except ImportError:                     # same definition as sklearn (sum over distinct thresholds of (R_n - R_n-1) P_n), for envs without sklearn
+        s = np.asarray(s, float); o = np.argsort(-s, kind='mergesort'); ys, ss = y[o], s[o]
+        last = np.r_[np.where(np.diff(ss))[0], len(ss) - 1]
+        tp = np.cumsum(ys)[last]; n = last + 1; P = tp / n; R = tp / y.sum()
+        return float(np.sum(np.diff(np.r_[0, R]) * P))
 
 
 # ------------------------------------------------------------------------------------------------ loading a run
