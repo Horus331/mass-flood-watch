@@ -7298,7 +7298,7 @@
    ]
   },
   "nov2026_worcester_p5": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2484861",
    "kind": "run_storm",
    "env": {
@@ -7339,10 +7339,14 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-08T19:52:30Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
   },
   "nov2026_worcester_pack5": {
-   "status": "pending",
+   "status": "cancelled",
    "slurm_id": "2484862",
    "kind": "pack_site",
    "env": {
@@ -7367,9 +7371,107 @@
     "done": 0,
     "failed": 0,
     "elapsed": "00:00:00"
-   }
+   },
+   "finished": "2026-11-08T19:52:30Z",
+   "why": [
+    "cancelled through jobs.json \"cancel\""
+   ]
+  },
+  "nov2026_worcester_s5r": {
+   "status": "submitted",
+   "slurm_id": "2485119",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_worcester_5m",
+    "BOX": "170000,880000,190000,900000",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "03:00:00",
+    "mem": "64G",
+    "gres": "gpu:1"
+   },
+   "after": [],
+   "at": "2026-11-08T19:52:31Z",
+   "error": null
+  },
+  "nov2026_worcester_p5r": {
+   "status": "submitted",
+   "slurm_id": "2485120",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_worcester_5m",
+    "BOX": "170000,880000,190000,900000",
+    "STAGE": "post"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G"
+   },
+   "after": [
+    "nov2026_worcester_s5r"
+   ],
+   "at": "2026-11-08T19:52:31Z",
+   "error": null
+  },
+  "nov2026_worcester_pack5r": {
+   "status": "submitted",
+   "slurm_id": "2485121",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_nov2026_worcester_5m",
+    "STORM": "arc20261105",
+    "SITE": "nov2026_worcester_5m",
+    "LIVE": "nov2026_worcester",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "nov2026_worcester_p5r"
+   ],
+   "at": "2026-11-08T19:52:31Z",
+   "error": null
   }
  },
- "updated": "2026-11-08T17:52:12Z",
+ "updated": "2026-11-08T19:52:31Z",
  "paused": false
 }
