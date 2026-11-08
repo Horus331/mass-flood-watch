@@ -1,0 +1,18 @@
+name: Road attributes (MassDOT Road Inventory - jurisdiction, route, speed, mile points)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  attrs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy shapely pyproj
+      - run: python tools/road_attrs.py
+      - name: commit
+        run: |
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add docs/site/data/road_attrs.json && git commit -qm "Road attributes from the MassDOT Road Inventory (jurisdiction, route, speed, mile points)" || exit 0
+          for i in 1 2 3 4 5; do { git pull --rebase -X theirs -q || { git rebase --abort; false; }; } && git push -q && break; sleep 10; done
