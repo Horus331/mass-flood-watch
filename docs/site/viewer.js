@@ -3260,7 +3260,10 @@
         .map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === wantO ? ' selected' : '') + '>' + o[1] + ' (' + ow[o[0]] + ')</option>'; }).join('');
       osel.hidden = Object.keys(ow).length < 2; if (!ow[wantO]) wantO = '';
     } else wantO = '';
-    var shown = rows.filter(function (r) { return (!want || r.s.f.properties.t === want) && (!wantO || r.own === wantO); });
+    var cOnly = $('culvBtn') && $('culvBtn').getAttribute('aria-pressed') === 'true', nC = 0;
+    rows.forEach(function (r) { r.culv = /culvert/i.test(r.s.f.properties.w || ''); if (r.culv) nC++; });
+    if ($('culvBtn')) { $('culvBtn').hidden = !nC; $('culvBtn').lastChild.textContent = 'Culverts (' + nC + ')'; }
+    var shown = rows.filter(function (r) { return (!want || r.s.f.properties.t === want) && (!wantO || r.own === wantO) && (!cOnly || r.culv); });
     var multiDay = nf > 1 && (timeAt(nf - 1) - timeAt(0)) > 18 * 3600e3;   // forecast runs span two days: say which day
     var ol = $('rankList'); ol.innerHTML = '';
     shown.slice(0, 60).forEach(function (r) {
@@ -3277,6 +3280,7 @@
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + rtTag + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
         '<span class="rt">' + tSpan + ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
       if (ownTag) b.innerHTML += ownTag;
+      if (r.culv && cOnly) { var cw = String(p.w || '').match(/culvert[^;]*/i); if (cw) b.innerHTML += '<span class="rt culv-t">' + esc(cw[0].charAt(0).toUpperCase() + cw[0].slice(1)) + '</span>'; }
       if (fast) b.innerHTML += '<span class="rt fast-t">Shallow water on a ' + (ra && ra.spd ? ra.spd + ' mph' : 'high-speed') + ' road: hydroplaning risk</span>';
       var sn = runKey === 'forecast' && meta.kofn ? fhSeen(+r.s.id) : null;
       if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
@@ -3535,6 +3539,7 @@
     try { var u = new URL(location.href); if (this.value) u.searchParams.set('own', this.value); else u.searchParams.delete('own'); history.replaceState(null, '', u); } catch (e) { }
     rankBuild();
   });
+  if ($('culvBtn')) $('culvBtn').addEventListener('click', function () { this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); rankBuild(); });
   if ($('printBtn')) $('printBtn').addEventListener('click', function () { $('rank').open = true; document.body.classList.add('print-list'); window.print(); setTimeout(function () { document.body.classList.remove('print-list'); }, 500); });
   $('fbLayers').addEventListener('click', function () {
     var lg = $('legend');
