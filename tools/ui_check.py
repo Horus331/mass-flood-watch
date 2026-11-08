@@ -1,7 +1,10 @@
 """Screenshots of the LIVE Forecast tab for checking the user interface while a storm is forecast (run on GitHub Actions by
 .github/workflows/ui_check.yml; images go to the orphan branch ui-check).  Desktop and phone views, the side panel scrolled to the
 forecast-by-forecast card, and the map zoomed on the top 'likely' roads at their peak frame.  Also writes ui_check.json with what the page
-showed (headline, card text, console errors) so a check can be read without opening the images."""
+showed (headline, card text, console errors) so a check can be read without opening the images.
+
+Regression checks: every bug fixed on the site gets a check here (`problems` in ui_check.json; the workflow fails when any is found), so
+an old mistake cannot come back unnoticed.  Data checks read the published JSON; page checks read the text the pages show."""
 import asyncio, json, os, urllib.request
 from pyproj import Transformer
 BASE = 'https://horus331.github.io/mass-flood-watch/'
@@ -9,9 +12,57 @@ OUT = 'shots'; os.makedirs(OUT, exist_ok=True)
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 
 
+def get(path):
+    return json.load(urllib.request.urlopen(BASE + path + ('&' if '?' in path else '?') + 'm=' + str(int(__import__('time').time()))))
+
+
+def data_checks(S):
+    """Published-data regressions (each line: the bug it guards against)."""
+    import datetime as dt
+    P = []; now = dt.datetime.now(dt.timezone.utc)
+    def age_h(t): return (now - dt.datetime.fromisoformat(t.replace('Z', '+00:00'))).total_seconds() / 3600 if t else 1e9
+    if age_h(S.get('built')) > 9: P.append(f"forecast not rebuilt for {age_h(S.get('built')):.0f} h (built {S.get('built')}): stale Forecast tab")
+    K = S.get('k_of_n') or {}
+    if K and S.get('likely_closed') is not None and sum(1 for x in K.get('segments', []) if x.get('class') == 'likely') not in (S.get('likely_closed'), min(S.get('likely_closed'), 150)):
+        P.append('likely_closed in the status does not match the k-of-8 list')
+    try:
+        F = get('site/data/live/flash.json')
+        if age_h(F.get('made')) > 3: P.append(f"flash-flood panel {age_h(F.get('made')):.0f} h old")
+        mx = max([(v or {}).get('district_max') or 0 for v in (F.get('products') or {}).values()] or [0])
+        if mx > 5: P.append(f'flash-flood ratio {mx} looks like percent (7 Nov bug: every town flagged)')
+        if F.get('towns') and len(F.get('flagged') or []) == len(F['towns']) and len(F['towns']) > 10: P.append('flash-flood panel flags every town')
+    except Exception as e: P.append(f'live/flash.json unreadable: {e!r}'[:200])
+    try:
+        R = get('site/data/live/rain.json')
+        if age_h(R.get('made')) > 3: P.append(f"radar rain {age_h(R.get('made')):.0f} h old")
+    except Exception as e: P.append(f'live/rain.json unreadable: {e!r}'[:200])
+    try:
+        O = get('site/data/outlook.json'); h = O.get('headline') or ''
+        import re
+        m = re.search(r'up to (\d+) mm', h)
+        if 'Heavy rain' in h and m and int(m.group(1)) < 20: P.append(f'outlook says heavy rain for {m.group(1)} mm: "{h}"')
+        if age_h(O.get('built') or O.get('made') or O.get('issued')) > 9: P.append('week outlook stale')
+    except Exception as e: P.append(f'outlook.json unreadable: {e!r}'[:200])
+    return P
+
+
+def page_checks(shots):
+    """Text the pages showed (each line: the bug it guards against)."""
+    import re
+    P = []
+    for sh in shots:
+        t = ' '.join((sh.get('rank') or []) + [sh.get('fhist') or '', sh.get('body') or ''])
+        for bad, why in (('Closed Closed', 'repeated "Closed" on a road row (6 Nov)'), ('undefined', 'undefined in the page'), ('NaN', 'NaN in the page'),
+                         (' null ', 'null in the page'), ('[object Object]', 'object printed in the page')):
+            if bad in t: P.append(f"{sh['name']}: {why}")
+        names = re.findall(r'([A-Z][\w .]+ \([A-Z][\w ]+\)), \1', sh.get('fhist') or '')
+        if names: P.append(f"{sh['name']}: road named twice in the forecast history ({names[0]})")
+    return P
+
+
 def main():
     from playwright.async_api import async_playwright
-    S = json.load(urllib.request.urlopen(BASE + 'site/data/forecast_status.json?m=' + str(int(__import__('time').time()))))
+    S = get('site/data/forecast_status.json')
     tr = Transformer.from_crs(26986, 4326, always_xy=True)
     segs = [s for s in (S.get('k_of_n') or {}).get('segments', []) if s.get('class') == 'likely'][:3]
     report = dict(issued=S.get('issued'), built=S.get('built'), headline=S.get('headline'), shots=[], errors=[])
@@ -26,7 +77,7 @@ def main():
                 if js: await pg.evaluate(js); await pg.wait_for_timeout(4000)
                 if el and await pg.query_selector(el): await (await pg.query_selector(el)).screenshot(path=f'{OUT}/{name}', timeout=180000)
                 else: await pg.screenshot(path=f'{OUT}/{name}', timeout=180000)
-                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist');return {fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200))}})()")
+                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist');return {fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
                 report['shots'].append(dict(name=name, url=url, **txt)); report['errors'] += [e[:200] for e in errs if '404' not in e][:5]
                 print('wrote', name); await ctx.close()
             _shot = shot
@@ -46,8 +97,12 @@ def main():
                 report['shots'][-1]['road'] = f"{s.get('road') or 'unnamed'} ({s.get('town')}) {s.get('k')}/8"
             await b.close()
     asyncio.run(run())
+    report['problems'] = data_checks(S) + page_checks(report['shots']) + [f'console error: {e}' for e in report['errors'] if 'net::' not in e][:10]
+    for sh in report['shots']: sh.pop('body', None)
     json.dump(report, open(f'{OUT}/ui_check.json', 'w'), indent=1)
+    print('problems:', len(report['problems'])); [print(' -', x) for x in report['problems']]
+    return 1 if report['problems'] else 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())
