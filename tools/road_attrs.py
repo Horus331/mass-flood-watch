@@ -60,13 +60,15 @@ def find_layer():
             F = dict(jur=jf, rt=pick('rt_number', 'route_number', 'route_numb', 'rtnumber'), spd=pick('speed_lim', 'speed_limit', 'speedlim'),
                      fc=pick('f_class', 'f_f_class', 'functional_class', 'func_class'), name=pick('st_name', 'street_name', 'streetname', 'full_name'),
                      mi0=pick('from_measure', 'frommeasure', 'from_meas'), mi1=pick('to_measure', 'tomeasure', 'to_meas'), rid=pick('route_id', 'routeid'))
+            dom = next((f.get('domain') for f in L['fields'] if f['name'] == jf), None) or {}
+            F['_jur_names'] = {str(c['code']).strip(): c['name'] for c in dom.get('codedValues') or []}   # the server's own code names
             print('layer', u, L.get('name'), F, flush=True)
             return u, F, L.get('maxRecordCount') or 1000
     raise SystemExit('no Road Inventory layer with a jurisdiction field found in ' + ', '.join(CANDIDATES))
 
 
 def fetch(u, F, page):
-    flds = ','.join(v for v in F.values() if v)
+    flds = ','.join(v for k, v in F.items() if v and not k.startswith('_'))
     # tile the box so each query stays under the server's record cap
     rows, nx, ny = [], 12, 10
     for i in range(nx):
@@ -133,13 +135,13 @@ def main():
         if F['mi0'] and a.get(F['mi0']) is not None: mi0[seg] = round(float(a[F['mi0']]), 2)
         if F['mi1'] and a.get(F['mi1']) is not None: mi1[seg] = round(float(a[F['mi1']]), 2)
     codes = sorted({c for c in own if c}); ci = {c: i + 1 for i, c in enumerate(codes)}
-    out = dict(made_by='tools/road_attrs.py', made=time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime()), source=u, fields_used=F,
+    out = dict(made_by='tools/road_attrs.py', made=time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime()), source=u, fields_used={k: v for k, v in F.items() if not k.startswith('_')},
                note='MassDOT Road Inventory attributes joined to docs/graph_segments.json by segment midpoint (25 m, same street name preferred)',
-               n=n, matched=hit, own_codes=[''] + codes, own_names=[''] + [JUR.get(c, c) for c in codes],
+               n=n, matched=hit, own_codes=[''] + codes, own_names=[''] + [F['_jur_names'].get(c) or JUR.get(c, c) for c in codes], own_names_source='server domain' if F['_jur_names'] else 'tools/road_attrs.py JUR table (no domain on the server)',
                own=[ci.get(c, 0) for c in own], rt=rt, spd=spd, fc=fc, mi0=mi0, mi1=mi1)
     json.dump(out, open(OUT, 'w'), separators=(',', ':'))
     from collections import Counter
-    print('matched', hit, 'of', n, 'segments;', Counter(JUR.get(c, c) for c in own if c).most_common(8), os.path.getsize(OUT) // 1024, 'KB')
+    print('matched', hit, 'of', n, 'segments;', Counter((F['_jur_names'].get(c) or JUR.get(c, c)) + f' [{c}]' for c in own if c).most_common(12), os.path.getsize(OUT) // 1024, 'KB')
 
 
 if __name__ == '__main__':
