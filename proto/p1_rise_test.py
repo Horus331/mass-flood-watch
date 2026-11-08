@@ -49,13 +49,20 @@ def variant(run, tmp, drop):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--out', default='docs/proto/prospective/p1_rise_test.json'); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument('--out', default='docs/proto/prospective/p1_rise_test.json')
+    ap.add_argument('--runs', nargs='*', help='run folders to test instead of the published catalogue (e.g. the T2 runs on Turing, results/site_*_t2); '
+                    'the storm is read from the folder name')
+    ap.add_argument('--group', default='given'); a = ap.parse_args()
+    if a.runs:
+        cat = [(os.path.abspath(r), SV.storm_of(os.path.basename(r.rstrip('/'))), a.group, True) for r in a.runs]
+        cat = [c for c in cat if c[1] and c[1] not in SV.LOCKED and SV.label_files(c[1]) and os.path.exists(os.path.join(c[0], 'segments.geojson'))]   # PROTOCOL.md §2: locked storms stay closed
+    else: cat = SV.find_runs()
     rows = []
-    for run, storm, grp, prim in SV.find_runs():
+    for run, storm, grp, prim in cat:
         if not prim or not os.path.exists(os.path.join(run, 'summary.json')): continue
         i0, K = keep_masks(run)
         drops = dict(R0=set(), RA={s for s, (ra, rb) in K.items() if not ra}, RB={s for s, (ra, rb) in K.items() if not rb})
-        r = dict(run=os.path.relpath(run, SV.ROOT), storm=storm, group=grp, onset_frame=i0, flagged_R0=len(K))
+        r = dict(run=os.path.relpath(run, SV.ROOT) if run.startswith(SV.ROOT) else run, storm=storm, group=grp, onset_frame=i0, flagged_R0=len(K))
         with tempfile.TemporaryDirectory() as tmp:
             for v, drop in drops.items():
                 src = run if v == 'R0' else variant(run, os.path.join(tmp, v), drop)
