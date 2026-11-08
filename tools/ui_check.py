@@ -79,7 +79,7 @@ def main():
                 if js: await pg.evaluate(js); await pg.wait_for_timeout(4000)
                 if el and await pg.query_selector(el): await (await pg.query_selector(el)).screenshot(path=f'{OUT}/{name}', timeout=180000)
                 else: await pg.screenshot(path=f'{OUT}/{name}', timeout=180000)
-                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist'),lt=document.getElementById('loadText');return {stuck:!!(lt&&lt.offsetParent&&/Loading|did not load/.test(lt.innerText)), loadtext:lt?lt.innerText:'',fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
+                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist'),lt=document.getElementById('loadText');return {stuck:!!(lt&&lt.offsetParent&&(/did not load/.test(lt.innerText)||(/Loading/.test(lt.innerText)&&!/100%/.test(lt.innerText)))), loadtext:lt?lt.innerText:'',fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
                 report['shots'].append(dict(name=name, url=url, **txt)); report['errors'] += [e[:200] for e in errs if '404' not in e][:5]
                 print('wrote', name); await ctx.close()
             _shot = shot
