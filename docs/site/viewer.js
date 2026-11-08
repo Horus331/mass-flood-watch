@@ -178,6 +178,14 @@
   function usd(v) { return v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v / 1e3) + 'k'; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   // roads reported flooded in past storms (proto/known_sites.py): reports, not model output; shown on the map and on each road row
+  // MassDOT Road Inventory attributes per segment (tools/road_attrs.py): owner, route number, speed limit, mile points
+  var RA = null;
+  function raLoad() { if (RA) return Promise.resolve(RA); return getJson('site/data/road_attrs.json').then(function (j) { RA = j; return j; }).catch(function () { RA = false; return null; }); }
+  function raOf(id) {
+    if (!RA || id == null || RA.own[id] == null) return null;
+    return { own: RA.own_names[RA.own[id]] || '', code: RA.own_codes[RA.own[id]] || '', rt: RA.rt[id] || '', spd: RA.spd[id] || 0, mi0: RA.mi0[id], mi1: RA.mi1[id] };
+  }
+  function fastRoad(p, a) { return (a && a.spd >= 45) || p.c === 2; }   // posted 45 mph or more, or a highway: shallow water is a hazard there
   var REP = null, KS = null, ksFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   function ksLoad() { if (KS) return Promise.resolve(KS); return getJson('site/data/known_sites.json').then(function (j) { KS = j.sites || []; return KS; }).catch(function () { KS = []; return KS; }); }
   function ksNear(f, m) {   // past reports within m metres of a road segment (any vertex), newest first, one per storm
@@ -3245,19 +3253,31 @@
       tsel.innerHTML = '<option value="">All towns</option>' + opts.map(function (tn) { return '<option' + (tn === keep ? ' selected' : '') + ' value="' + esc(tn) + '">' + esc(tn) + ' (' + towns[tn] + ')</option>'; }).join('');
       tsel.hidden = opts.length < 2; want = opts.indexOf(keep) >= 0 ? keep : '';
     }
-    var shown = want ? rows.filter(function (r) { return r.s.f.properties.t === want; }) : rows;
+    var osel = $('rankOwn'), wantO = osel ? osel.value || params.get('own') || '' : '';
+    if (osel && RA) {
+      var ow = {}; rows.forEach(function (r) { var a = raOf(+r.s.id); var k = a ? (a.code === '1' || a.code === 'H' || a.code === 'M' ? 'massdot' : a.code === '2' || a.code === '0' ? 'town' : 'other') : 'other'; r.own = k; ow[k] = (ow[k] || 0) + 1; });
+      osel.innerHTML = '<option value="">All owners</option>' + [['massdot', 'MassDOT roads'], ['town', 'City and town roads'], ['other', 'Other (DCR, private, ...)']].filter(function (o) { return ow[o[0]]; })
+        .map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === wantO ? ' selected' : '') + '>' + o[1] + ' (' + ow[o[0]] + ')</option>'; }).join('');
+      osel.hidden = Object.keys(ow).length < 2; if (!ow[wantO]) wantO = '';
+    } else wantO = '';
+    var shown = rows.filter(function (r) { return (!want || r.s.f.properties.t === want) && (!wantO || r.own === wantO); });
     var multiDay = nf > 1 && (timeAt(nf - 1) - timeAt(0)) > 18 * 3600e3;   // forecast runs span two days: say which day
     var ol = $('rankList'); ol.innerHTML = '';
     shown.slice(0, 60).forEach(function (r) {
       var p = r.s.f.properties, li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
-      var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : '<span class="chip-st wet">Water on road</span>';
+      var ra = raOf(+r.s.id), fast = r.sev === 1 && fastRoad(p, ra);
+      var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : fast ? '<span class="chip-st fast">Slow down</span>' : '<span class="chip-st wet">Water on road</span>';
       var lastDay = null, hm = function (f) {   // the weekday only where the day changes (Mon 5:15 PM – Tue 12:45 AM · up to 131 cm at 6:10 PM)
         var t = timeAt(f), d = multiDay ? fmtWd.format(t) : null, out = (d && d !== lastDay ? d + ' ' : '') + fmtHM.format(t); lastDay = d; return out;
       };
       var tSpan = r.sev === 3 ? hm(r.st) + ' – ' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st);
       lastDay = multiDay ? fmtWd.format(timeAt(r.st)) : null;   // the peak is said relative to the start day
-      b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
+      var rtTag = ra && ra.rt && String(p.n || '').indexOf(ra.rt) < 0 ? ' <span class="rt-no">Route ' + esc(ra.rt) + '</span>' : '';
+      var ownTag = ra && ra.own ? '<span class="rt own">' + esc(ra.own) + (ra.spd ? ' · ' + ra.spd + ' mph' : '') + (ra.mi0 != null && ra.rt ? ' · mile ' + ra.mi0 + (ra.mi1 != null ? '–' + ra.mi1 : '') : '') + '</span>' : '';
+      b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + rtTag + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
         '<span class="rt">' + tSpan + ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
+      if (ownTag) b.innerHTML += ownTag;
+      if (fast) b.innerHTML += '<span class="rt fast-t">Shallow water on a ' + (ra && ra.spd ? ra.spd + ' mph' : 'high-speed') + ' road: hydroplaning risk</span>';
       var sn = runKey === 'forecast' && meta.kofn ? fhSeen(+r.s.id) : null;
       if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
       var kn = ksNear(r.s.f, 120); r.known = kn;
@@ -3273,7 +3293,8 @@
       li.appendChild(b); ol.appendChild(li);
     });
     $('rank').hidden = !rows.length;
-    $('rank').querySelector('summary').textContent = 'Roads, most severe first (' + (want ? shown.length + ' in ' + want + ', ' : '') + rows.length + ')';
+    $('rank').querySelector('summary').textContent = 'Roads, most severe first (' + (want || wantO ? shown.length + ' shown of ' : '') + rows.length + ')';
+    if (RA == null) raLoad().then(function (j) { if (j) rankBuild(); });
   }
   var lastClock = '';
   function setTime(v) {
@@ -3510,6 +3531,10 @@
     try { var u = new URL(location.href); if (this.value) u.searchParams.set('town', this.value); else u.searchParams.delete('town'); history.replaceState(null, '', u); } catch (e) { }
     rankBuild();
   });
+  if ($('rankOwn')) $('rankOwn').addEventListener('change', function () {
+    try { var u = new URL(location.href); if (this.value) u.searchParams.set('own', this.value); else u.searchParams.delete('own'); history.replaceState(null, '', u); } catch (e) { }
+    rankBuild();
+  });
   if ($('printBtn')) $('printBtn').addEventListener('click', function () { $('rank').open = true; document.body.classList.add('print-list'); window.print(); setTimeout(function () { document.body.classList.remove('print-list'); }, 500); });
   $('fbLayers').addEventListener('click', function () {
     var lg = $('legend');
@@ -3556,14 +3581,16 @@
     var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var iso = function (f) { return f == null || f < 0 ? '' : new Date(timeAt(f).getTime()).toISOString().replace(/\.\d+Z$/, 'Z'); };
     var L = [['segment_id', 'road', 'town', 'road_class', 'state', 'first_water_utc', 'closes_utc', 'peak_utc', 'peak_depth_cm', 'reopens_utc', 'chance_of_closing',
-      'forecast_runs_closing', 'lon', 'lat', 'map_link', 'reported_flooded_before'].join(',')];
-    var want = $('rankTown') ? $('rankTown').value : '', out = want ? rankRows.filter(function (r) { return r.s.f.properties.t === want; }) : rankRows;
+      'forecast_runs_closing', 'lon', 'lat', 'map_link', 'reported_flooded_before', 'owner', 'route', 'speed_limit_mph', 'mile_from', 'mile_to'].join(',')];
+    var want = $('rankTown') ? $('rankTown').value : '', wantO = $('rankOwn') ? $('rankOwn').value : '';
+    var out = rankRows.filter(function (r) { return (!want || r.s.f.properties.t === want) && (!wantO || r.own === wantO); });
     out.forEach(function (r) {
       var p = r.s.f.properties, m = midOf(r.s.f), kn = r.known || ksNear(r.s.f, 120);
       L.push([r.s.id, p.n || '', p.t || '', CLS[p.c || 0], r.sev === 3 ? 'closed' : r.sev === 2 ? 'at risk (15-30 cm)' : 'water on road (5-15 cm)', iso(r.st), r.sev === 3 ? iso(r.st) : '',
         iso(r.pk), r.mx, r.end != null ? (r.end >= nf - 1 ? 'after the run' : iso(r.end)) : '', p.p != null ? p.p : '',
         meta.kofn && p.k ? p.k + ' of ' + meta.kofn.n : '', m ? m[0].toFixed(5) : '', m ? m[1].toFixed(5) : '',
-        m ? 'https://www.google.com/maps/search/?api=1&query=' + m[1].toFixed(5) + ',' + m[0].toFixed(5) : '', kn.map(function (k) { return k[4]; }).join(' ')].map(q).join(','));
+        m ? 'https://www.google.com/maps/search/?api=1&query=' + m[1].toFixed(5) + ',' + m[0].toFixed(5) : '', kn.map(function (k) { return k[4]; }).join(' ')]
+        .concat((function (a) { return a ? [a.own, a.rt, a.spd || '', a.mi0 == null ? '' : a.mi0, a.mi1 == null ? '' : a.mi1] : ['', '', '', '', '']; })(raOf(+r.s.id))).map(q).join(','));
     });
     var blob = new Blob([L.join('\n') + '\n'], { type: 'text/csv' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'mass-flood-watch_' + runKey + (want ? '_' + want.toLowerCase().replace(/\W+/g, '-') : '') + '_roads.csv'; document.body.appendChild(a); a.click();
