@@ -175,11 +175,83 @@ def write_asc(path, a, x0, y0, res, fmt='%.3f'):
         np.savetxt(f, np.where(np.isfinite(a), a, NODATA), fmt=fmt, delimiter=' ')
 
 
+def _rp(p):
+    """A solver output path as it is on disk now: the file itself, or its gzip copy (LF_COMPACT compresses snapshots during the run)."""
+    return p if os.path.exists(p) or not os.path.exists(p + '.gz') else p + '.gz'
+
+
+def _rexists(p): return os.path.exists(p) or os.path.exists(p + '.gz')
+
+
+def _rremove(p):
+    for q in (p, p + '.gz'):
+        if os.path.exists(q): os.remove(q)
+
+
+def _sglob(pattern):
+    """glob for solver snapshots, compressed or not -> sorted logical names (without .gz)."""
+    return sorted({q[:-3] if q.endswith('.gz') else q for q in glob.glob(pattern) + glob.glob(pattern + '.gz')})
+
+
+class SnapshotCompactor:
+    """LF_COMPACT=1: while the solver runs, gzip (level 1) every snapshot file (res-NNNN.wd/.Vx/.Vy/.Qx/.Qy/.elev) the solver has finished
+    with, and delete the ASCII.  5-min snapshots of a whole-district run are ~400 GB of ASCII; mostly-dry rasters compress ~20x.  A file is
+    finished when two later snapshot numbers exist and it has not changed for 20 s.  Nothing else changes: read_asc and the snapshot globs
+    read the .gz copies (values identical)."""
+    PAT = re.compile(r'^res-(\d{4,})\.(wd|Vx|Vy|Qx|Qy|elev)$')
+
+    def __init__(self, d, threads=4):
+        import threading, concurrent.futures as cf
+        self.d = d; self.stop_ = threading.Event(); self.pool = cf.ThreadPoolExecutor(max(1, threads)); self.busy = set(); self.n = 0; self.saved = 0
+        self.lock = threading.Lock(); self.t = threading.Thread(target=self.loop, daemon=True); self.t.start()
+
+    def one(self, f):
+        import gzip
+        p = os.path.join(self.d, f)
+        try:
+            sz = os.path.getsize(p)
+            with open(p, 'rb') as a, gzip.open(p + '.gz.tmp', 'wb', compresslevel=1) as b: shutil.copyfileobj(a, b, 16 << 20)
+            os.replace(p + '.gz.tmp', p + '.gz'); os.remove(p)
+            with self.lock: self.n += 1; self.saved += sz - os.path.getsize(p + '.gz')
+        except Exception as e:
+            log('compact failed', f, repr(e)[:120])
+            for q in (p + '.gz.tmp',):
+                if os.path.exists(q): os.remove(q)
+        finally:
+            with self.lock: self.busy.discard(f)
+
+    def scan(self, final=False):
+        try: names = os.listdir(self.d)
+        except FileNotFoundError: return
+        M = [(f, int(m.group(1))) for f in names for m in [self.PAT.match(f)] if m]
+        if not M: return
+        top = max(k for _, k in M); now = time.time()
+        for f, k in M:
+            if f in self.busy: continue
+            if not final and (k > top - 2 or now - os.path.getmtime(os.path.join(self.d, f)) < 20): continue
+            with self.lock: self.busy.add(f)
+            self.pool.submit(self.one, f)
+
+    def loop(self):
+        while not self.stop_.wait(10): self.scan()
+
+    def close(self, final=False):
+        """Stop scanning; final=True also compresses what is left (after the solver exited) and waits."""
+        self.stop_.set(); self.t.join()
+        if final: self.scan(final=True)
+        self.pool.shutdown(wait=True)
+        log(f'LF_COMPACT: {self.n} snapshot files gzipped, {self.saved / 1e9:.1f} GB of disk saved')
+
+
 def read_asc(path):
-    """-> (array north->south float32 with NODATA as nan, header dict)."""
-    hdr = {}
-    with open(path) as f:
-        txt = f.read()
+    """-> (array north->south float32 with NODATA as nan, header dict).  Reads a gzip copy when only that exists (LF_COMPACT)."""
+    hdr = {}; path = _rp(path)
+    if path.endswith('.gz'):
+        import gzip
+        with gzip.open(path, 'rt') as f: txt = f.read()
+    else:
+        with open(path) as f:
+            txt = f.read()
     lines = txt.split('\n'); i = 0
     while i < len(lines) and re.match(r'^\s*[A-Za-z_]+\s', lines[i]):
         k, v = lines[i].split()[:2]; hdr[k.lower()] = float(v); i += 1
@@ -604,7 +676,10 @@ def build_lisflood(src, want_cuda):
 
 def run_lisflood(exe, wd, par, timeout=6 * 3600):
     t = time.time()
-    p = subprocess.run([exe, '-v', par], cwd=wd, capture_output=True, text=True, timeout=timeout)
+    C = SnapshotCompactor(f'{wd}/results', int(os.environ.get('LF_COMPACT_THREADS', '4'))) if os.environ.get('LF_COMPACT', '0') == '1' and par == 'run.par' else None
+    try: p = subprocess.run([exe, '-v', par], cwd=wd, capture_output=True, text=True, timeout=timeout)
+    finally:
+        if C is not None: C.close(final=True)
     out = (p.stdout or '') + (p.stderr or ''); open(f'{wd}/lisflood_stdout.txt', 'w').write(out)
     if p.returncode != 0: log(out[-3000:]); raise RuntimeError(f'lisflood exited {p.returncode}')
     return time.time() - t, out
@@ -615,7 +690,7 @@ def max_depth(wd, resroot, dirroot='results'):
     d = f'{wd}/{dirroot}'
     p = f'{d}/{resroot}.max'
     if os.path.exists(p): return read_asc(p)[0], 'max file'
-    snaps = sorted(glob.glob(f'{d}/{resroot}-*.wd'))
+    snaps = _sglob(f'{d}/{resroot}-*.wd')
     if not snaps: raise RuntimeError(f'no .max or .wd output in {d}: {os.listdir(d) if os.path.isdir(d) else "missing"}')
     h = None
     for s in snaps: a = read_asc(s)[0]; h = a if h is None else np.fmax(h, a)
@@ -836,23 +911,25 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
     d = f'{wd}/{dirroot}'; ny, nx = shape; info = {}
     vmax = np.zeros(shape, np.float32); dv = np.zeros(shape, np.float32); vsnap = np.zeros(shape, np.float32); n = 0
     vthr = [float(t) for t in os.environ.get('LF_VDUR', '').split(',') if t.strip()]; vcnt = np.zeros((len(vthr), ny, nx), np.uint16); dvs = np.zeros(shape, np.float32)
+    VX_ = _sglob(f'{d}/{resroot}-*.Vx')
     VFR = [] if os.environ.get('LF_VFRAMES', '0') == '1' else None
-    for fx in sorted(glob.glob(f'{d}/{resroot}-*.Vx')):
+    if VFR is not None: VU = np.empty((len(VX_), ny, nx), np.float16); VV = np.empty((len(VX_), ny, nx), np.float16)   # in place (5-min district runs)
+    for fx in VX_:
         fy = fx[:-3] + '.Vy'; fh = fx[:-3] + '.wd'
-        if not os.path.exists(fy): continue
+        if not _rexists(fy): continue
         try: Vx = read_asc(fx)[0]; Vy = read_asc(fy)[0]
         except Exception as e: log('velocity file unreadable', fx, repr(e)[:80]); continue
         if Vx.shape != (ny, nx + 1) or Vy.shape != (ny + 1, nx): log('unexpected velocity grid shapes', Vx.shape, Vy.shape); break
         v = cell_speed(Vx, Vy); vsnap = np.maximum(vsnap, v); hs = None
         if VFR is not None:   # LF_VFRAMES=1: the solver's own signed velocity at every snapshot, cell centre = mean of the two faces
             m_ = re.search(r'-(\d+)\.Vx$', fx)
-            VFR.append((int(m_.group(1)) if m_ else len(VFR),
-                        (0.5 * (np.nan_to_num(Vx[:, :-1]) + np.nan_to_num(Vx[:, 1:]))).astype(np.float16),      # +east
-                        (-0.5 * (np.nan_to_num(Vy[:-1, :]) + np.nan_to_num(Vy[1:, :]))).astype(np.float16)))    # +north (rows run north -> south)
-        if os.path.exists(fh): hs = np.nan_to_num(read_asc(fh)[0]); dv = np.maximum(dv, hs * v); dvs = np.maximum(dvs, hs * v)
+            k_ = len(VFR); VFR.append(int(m_.group(1)) if m_ else k_)
+            VU[k_] = 0.5 * (np.nan_to_num(Vx[:, :-1]) + np.nan_to_num(Vx[:, 1:]))      # +east
+            VV[k_] = -0.5 * (np.nan_to_num(Vy[:-1, :]) + np.nan_to_num(Vy[1:, :]))     # +north (rows run north -> south)
+        if _rexists(fh): hs = np.nan_to_num(read_asc(fh)[0]); dv = np.maximum(dv, hs * v); dvs = np.maximum(dvs, hs * v)
         for k_, t_ in enumerate(vthr): vcnt[k_] += (v >= t_) & ((hs >= 0.02) if hs is not None else True)
         n += 1
-        if not keep: os.remove(fx); os.remove(fy)
+        if not keep: _rremove(fx); _rremove(fy)
     info['snapshots'] = n
     if os.path.exists(f'{d}/{resroot}.maxVc'):
         vmax = np.nan_to_num(read_asc(f'{d}/{resroot}.maxVc')[0]).astype(np.float32); info['vmax_source'] = 'maxVc (every time step)'
@@ -863,8 +940,10 @@ def velocity_peaks(wd, resroot, shape, dirroot='results', keep=False):
     info.setdefault('dv_source', 'snapshot h x speed')
     if vthr: info['_vdur'] = dict(vdur_thr=np.array(vthr, np.float32), vdur_count=vcnt, vdur_snapshots=np.array(n), vsnap_max=vsnap.astype(np.float32),
                                   dvsnap_max=dvs.astype(np.float32))   # snapshot-only peaks: free of the single-time-step spikes in .maxVc
-    if VFR: VFR.sort(key=lambda r: r[0]); info['_vframes'] = dict(snap=np.array([r[0] for r in VFR], np.int32), u_ms=np.stack([r[1] for r in VFR]),
-                                                                 v_ms=np.stack([r[2] for r in VFR]))
+    if VFR:
+        o_ = np.argsort(VFR, kind='stable'); n_ = len(VFR)
+        if (o_ != np.arange(n_)).any(): VU[:n_] = VU[o_]; VV[:n_] = VV[o_]   # _sglob is sorted by name = by snapshot number: normally already in order
+        info['_vframes'] = dict(snap=np.array(VFR, np.int32)[o_], u_ms=VU[:n_], v_ms=VV[:n_])
     return vmax.astype(np.float32), dv.astype(np.float32), info
 
 
@@ -1370,16 +1449,16 @@ def main():
         shutil.copy(LOGP, f'{wd}/w9_log_solve.txt')
         log(f'LF_STAGE=solve: solver done in {run_s:.0f}s, raw results left in {wd}/results for LF_STAGE=post'); return
     T0_SNAP = 'solver'
-    if is_cuda and start and os.path.exists(f'{wd}/results/res-0000.wd') and os.environ.get('LF_CUDA_T0_FROM_START', '1') == '1':
+    if is_cuda and start and _rexists(f'{wd}/results/res-0000.wd') and os.environ.get('LF_CUDA_T0_FROM_START', '1') == '1':
         # the CUDA build's t = 0 snapshot is not the initial state the CPU build writes (the start file, channels a third full); put the
         # start file there so frames, the gauge start level (proto/score.py) and start-up checks read the same t = 0 on both solvers
-        shutil.copy(f'{wd}/{start}', f'{wd}/results/res-0000.wd'); T0_SNAP = 'start file (CUDA t = 0 snapshot replaced)'
+        _rremove(f'{wd}/results/res-0000.wd'); shutil.copy(f'{wd}/{start}', f'{wd}/results/res-0000.wd'); T0_SNAP = 'start file (CUDA t = 0 snapshot replaced)'
         log('CUDA: t = 0 snapshot replaced by the start file (the initial state), as the CPU build writes it')
     hmax, hsrc = max_depth(wd, 'res'); hmax = np.nan_to_num(hmax, nan=0.0)
     if DOM and hmax.shape == MSK.shape: hmax = np.where(MSK, hmax, 0.0)
     if hmax.shape != (ny, nx): raise SystemExit(f'output shape {hmax.shape} != grid {(ny, nx)}')
     land = ~I['chan']; t0 = pd.Timestamp(S['t0']); nfr = int(S['hours'] * 60 / S['frame_min']) + 1
-    snaps = {int(re.search(r'-(\d+)\.wd$', p).group(1)): p for p in glob.glob(f'{wd}/results/res-*.wd')}
+    snaps = {int(re.search(r'-(\d+)\.wd$', p).group(1)): p for p in _sglob(f'{wd}/results/res-*.wd')}
     frames, hsnap = [], None
     for i in range(nfr):
         j = int(round(i * S['frame_min'] * 60 / SAVEINT)) if SAVEINT else -1
@@ -1390,11 +1469,11 @@ def main():
         frames.append(fr)
     # time above the car-stalling depths (from every snapshot, not only frame times) and first arrival, hours
     tover15 = np.zeros((ny, nx), np.float32); tover30 = np.zeros((ny, nx), np.float32); tarr30 = np.full((ny, nx), np.nan, np.float32)
-    FR, FT = [], []
+    FR = np.empty((len(snaps), ny, nx), np.uint16); FT = []   # filled in place: a list + np.stack held the frames twice (5-min district runs)
     for j in sorted(snaps):
         h = np.nan_to_num(read_asc(snaps[j])[0], nan=0.0)
         if h.shape != (ny, nx): continue
-        FR.append(np.clip(np.round(h * 100), 0, 65000).astype(np.uint16)); FT.append(j * SAVEINT / 3600.0)
+        FR[len(FT)] = np.clip(np.round(h * 100), 0, 65000); FT.append(j * SAVEINT / 3600.0)
         tover15 += (h >= 0.15) * (SAVEINT / 3600.0); tover30 += (h >= 0.30) * (SAVEINT / 3600.0)
         tarr30 = np.where(np.isnan(tarr30) & (h >= 0.30), j * SAVEINT / 3600.0, tarr30)
     peak_wet = round(float(((hmax >= 0.1) & land).sum() * RES * RES / 1e6), 1)
@@ -1412,7 +1491,7 @@ def main():
                 rg, cg = int((y1 - gy) // RES), int((gx - x0) // RES); kg = max(2, int(math.ceil(100 / RES)))
                 GQ.append(dict(site=g['site'], name=g['name'], r0=max(0, rg - kg), r1=min(ny, rg + kg + 1), c0=max(0, cg - kg), c1=min(nx, cg + kg + 1),
                                obs_peak_q_m3s=round(g['peak_q_cfs'][1] * 0.0283168, 1) if g.get('peak_q_cfs') else None))
-    qfiles = sorted(glob.glob(f'{wd}/results/res-*.Qx'))
+    qfiles = _sglob(f'{wd}/results/res-*.Qx')
     if QOUT and qfiles:
         t_ = time.time()
         # the CUDA acceleration solver keeps unit-width flux q (m2/s; cuda_acc_solver.cu) and writes it to .Qx/.Qy, the CPU solver writes
@@ -1423,7 +1502,7 @@ def main():
         for B in GQ: B.update(q_peak_m3s=0.0, q_peak_h=None, q_series=[])
         for fq in qfiles:
             j = int(re.search(r'-(\d+)\.Qx$', fq).group(1)); fy = fq[:-3] + '.Qy'
-            if not os.path.exists(fy): continue
+            if not _rexists(fy): continue
             try: Qx = np.nan_to_num(read_asc(fq)[0]); Qy = np.nan_to_num(read_asc(fy)[0])
             except Exception as e: log('flux file unreadable', fq, repr(e)[:80]); continue
             if QSCALE != 1.0: Qx = Qx * QSCALE; Qy = Qy * QSCALE
@@ -1432,7 +1511,7 @@ def main():
                 qi, qo = block_throughflow(Qx, Qy, B['r0'], B['r1'], B['c0'], B['c1']); q = 0.5 * (qi + qo)
                 if 'q_series' in B: B['q_series'].append(round(qo, 2))
                 if j > 0 and q > B['q_peak_m3s']: B['q_peak_m3s'] = round(q, 3); B['q_peak_h'] = round(j * SAVEINT / 3600.0, 2)   # j = 0: start-file transient (channels start a third full), not flow
-            os.remove(fq); os.remove(fy)
+            _rremove(fq); _rremove(fy)
         log(f'fluxes: {len(qfiles)} snapshots read in {time.time() - t_:.0f}s; gauge peak flow ' + ', '.join(f"{g['site']} {g['q_peak_m3s']:.1f} m3/s (obs {g['obs_peak_q_m3s']})" for g in GQ))
     VEL = None
     if VOUT:
@@ -1456,10 +1535,11 @@ def main():
     OUT = f'{wd}/out'; os.makedirs(OUT, exist_ok=True)
     np.save(f'{OUT}/hmax.npy', hmax.astype(np.float32)); np.save(f'{OUT}/z.npy', (I['Z'] if DOM is None else np.where(MSK, I['Z'], I['Z_RAW'])).astype(np.float32))
     if hsnap is not None: np.save(f'{OUT}/hsnap.npy', hsnap.astype(np.float32))
-    if FR:   # Turing scratch (Ceph) has failed this large write with EAGAIN (Errno 11) under load: retry, writing to a temp name first
+    FR = FR[:len(FT)]
+    if len(FT):   # Turing scratch (Ceph) has failed this large write with EAGAIN (Errno 11) under load: retry, writing to a temp name first
         for _try in range(5):
             try:
-                np.savez_compressed(f'{OUT}/frames_cm.tmp.npz', depth_cm=np.stack(FR), hours=np.array(FT, np.float32)); os.replace(f'{OUT}/frames_cm.tmp.npz', f'{OUT}/frames_cm.npz'); break
+                np.savez_compressed(f'{OUT}/frames_cm.tmp.npz', depth_cm=FR, hours=np.array(FT, np.float32)); os.replace(f'{OUT}/frames_cm.tmp.npz', f'{OUT}/frames_cm.npz'); break
             except BlockingIOError as e_:
                 log(f'frames_cm.npz write failed ({e_}); retry {_try + 1} of 5 in 30 s'); time.sleep(30)
         else: raise RuntimeError('frames_cm.npz could not be written (EAGAIN 5 times)')
@@ -1580,6 +1660,22 @@ def selftest():
     hm, src = max_depth(d, 'res'); assert src == 'max of snapshots' and np.allclose(hm[1:], 0.2)
     write_asc(f'{d}/results/res.max', np.full((ny, nx), 0.3), x0, y0, res); hm, src = max_depth(d, 'res'); assert src == 'max file' and np.allclose(hm, 0.3)
     ok.append('output reader (.max, else max of .wd snapshots)')
+    # LF_COMPACT: finished snapshots gzipped during the run; every reader sees the same values
+    cd_ = f'{d}/compact'; os.makedirs(cd_)
+    A_ = [np.round(np.random.default_rng(k).random((ny, nx)) * (k + 1), 3) for k in range(5)]
+    for k, a_ in enumerate(A_):
+        for ext in ('wd', 'Vx', 'Qx'): write_asc(f'{cd_}/res-{k:04d}.{ext}', a_, x0, y0, res)
+    ref_ = {f: read_asc(f'{cd_}/{f}')[0] for f in os.listdir(cd_)}
+    old_ = time.time() - 60
+    for f in os.listdir(cd_): os.utime(f'{cd_}/{f}', (old_, old_))
+    C_ = SnapshotCompactor(cd_, 2); C_.scan(); C_.close(final=False)
+    left_ = sorted(os.listdir(cd_)); assert 'res-0000.wd.gz' in left_ and 'res-0004.wd' in left_ and 'res-0003.Qx' in left_ and not any(x.endswith('.tmp') for x in left_), left_
+    C_ = SnapshotCompactor(cd_, 2); C_.close(final=True); assert all(x.endswith('.gz') for x in os.listdir(cd_)), os.listdir(cd_)
+    assert _sglob(f'{cd_}/res-*.wd') == [f'{cd_}/res-{k:04d}.wd' for k in range(5)] and _rexists(f'{cd_}/res-0002.Vx')
+    for f, a_ in ref_.items(): b_ = read_asc(f'{cd_}/{f}')[0]; assert np.array_equal(np.nan_to_num(a_, nan=-1), np.nan_to_num(b_, nan=-1)), f
+    hc_, _ = max_depth(f'{d}', 'res', dirroot='compact'); assert np.allclose(hc_, np.max(A_, 0))
+    _rremove(f'{cd_}/res-0001.wd'); assert not _rexists(f'{cd_}/res-0001.wd')
+    ok.append('LF_COMPACT snapshot compression (gzip copies read back identical; snapshot globs and the .max fallback see them)')
     # crossing notches sized to the culvert (LF_BREACH_SIZED) and flow through a block from face fluxes (LF_QOUT)
     small = dict(shape='circular', rise_m=0.6, span_m=0.6, fill_m=1.0, material='concrete', inlet='headwall')
     big = dict(shape='box', rise_m=3.0, span_m=6.0, fill_m=1.0, material='concrete', inlet='wingwall')

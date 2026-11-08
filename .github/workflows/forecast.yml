@@ -166,6 +166,12 @@ jobs:
       - name: reused
         if: steps.c.outputs.cache-hit == 'true'
         run: mkdir -p art && cp -r ${{ runner.temp }}/pcache art/proto_${{ matrix.b.m }}_${{ matrix.b.id }} && ls art/* | head && echo "::notice title=reused::member ${{ matrix.b.init }} box ${{ matrix.b.box }} from an earlier cycle"
+      - name: disk space for 5-min snapshots (the runner image's unused SDKs; ~40 GB more room for the solver's snapshot files)
+        if: steps.c.outputs.cache-hit != 'true'
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift || true
+          df -h / | tail -1
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
         if: steps.c.outputs.cache-hit != 'true'
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
@@ -194,7 +200,8 @@ jobs:
           LF_CHAN_ENFORCE: '1'
           LF_INFIL_MMH: '2'
           LF_QOUT: '1'
-          LF_SAVEINT: '900'         # 15-min depth snapshots for the map (output only; the model settings above are unchanged; 15 min keeps each fired cycle's pack small in git)
+          LF_SAVEINT: '300'         # 5-min depth snapshots, as every other run of the model (8 Nov 2026; output only, the model settings above are unchanged). The map's image sheets go to the frames branch (tools/frames_push.sh), not main
+          LF_COMPACT: '1'           # gzip the solver's finished snapshot files during the run (disk; values unchanged, w9 SnapshotCompactor)
           LF_VOUT: '1'              # solver velocity (.Vx/.Vy) ...
           LF_VFRAMES: '1'           # ... at every snapshot -> out/vel_frames.npz: the replay's flow field
           GIT_SHA: ${{ github.sha }}
@@ -202,6 +209,7 @@ jobs:
         run: |
           set -o pipefail
           /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt
+          df -h / | tail -1 | tee -a w9_stdout.txt
       - name: road closures
         if: steps.c.outputs.cache-hit != 'true'
         env:
@@ -275,6 +283,12 @@ jobs:
               if [ -n "$KOFN" ]; then python proto/forecast_kofn.py pack --kofn kofn.json --key $key --box $box; fi
               RUNS="$RUNS --run $key=$(realpath $dir)"
             done < viewers.txt
+          fi
+          # 5-min frames: the packs' image sheets go to the frames branch (one commit, replaced every cycle), main keeps the JSON; a failed push keeps them on main
+          if [ "${{ github.event_name }}" = schedule ] || [ "${{ inputs.publish }}" = true ]; then
+            PK=$(ls -d docs/site/data/${PFX} docs/site/data/${PFX}_b* 2>/dev/null || true)
+            TAG=$(python -c "import json; print(''.join(c for c in json.load(open('arts/gate/gate.json'))['issued'] if c.isdigit())[:10])")
+            if [ -n "$PK" ]; then bash tools/frames_push.sh frames-$PFX $TAG $PK || echo "::warning title=frames::frames branch push failed; sheets stay on main this cycle"; fi
           fi
           python proto/forecast.py status --gate arts/gate/gate.json $RUNS $KOFN --out $ST
           # the boxes stay the public forecast (shadow mode); a Turing whole-district run of THIS cycle is linked as a shadow run

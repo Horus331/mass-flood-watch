@@ -206,7 +206,7 @@ def report(D, Zm, FR, FT):
     out = []
     for i, L in enumerate(D['lakes']):
         m = D['owner'] == i + 1
-        if not FR or not m.any(): out.append(L); continue
+        if FR is None or not len(FR) or not m.any(): out.append(L); continue
         st = np.array([float(np.mean(Zm[m] + f[m] / 100.0)) for f in FR]); rise = st - L['pool_m']; j = int(np.argmax(rise))
         q = lambda h: round(D['cd'] * L['weir_w_m'] * max(h, 0.0) ** 1.5, 2)
         j12 = int(np.argmin(np.abs(np.asarray(FT) - (FT[j] + 12.0))))
