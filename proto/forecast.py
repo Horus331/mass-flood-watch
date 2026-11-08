@@ -25,6 +25,8 @@ BOX_KM = 20; MAX_BOXES = int(os.environ.get('FORECAST_MAX_BOXES', '4'))
 # catalogue closure storm whose HRRR forecast was available before the first report must fire it (see GATE.md for the numbers).
 GATE_6H_MM = float(os.environ.get('GATE_6H_MM', '25'))
 GATE_24H_MM = float(os.environ.get('GATE_24H_MM', '40'))
+WATER_MM = float(os.environ.get('WATER_MM', '8'))   # below the trigger, rain of >= WATER_MM somewhere in District 3 still runs the flood model on the wettest box
+                                                    # (gate 'forced', never a warning, not scored): the Forecast map always shows where water collects
 CLOSE_P = 0.5
 
 
@@ -97,7 +99,8 @@ def evaluate(init, H, R, gate, force=False):
                           total_mm=round(float(S['total'][idx].max()), 1), mean_total_mm=round(float(S['total'][idx].mean()), 1)))
     towns.sort(key=lambda t: -t['max6h_mm'])
     hit = [t for t in towns if t['max6h_mm'] >= GATE_6H_MM or t['max24h_mm'] >= GATE_24H_MM]
-    trig = bool(hit) or force
+    water = (not hit) and float(S['total'][ins].max()) >= WATER_MM
+    trig = bool(hit) or force or water
     # boxes: greedy on the exceedance score over points inside District 3
     score = np.where(ins, np.maximum(S['max6h'] / GATE_6H_MM, S['max24h'] / GATE_24H_MM), 0.0)
     boxes, left = [], score >= (1.0 if hit else 0.0)
@@ -127,7 +130,7 @@ def evaluate(init, H, R, gate, force=False):
     return dict(issued=init.strftime('%Y-%m-%dT%H:%MZ'), horizon_h=int(H), valid=[iso(0), iso(H)], source='NOAA HRRR (3 km), hourly APCP buckets',
                 thresholds=dict(max6h_mm=GATE_6H_MM, max24h_mm=GATE_24H_MM, rule='flood model runs when any District 3 town has a forecast 6 h maximum >= max6h_mm '
                                 'or a 24 h maximum >= max24h_mm (maximum over the HRRR 3 km points in the town)', basis='docs/proto/forecast/GATE.md'),
-                trigger=trig, forced=bool(force and not hit), towns_over=[t['town'] for t in hit], district=d3, boxes=boxes, towns=towns,
+                trigger=trig, forced=bool((force or water) and not hit), water_mode=bool(water and not force), towns_over=[t['town'] for t in hit], district=d3, boxes=boxes, towns=towns,
                 hourly=dict(t0=iso(0), mean_mm=[round(float(v), 2) for v in hr.mean(1)], max_mm=[round(float(v), 1) for v in hr.max(1)]))
 
 
@@ -238,6 +241,7 @@ def cmd_status(a):
     n = sum(r['likely_closed'] for r in ok)
     if not G['trigger']: state, head = 'quiet', f"No road closures expected in District 3 in the next {G['horizon_h']} h"
     elif not ok: state, head = 'error', 'Heavy rain forecast, but the flood model run failed; see the rain summary'
+    elif n == 0 and G.get('forced'): state, head = 'run', f"No road closures expected in District 3 in the next {G['horizon_h']} h; the map shows where the rain collects"
     elif n == 0: state, head = 'run', f"Heavy rain forecast; the flood model expects no road closures in the next {G['horizon_h']} h"
     else: state, head = 'run', f"{n} road segment{'s' if n != 1 else ''} likely closed (P >= {CLOSE_P:.1f}) in the next {G['horizon_h']} h"
     d = G['district']
@@ -265,7 +269,8 @@ def cmd_status(a):
         if out['state'] == 'run':
             out['headline'] = (f"{K['likely']} road segment{'s' if K['likely'] != 1 else ''} likely closed in the next {G['horizon_h']} h, "
                                f"{K['possible']} more possible") if K['likely'] or K['possible'] else \
-                              f"Heavy rain forecast; none of the {N} forecast runs closes a road in the next {G['horizon_h']} h"
+                              (f"No road closures expected in District 3 in the next {G['horizon_h']} h; the map shows where the rain collects" if G.get('forced') else
+                               f"Heavy rain forecast; none of the {N} forecast runs closes a road in the next {G['horizon_h']} h")
         out['method'] += (f' Ensemble: the flood model is run on {N} time-lagged HRRR cycles (this one, the 3 previous 6-hourly cycles and the 4 hourly '
                           f'cycles before it); likely closed = closed in >= 2 of {N} (validated out of sample on 7 storms, docs/proto/forecast/ENSEMBLE.md).')
     if a.extra: out.update(json.load(open(a.extra)))

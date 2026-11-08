@@ -556,9 +556,9 @@ def build(raw, status=None, workflow=None, prev=None, now=None):
         day['flood_model'] = dict(in_window=inwin, state=S.get('state') if inwin else None, trigger=bool(gate.get('trigger')) if inwin else None)
         r_ = day.get('rain') or {}; tmx = r_.get('town_max_mm') or 0; el = (er or {}).get('level', 0)
         heavy = bool(day['towns_over']) or el >= 2 or any(('watch' in x['event'].lower() or 'warning' in x['event'].lower()) for x in floodal)
-        if inwin and S.get('state') == 'run':
+        if inwin and S.get('state') == 'run' and not (S.get('gate') or {}).get('forced'):   # a below-trigger water-map run is not a storm
             lev, verdict, det = 4, 'Flood model ran', S.get('headline') or ''
-        elif inwin and S.get('state') == 'error':
+        elif inwin and S.get('state') == 'error' and not (S.get('gate') or {}).get('forced'):
             lev, verdict, det = 4, 'Flood model run failed', S.get('headline') or ''
         elif heavy:
             why = ([f"{len(day['towns_over'])} town{'s' if len(day['towns_over']) != 1 else ''} over the flood-model threshold"] if day['towns_over'] else []) + \

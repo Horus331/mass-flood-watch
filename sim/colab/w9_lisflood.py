@@ -1078,7 +1078,12 @@ def build_inputs(BOX, RES, S, TOK):
     RAIN, MISSING = [], []
     if S.get('rain_src') == 'hrrr':      # LF_RAIN=hrrr: NOAA HRRR forecast buckets; forecast hour fh = model hour fh - 1 (hrrr_rain.py), zero rain after the horizon (drain-down)
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import hrrr_rain
-        init, H = pd.Timestamp(S['hrrr_init']), int(S['hrrr_hours']); nh = min(H, S['hours'])
+        SP = int(S.get('spinup_h') or 0)
+        for ts in hours[:SP]:                                    # LF_SPINUP_H: observed MRMS hours before the cycle (zero when the hour is not on AWS yet)
+            try: RAIN.append(mrms_hour(ts))
+            except Exception as e: log('  spin-up: no MRMS', ts, repr(e)[:80]); RAIN.append(np.zeros((ny, nx), np.float32)); MISSING.append(ts.strftime('%Y-%m-%dT%H:%MZ'))
+        if SP: log(f'spin-up: {SP} observed MRMS hours before the cycle, {float(np.stack(RAIN).sum(0).max()) if RAIN else 0:.0f} mm max')
+        init, H = pd.Timestamp(S['hrrr_init']), int(S['hrrr_hours']); nh = min(H, S['hours'] - SP)
         m1 = None
         for fh in range(1, nh + 1):
             m1 = hrrr_rain.apcp(init, fh)
@@ -1089,8 +1094,8 @@ def build_inputs(BOX, RES, S, TOK):
         for k_, v_ in enumerate(F):
             if v_ is None: MISSING.append((init + pd.Timedelta(hours=k_ + 1)).strftime('%Y-%m-%dT%H:%MZ')); v_ = np.zeros((ny, nx), np.float32)
             RAIN.append(v_)
-        RAIN += [np.zeros((ny, nx), np.float32)] * (S['hours'] - nh)
-        log(f'HRRR {init:%Y-%m-%d %H}z: forecast hours 1-{nh} (cycle horizon {H} h), {S["hours"] - nh} dry drain-down hours; window {sampler.window}')
+        RAIN += [np.zeros((ny, nx), np.float32)] * (S['hours'] - SP - nh)
+        log(f'HRRR {init:%Y-%m-%d %H}z: forecast hours 1-{nh} (cycle horizon {H} h), {S["hours"] - SP - nh} dry drain-down hours; window {sampler.window}')
     else:
         for ts in hours:
             for kk in range(4):
@@ -1161,6 +1166,9 @@ def main():
         if not os.environ.get('HOURS'): S['hours'] = H + drain
         S.update(t0=f'{init:%Y-%m-%dT%H:00Z}', rain_src='hrrr', hrrr_init=f'{init:%Y-%m-%dT%H:00}', hrrr_hours=min(H, S['hours']),
                  title=(S['title'] + ' · ' if STORM != 'forecast' else '') + f'NOAA HRRR forecast issued {init:%b %d %H}z')
+        SP = int(os.environ.get('LF_SPINUP_H', '0') or 0)      # opt-in: start SP hours before the cycle on observed MRMS rain, so water that has
+        if SP > 0:                                               # already fallen is on the ground when the forecast hours begin
+            S.update(t0=f'{init - pd.Timedelta(hours=SP):%Y-%m-%dT%H:00Z}', hours=S['hours'] + SP, spinup_h=SP)
     RUN_DIR =os.environ.get('RUN_DIR', f'runs/{STORM}_lisflood_{RES:.0f}m'); TOK = os.environ.get('HF_TOKEN')
     run_name = RUN_DIR.rstrip('/').split('/')[-1]
     if not run_name.startswith(STORM + '_'): run_name = f'{STORM}_{run_name}'        # w6 takes the gauge storm id from run.split('_')[0]
@@ -1481,7 +1489,7 @@ def main():
                 rain_probe=P, hmax_source=hsrc, rain_total_max_mm=round(float(I['rain_total'].max())), rain_total_mean_mm=round(float(I['rain_total'].mean())),
                 rain_missing_hours=I['missing'], runtime_s=round(run_s), total_s=round(time.time() - t_all), peak_wet_km2=peak_wet, peak_snapshot_wet_km2=peak_frame_wet,
                 mass_tail=mass_tail, git_sha=os.environ.get('GIT_SHA', '')[:8],
-                forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours']) if S.get('rain_src') == 'hrrr' else None)
+                forecast=dict(source='hrrr', issued=S['hrrr_init'] + 'Z', forecast_hours=S['hrrr_hours'], run_hours=S['hours'], spinup_h=int(S.get('spinup_h') or 0)) if S.get('rain_src') == 'hrrr' else None)
     if SUBR: meta['inputs']['rain_subhourly'] = SUBR
     if INLETS: meta['inputs']['inlets'] = INLETS     # LF_INLETS (aggregate report only)
     if I.get('rain_products'):     # MRMS product per hour (AWS Pass2, or the IEM mtarchive fallback before Oct 2020)
