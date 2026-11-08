@@ -192,3 +192,17 @@ how many of these 10 it removes and whether any past site is lost.
 - Scores in b8: 5 sites; forecast (6 Nov 06Z, 22 flagged) 0 hits; baseline radar run (21 flagged) 0 hits, but 1 of 5 sites in its top 3 %.
   The roads the model closes in Worcester (East Park Terrace, Shrewsbury St, Cambridge St, Fantasia Dr) are not where people reported water.
 - Earlier "SeeClickFix 0" (7 Nov) was a search before these reports were collected; corrected here.
+
+## P1 rise rule on the real (radar) rain, 8 Nov 2026
+
+Archive follow-up run 42504866461 (model v2 = live settings: T2, depth from rain onset, now with the P1 rise rule; MRMS radar rain; not published).
+
+| box | radar closures before P1 | after P1 | roads left |
+|---|---|---|---|
+| b4 (Clinton) | 10 | 2 | Ash Street, Clinton (2 segments) |
+| b8 (Worcester) | 7 | 6 | East Park Terrace, Shrewsbury St (2), Cambridge St, Fantasia Dr, Martin Luther King Jr Blvd |
+| b1-b3, b5-b7 | 0 | 0 | - |
+
+P1 removed 8 of the 10 Clinton closures: water already beside the road when the rain began, not water this storm added (as the b4 analysis
+above found). In Worcester it removes 1; the other 6 are real rises in the model, on roads where nobody reported water (the 6 SeeClickFix
+drain reports were on other streets). So on the real rain the live model now closes 8 segments in District 3, all unreported.
