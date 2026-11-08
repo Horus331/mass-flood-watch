@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-08T19:52:31Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-08T20:22:38Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -276,6 +276,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | nov2026_worcester_s5 | run_storm | failed | 2484860 | 0 / 1 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z | log: logs/nov2026_worcester_s5.txt |
 | nov2026_worcester_p5 | run_storm | cancelled | 2484861 | 0 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T19:52:30Z | cancelled through jobs.json "cancel" |
 | nov2026_worcester_pack5 | pack_site | cancelled | 2484862 | 0 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T19:52:30Z | cancelled through jobs.json "cancel" |
-| nov2026_worcester_s5r | run_storm | submitted | 2485119 |  /  | 2026-11-08T19:52:31Z |  |  |
-| nov2026_worcester_p5r | run_storm | submitted | 2485120 |  /  | 2026-11-08T19:52:31Z |  |  |
-| nov2026_worcester_pack5r | pack_site | submitted | 2485121 |  /  | 2026-11-08T19:52:31Z |  |  |
+| nov2026_worcester_s5r | run_storm | completed | 2485119 | 1 / 0 | 2026-11-08T19:52:31Z | 2026-11-08T20:22:38Z |  |
+| nov2026_worcester_p5r | run_storm | running | 2485120 | 0 / 0 | 2026-11-08T19:52:31Z |  |  |
+| nov2026_worcester_pack5r | pack_site | pending | 2485121 | 0 / 0 | 2026-11-08T19:52:31Z |  |  |
+| fcd3_test5_d3_2026110612 | forecast_d3 | submitted | 2485192 |  /  | 2026-11-08T20:22:38Z |  |  |
