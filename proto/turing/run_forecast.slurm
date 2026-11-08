@@ -20,7 +20,7 @@ source proto/turing/env.sh
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-8}
 export BOX=${BOX:-128000,856000,206000,946000} RES=${RES:-20} STORM=forecast LF_RAIN=hrrr LF_ALLOW_DRY=1 LF_HRRR_NBHD=${LF_HRRR_NBHD:-20,90}
 export LF_LOSS=${LF_LOSS:-cn} LF_CN_AMC=${LF_CN_AMC:-II} LF_CN_SCALE=${LF_CN_SCALE:-0.88} LF_INFIL_MMH=${LF_INFIL_MMH:-2} LF_QOUT=${LF_QOUT:-1}
-export LF_SAVEINT=${LF_SAVEINT:-600} LF_VOUT=${LF_VOUT:-1} LF_VFRAMES=${LF_VFRAMES:-1}   # 10-min frames + solver velocity for the replay pack (output only)
+export LF_SAVEINT=${LF_SAVEINT:-300} LF_VOUT=${LF_VOUT:-1} LF_VFRAMES=${LF_VFRAMES:-1}   # 5-min frames everywhere (8 Nov 2026) + solver velocity for the replay pack (output only)
 export LF_NOTCH_FIX=${LF_NOTCH_FIX:-1} LF_CHAN_ENFORCE=${LF_CHAN_ENFORCE:-1} PROTO_RES_CONSISTENT=${PROTO_RES_CONSISTENT:-1} PROTO_RC_START_H=${PROTO_RC_START_H:-rain}   # = forecast.yml (CHANGE_2026-11-05.md)
 export LF_PARITY=${LF_PARITY:-1}     # clean parity baseline (docs/proto/parity/BASELINE.md): without it the CUDA build drops infiltration
 NAME=${NAME:-forecast_d3_20m}; KEY=${KEY:-forecast_d3}
