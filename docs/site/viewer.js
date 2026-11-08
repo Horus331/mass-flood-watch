@@ -161,6 +161,7 @@
   // ---------- state ----------
   var meta, map, nf = 1, t = 0, playing = false, played = false, speed = 0.25, last = 0;
   var flowRGB = { hi: [0.216, 0.278, 0.31], dk: 0.2 }; // flow lines: blue-grey #37474F on light maps, pale on dark and satellite
+  var IMPSEG = null; // segment ids that have pieces
   var IMP = null; // pieces.json: ~40 m pieces with the frames when 30 cm or more covers the piece (impassable stretch)
   var NETP = {}; // segment id -> { a: AADT veh/day, l: length m, c: class } from network.json
   var segs = [], segById = {}, ready = false, popup = null, hover = null, refs = null, rain = null, flowInfo = null, cascade = null;
@@ -187,9 +188,9 @@
   }
   function fastRoad(p, a) { return (a && a.spd >= 45) || p.c === 2; }   // posted 45 mph or more, or a highway: shallow water is a hazard there
   var ART = null;   // places where the model is known to be wrong (known_artifacts.json): road rows inside get a low-confidence note
-  getJson('site/data/known_artifacts.json').then(function (j) { ART = j.zones || []; }).catch(function () { ART = []; });
-  function artOf(f) {
-    if (!ART || !ART.length) return null; var m = midOf(f); if (!m) return null;
+  function artOf(f) {   // loaded on first use (getJson is defined further down the file)
+    if (ART === null) { ART = []; getJson('site/data/known_artifacts.json').then(function (j) { ART = j.zones || []; if (ART.length && rankRows) rankBuild(); }).catch(function () { }); return null; }
+    if (!ART.length) return null; var m = midOf(f); if (!m) return null;
     for (var i = 0; i < ART.length; i++) { var z = ART[i], dx = (m[0] - z.lon) * 111320 * Math.cos(z.lat * Math.PI / 180), dy = (m[1] - z.lat) * 110540; if (dx * dx + dy * dy < z.r_m * z.r_m) return z; }
     return null;
   }
@@ -2102,7 +2103,7 @@
       };
       for (var k = 0; k < 4; k++) firstC.push(pump());
     }
-    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) IMP = p; return null; }).catch(function () { return null; })]).then(function (a) {
+    if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) { IMP = p; IMPSEG = {}; p.seg.forEach(function (sid) { IMPSEG[sid] = 1; }); } return null; }).catch(function () { return null; })]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));
@@ -2256,8 +2257,11 @@
     // impassable stretches: red only where 30 cm or more of modelled water covers the road itself (40 m pieces), on top of the
     // orange closed segment, so one deep spot does not paint a whole kilometre red
     map.addSource('imp', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 });
-    map.addLayer({ id: 'imp-case', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(2.6, 4.6), 'line-color': '#FFFFFF', 'line-opacity': 0.9 } });
-    map.addLayer({ id: 'imp', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': w(1.6, 3.2), 'line-color': '#C62828' } });
+    map.addLayer({ id: 'imp-case', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3, 15, 6.6], 'line-color': '#FFFFFF', 'line-opacity': 0.9 } });
+    // each ~40 m piece by its own water (pieces.json w / w15 / w30): water on road, at risk, closed; a closure grows along the road from its deepest spot
+    map.addLayer({ id: 'imp', type: 'line', source: 'imp', layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'k'] },
+      paint: { 'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'k'], 3, 2.2, 2, 1.8, 1.3], 15, ['match', ['get', 'k'], 3, 5.2, 2, 4.4, 3.4]],
+        'line-color': ['match', ['get', 'k'], 3, PAL.light.closed, 2, PAL.light.orange, PAL.light.amber] } });
     // closed: white barricade stripes inside the red line, only where the water is 30 cm or more
     map.addLayer({ id: 'bar', type: 'line', source: RR, filter: PCS ? ['has', 'd'] : HASW, layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': byD([0, 0.9, 1.1], [0, 2.7, 3.1]), 'line-dasharray': [1.4, 1.6], 'line-opacity': 0 } });   // barricade stripes retired: solid colour reads cleaner
@@ -3179,13 +3183,17 @@
   var impSig = '';
   function impUpdate() {
     if (!IMP || !map || !map.getSource('imp')) return;
-    var on = [], sig = '';
-    var gate = meta && meta.spin_k0 != null && t < meta.spin_k0; // start-up water (spinup): nothing impassable before 5 mm of rain, as on the segments
-    // only on segments counted closed now: start-up water that never rose (ponds, stream crossings at t = 0) is not drawn as impassable
-    if (!gate) for (var i = 0; i < IMP.seg.length; i++) if (IMP.w30[i].length && segById[IMP.seg[i]] && segById[IMP.seg[i]].cl && inIv(IMP.w30[i])) { on.push(i); sig += i + ','; }
+    var sig = '', by = {};
+    var gate = meta && meta.spin_k0 != null && t < meta.spin_k0; // start-up water (spinup): nothing drawn before 5 mm of rain, as on the segments
+    if (!gate) for (var i = 0; i < IMP.seg.length; i++) {
+      var sg = segById[IMP.seg[i]]; if (!sg || sg.v < 3) continue;     // only roads the segment state counts as wet now (start-up ponds stay off)
+      var k = IMP.w30 && IMP.w30[i] && sg.cl && inIv(IMP.w30[i]) ? 3 : IMP.w15 ? (IMP.w15[i] && inIv(IMP.w15[i]) ? 2 : IMP.w[i] && inIv(IMP.w[i]) ? 1 : 0)
+        : IMP.w && IMP.w[i] && inIv(IMP.w[i]) ? (sg.v >= 15 ? 2 : 1) : 0;   // older packs have no w15: the segment's own state sets at risk
+      if (!k) continue; sig += i + ':' + k + ',';
+      var key = IMP.seg[i] + '_' + k; (by[key] = by[key] || []).push(IMP.lines[i]);
+    }
     if (sig === impSig) return; impSig = sig;
-    var by = {}; on.forEach(function (i) { (by[IMP.seg[i]] = by[IMP.seg[i]] || []).push(IMP.lines[i]); });
-    var feats = Object.keys(by).map(function (sid) { return { type: 'Feature', properties: { s: +sid }, geometry: { type: 'MultiLineString', coordinates: by[sid] } }; });
+    var feats = Object.keys(by).map(function (key) { var a = key.split('_'); return { type: 'Feature', properties: { s: +a[0], k: +a[1] }, geometry: { type: 'MultiLineString', coordinates: by[key] } }; });
     map.getSource('imp').setData({ type: 'FeatureCollection', features: feats });
   }
   var segLabSig = '';
@@ -3334,7 +3342,8 @@
       // water drawn across the road while the road surface stays above it (embankments, crowned roads): 'water at the road edge'
       var eg = 0;
       if (q < 3 && s.e) for (var k = 0; k < s.e.length; k++) if (t >= s.e[k][0] - 0.5 && t <= s.e[k][1] + 0.5) { eg = 1; break; }
-      if (q !== s.v || eg !== s.eg) { s.v = q; s.eg = eg; if (!PCS) map.setFeatureState({ source: 'roads', id: s.id }, { d: q, e: eg }); else s.v2 = 1; }
+      var qd = IMPSEG && IMPSEG[s.id] && q >= 5 ? Math.min(q, 6) : q;   // the pieces carry the severity; the whole segment shows as a road with water
+      if (q !== s.v || eg !== s.eg) { s.v = q; s.eg = eg; if (!PCS) map.setFeatureState({ source: 'roads', id: s.id }, { d: qd, e: eg }); else s.v2 = 1; }
     }
     if (PCS && PCS.v) { var cnt = piecesTime(); statusLine(closed, cnt[0], cnt[1]); } else { statusLine(closed, risk, wet - risk); segLabels(); impUpdate(); }
     var mins = Math.round(t * meta.frame_min / 5) * 5, cd = new Date(t0.getTime() + mins * 60000), label = fmtClock.format(cd);
