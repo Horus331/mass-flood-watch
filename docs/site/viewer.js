@@ -186,6 +186,13 @@
     return { own: RA.own_names[RA.own[id]] || '', code: RA.own_codes[RA.own[id]] || '', rt: RA.rt[id] || '', spd: RA.spd[id] || 0, mi0: RA.mi0[id], mi1: RA.mi1[id] };
   }
   function fastRoad(p, a) { return (a && a.spd >= 45) || p.c === 2; }   // posted 45 mph or more, or a highway: shallow water is a hazard there
+  var ART = null;   // places where the model is known to be wrong (known_artifacts.json): road rows inside get a low-confidence note
+  getJson('site/data/known_artifacts.json').then(function (j) { ART = j.zones || []; }).catch(function () { ART = []; });
+  function artOf(f) {
+    if (!ART || !ART.length) return null; var m = midOf(f); if (!m) return null;
+    for (var i = 0; i < ART.length; i++) { var z = ART[i], dx = (m[0] - z.lon) * 111320 * Math.cos(z.lat * Math.PI / 180), dy = (m[1] - z.lat) * 110540; if (dx * dx + dy * dy < z.r_m * z.r_m) return z; }
+    return null;
+  }
   var REP = null, KS = null, ksFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   function ksLoad() { if (KS) return Promise.resolve(KS); return getJson('site/data/known_sites.json').then(function (j) { KS = j.sites || []; return KS; }).catch(function () { KS = []; return KS; }); }
   function ksNear(f, m) {   // past reports within m metres of a road segment (any vertex), newest first, one per storm
@@ -3279,6 +3286,7 @@
       var ownTag = ra && ra.own ? '<span class="rt own">' + esc(ra.own) + (ra.spd ? ' · ' + ra.spd + ' mph' : '') + (ra.mi0 != null && ra.rt ? ' · mile ' + ra.mi0 + (ra.mi1 != null ? '–' + ra.mi1 : '') : '') + '</span>' : '';
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + rtTag + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
         '<span class="rt">' + tSpan + ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
+      var az = artOf(r.s.f); if (az) b.innerHTML += '<span class="rt art-t">' + esc(az.text) + '</span>';
       if (ownTag) b.innerHTML += ownTag;
       if (r.culv && cOnly) { var cw = String(p.w || '').match(/culvert[^;]*/i); if (cw) b.innerHTML += '<span class="rt culv-t">' + esc(cw[0].charAt(0).toUpperCase() + cw[0].slice(1)) + '</span>'; }
       if (fast) b.innerHTML += '<span class="rt fast-t">Shallow water on a ' + (ra && ra.spd ? ra.spd + ' mph' : 'high-speed') + ' road: hydroplaning risk</span>';
