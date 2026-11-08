@@ -493,7 +493,7 @@
   // never reads as flood water. Roads stay readable over it: road states are solid lines with a casing, the rain a translucent wash.
   var RAIN_CLASSES = [[0.5, [158, 224, 140], 'light'], [2.5, [62, 179, 78], 'moderate'], [10, [247, 211, 32], 'heavy'],
     [25, [255, 140, 0], 'very heavy'], [50, [222, 30, 45], 'violent']];
-  var RAIN_ALPHA = 0.5;
+  var RAIN_ALPHA = 0.22;   // translucent: closed (red) and at-risk (orange) roads must stay readable under heavy rain
   function rainColor(mm) {
     var c = null; for (var i = 0; i < RAIN_CLASSES.length; i++) if (mm >= RAIN_CLASSES[i][0]) c = RAIN_CLASSES[i];
     return c ? c[1].concat([RAIN_ALPHA]) : [0, 0, 0, 0];
@@ -1321,14 +1321,14 @@
       shieldLayer('lb-shield-f', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], 7.5, true), shieldLayer('lb-shield', ['motorway', 'trunk', 'primary'], 8.5), shieldLayer('lb-shield2', ['secondary', 'tertiary'], 10.5),
       // names of the major roads from district zoom (Massachusetts Turnpike, Main Street through each town centre), every street name at
       // street zoom; larger as the map comes closer
-      { id: 'lb-road-maj', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 11, maxzoom: 14,
-        filter: ['all', ['has', 'name'], ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false]],
+      { id: 'lb-road-maj', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 9, maxzoom: 13,
+        filter: ['all', ['has', 'name'], ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], true, false], ['any', ['>=', ['zoom'], 11], ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], true, false]]],   // 8 Nov 2026: the main roads named from district zoom, secondary and tertiary from town zoom
         layout: { 'text-field': ['get', 'name'], 'text-font': F.b, 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 14, 11.5], 'symbol-placement': 'line', 'symbol-spacing': 360, 'text-padding': 4,
           'text-letter-spacing': 0.02, 'symbol-sort-key': ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 'primary', 2, 3] },
         paint: { 'text-color': '#c3ccd3', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
-      { id: 'lb-road', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 14, filter: ['has', 'name'],
+      { id: 'lb-road', type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: 13, filter: ['has', 'name'],
         layout: { 'text-field': ['get', 'name'], 'text-font': ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], ['literal', F.b], ['literal', F.r]],
-          'text-size': ['interpolate', ['linear'], ['zoom'], 14, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], 11.5, 10.5], 17, 13.5, 19, 15],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 13, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], 11, 10], 17, 13.5, 19, 15],
           'symbol-placement': 'line', 'symbol-spacing': 260, 'text-padding': 3, 'symbol-sort-key': ['match', ['get', 'class'], 'motorway', 0, 'trunk', 1, 'primary', 2, 'secondary', 3, 'tertiary', 4, 5] },
         paint: { 'text-color': '#c3ccd3', 'text-halo-color': halo, 'text-halo-width': 1.4 } },
       { id: 'lb-hnum', type: 'symbol', source: 'omt', 'source-layer': 'housenumber', minzoom: 17.5,
@@ -1766,6 +1766,29 @@
       '<p class="muted">The flood model runs on the road network when a town is forecast ' + (g.max6h_mm || 25) + ' mm in 6 h or ' + (g.max24h_mm || 40) +
       ' mm in 24 h. Below that, no closures are expected.</p><a href="?run=leominster_sep2023">See what the model shows for a real storm: Leominster 2023</a>';
   }
+  // every street the model evaluates in District 3 (streets_d3.json, proto/build_streets_d3.py), drawn at every zoom on every tab: the
+  // basemap tiles drop minor streets below street zoom, so a flooded side street would otherwise float on an empty map when zoomed out
+  function addStreets() {
+    if (!map || map.getSource('d3streets') || addStreets.busy) return; addStreets.busy = true;
+    getJson('site/data/streets_d3.json').then(function (S) {
+      var feats = S.g.map(function (g, i) {
+        var x = g[0], y = g[1], cs = [[x / 1e5, y / 1e5]];
+        for (var k = 2; k < g.length; k += 2) { x += g[k]; y += g[k + 1]; cs.push([x / 1e5, y / 1e5]); }
+        return { type: 'Feature', properties: { c: S.c[i] }, geometry: { type: 'LineString', coordinates: cs } };
+      });
+      var go = function () {
+        if (map.getSource('d3streets')) return;
+        map.addSource('d3streets', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: 0.4, buffer: 32 });
+        var before = ['edge', 'halo', 'known', 'reports', 'lb-place'].filter(function (id) { return map.getLayer(id); })[0];
+        var C = ['get', 'c'];
+        map.addLayer({ id: 'd3st', type: 'line', source: 'd3streets', layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': C },
+          paint: { 'line-color': ['match', C, 2, '#6E7A85', 1, '#7E8892', '#959DA5'],
+            'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 7, ['match', C, 2, 0.9, 1, 0.5, 0.22], 10, ['match', C, 2, 1.6, 1, 0.9, 0.45], 13, ['match', C, 2, 3, 1, 2, 1.1], 16, ['match', C, 2, 6, 1, 4, 2.4]],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.45, 11, 0.7, 14, 0.45, 16, 0.2] } }, before);
+      };
+      try { go(); } catch (e) { map.once('styledata', function () { try { go(); } catch (e2) { console.warn('streets', e2); } }); }   // called after style.load: isStyleLoaded() stays false while any tile is loading
+    }).catch(function () { addStreets.busy = false; });
+  }
   // report layers (live reports of the last 48 h, roads reported flooded in past storms): on every map, the quiet Forecast map too
   function addReportLayers() {
     if (!map || map.getSource('known')) return;
@@ -1815,7 +1838,7 @@
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     var at = document.querySelector('.maplibregl-ctrl-attrib'); if (at && small()) at.classList.remove('maplibregl-compact-show');
-    map.once('style.load', function () { addCoverage(); addReportLayers(); applyTheme(); styleReady(); });
+    map.once('style.load', function () { addCoverage(); addReportLayers(); addStreets(); applyTheme(); styleReady(); });
     // phones: the credits stay folded behind their (i) button (MapLibre unfolds them whenever the credit text changes) until it is tapped
     var atUser = false; document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.maplibregl-ctrl-attrib-button')) atUser = true; }, true);
     map.on('data', function () { var a = document.querySelector('.maplibregl-ctrl-attrib'); if (a && small() && !atUser) a.classList.remove('maplibregl-compact-show'); });
@@ -2274,14 +2297,14 @@
       paint: { 'line-width': w(3.4, 6.5), 'line-color': '#1F2328', 'line-opacity': 0.85 } }, 'halo');
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
     { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z15
-      [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 15], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 13], ['rlab-c', ['>=', ['get', 'd'], 30], 12]].forEach(function (a) {
+      [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 13], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 11], ['rlab-c', ['>=', ['get', 'd'], 30], 9]].forEach(function (a) {
         map.addLayer({ id: a[0], type: 'symbol', source: 'rlab', filter: a[1], minzoom: a[2],
           layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 13], 'text-allow-overlap': false,
             'text-variable-anchor': ['top', 'bottom', 'left', 'right'], 'text-radial-offset': 0.7, 'text-padding': 3, 'text-max-width': 14, 'symbol-sort-key': ['-', 0, ['get', 'd']] },
           paint: { 'text-halo-width': 2 } });
       });
     }
-    addReportLayers();
+    addReportLayers(); addStreets();
     vis('peak', $('lyPeak').checked); vis('may', $('lyMay').checked); // static peak-based layers: off by default, they mark roads that may be dry now
     applyTheme();
     if (g.features.some(function (f) { return f.properties.rk; })) { $('riskRow').hidden = false; }
@@ -3294,8 +3317,9 @@
       };
       var tSpan = r.sev === 3 ? hm(r.st) + ' – ' + (r.end == null ? '?' : r.end >= nf - 1 ? 'end of run' : hm(r.end)) : 'Water from ' + hm(r.st);
       lastDay = multiDay ? fmtWd.format(timeAt(r.st)) : null;   // the peak is said relative to the start day
-      var rtTag = ra && ra.rt && String(p.n || '').indexOf(ra.rt) < 0 ? ' <span class="rt-no">Route ' + esc(ra.rt) + '</span>' : '';
-      var ownTag = ra && ra.own ? '<span class="rt own">' + esc(ra.own) + (ra.spd ? ' · ' + ra.spd + ' mph' : '') + (ra.mi0 != null && ra.rt ? ' · mile ' + ra.mi0 + (ra.mi1 != null ? '–' + ra.mi1 : '') : '') + '</span>' : '';
+      var realRt = ra && /^\d{1,3}[A-Z]?$/.test(ra.rt || '');   // 1-3 digits = a signed route; longer numbers are inventory ids, not shown
+      var rtTag = realRt && String(p.n || '').indexOf(ra.rt) < 0 ? ' <span class="rt-no">Route ' + esc(ra.rt) + '</span>' : '';
+      var ownTag = ra && ra.own ? '<span class="rt own">' + esc(ra.own.replace(/^City or Town accepted road$/i, 'Town road')) + (ra.spd ? ' · ' + ra.spd + ' mph' : '') + (ra.mi0 != null && realRt ? ' · mile ' + ra.mi0 + (ra.mi1 != null ? '–' + ra.mi1 : '') : '') + '</span>' : '';
       b.innerHTML = '<span class="rn"><b>' + esc(p.n || 'Unnamed road') + '</b>' + rtTag + (p.t ? ' <span>' + esc(p.t) + '</span>' : '') + '</span>' + chip +
         '<span class="rt">' + tSpan + ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
       var az = artOf(r.s.f); if (az) b.innerHTML += '<span class="rt art-t">' + esc(az.text) + '</span>';
