@@ -1,0 +1,26 @@
+== p1test_2484145.out
+runs:
+results/site_aug2023_metrowest_t2
+results/site_aug2026_leominster_t2
+results/site_d3_sep2023_t2
+results/site_jul2023_worcester_t2
+results/site_jun2020_northbridge_t2
+results/site_sep2018_fitchburg_t2
+results/site_sep2018m_milford_t2
+results/site_sep2021_worcester_t2
+results/site_sep2022_webster_t2
+Traceback (most recent call last):
+  File "~/mass-flood-watch/proto/p1_rise_test.py", line 89, in <module>
+    main()
+  File "~/mass-flood-watch/proto/p1_rise_test.py", line 69, in main
+    B = SV.score_run(SV.load_run(src, storm))['domains']['box']['rule']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/mass-flood-watch/proto/score_v2.py", line 375, in score_run
+    out['domains']['box'] = score_domain(R, np.ones(len(R['seg']), bool), None)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/mass-flood-watch/proto/score_v2.py", line 364, in score_domain
+    res['pr_auc'] = dict(seg=avg_precision(yseg, key), seg_chance=float(yseg.mean()) if yseg.any() else None,
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/mass-flood-watch/proto/score_v2.py", line 129, in avg_precision
+    from sklearn.metrics import average_precision_score
+ModuleNotFoundError: No module named 'sklearn'
