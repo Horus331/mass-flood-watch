@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-08T07:51:00Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-08T08:20:55Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -257,4 +257,4 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | live_t2rise_aug2026_leominster_r3 | pack_site | completed | 2482861 | 1 / 0 | 2026-11-07T15:45:05Z | 2026-11-07T16:15:13Z |  |
 | p1test_t2 |  | rejected |  |  /  | 2026-11-08T03:49:23Z |  | env value of RUNS has characters outside [A-Za-z0-9_.,:=/@+%~-] |
 | p1test_t2b | p1test | failed | 2484145 | 0 / 1 | 2026-11-08T05:50:06Z | 2026-11-08T06:20:18Z | log: logs/p1test_t2b.txt |
-| p1test_t2c | p1test | submitted | 2484363 |  /  | 2026-11-08T07:51:00Z |  |  |
+| p1test_t2c | p1test | completed | 2484363 | 1 / 0 | 2026-11-08T07:51:00Z | 2026-11-08T08:20:55Z |  |
