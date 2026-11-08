@@ -1,0 +1,26 @@
+== roadflood_2484860.out
+Start Date: 8/11/2026 
+Start Time: 17:27:58 
+
+Loading DEM1000x1000
+BL corner	(170000.000000,880000.000000)
+NODATA_value	-9999.000000
+Done.
+
+CUDA error at ~/scratch/lisflood/src/LISFLOOD-FP/cuda/cuda_util.cu:94 code=999(cudaErrorUnknown) "cudaGetDevice(&device)" 
+
+Traceback (most recent call last):
+  File "~/mass-flood-watch/sim/colab/w9_lisflood.py", line 1744, in <module>
+    else: main()
+          ^^^^^^
+  File "~/mass-flood-watch/sim/colab/w9_lisflood.py", line 1364, in main
+    try: run_s, out = run_lisflood(exe, wd, 'run.par'); log(f'LISFLOOD-FP run {run_s:.0f}s'); log(out[-1200:])
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/mass-flood-watch/sim/colab/w9_lisflood.py", line 609, in run_lisflood
+    if p.returncode != 0: log(out[-3000:]); raise RuntimeError(f'lisflood exited {p.returncode}')
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: lisflood exited 1
+
+real	5m38.002s
+user	4m20.363s
+sys	0m57.336s
