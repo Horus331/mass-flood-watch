@@ -4686,6 +4686,267 @@
    "after": [
     "nov2026_worcester_p"
    ]
+  },
+  {
+   "id": "nov2026_bellingham_s5",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_bellingham_5m",
+    "BOX": "186000,856000,206000,876000",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "03:00:00",
+    "mem": "64G",
+    "gres": "gpu:1"
+   },
+   "after": [
+    "nov2026_bellingham_pack"
+   ]
+  },
+  {
+   "id": "nov2026_bellingham_p5",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_bellingham_5m",
+    "BOX": "186000,856000,206000,876000",
+    "STAGE": "post"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G"
+   },
+   "after": [
+    "nov2026_bellingham_s5"
+   ]
+  },
+  {
+   "id": "nov2026_bellingham_pack5",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_nov2026_bellingham_5m",
+    "STORM": "arc20261105",
+    "SITE": "nov2026_bellingham_5m",
+    "LIVE": "nov2026_bellingham",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "nov2026_bellingham_p5"
+   ]
+  },
+  {
+   "id": "nov2026_franklin_s5",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_franklin_5m",
+    "BOX": "186000,871000,206000,891000",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "03:00:00",
+    "mem": "64G",
+    "gres": "gpu:1"
+   },
+   "after": [
+    "nov2026_franklin_pack"
+   ]
+  },
+  {
+   "id": "nov2026_franklin_p5",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_franklin_5m",
+    "BOX": "186000,871000,206000,891000",
+    "STAGE": "post"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G"
+   },
+   "after": [
+    "nov2026_franklin_s5"
+   ]
+  },
+  {
+   "id": "nov2026_franklin_pack5",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_nov2026_franklin_5m",
+    "STORM": "arc20261105",
+    "SITE": "nov2026_franklin_5m",
+    "LIVE": "nov2026_franklin",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "nov2026_franklin_p5"
+   ]
+  },
+  {
+   "id": "nov2026_worcester_s5",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_worcester_5m",
+    "BOX": "170000,880000,190000,900000",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "03:00:00",
+    "mem": "64G",
+    "gres": "gpu:1"
+   },
+   "after": [
+    "nov2026_worcester_pack"
+   ]
+  },
+  {
+   "id": "nov2026_worcester_p5",
+   "kind": "run_storm",
+   "env": {
+    "STORM": "arc20261105",
+    "T0": "2026-11-05T20:00Z",
+    "HOURS": "48",
+    "RES": "20",
+    "LF_PARITY": "1",
+    "LF_LOSS": "cn",
+    "LF_CN_SCALE": "0.88",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_VOUT": "1",
+    "LF_SAVEINT": "300",
+    "LF_VFRAMES": "1",
+    "PUBLISH": "0",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "NAME": "site_nov2026_worcester_5m",
+    "BOX": "170000,880000,190000,900000",
+    "STAGE": "post"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "96G"
+   },
+   "after": [
+    "nov2026_worcester_s5"
+   ]
+  },
+  {
+   "id": "nov2026_worcester_pack5",
+   "kind": "pack_site",
+   "env": {
+    "NAME": "site_nov2026_worcester_5m",
+    "STORM": "arc20261105",
+    "SITE": "nov2026_worcester_5m",
+    "LIVE": "nov2026_worcester",
+    "FLOW": "1"
+   },
+   "sbatch": {
+    "partition": "long",
+    "time": "03:00:00"
+   },
+   "after": [
+    "nov2026_worcester_p5"
+   ]
   }
  ],
  "cancel": [
