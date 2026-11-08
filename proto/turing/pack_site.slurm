@@ -20,7 +20,7 @@ R=results/$NAME; mkdir -p $R
 python proto/score.py --run-dir $OUT --storm $STORM --out $R/score.json | tail -3 || true
 python proto/validate_points.py --run-dir $OUT --storm $STORM --out $R/points.json | tail -3 || true
 python proto/prototype.py --run-dir $OUT --storm $STORM --out $R | tail -3
-python docs/site/build_data.py --run $SITE --src $R --run-dir $OUT $([ "${FLOW:-1}" = 1 ] && echo --flow) ${POOL:+--pool $POOL}
+python docs/site/build_data.py --run $SITE --src $R --run-dir $OUT $([ "${FLOW:-1}" = 1 ] && echo --flow) ${POOL:+--pool $POOL} ${BUDGET:+--budget-mb $BUDGET}
 du -sh docs/site/data/$SITE
 # several packs and the queue runner share this repository: take turns on git (index.lock clashes failed 2 of 10 repacks on 7 Nov)
 exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo 'git lock wait timed out'

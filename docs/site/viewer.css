@@ -15,7 +15,7 @@
   --d1:rgba(140,200,240,.55);--d2:rgba(66,146,214,.72);--d3:rgba(28,98,184,.84);--d4:rgba(12,50,128,.92);
   --rx:#67000d;--rh:#d7301f;--rm:#fc8d59;--rl:#9ecae1;
   --ok:#2E8B57;--stale:#B7791F;--fail:#C5221F;--alt:#2E8B57;--dev:#7a4b00;--dev-bg:#fbeed3;
-  --t-closed:#B8430A;--t-risk:#8F5A00;--t-rain:#574B98;
+  --t-closed:#B8430A;--t-risk:#8F5A00;--t-rain:#2E7D3E;
   --shadow-1:0 1px 2px rgba(27,42,51,.06),0 2px 8px rgba(27,42,51,.06);
   --shadow:0 1px 2px rgba(27,42,51,.06),0 10px 30px rgba(27,42,51,.12);
   --r-lg:16px;--r-md:11px;--r-sm:8px;
@@ -35,7 +35,7 @@
   --accent:#7FB6CB;--accent-ink:#9CC8D8;--on-accent:#10202A;--accent-soft:rgba(127,182,203,.16);--plate:#244B5E;--glass:rgba(27,36,44,.86);
   --rain:#6CC77E;--obs:#E1E8EC;--mod:#97CBE4;--closed:#FF8A3D;--amber:#FFE08A;--orange:#F5B400;
   --rx:#ff4d4d;--rh:#ff8a50;--rm:#ffc56b;--rl:#6aa6cf;--dev:#ffd28a;--dev-bg:#3a2c12;--ok:#5BB98A;--stale:#E5B444;--fail:#FF6B6B;--alt:#5BB98A;
-  --t-closed:#FF9A5C;--t-risk:#F5C04A;--t-rain:#B9ADF0;
+  --t-closed:#FF9A5C;--t-risk:#F5C04A;--t-rain:#8FD99C;
   --shadow-1:0 1px 2px rgba(0,0,0,.3);--shadow:0 1px 2px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.4);color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121A20;--map-bg:#18212A;--surface:rgba(27,36,44,.94);--solid:#1E2832;--surface-2:#26323D;--sunk:#2C3946;
@@ -43,7 +43,7 @@
   --accent:#7FB6CB;--accent-ink:#9CC8D8;--on-accent:#10202A;--accent-soft:rgba(127,182,203,.16);--plate:#244B5E;--glass:rgba(27,36,44,.86);
   --rain:#6CC77E;--obs:#E1E8EC;--mod:#97CBE4;--closed:#FF8A3D;--amber:#FFE08A;--orange:#F5B400;
   --rx:#ff4d4d;--rh:#ff8a50;--rm:#ffc56b;--rl:#6aa6cf;--dev:#ffd28a;--dev-bg:#3a2c12;--ok:#5BB98A;--stale:#E5B444;--fail:#FF6B6B;--alt:#5BB98A;
-  --t-closed:#FF9A5C;--t-risk:#F5C04A;--t-rain:#B9ADF0;
+  --t-closed:#FF9A5C;--t-risk:#F5C04A;--t-rain:#8FD99C;
   --shadow-1:0 1px 2px rgba(0,0,0,.3);--shadow:0 1px 2px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.4);color-scheme:dark}
 @media (prefers-color-scheme:dark){:root[data-pal="b"]:not([data-theme="light"]){
   --bg:#131A17;--map-bg:#19211E;--surface:rgba(28,36,33,.94);--solid:#1F2925;--surface-2:#28332F;--sunk:#2E3A35;--rule:#34413B;--rule-2:#2B3632;
@@ -204,8 +204,9 @@ html.side-off .side-toggle{left:12px}html.side-off .side-toggle svg{transform:ro
 .kt span{flex:1;text-align:left}.kt.kt5 span:last-child:empty{display:none}
 .ksub{display:none}
 .kroads{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;color:var(--ink-2);font-size:11.5px}
-.kroads span{white-space:nowrap;display:flex;align-items:center;min-width:0}
+.kroads span{display:flex;align-items:flex-start;min-width:0;line-height:1.25}
 .kroads b{font-weight:400}
+.kroads .kw{margin-top:5px}.kroads .kks,.kroads .krep{flex:none;margin-top:2px}
 .kw{display:inline-block;flex:none;width:18px;height:5px;border-radius:3px;margin-right:6px}
 .kw.wet{background:var(--amber)}.kw.risk{background:var(--orange)}.kw.shut{background:var(--closed)}
 .kw.imp{background:#C62828;box-shadow:0 0 0 1px #fff,0 0 0 2px rgba(0,0,0,.12)}
@@ -292,7 +293,7 @@ html.side-off .player{left:12px}
 .sheet-body:empty{display:none}
 
 /* phases of the water's journey: the guided tour only */
-:root{--st-rain:#9b86f0;--st-runoff:#5cc8dc;--st-chan:#2fdcc2;--st-over:#ffb02e;--st-drain:#8a98ab}
+:root{--st-rain:#6CC77E;--st-runoff:#5cc8dc;--st-chan:#2fdcc2;--st-over:#ffb02e;--st-drain:#8a98ab}
 .phases{position:relative;height:17px;margin:0 0 3px}
 .ph{position:absolute;top:0;height:15px;border:0;border-radius:4px;padding:0;overflow:hidden;cursor:pointer;background:color-mix(in srgb,var(--c) 24%,transparent);color:var(--ink);font:inherit;text-align:left}
 .ph span{display:block;padding:2px 5px 0;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

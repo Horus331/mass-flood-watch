@@ -39,6 +39,18 @@
       kind: 'The real storm, rerun by the flood model with heavier or lighter rain, wetter or frozen ground, and blocked culverts.'
     },
     // held-out replays (PROTOCOL.md storm roles: decision set, no setting chosen on them); 20 x 20 km box at 20 m, 5-minute frames
+    nov2026_worcester: {
+      title: 'Worcester · Nov 5–7, 2026',
+      kind: 'The storm the live forecast warned about (forward test), replayed on the radar rain that fell: up to 66 mm in the box, 18 mm in the wettest hour. Nobody reported a road flooded here; 6 drain complaints came in on other streets.'
+    },
+    nov2026_bellingham: {
+      title: 'Bellingham · Nov 5–7, 2026',
+      kind: 'The storm the live forecast warned about (forward test), replayed on the radar rain that fell: up to 96 mm in the box, 25 mm in the wettest hour. No road flooding was reported.'
+    },
+    nov2026_franklin: {
+      title: 'Franklin · Nov 5–7, 2026',
+      kind: 'The storm the live forecast warned about (forward test), replayed on the radar rain that fell: up to 84 mm in the box, 25 mm in the wettest hour. No road flooding was reported.'
+    },
     aug2026_leominster: {
       title: 'Leominster · Aug 3, 2026',
       kind: 'Held-out storm: same model settings, not chosen on it. Up to 118 mm of rain in the box (81 mm on average), up to 46 mm in the wettest hour.'
@@ -627,7 +639,7 @@
       var k = Math.max(0, Math.min(nf - 1, Math.round(t))), si = Math.floor(k / 9);
       if (si === sdIdx || si === sdLoading || !meta.sheets) return;
       sdLoading = si;
-      var url = (WION && wi ? WI + wi.key + '/' : dbase()) + meta.sheets[si];
+      var url = (WION && wi ? wiImg(wi.key) : dbase()) + meta.sheets[si];
       getBitmap(url).then(function (img) { var P = pix(img); SD = { d: P.d, w: P.w, h: img.height || (P.d.length / 4 / P.w) }; sdIdx = si; sdLoading = -1; built = null; map.triggerRepaint(); })
         .catch(function () { sdLoading = -1; });
     }
@@ -938,13 +950,15 @@
   function wiKey() { return wiCtl.rain[+$('wiRain').value] + '_' + wiCtl.soil[+$('wiSoil').value] + '_' + wiCtl.culv[+$('wiCulv').value]; }
   function wiScale() { return [0.5, 0.75, 1, 1.25][+$('wiRain').value]; }
 
+  // where a scenario's image sheets live: index.json data_base ('{key}' = scenario id; the frames branch, tools/frames_push.sh) or its folder
+  function wiImg(key) { var d = wi && wi.index && wi.index.data_base; return d ? String(d).replace('{key}', key).replace(/\/?$/, '/') : WI + key + '/'; }
   // load one scenario (d.json, depth sheets, flow) -> resolves with its data once every texture is queued
   function wiLoad(key) {
-    var dir = WI + key + '/';
+    var dir = WI + key + '/', img = wiImg(key);
     if (wi.cache[key] && wdepth.alive(key)) return wi.cache[key];
     var p = getJson(dir + 'd.json').then(function (dj) {
       wdepth.open(key, dj.sheets.length);
-      return Promise.all(dj.sheets.map(function (s, i) { return getBitmap(dir + s).then(function (img) { wdepth.add(key, i, img); if (map) map.triggerRepaint(); }); }))
+      return Promise.all(dj.sheets.map(function (s, i) { return getBitmap(img + s).then(function (img) { wdepth.add(key, i, img); if (map) map.triggerRepaint(); }); }))
         .then(function () { return dj; });
     });
     wi.cache[key] = p; p.catch(function () { delete wi.cache[key]; });
@@ -983,7 +997,7 @@
     });
     if (map.getSource('roads')) map.getSource('roads').setData(wi.roads);
     wdepth.show(key);
-    if (dj._flow) { flowLayer.set(dj._flow.info, dj._flow.img, WI + key + '/'); dj._flow = null; }
+    if (dj._flow) { flowLayer.set(dj._flow.info, dj._flow.img, wiImg(key)); dj._flow = null; }
     rainLayer.scale(wiScale());
     wiCulverts();
     wiNumbers(); wiPhases(); drawChart(); if (ready) { instInit(); rankBuild(); }
@@ -1008,7 +1022,7 @@
     var want = key;
     wiLoad(key).then(function (dj) {
       return getJson(WI + key + '/flow.json').then(function (fi) {   // the bitmap is consumed by the GPU upload: fetch again (HTTP cache) on every switch
-        return getBitmap(WI + key + '/' + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) { dj._flow = { info: fi, img: img }; return dj; });
+        return getBitmap(wiImg(key) + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) { dj._flow = { info: fi, img: img }; return dj; });
       }).catch(function () { return dj; });
     }).then(function (dj) {
       if (wiKey() !== want) return;
@@ -1207,8 +1221,8 @@
     }).catch(function (e) { console.warn('terrain', e); progress(); }));
     jobs.push(getJson(WI + 'culverts.json').then(function (c) { whenStyle(function () { try { wiCulvertsInit(c.rows); } catch (e) { console.error('culverts', e); } }); progress(); }).catch(function (e) { console.warn('culverts', e); progress(); }));
     jobs.push(getJson(WI + k0 + '/flow.json').then(function (fi) {
-      return getBitmap(WI + k0 + '/' + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
-        flowLayer.set(fi, img, WI + k0 + '/');
+      return getBitmap(wiImg(k0) + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
+        flowLayer.set(fi, img, wiImg(k0));
         whenStyle(function () { map.addLayer(flowLayer.layer, 'l-voy'); vis('flow', $('lyFlow').checked); });
         $('flowRow').hidden = $('flowKey').hidden = false; progress();
       });

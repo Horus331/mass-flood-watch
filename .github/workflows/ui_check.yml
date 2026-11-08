@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: '17 */3 * * *'
   workflow_dispatch:
+    inputs:
+      only: {description: 'screenshots on request instead of the check: "page|name.png|js" items separated by ;; (page relative to the site)', default: ''}
+      wait: {description: 'ms to wait after load (with only)', default: '30000'}
 permissions:
   contents: write
 jobs:
@@ -14,6 +17,9 @@ jobs:
         with: {sparse-checkout: tools, sparse-checkout-cone-mode: true}
       - run: pip install -q playwright pyproj && python -m playwright install --with-deps chromium
       - run: python tools/ui_check.py
+        env:
+          UI_ONLY: ${{ inputs.only }}
+          UI_WAIT: ${{ inputs.wait }}
       - name: push the images to branch ui-check (orphan, replaced each run)
         if: always()
         run: |

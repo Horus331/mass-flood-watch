@@ -761,6 +761,7 @@ def _build_tiled_once(key, src, run_dir, step, do_flow, risk_src):
     save = lambda a, p: Image.fromarray(a, 'RGB').save(p, optimize=True)
     ncols = len(set(x[2] for x in tiles))
     T = [dict(r0=r0, r1=r1, c0=c0, c1=c1, s=[], p='tiles/r%dc%d_' % (ti // ncols, ti % ncols)) for ti, (r0, r1, c0, c1) in enumerate(tiles)]
+    if os.environ.get('BD_TILES', '1') == '0': T = []   # overview only (the whole-district forecast shadow map): no 20 m tile sheets are written
     tb = [np.zeros((t['r1'] - t['r0'], t['c1'] - t['c0'], 3), np.uint8) for t in T]
     ovc = np.zeros((oh, ow, 3), np.uint8); ovk = np.zeros((oh, ow, 3), np.uint8)
     osheets, csheets = [], []
