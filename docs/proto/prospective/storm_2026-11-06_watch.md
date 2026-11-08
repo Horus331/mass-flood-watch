@@ -182,3 +182,13 @@ The forecast's k-of-8 count drops segments already >= 30 cm at rain onset; the r
 So the onset exclusion removes only one: the b4 roads are under 30 cm at onset but reach 30 cm within about half an hour of it, i.e. they
 respond to the first hour of rain, not to the storm total. P1 stays as proposed (rise >= 30 cm above the onset depth); its test will show
 how many of these 10 it removes and whether any past site is lost.
+
+### 8 Nov, 15:00Z: automatic follow-up (archive_followup, published)
+
+- Radar reruns of all 8 boxes at the frozen BASELINE settings, labels collected and scored (`docs/proto/archive/20261105_arc20261105/verify.json`).
+- Labels: LSR 0, MassDOT 0, NCEI Storm Events 0 (not yet published), SeeClickFix 6, all in Worcester (box b8): Salisbury St (2),
+  Guild Rd, Pleasant St, Trinity Ave, Clark St; 6 Nov 12:26 to 7 Nov 12:53 local. Most are "catch basin blocked" or standing water at a
+  drain, quality low: nuisance ponding, not road closures.
+- Scores in b8: 5 sites; forecast (6 Nov 06Z, 22 flagged) 0 hits; baseline radar run (21 flagged) 0 hits, but 1 of 5 sites in its top 3 %.
+  The roads the model closes in Worcester (East Park Terrace, Shrewsbury St, Cambridge St, Fantasia Dr) are not where people reported water.
+- Earlier "SeeClickFix 0" (7 Nov) was a search before these reports were collected; corrected here.
