@@ -43,7 +43,10 @@ NAME=fcd3_${PFX}_${TAG}_m$J
 export LF_NO_UPLOAD=1 OMP_NUM_THREADS=${SLURM_NTASKS:-8} GIT_SHA=$(git rev-parse --short HEAD)
 export BOX=128000,856000,206000,946000 RES=20 STORM=forecast LF_RAIN=hrrr LF_HRRR_INIT=$MEM LF_HRRR_HOURS=$HOURS LF_ALLOW_DRY=1 LF_HRRR_NBHD=20,90
 export LF_LOSS=cn LF_CN_AMC=II LF_CN_SCALE=0.88 LF_PARITY=1 LF_INFIL_MMH=2 LF_QOUT=1 LF_NOTCH_FIX=1 LF_CHAN_ENFORCE=1 PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain          # = forecast.yml flood job (same settings)
-# depth frames every 30 min (w9 default LF_SAVEINT) for the shadow map; no velocity output (the shadow map has no flow layer)
+# depth frames every 5 min (8 Nov 2026: every run of the model at 5 min); LF_COMPACT gzips the solver's snapshot files during the run
+# (5-min ASCII snapshots of the whole district would be ~400 GB), PROTO_FRAME_PNG=0 skips prototype.py's per-frame PNGs (unused here).
+# No velocity output (the shadow map has no flow layer)
+export LF_SAVEINT=300 LF_COMPACT=1 PROTO_FRAME_PNG=0
 export RUN_DIR=runs/forecast_$NAME
 OUT=$LF_WORK/run_forecast_$NAME/out
 if python sim/colab/w9_lisflood.py > $R/w9.txt 2>&1 && [ -f $OUT/meta.json ] && python proto/prototype.py --run-dir $OUT --out $R/proto --storm forecast > $R/proto.txt 2>&1; then
@@ -73,7 +76,7 @@ cd $REPO
 exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo "git lock wait timed out"   # take turns with other jobs on this shared repository
 git pull -q --rebase --autostash "$(git remote get-url --push origin)" main || true
 flock -u 8
-python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 60 --budget-mb 25   # shadow map: hourly frames, no flow (repo size: every fired cycle replaces this folder in git)
+BD_TILES=0 python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 5 --budget-mb 400   # shadow map: 5-min frames at the 80 m overview (no 20 m tiles), no flow; the sheets go to the frames branch below
 python - docs/site/data/$PFX <<'PY'
 # the main site keeps no whole-district 20 m tiles (Pages size): the shadow map shows the 80 m overview of the same depth frames
 import json, os, shutil, sys
@@ -81,6 +84,9 @@ d = sys.argv[1]; shutil.rmtree(os.path.join(d, 'tiles'), ignore_errors=True)
 m = json.load(open(os.path.join(d, 'meta.json'))); (m.get('depthc') or {}).pop('tiles', None); json.dump(m, open(os.path.join(d, 'meta.json'), 'w'), separators=(',', ':'))
 PY
 python proto/forecast_kofn.py pack --kofn $P/kofn.json --key $PFX --box b1
+# image sheets -> branch frames-$PFX (one commit, replaced every cycle; raw.githubusercontent.com), main keeps the JSON (tools/frames_push.sh)
+GIT_AUTHOR_NAME="Mohab Eldokla" GIT_AUTHOR_EMAIL="Horus331@users.noreply.github.com" bash tools/frames_push.sh frames-$PFX $(echo $CYCLE | tr -dc 0-9 | cut -c1-10) docs/site/data/$PFX || echo "frames push failed: the sheets stay in the pack on main this cycle"
+
 python proto/build_network.py $PFX || true
 python - $FC $P "$N" "${REQ_AT:-}" "$PFX" "$MM" <<'PY'
 import json, os, sys, glob
