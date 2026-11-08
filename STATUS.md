@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-08T08:20:55Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-08T16:52:12Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -258,3 +258,12 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | p1test_t2 |  | rejected |  |  /  | 2026-11-08T03:49:23Z |  | env value of RUNS has characters outside [A-Za-z0-9_.,:=/@+%~-] |
 | p1test_t2b | p1test | failed | 2484145 | 0 / 1 | 2026-11-08T05:50:06Z | 2026-11-08T06:20:18Z | log: logs/p1test_t2b.txt |
 | p1test_t2c | p1test | completed | 2484363 | 1 / 0 | 2026-11-08T07:51:00Z | 2026-11-08T08:20:55Z |  |
+| nov2026_bellingham_s | run_storm | submitted | 2484831 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_bellingham_p | run_storm | submitted | 2484832 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_bellingham_pack | pack_site | submitted | 2484833 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_franklin_s | run_storm | submitted | 2484834 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_franklin_p | run_storm | submitted | 2484835 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_franklin_pack | pack_site | submitted | 2484836 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_worcester_s | run_storm | submitted | 2484837 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_worcester_p | run_storm | submitted | 2484838 |  /  | 2026-11-08T16:52:12Z |  |  |
+| nov2026_worcester_pack | pack_site | submitted | 2484839 |  /  | 2026-11-08T16:52:12Z |  |  |
