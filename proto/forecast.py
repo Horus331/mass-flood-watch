@@ -166,6 +166,14 @@ def cmd_gate(a):
 
 # ------------------------------------------------------------------ status for the viewer
 RAIN_ONSET_MM = 1.0     # = proto/prototype.py RC_RAIN_ONSET_MM
+RISE_CM = 30.0          # P1 rise rule (adopted 8 Nov 2026, docs/proto/prospective/CHANGE_2026-11-08.md): a closure needs >= 30 cm of water the storm added
+
+
+def rises(d, i0, cm=RISE_CM):
+    """True when the depth series d (cm, one value per frame) rises at least cm above its depth at rain onset (frame i0) at some later frame."""
+    if not d: return False
+    j = min(i0, len(d) - 1); b = d[j] or 0
+    return max((v or 0) for v in d[j:]) - b >= cm
 
 
 def onset_frame(rain, fh, hours=None):
@@ -191,11 +199,12 @@ def run_summary(key, pdir, fdir=None, box=None):
         nd = max((len(f['properties'].get('d') or []) for f in g['features']), default=0)
         fh = len(rain) / (nd - 1) if rain and nd > 1 else 0.5
     i0 = onset_frame(rain, fh, S.get('frame_hours'))
-    segs, standing = [], 0
+    segs, standing, no_rise = [], 0, 0
     for f in g['features']:
         q = f['properties']; d = q.get('d') or []
         if len(d) > i0 and d[i0] >= 30: standing += 1; continue          # under 30 cm of water before the rain begins: start state, not a forecast
         if q['p_close'] < CLOSE_P: continue
+        if not rises(d, i0): no_rise += 1; continue                       # P1: the storm adds under 30 cm here (water beside the road at onset)
         k = int(np.argmax(d)) if d else None; f30 = next((i for i, v in enumerate(d) if v >= 30), None)
         segs.append(dict(segment=q['segment'], road=q.get('road') or '', town=q.get('town') or '', road_class=q.get('road_class'), p=round(q['p_close'], 2),
                          peak_depth_m=q.get('peak_depth_m'), first30_h=None if f30 is None else f30 * fh, peak_h=None if k is None else k * fh,
@@ -208,7 +217,7 @@ def run_summary(key, pdir, fdir=None, box=None):
     for s in segs: towns[s['town']] = towns.get(s['town'], 0) + 1
     out = dict(key=key, box=box or S.get('box_epsg26986'), viewer=f'data/{key}/', segments_in_box=S.get('segments_in_box'),
                likely_closed=len(segs), likely_closed_km=None, by_class=cls, by_town=dict(sorted(towns.items(), key=lambda kv: -kv[1])),
-               standing_water_at_start=standing, may_close=S.get('segments_may_close'), culverts_overtopped=S.get('culverts_overtopped'),
+               standing_water_at_start=standing, under_30cm_rise=no_rise, may_close=S.get('segments_may_close'), culverts_overtopped=S.get('culverts_overtopped'),
                rain_max_total_mm=S.get('rain_max_total_mm'), rain_peak1h_max_mm=S.get('rain_peak1h_max_mm'),
                flood_model_runtime_s=S.get('flood_model_runtime_s'), solver=S.get('solver'), resolution_m=S.get('resolution_m'), top=segs[:25])
     ids = {s['segment'] for s in segs}

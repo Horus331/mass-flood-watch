@@ -1,4 +1,4 @@
-# Proposed changes after the 6 Nov 2026 storm (pre-registered, not adopted)
+# Proposed changes after the 6 Nov 2026 storm (pre-registered; P1 adopted 8 Nov 2026, see CHANGE_2026-11-08.md)
 
 Written 7 Nov 2026 before any of these were tested. None changes the live forecast until it passes the tests below and Mo and the
 advisors approve it. Evidence: `storm_2026-11-06_watch.md`, sections of 7 Nov.
