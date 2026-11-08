@@ -178,7 +178,7 @@
   function usd(v) { return v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v / 1e3) + 'k'; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   // roads reported flooded in past storms (proto/known_sites.py): reports, not model output; shown on the map and on each road row
-  var KS = null, ksFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  var REP = null, KS = null, ksFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   function ksLoad() { if (KS) return Promise.resolve(KS); return getJson('site/data/known_sites.json').then(function (j) { KS = j.sites || []; return KS; }).catch(function () { KS = []; return KS; }); }
   function ksNear(f, m) {   // past reports within m metres of a road segment (any vertex), newest first, one per storm
     if (!KS || !KS.length) return [];
@@ -1748,6 +1748,47 @@
       '<p class="muted">The flood model runs on the road network when a town is forecast ' + (g.max6h_mm || 25) + ' mm in 6 h or ' + (g.max24h_mm || 40) +
       ' mm in 24 h. Below that, no closures are expected.</p><a href="?run=leominster_sep2023">See what the model shows for a real storm: Leominster 2023</a>';
   }
+  // report layers (live reports of the last 48 h, roads reported flooded in past storms): on every map, the quiet Forecast map too
+  function addReportLayers() {
+    if (!map || map.getSource('known')) return;
+    map.addSource('known', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addSource('reports', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    if (runKey === 'forecast') getJson('site/data/live/validation.json').then(function (V) {   // reports in the last 48 h (MassDOT events, SeeClickFix flood issues): live, not verified
+      var L = (V && V.recent_48h) || []; if (!map.getSource('reports') || !L.length) return;
+      map.getSource('reports').setData({ type: 'FeatureCollection', features: L.filter(function (r) { return r.lon && r.lat; }).map(function (r, i) {
+        return { type: 'Feature', id: i, properties: { i: i }, geometry: { type: 'Point', coordinates: [r.lon, r.lat] } }; }) });
+      REP = L;
+    }).catch(function () { });
+    ksLoad().then(function (L) {
+      if (!map.getSource('known')) return;
+      map.getSource('known').setData({ type: 'FeatureCollection', features: L.map(function (k, i) { return { type: 'Feature', id: i, properties: { i: i }, geometry: { type: 'Point', coordinates: [k[0], k[1]] } }; }) });
+    });
+    // live reports, last 48 h (live/validation.json): a red-orange dot with a white ring, above everything; tap for what was reported
+    map.addLayer({ id: 'reports', type: 'circle', source: 'reports',
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 4, 15, 8], 'circle-color': '#D7301F', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+    map.on('mouseenter', 'reports', function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'reports', function () { map.getCanvas().style.cursor = ''; });
+    map.on('click', 'reports', function (e) {
+      if (!e.features.length || !REP) return; var r = REP[e.features[0].properties.i]; if (!r) return;
+      var id = String(r.id || ''), url = id.indexOf('scf:') === 0 ? 'https://seeclickfix.com/issues/' + id.slice(4) : null, tm = r.t ? new Date(r.t) : null;
+      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat([r.lon, r.lat]).setHTML('<b>Reported ' + (tm ? esc(fmtShort.format(tm)) : '') + '</b><br>' + esc(r.category || r.summary || r.kind || 'flooding') +
+        (r.town ? ', ' + esc(r.town.charAt(0) + r.town.slice(1).toLowerCase()) : '') + (r.status ? ' · ' + esc(r.status) : '') + '<br><small>' + (r.src === 'seeclickfix' ? 'SeeClickFix' : 'MassDOT') +
+        (url ? ' · <a href="' + url + '" target="_blank" rel="noopener">open the report</a>' : '') + '. A public report, not verified; not model output.</small>').addTo(map);
+    });
+    // past reports (known_sites.json): a small violet ring, from town zoom; tap for what was reported, when and by whom
+    map.addLayer({ id: 'known', type: 'circle', source: 'known', minzoom: 10.5,
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10.5, 3, 15, 6.5], 'circle-color': 'rgba(123,50,148,0.18)', 'circle-stroke-color': '#7B3294', 'circle-stroke-width': 1.6 } });
+    map.on('mouseenter', 'known', function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'known', function () { map.getCanvas().style.cursor = ''; });
+    map.on('click', 'known', function (e) {
+      if (!e.features.length || !KS) return; var k = KS[e.features[0].properties.i]; if (!k) return;
+      var same = KS.filter(function (o) { return Math.abs(o[0] - k[0]) < 0.0015 && Math.abs(o[1] - k[1]) < 0.0012; });
+      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat([k[0], k[1]]).setHTML('<b>Reported flooded before</b><br>' + same.slice(0, 5).map(function (o) {
+        return esc(o[4] ? ksFmt.format(new Date(o[4] + 'T12:00Z')) : 'date unknown') + ' · ' + esc(o[7] || (o[2] + ', ' + o[3])) + (o[6] ? ' <span class="src-k">(' + esc(o[6]) + ')</span>' : '');
+      }).join('<br>') + '<br><small>A past report, not this model run.</small>').addTo(map);
+      e.originalEvent && e.originalEvent.stopPropagation && e.originalEvent.stopPropagation();
+    });
+  }
   function forecastPlaceholder() {
     document.documentElement.classList.add('no-replay');
     $('runKind').textContent = 'The forecast feed could not be loaded.';
@@ -1756,7 +1797,7 @@
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     var at = document.querySelector('.maplibregl-ctrl-attrib'); if (at && small()) at.classList.remove('maplibregl-compact-show');
-    map.once('style.load', function () { addCoverage(); applyTheme(); styleReady(); });
+    map.once('style.load', function () { addCoverage(); addReportLayers(); applyTheme(); styleReady(); });
     // phones: the credits stay folded behind their (i) button (MapLibre unfolds them whenever the credit text changes) until it is tapped
     var atUser = false; document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.maplibregl-ctrl-attrib-button')) atUser = true; }, true);
     map.on('data', function () { var a = document.querySelector('.maplibregl-ctrl-attrib'); if (a && small() && !atUser) a.classList.remove('maplibregl-compact-show'); });
@@ -2174,11 +2215,6 @@
     var RR = RS; // the road-state lines: with pieces, merged runs of the painted pieces of each segment (one continuous line per run)
     if (PCS) map.addSource('runs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 }), RR = 'runs';
     map.addSource('rlab', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    map.addSource('known', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    ksLoad().then(function (L) {
-      if (!map.getSource('known')) return;
-      map.getSource('known').setData({ type: 'FeatureCollection', features: L.map(function (k, i) { return { type: 'Feature', id: i, properties: { i: i }, geometry: { type: 'Point', coordinates: [k[0], k[1]] } }; }) });
-    });
     var byD = function (z9, z15) { // width grows with water on the road, scaled by zoom
       return ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], D, 0, z9[0], 30, z9[1], 100, z9[2]], 15, ['interpolate', ['linear'], D, 0, z15[0], 30, z15[1], 100, z15[2]]];
     };
@@ -2222,19 +2258,7 @@
           paint: { 'text-halo-width': 2 } });
       });
     }
-    // past reports (known_sites.json): a small violet ring, from town zoom; tap for what was reported, when and by whom
-    map.addLayer({ id: 'known', type: 'circle', source: 'known', minzoom: 10.5,
-      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10.5, 3, 15, 6.5], 'circle-color': 'rgba(123,50,148,0.18)', 'circle-stroke-color': '#7B3294', 'circle-stroke-width': 1.6 } });
-    map.on('mouseenter', 'known', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'known', function () { map.getCanvas().style.cursor = ''; });
-    map.on('click', 'known', function (e) {
-      if (!e.features.length || !KS) return; var k = KS[e.features[0].properties.i]; if (!k) return;
-      var same = KS.filter(function (o) { return Math.abs(o[0] - k[0]) < 0.0015 && Math.abs(o[1] - k[1]) < 0.0012; });
-      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat([k[0], k[1]]).setHTML('<b>Reported flooded before</b><br>' + same.slice(0, 5).map(function (o) {
-        return esc(o[4] ? ksFmt.format(new Date(o[4] + 'T12:00Z')) : 'date unknown') + ' · ' + esc(o[7] || (o[2] + ', ' + o[3])) + (o[6] ? ' <span class="src-k">(' + esc(o[6]) + ')</span>' : '');
-      }).join('<br>') + '<br><small>A past report, not this model run.</small>').addTo(map);
-      e.originalEvent && e.originalEvent.stopPropagation && e.originalEvent.stopPropagation();
-    });
+    addReportLayers();
     vis('peak', $('lyPeak').checked); vis('may', $('lyMay').checked); // static peak-based layers: off by default, they mark roads that may be dry now
     applyTheme();
     if (g.features.some(function (f) { return f.properties.rk; })) { $('riskRow').hidden = false; }
