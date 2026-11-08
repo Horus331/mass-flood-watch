@@ -1647,7 +1647,7 @@
     var h = Math.round((f - FR._now) * FR.step_min / 60);
     return h === 0 ? 'now' : h < 0 ? (-h) + ' h ago' : 'in ' + h + ' h';
   }
-  function frPack(on) {   // the flood model's water and roads: shown only on the part of the slider they forecast
+  function frPack(on) {   // the flood model's water and roads: shown only on the part of the slider the run covers
     if (on === frPackOn) return; frPackOn = on;
     if (on) { applyToggles(); slLast = ''; }
     else {
@@ -1655,7 +1655,8 @@
       $('kClosed').textContent = $('kRisk').textContent = '–'; slLast = '';
     }
     var a = t0, b = t0 && new Date(t0.getTime() + (nf - 1) * meta.frame_min * 60000);
-    $('slMode').textContent = on ? (meta && meta.kofn ? 'Newest of the ' + meta.kofn.n + ' forecast runs (the headline counts all ' + meta.kofn.n + ')' : 'Flood model, NOAA HRRR forecast') : 'Flood model covers ' + fmtFr.format(new Date(Math.max(a.getTime(), frMs(FR._now)))) + ' to ' + fmtFr.format(b) + ': move the slider there';
+    $('slMode').textContent = on ? (meta && meta.kofn ? 'Newest of the ' + meta.kofn.n + ' forecast runs (the headline counts all ' + meta.kofn.n + ')' : 'Flood model, NOAA HRRR forecast') : (b && frMs(FR._now) > b.getTime() ? 'Flood model covers ' + fmtFr.format(a) + ' to ' + fmtFr.format(b) + ' (an earlier forecast): move the slider back'   // a past cycle (test preview): the window ended before now
+      : 'Flood model covers ' + fmtFr.format(new Date(Math.max(a.getTime(), frMs(FR._now)))) + ' to ' + fmtFr.format(b) + ': move the slider there');
   }
   var frLastLabel = '';
   function frSetTime(v) {
@@ -1673,10 +1674,16 @@
       $('frScrub').setAttribute('aria-valuetext', fmtFr.format(d) + ', ' + rd + ', ' + (fut ? 'forecast, ' : 'radar, ') + frRel(f));
     }
     frCursor();
-    if (meta && t0 && ready) {   // a forecast flood-model run of this cycle: the future part of the slider drives it (same UTC time)
-      var pf = (frMs(frT) - t0.getTime()) / 60000 / meta.frame_min, on = frT >= FR._now && pf >= 0 && pf <= nf - 1;
+    if (meta && t0 && ready) {   // the flood-model run of this cycle, wherever on the slider it has frames (same UTC time): the future part, and the past
+      // hours too (8 Nov 2026): the run starts 12 h before the cycle on the observed radar rain (LF_SPINUP_H), so the water already on the ground shows
+      var pf = (frMs(frT) - t0.getTime()) / 60000 / meta.frame_min, on = pf >= 0 && pf <= nf - 1;
       frPack(on);
-      if (on) setTime(pf);
+      if (on) {
+        setTime(pf);
+        var obs = fcStat && fcStat.issued && frMs(frT) < Date.parse(fcStat.issued), sm = obs ? 'Flood model on the radar rain that fell (before this forecast was issued)' :
+          (meta.kofn ? 'Newest of the ' + meta.kofn.n + ' forecast runs (the headline counts all ' + meta.kofn.n + ')' : 'Flood model, NOAA HRRR forecast');
+        if ($('slMode').textContent !== sm) $('slMode').textContent = sm;
+      }
     }
     if (map) map.triggerRepaint();
   }
