@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-08T17:22:13Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-08T17:52:12Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -267,12 +267,12 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | nov2026_worcester_s | run_storm | completed | 2484837 | 1 / 0 | 2026-11-08T16:52:12Z | 2026-11-08T17:22:13Z |  |
 | nov2026_worcester_p | run_storm | completed | 2484838 | 1 / 0 | 2026-11-08T16:52:12Z | 2026-11-08T17:22:13Z |  |
 | nov2026_worcester_pack | pack_site | completed | 2484839 | 1 / 0 | 2026-11-08T16:52:12Z | 2026-11-08T17:22:13Z |  |
-| nov2026_bellingham_s5 | run_storm | submitted | 2484854 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_bellingham_p5 | run_storm | submitted | 2484855 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_bellingham_pack5 | pack_site | submitted | 2484856 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_franklin_s5 | run_storm | submitted | 2484857 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_franklin_p5 | run_storm | submitted | 2484858 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_franklin_pack5 | pack_site | submitted | 2484859 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_worcester_s5 | run_storm | submitted | 2484860 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_worcester_p5 | run_storm | submitted | 2484861 |  /  | 2026-11-08T17:22:13Z |  |  |
-| nov2026_worcester_pack5 | pack_site | submitted | 2484862 |  /  | 2026-11-08T17:22:13Z |  |  |
+| nov2026_bellingham_s5 | run_storm | completed | 2484854 | 1 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z |  |
+| nov2026_bellingham_p5 | run_storm | completed | 2484855 | 1 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z |  |
+| nov2026_bellingham_pack5 | pack_site | completed | 2484856 | 1 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z |  |
+| nov2026_franklin_s5 | run_storm | completed | 2484857 | 1 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z |  |
+| nov2026_franklin_p5 | run_storm | completed | 2484858 | 1 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z |  |
+| nov2026_franklin_pack5 | pack_site | completed | 2484859 | 1 / 0 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z |  |
+| nov2026_worcester_s5 | run_storm | failed | 2484860 | 0 / 1 | 2026-11-08T17:22:13Z | 2026-11-08T17:52:12Z | log: logs/nov2026_worcester_s5.txt |
+| nov2026_worcester_p5 | run_storm | pending | 2484861 | 0 / 0 | 2026-11-08T17:22:13Z |  |  |
+| nov2026_worcester_pack5 | pack_site | pending | 2484862 | 0 / 0 | 2026-11-08T17:22:13Z |  |  |
