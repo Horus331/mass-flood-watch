@@ -489,8 +489,10 @@
   // very heavy 25-50, violent 50+; AMS / MANOBS / ICAO), single-hue ColorBrewer Purples: a lightness ramp that is colour-blind safe and
   // stays clear of the blue water and the amber-red roads. The 1 km field is interpolated in space and between radar frames, then classed,
   // so class edges are smooth contours rather than 1 km blocks. Below 0.5 mm/h nothing is drawn.
-  var RAIN_CLASSES = [[0.5, [188, 189, 220], 'light'], [2.5, [158, 154, 200], 'moderate'], [10, [128, 125, 186], 'heavy'],
-    [25, [106, 81, 163], 'very heavy'], [50, [63, 0, 125], 'violent']];
+  // radar colours as phone weather apps draw them (8 Nov 2026, Mo): light green, green, yellow, orange, red; no blue or purple, so rain
+  // never reads as flood water. Roads stay readable over it: road states are solid lines with a casing, the rain a translucent wash.
+  var RAIN_CLASSES = [[0.5, [158, 224, 140], 'light'], [2.5, [62, 179, 78], 'moderate'], [10, [247, 211, 32], 'heavy'],
+    [25, [255, 140, 0], 'very heavy'], [50, [222, 30, 45], 'violent']];
   var RAIN_ALPHA = 0.5;
   function rainColor(mm) {
     var c = null; for (var i = 0; i < RAIN_CLASSES.length; i++) if (mm >= RAIN_CLASSES[i][0]) c = RAIN_CLASSES[i];
@@ -1913,8 +1915,10 @@
   // road states are pale yellow / amber / orange / red, rain is purple. Lakes and rivers here are a calm grey-blue, clearly paler and
   // greyer than even the shallowest flood blue; roads are white / cream with neutral grey casings, never warm colours.
   var MC = {
-    land: '#EEF0E9', wood: '#CADBBE', grass: '#DCE8CF', farm: '#E6EBD4', wetland: '#D1E3DA', sand: '#EEE4C6', rock: '#E2E1DB', ice: '#F4F7F8',
-    park: '#D5E6C6', parkLine: '#B4CDA0', resid: '#E6E5E1', comm: '#E2E0DD', indus: '#DCDBD8', civic: '#E8E3DC', cem: '#D6E2CC', sport: '#D6E6C8',
+    // 8 Nov 2026: more separation between cover types (Mo: 'the whole map reads as one colour'): green woods and grass, tan farmland and
+    // sand, warm grey homes, rose-grey shops, cool grey industry; still lighter than the flood blues and the road-state colours
+    land: '#F2F0E6', wood: '#B5D69C', grass: '#CFE6B2', farm: '#EFE6C0', wetland: '#B9DECF', sand: '#F3E2AE', rock: '#DDD7C9', ice: '#F4F7F8',
+    park: '#BEDFA5', parkLine: '#94C27A', resid: '#EAE5DC', comm: '#ECDCD8', indus: '#D8D8E0', civic: '#EFE1CB', cem: '#C7DEBB', sport: '#C4E2AE',
     water: '#BFCFDB', waterLine: '#A9BCCA', river: '#A6BBCA', stream: '#B3C5D2',
     bldg: '#D9D6D1', bldgLine: '#C2BEB8', rail: '#A4A8AC', path: '#B3ACA0', runway: '#D7D9DB',
     // casing colour per rank [motorway, trunk, primary, secondary, tertiary, minor, service]: darker at district zoom, where the casing
@@ -1936,13 +1940,13 @@
           ['school', 'college', 'university', 'hospital', 'kindergarten', 'library', 'theme_park', 'zoo'], MC.civic, 'cemetery', MC.cem,
           ['pitch', 'playground', 'track', 'stadium'], MC.sport, MC.resid],
           'fill-opacity': ['interpolate', ['linear'], Z, 6, 0.7, 12, 1] } },
-      { id: 'bmv-park', type: 'fill', source: 'omt', 'source-layer': 'park', paint: { 'fill-color': MC.park, 'fill-opacity': 0.5 } },
+      { id: 'bmv-park', type: 'fill', source: 'omt', 'source-layer': 'park', paint: { 'fill-color': MC.park, 'fill-opacity': 0.7 } },
       { id: 'bmv-park-ol', type: 'line', source: 'omt', 'source-layer': 'park', minzoom: 11, paint: { 'line-color': MC.parkLine, 'line-width': ['interpolate', ['linear'], Z, 11, 0.5, 16, 1.4], 'line-opacity': 0.7 } },
       // relief: a light hillshade (AWS Terrain Tiles, USGS 3DEP) that gives the hills of central Massachusetts shape from district
       // zoom and fades out at street zoom, where it would only muddy the streets
       { id: 'bmv-hs', type: 'hillshade', source: 'dem', maxzoom: 16,
-        paint: { 'hillshade-exaggeration': ['interpolate', ['linear'], Z, 7, 0.32, 12, 0.24, 15, 0.1], 'hillshade-illumination-direction': 335,
-          'hillshade-shadow-color': 'rgba(70,82,70,0.55)', 'hillshade-highlight-color': 'rgba(255,255,255,0.35)', 'hillshade-accent-color': 'rgba(70,82,70,0.15)' } },
+        paint: { 'hillshade-exaggeration': ['interpolate', ['linear'], Z, 7, 0.42, 12, 0.3, 15, 0.12], 'hillshade-illumination-direction': 335,
+          'hillshade-shadow-color': 'rgba(96,78,52,0.55)', 'hillshade-highlight-color': 'rgba(255,244,205,0.5)', 'hillshade-accent-color': 'rgba(110,90,60,0.18)' } },   // warm relief: hills read as hills
       { id: 'bmv-aero', type: 'fill', source: 'omt', 'source-layer': 'aeroway', minzoom: 11, filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': MC.runway, 'fill-opacity': 0.9 } }
     ];
   }
@@ -3815,7 +3819,7 @@
       var v = m[k], w = x ? x[k] : null;
       if (v == null) return '<i class="na"></i>';
       var h = Math.min(100, 100 * v / SIX_FULL), hx = w != null ? Math.min(100, 100 * w / SIX_FULL) : 0;
-      var col = v < 0.2 ? 'transparent' : v < 2 ? '#B9AEE0' : v < 5 ? '#9381CC' : v < 10 ? '#6A51A3' : v < 20 ? '#54278F' : '#3F007D';
+      var col = v < 0.2 ? 'transparent' : v < 2 ? '#9EE08C' : v < 5 ? '#3EB34E' : v < 10 ? '#F7D320' : v < 20 ? '#FF8C00' : '#DE1E2D';
       var t = st[k] ? fmtH6.format(zt(st[k])) : '';
       lab.push(t + ': ' + v.toFixed(1) + ' mm average' + (w != null ? ', ' + w.toFixed(0) + ' mm wettest town' : ''));
       return '<i title="' + esc(lab[lab.length - 1]) + '"><s style="height:' + h.toFixed(0) + '%;background:' + col + '"></s>' + (w != null && w >= 0.5 ? '<u style="bottom:' + hx.toFixed(0) + '%"></u>' : '') + '</i>';
