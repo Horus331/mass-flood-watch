@@ -329,7 +329,7 @@ jobs:
         run: |
           K=""; [ -f kofn.json ] && K="--kofn kofn.json"
           python proto/storm_archive.py ledger --gate arts/gate/gate.json --status docs/site/data/forecast_status.json --alerts arts/gate/alerts.json \
-            --reports arts/gate/reports.json $K --flag archived.txt --settings "ensemble=$ENS nbhd=20,90 cn=0.88 parity=1 infil=2 res=20 terrain=T2 start=rain"
+            --reports arts/gate/reports.json $K --flag archived.txt --settings "ensemble=$ENS nbhd=20,90 cn=0.88 parity=1 infil=2 res=20 terrain=T2 start=rain rise=30"
           python proto/storm_archive.py history --status docs/site/data/forecast_status.json --out docs/site/data/forecast_history.json || true   # cycle-by-cycle record of this storm for the Forecast tab (after the ledger: it reads each cycle's model version there)
       - name: commit
         if: github.event_name == 'schedule' || inputs.publish

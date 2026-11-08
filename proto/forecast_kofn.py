@@ -44,10 +44,11 @@ def _ts(s):
 
 
 def closures(pdir):
-    """Segments at P >= 0.5 in one prototype run (segments.geojson), minus water already standing at the start (as forecast.run_summary)."""
+    """Segments at P >= 0.5 in one prototype run (segments.geojson), minus water already standing at the start and segments where the storm adds
+    under 30 cm (P1 rise rule), as forecast.run_summary."""
     from pyproj import Transformer
     S = json.load(open(os.path.join(pdir, 'summary.json'))); g = json.load(open(os.path.join(pdir, 'segments.geojson')))
-    from forecast import onset_frame
+    from forecast import onset_frame, rises
     rain = S.get('rain_hourly_mean_mm') or []; fh = (S.get('frame_min') or 0) / 60
     if not fh:
         nd = max((len(f['properties'].get('d') or []) for f in g['features']), default=0)
@@ -59,6 +60,7 @@ def closures(pdir):
         if q.get('p_close', 0) < CLOSE_P: continue
         d = q.get('d') or []
         if len(d) > i0 and d[i0] >= 30: continue
+        if not rises(d, i0): continue                                     # P1 rise rule (CHANGE_2026-11-08.md)
         c = np.array(_coords(f['geometry']), float)
         if not len(c): continue
         x, y = tr.transform(float(c[:, 0].mean()), float(c[:, 1].mean()))
