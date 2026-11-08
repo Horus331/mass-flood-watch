@@ -16,6 +16,7 @@ cd ~/mass-flood-watch
 source proto/turing/env.sh
 eval "$(python proto/whatif.py env ${SLURM_ARRAY_TASK_ID:-0})"      # exports NAME, BOX, STORM, HOURS, RES and the LF_* of this scenario
 export OMP_NUM_THREADS=${SLURM_NTASKS:-8} GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || true)
+export PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain      # closure depth above the water at rain onset, as the replays and the live forecast (8 Nov 2026)
 export RUN_DIR=runs/${STORM}_proto_${NAME}
 R=results/$NAME
 if [ -s $R/summary.json ] && [ "${RERUN:-0}" != 1 ]; then echo "$WHATIF_ID already done ($R)"; exit 0; fi
