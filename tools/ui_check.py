@@ -86,6 +86,11 @@ def main():
             async def shot(*a, **k):   # one slow page (software WebGL on the runner) must not lose the other images
                 try: await _shot(*a, **k)
                 except Exception as e: report['errors'].append(f'{a[1]}: {repr(e)[:200]}'); print('failed', a[1], repr(e)[:200])
+            if os.environ.get('UI_ONLY'):   # screenshots on request (workflow input 'only'): "page|name.png|js" items separated by ';;'
+                for it in os.environ['UI_ONLY'].split(';;'):
+                    u_, n_, *j_ = it.split('|', 2)
+                    await shot(u_.strip(), n_.strip(), wait=int(os.environ.get('UI_WAIT', '30000')), js=(j_[0] if j_ and j_[0].strip() else None))
+                await b.close(); return
             await shot('viewer.html?run=forecast', 'fc_desktop.png')
             await shot('viewer.html?run=forecast', 'fc_panel_history.png', js="var h=document.getElementById('fhist'); if(h) h.scrollIntoView({block:'start'})", el='#card')
             await shot('viewer.html?run=forecast', 'fc_phone.png', phone=True)
@@ -99,6 +104,8 @@ def main():
                 report['shots'][-1]['road'] = f"{s.get('road') or 'unnamed'} ({s.get('town')}) {s.get('k')}/8"
             await b.close()
     asyncio.run(run())
+    if os.environ.get('UI_ONLY'):
+        json.dump(report, open(f'{OUT}/ui_check.json', 'w'), indent=1); print('shots on request:', [x['name'] for x in report['shots']], report['errors'][:5]); return 0
     report['problems'] = data_checks(S) + page_checks(report['shots']) + [f'console error: {e}' for e in report['errors'] if 'net::' not in e and 'Failed to load resource' not in e and not __import__('re').search(r'status of 5\d\d', e)][:10]   # a 5xx from a tile or data host is transient, not a site bug
     for sh in report['shots']: sh.pop('body', None)
     json.dump(report, open(f'{OUT}/ui_check.json', 'w'), indent=1)
