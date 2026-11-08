@@ -177,6 +177,20 @@
   function n(v) { return Math.round(v).toLocaleString('en-US'); }
   function usd(v) { return v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v / 1e3) + 'k'; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // roads reported flooded in past storms (proto/known_sites.py): reports, not model output; shown on the map and on each road row
+  var KS = null, ksFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  function ksLoad() { if (KS) return Promise.resolve(KS); return getJson('site/data/known_sites.json').then(function (j) { KS = j.sites || []; return KS; }).catch(function () { KS = []; return KS; }); }
+  function ksNear(f, m) {   // past reports within m metres of a road segment (any vertex), newest first, one per storm
+    if (!KS || !KS.length) return [];
+    var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), out = [], days = {};
+    var kx = 111320 * Math.cos((cs[0] || [0, 42.3])[1] * Math.PI / 180), ky = 110540;
+    for (var i = 0; i < KS.length; i++) {
+      var k = KS[i];
+      for (var j = 0; j < cs.length; j++) if (Math.abs(cs[j][0] - k[0]) * kx < m && Math.abs(cs[j][1] - k[1]) * ky < m) { var sk = k[8] || k[4]; if (!days[sk]) { days[sk] = 1; out.push(k); } break; }
+    }
+    return out;
+  }
+  function ksDates(L) { return L.slice(0, 3).map(function (k) { var d = k[9] || k[4]; return d ? ksFmt.format(new Date(d + 'T12:00Z')) : 'date unknown'; }).join(', ') + (L.length > 3 ? ' and ' + (L.length - 3) + ' more' : ''); }
   function title(s) { return String(s || '').toLowerCase().replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
 
   // ---------- WebGL helpers ----------
@@ -2160,6 +2174,11 @@
     var RR = RS; // the road-state lines: with pieces, merged runs of the painted pieces of each segment (one continuous line per run)
     if (PCS) map.addSource('runs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0.2 }), RR = 'runs';
     map.addSource('rlab', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addSource('known', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    ksLoad().then(function (L) {
+      if (!map.getSource('known')) return;
+      map.getSource('known').setData({ type: 'FeatureCollection', features: L.map(function (k, i) { return { type: 'Feature', id: i, properties: { i: i }, geometry: { type: 'Point', coordinates: [k[0], k[1]] } }; }) });
+    });
     var byD = function (z9, z15) { // width grows with water on the road, scaled by zoom
       return ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], D, 0, z9[0], 30, z9[1], 100, z9[2]], 15, ['interpolate', ['linear'], D, 0, z15[0], 30, z15[1], 100, z15[2]]];
     };
@@ -2203,6 +2222,19 @@
           paint: { 'text-halo-width': 2 } });
       });
     }
+    // past reports (known_sites.json): a small violet ring, from town zoom; tap for what was reported, when and by whom
+    map.addLayer({ id: 'known', type: 'circle', source: 'known', minzoom: 10.5,
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10.5, 3, 15, 6.5], 'circle-color': 'rgba(123,50,148,0.18)', 'circle-stroke-color': '#7B3294', 'circle-stroke-width': 1.6 } });
+    map.on('mouseenter', 'known', function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'known', function () { map.getCanvas().style.cursor = ''; });
+    map.on('click', 'known', function (e) {
+      if (!e.features.length || !KS) return; var k = KS[e.features[0].properties.i]; if (!k) return;
+      var same = KS.filter(function (o) { return Math.abs(o[0] - k[0]) < 0.0015 && Math.abs(o[1] - k[1]) < 0.0012; });
+      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat([k[0], k[1]]).setHTML('<b>Reported flooded before</b><br>' + same.slice(0, 5).map(function (o) {
+        return esc(o[4] ? ksFmt.format(new Date(o[4] + 'T12:00Z')) : 'date unknown') + ' · ' + esc(o[7] || (o[2] + ', ' + o[3])) + (o[6] ? ' <span class="src-k">(' + esc(o[6]) + ')</span>' : '');
+      }).join('<br>') + '<br><small>A past report, not this model run.</small>').addTo(map);
+      e.originalEvent && e.originalEvent.stopPropagation && e.originalEvent.stopPropagation();
+    });
     vis('peak', $('lyPeak').checked); vis('may', $('lyMay').checked); // static peak-based layers: off by default, they mark roads that may be dry now
     applyTheme();
     if (g.features.some(function (f) { return f.properties.rk; })) { $('riskRow').hidden = false; }
@@ -3182,9 +3214,17 @@
     });
     rows.sort(function (a, b) { return b.sev - a.sev || a.st - b.st; });
     rankRows = rows;
+    var tsel = $('rankTown'), towns = {}, want = tsel ? tsel.value : '';
+    rows.forEach(function (r) { var tn = r.s.f.properties.t; if (tn) towns[tn] = (towns[tn] || 0) + 1; });
+    if (tsel) {   // filter the list by town (an engineer looks at their own streets); kept in the link as ?town=
+      var keep = want || params.get('town') || '', opts = Object.keys(towns).sort();
+      tsel.innerHTML = '<option value="">All towns</option>' + opts.map(function (tn) { return '<option' + (tn === keep ? ' selected' : '') + ' value="' + esc(tn) + '">' + esc(tn) + ' (' + towns[tn] + ')</option>'; }).join('');
+      tsel.hidden = opts.length < 2; want = opts.indexOf(keep) >= 0 ? keep : '';
+    }
+    var shown = want ? rows.filter(function (r) { return r.s.f.properties.t === want; }) : rows;
     var multiDay = nf > 1 && (timeAt(nf - 1) - timeAt(0)) > 18 * 3600e3;   // forecast runs span two days: say which day
     var ol = $('rankList'); ol.innerHTML = '';
-    rows.slice(0, 40).forEach(function (r) {
+    shown.slice(0, 60).forEach(function (r) {
       var p = r.s.f.properties, li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
       var chip = r.sev === 3 ? '<span class="chip-st shut">Closed</span>' : r.sev === 2 ? '<span class="chip-st risk">At risk</span>' : '<span class="chip-st wet">Water on road</span>';
       var lastDay = null, hm = function (f) {   // the weekday only where the day changes (Mon 5:15 PM – Tue 12:45 AM · up to 131 cm at 6:10 PM)
@@ -3196,6 +3236,8 @@
         '<span class="rt">' + tSpan + ' · up to ' + (r.mx >= 255 ? '2.5 m+' : r.mx + ' cm') + ' at ' + hm(r.pk) + '</span>';
       var sn = runKey === 'forecast' && meta.kofn ? fhSeen(+r.s.id) : null;
       if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
+      var kn = ksNear(r.s.f, 120); r.known = kn;
+      if (kn.length) b.innerHTML += '<span class="rt ks-seen">Reported flooded before: ' + esc(ksDates(kn)) + '</span>';
       b.addEventListener('click', function () {
         var g = r.s.f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
         cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
@@ -3207,7 +3249,7 @@
       li.appendChild(b); ol.appendChild(li);
     });
     $('rank').hidden = !rows.length;
-    $('rank').querySelector('summary').textContent = 'Roads, most severe first (' + rows.length + ')';
+    $('rank').querySelector('summary').textContent = 'Roads, most severe first (' + (want ? shown.length + ' in ' + want + ', ' : '') + rows.length + ')';
   }
   var lastClock = '';
   function setTime(v) {
@@ -3440,6 +3482,11 @@
   $('fbShare').addEventListener('click', function () { shareView(); });
   $('shareBtn2').addEventListener('click', function () { shareView(); });
   $('csvBtn').addEventListener('click', function () { rankCsv(); });
+  if ($('rankTown')) $('rankTown').addEventListener('change', function () {
+    try { var u = new URL(location.href); if (this.value) u.searchParams.set('town', this.value); else u.searchParams.delete('town'); history.replaceState(null, '', u); } catch (e) { }
+    rankBuild();
+  });
+  if ($('printBtn')) $('printBtn').addEventListener('click', function () { $('rank').open = true; document.body.classList.add('print-list'); window.print(); setTimeout(function () { document.body.classList.remove('print-list'); }, 500); });
   $('fbLayers').addEventListener('click', function () {
     var lg = $('legend');
     if (small()) { var on = lg.dataset.pop !== 'on'; lg.dataset.pop = on ? 'on' : 'off'; this.setAttribute('aria-expanded', on ? 'true' : 'false'); if (on) closePlace(); }
@@ -3484,16 +3531,20 @@
   function rankCsv() {
     var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var iso = function (f) { return f == null || f < 0 ? '' : new Date(timeAt(f).getTime()).toISOString().replace(/\.\d+Z$/, 'Z'); };
-    var L = [['segment_id', 'road', 'town', 'road_class', 'state', 'first_water_utc', 'closes_utc', 'peak_utc', 'peak_depth_cm', 'reopens_utc', 'chance_of_closing'].join(',')];
-    rankRows.forEach(function (r) {
-      var p = r.s.f.properties;
+    var L = [['segment_id', 'road', 'town', 'road_class', 'state', 'first_water_utc', 'closes_utc', 'peak_utc', 'peak_depth_cm', 'reopens_utc', 'chance_of_closing',
+      'forecast_runs_closing', 'lon', 'lat', 'map_link', 'reported_flooded_before'].join(',')];
+    var want = $('rankTown') ? $('rankTown').value : '', out = want ? rankRows.filter(function (r) { return r.s.f.properties.t === want; }) : rankRows;
+    out.forEach(function (r) {
+      var p = r.s.f.properties, m = midOf(r.s.f), kn = r.known || ksNear(r.s.f, 120);
       L.push([r.s.id, p.n || '', p.t || '', CLS[p.c || 0], r.sev === 3 ? 'closed' : r.sev === 2 ? 'at risk (15-30 cm)' : 'water on road (5-15 cm)', iso(r.st), r.sev === 3 ? iso(r.st) : '',
-        iso(r.pk), r.mx, r.end != null ? (r.end >= nf - 1 ? 'after the run' : iso(r.end)) : '', p.p != null ? p.p : ''].map(q).join(','));
+        iso(r.pk), r.mx, r.end != null ? (r.end >= nf - 1 ? 'after the run' : iso(r.end)) : '', p.p != null ? p.p : '',
+        meta.kofn && p.k ? p.k + ' of ' + meta.kofn.n : '', m ? m[0].toFixed(5) : '', m ? m[1].toFixed(5) : '',
+        m ? 'https://www.google.com/maps/search/?api=1&query=' + m[1].toFixed(5) + ',' + m[0].toFixed(5) : '', kn.map(function (k) { return k[4]; }).join(' ')].map(q).join(','));
     });
     var blob = new Blob([L.join('\n') + '\n'], { type: 'text/csv' }), a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'mass-flood-watch_' + runKey + '_roads.csv'; document.body.appendChild(a); a.click();
+    a.href = URL.createObjectURL(blob); a.download = 'mass-flood-watch_' + runKey + (want ? '_' + want.toLowerCase().replace(/\W+/g, '-') : '') + '_roads.csv'; document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-    toast(rankRows.length + ' roads saved as CSV');
+    toast(out.length + ' roads saved as CSV');
   }
 
   // ---------- place card: a tapped road, with its cross streets and nearby open streets ----------
