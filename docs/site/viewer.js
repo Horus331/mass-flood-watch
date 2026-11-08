@@ -206,6 +206,15 @@
     }
     return out;
   }
+  function ksShow(f) {   // past reports on the chosen road (within 120 m), none when no road is chosen
+    if (!map || !map.getLayer('known')) return;
+    var idx = [];
+    if (f && KS) {
+      var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), kx = 111320 * Math.cos((cs[0] || [0, 42.3])[1] * Math.PI / 180), ky = 110540;
+      KS.forEach(function (k, i) { for (var j = 0; j < cs.length; j++) if (Math.abs(cs[j][0] - k[0]) * kx < 120 && Math.abs(cs[j][1] - k[1]) * ky < 120) { idx.push(i); break; } });
+    }
+    map.setFilter('known', ['in', ['get', 'i'], ['literal', idx]]);
+  }
   function ksDates(L) { return L.slice(0, 3).map(function (k) { var d = k[9] || k[4]; return d ? ksFmt.format(new Date(d + 'T12:00Z')) : 'date unknown'; }).join(', ') + (L.length > 3 ? ' and ' + (L.length - 3) + ' more' : ''); }
   function title(s) { return String(s || '').toLowerCase().replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
 
@@ -1817,7 +1826,7 @@
         (url ? ' · <a href="' + url + '" target="_blank" rel="noopener">open the report</a>' : '') + '. A public report, not verified; not model output.</small>').addTo(map);
     });
     // past reports (known_sites.json): a small violet ring, from town zoom; tap for what was reported, when and by whom
-    map.addLayer({ id: 'known', type: 'circle', source: 'known', minzoom: 10.5,
+    map.addLayer({ id: 'known', type: 'circle', source: 'known', filter: ['in', ['get', 'i'], ['literal', []]],   // only the chosen road's past reports (8 Nov: all 298 crowded the map)
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10.5, 3, 15, 6.5], 'circle-color': 'rgba(123,50,148,0.18)', 'circle-stroke-color': '#7B3294', 'circle-stroke-width': 1.6 } });
     map.on('mouseenter', 'known', function () { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'known', function () { map.getCanvas().style.cursor = ''; });
@@ -3672,6 +3681,7 @@
     if (!f || !map) return;
     hideTip(); if (popup) popup.remove();
     placeId = f.id;
+    ksShow(f);
     var ends = crossStreets(f), cm = segDepth(f.id), st = status(cm, f.id);
     var stc = cm >= 30 ? 'shut' : cm >= 15 ? 'risk' : cm >= 5 ? 'wet' : '';
     var h = popupHtml(f, ends).replace(/<dt>Water on it now<\/dt><dd id="ppNow"[^<]*<\/dd>/, '');
@@ -3699,6 +3709,7 @@
   function closePlace() {
     if ($('place').hidden) return;
     $('place').hidden = true; placeId = null; document.documentElement.classList.remove('place-on');
+    ksShow(null);
     if (map && map.getLayer('net-hl')) map.setFilter('net-hl', ['in', ['get', 'name'], ['literal', []]]);
     if (map && map.getLayer('sel')) map.setFilter('sel', ['==', ['id'], -1]);
   }
