@@ -695,7 +695,7 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         dzc = np.round(Q['dz'] * 100).astype(np.float32) if 'dz' in Q else 0.0
         for k in range(len(DC)): seg_t[k] = np.round(seg_top2(n, Q['seg'], np.maximum(DC[k][Q['r'], Q['c']].astype(np.float32) - dzc, 0))).astype(np.uint16)
         os.makedirs(os.path.join(out, 'frames'), exist_ok=True)
-        for k in range(len(DC)): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), np.where(WM, 0, DC[k]).astype(np.float32) / 100.0 if WM is not None else DC[k].astype(np.float32) / 100.0)
+        for k in (range(len(DC)) if os.environ.get('PROTO_FRAME_PNG', '1') == '1' else ()): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), np.where(WM, 0, DC[k]).astype(np.float32) / 100.0 if WM is not None else DC[k].astype(np.float32) / 100.0)
 
     # 3 closure probability (v0 physics prior)
     pclose = np.where(inbox, phi((mx - FAIL_M) / SIGMA_M), 0.0)
