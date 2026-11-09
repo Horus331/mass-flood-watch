@@ -1,7 +1,7 @@
 # NWM soil saturation as the antecedent-wetness input (T4 follow-up, 31 Oct 2026)
 
-**Status: runs queued on Turing, results pending. No verdict yet.** The pre-registration is
-[`NWM_AMC_PREREG.md`](NWM_AMC_PREREG.md) (main commit c7d43c0f), committed before any run was queued.
+**Status: verdict 9 Nov 2026 — not adopted.** `LF_CN_AMC=nwm` stays opt-in; the live model keeps AMC II. The pre-registration is
+[`NWM_AMC_PREREG.md`](NWM_AMC_PREREG.md) (main commit c7d43c0f), committed before any run was queued. Results in §R below.
 
 ## 1. What was built
 
@@ -98,3 +98,25 @@ under a new id, with `WAIT_H`. Nothing else may change (PREREG §5.3).
 ## 4. Results
 
 Pending.
+
+
+## R. Result (9 Nov 2026)
+
+All 50 runs (25 storms x 2 arms) ran on Turing on 31 Oct - 1 Nov at the pinned commit b28f4b3 (`proto/turing/run_plan_gpu.slurm`, plan
+`amcnwm_v1`). Every run solved, but its score_v2 step stopped (scikit-learn is not in the Turing environment). On 9 Nov only the scoring was
+re-run on the same outputs (`proto/turing/rescore_plan.slurm`, CPU; score_v2 with its numpy fallback), then collected to
+`docs/proto/runoff/amcnwm_v1/` and compared with `proto/runoff/nwm_amc_score.py` -> `nwm_amc.json`. Complete: 23 of 23 held-out storms.
+
+| held-out 23 | base (AMC II) | nwm | rule |
+|---|---|---|---|
+| site recall at 3 % flagged | 0.204 | 0.204 | gain ≥ +0.04: **fail** (Δ 0.000, lower bound 0.000: **fail**) |
+| ΔFSS300 at 3 % | | +0.0002 | ≥ 0: pass |
+| worst storm loss | | 0 sites | ≤ 1: pass |
+| rule lift (p_close ≥ 0.5) | 6.28 | 4.71 | ≥ 0.8 x base: **fail** (0.75) |
+| gauges, storm-mean rise MAE | 0.368 m | 0.385 m | ≤ 1.10 x base: pass (1.05) |
+
+Verdict: **not adopted** (3 of the PROTOCOL v2 conditions fail). NWM soil saturation moves the start-of-storm CN in both directions, but the
+3 % ranking does not change on any held-out storm, and the depth rule loses hits (aug2023, sep2018, sep2022 each lose their one rule hit) as
+its flagged share shrinks on most storms. Gauges are slightly worse (aug2026 0.29 -> 0.43 m, jun2020 0.17 -> 0.29 m). Antecedent wetness is
+therefore not where the model's misses come from at this scale; the rain (placement and intensity) remains the larger error
+(`prospective/storm_2026-11-06_watch.md`).
