@@ -1,0 +1,21 @@
+name: Hugging Face token check (run by hand; prints the account and the token's scope, never the token)
+on: workflow_dispatch
+permissions: {contents: read}
+jobs:
+  who:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pip install -q huggingface_hub
+      - env: {HF_TOKEN: '${{ secrets.HF_TOKEN }}'}
+        run: |
+          python - <<'PY'
+          import os, json
+          from huggingface_hub import HfApi
+          W = HfApi(token=os.environ['HF_TOKEN']).whoami()
+          A = (W.get('auth') or {}).get('accessToken') or {}
+          fg = A.get('fineGrained') or {}
+          print('account:', W.get('name'))
+          print('token name:', A.get('displayName'), '| role:', A.get('role'))
+          print('fine-grained scopes:', json.dumps([dict(entity=(s.get('entity') or {}).get('name'), type=(s.get('entity') or {}).get('type'), perms=s.get('permissions')) for s in fg.get('scoped') or []]))
+          print('global perms:', fg.get('global'))
+          PY
