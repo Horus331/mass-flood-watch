@@ -76,16 +76,6 @@
     "time"
    ]
   },
-  "run_forecast": {
-   "script": "proto/turing/run_forecast.slurm",
-   "env": null,
-   "sbatch": [
-    "partition",
-    "time",
-    "gres",
-    "constraint"
-   ]
-  },
   "reprocess": {
    "script": "proto/turing/reprocess.slurm",
    "env": null,
@@ -192,27 +182,6 @@
     "time"
    ]
   },
-  "run_plan_gpu": {
-   "script": "proto/turing/run_plan_gpu.slurm",
-   "env": [
-    "PLAN",
-    "PIN",
-    "IDXS"
-   ],
-   "required": [
-    "PLAN",
-    "PIN",
-    "IDXS"
-   ],
-   "sbatch": [
-    "array",
-    "partition",
-    "time",
-    "mem",
-    "gres",
-    "constraint"
-   ]
-  },
   "run_plan_display": {
    "script": "proto/turing/run_plan_display.slurm",
    "env": [
@@ -288,5 +257,8 @@
     "time"
    ]
   }
+ },
+ "retired": {
+  "run_forecast, run_plan_gpu": "solver and post-processing in one GPU job (GPU idle for hours at 5-min frames): use run_plan_display / run_storm with STAGE=solve then STAGE=post, or forecast_d3 (8 Nov 2026)"
  }
 }
