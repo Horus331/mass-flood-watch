@@ -1,38 +1,38 @@
-# What-if scenarios, packed 2026-10-30 06:12 UTC
+# What-if scenarios, packed 2026-11-09 04:48 UTC
 
-32 of 32 scenarios. Settings: docs/proto/whatif/WHATIF.md.
+28 of 32 scenarios. Settings: docs/proto/whatif/WHATIF.md.
 
 | scenario | status | rain (box mean, mm) | segments closed | peak closed at once | people cut off (peak) | culverts overtopped | MB |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| r100_normal_open | ok | 107.4 | 102 | 70 | 9796 | 124 | 2.68 |
-| r050_normal_open | ok | 53.7 | 22 | 15 | 4245 | 48 | 1.18 |
-| r075_normal_open | ok | 80.4 | 55 | 43 | 7374 | 78 | 1.97 |
-| r100_dry_open | ok | 107.4 | 56 | 41 | 7678 | 75 | 1.94 |
-| r100_frozen_open | ok | 107.4 | 242 | 168 | 22844 | 178 | 4.18 |
-| r100_normal_blocked | ok | 107.4 | 84 | 58 | 5652 | 34 | 2.74 |
-| r100_wet_open | ok | 100.2 | 151 | 104 | 17762 | 152 | 2.95 |
-| r125_normal_open | ok | 125.2 | 159 | 111 | 17824 | 151 | 2.97 |
-| r050_dry_open | ok | 57.5 | 11 | 9 | 1431 | 34 | 0.93 |
-| r050_frozen_open | ok | 53.7 | 83 | 57 | 9401 | 135 | 2.81 |
-| r050_normal_blocked | ok | 53.7 | 12 | 12 | 1633 | 14 | 1.15 |
-| r050_wet_open | ok | 57.6 | 42 | 28 | 5471 | 61 | 1.61 |
-| r075_dry_open | ok | 80.4 | 33 | 23 | 5302 | 52 | 1.4 |
-| r075_frozen_open | ok | 80.9 | 174 | 123 | 18799 | 165 | 3.65 |
-| r075_normal_blocked | ok | 75.8 | 43 | 24 | 3000 | 26 | 1.93 |
-| r075_wet_open | ok | 80.4 | 81 | 58 | 9123 | 121 | 2.49 |
-| r100_dry_blocked | ok | 107.4 | 45 | 27 | 3299 | 25 | 1.96 |
-| r100_frozen_blocked | ok | 107.4 | 215 | 130 | 13639 | 83 | 4.48 |
-| r100_wet_blocked | ok | 123.4 | 125 | 79 | 7417 | 56 | 4.11 |
-| r125_dry_open | ok | 131.9 | 84 | 62 | 8149 | 103 | 2.44 |
-| r125_frozen_open | ok | 134.2 | 310 | 212 | 27807 | 184 | 4.57 |
-| r125_normal_blocked | ok | 134.2 | 135 | 86 | 9599 | 56 | 3.37 |
-| r125_wet_open | ok | 135.3 | 214 | 154 | 20722 | 165 | 3.78 |
-| r050_dry_blocked | ok | 53.6 | 5 | 5 | 388 | 8 | 0.9 |
-| r050_frozen_blocked | ok | 57.3 | 67 | 45 | 4428 | 34 | 3.24 |
-| r050_wet_blocked | ok | 49.8 | 24 | 18 | 2302 | 18 | 1.48 |
-| r075_dry_blocked | ok | 80.3 | 19 | 17 | 1775 | 15 | 1.37 |
-| r075_frozen_blocked | ok | 100.6 | 159 | 119 | 10968 | 77 | 4.82 |
-| r075_wet_blocked | ok | 104.4 | 109 | 79 | 8472 | 49 | 3.65 |
-| r125_dry_blocked | ok | 158.3 | 137 | 94 | 11045 | 53 | 3.07 |
-| r125_frozen_blocked | ok | 135.8 | 294 | 192 | 19189 | 101 | 5.04 |
-| r125_wet_blocked | ok | 142.6 | 197 | 126 | 12401 | 81 | 4.08 |
+| r100_normal_open | ok | 87.8 | 78 | 62 | 8833 | 106 | 4.48 |
+| r050_normal_open | missing |  |  |  |  |  |  |
+| r075_normal_open | ok | 78.8 | 47 | 37 | 6156 | 61 | 3.19 |
+| r100_dry_open | ok | 100.4 | 51 | 37 | 6506 | 63 | 3.13 |
+| r100_frozen_open | ok | 109.0 | 229 | 166 | 19652 | 172 | 7.28 |
+| r100_normal_blocked | missing |  |  |  |  |  |  |
+| r100_wet_open | ok | 129.5 | 132 | 93 | 11358 | 143 | 5.43 |
+| r125_normal_open | ok | 135.0 | 138 | 101 | 11560 | 135 | 5.48 |
+| r050_dry_open | ok | 54.4 | 4 | 7 | 1306 | 14 | 1.35 |
+| r050_frozen_open | ok | 19.3 | 59 | 54 | 8660 | 113 | 4.68 |
+| r050_normal_blocked | missing |  |  |  |  |  |  |
+| r050_wet_open | ok | 58.6 | 34 | 27 | 5188 | 46 | 3.08 |
+| r075_dry_open | missing |  |  |  |  |  |  |
+| r075_frozen_open | ok | 87.2 | 73 | 77 | 9530 | 120 | 5.48 |
+| r075_normal_blocked | ok | 93.3 | 40 | 24 | 3013 | 17 | 3.5 |
+| r075_wet_open | ok | 81.2 | 66 | 49 | 8674 | 102 | 4.13 |
+| r100_dry_blocked | ok | 105.0 | 39 | 27 | 3288 | 16 | 3.45 |
+| r100_frozen_blocked | ok | 115.5 | 216 | 131 | 13549 | 73 | 8.19 |
+| r100_wet_blocked | ok | 91.2 | 120 | 76 | 7358 | 42 | 5.98 |
+| r125_dry_open | ok | 141.9 | 69 | 58 | 6930 | 83 | 4.12 |
+| r125_frozen_open | ok | 134.2 | 290 | 211 | 26270 | 177 | 8.13 |
+| r125_normal_blocked | ok | 134.2 | 129 | 85 | 9218 | 46 | 6.06 |
+| r125_wet_open | ok | 134.2 | 195 | 141 | 18074 | 156 | 6.41 |
+| r050_dry_blocked | ok | 52.3 | 3 | 3 | 186 | 2 | 1.52 |
+| r050_frozen_blocked | ok | 49.7 | 108 | 94 | 9806 | 45 | 6.51 |
+| r050_wet_blocked | ok | 57.1 | 26 | 20 | 2643 | 13 | 3.29 |
+| r075_dry_blocked | ok | 77.1 | 49 | 37 | 4374 | 17 | 4.06 |
+| r075_frozen_blocked | ok | 57.9 | 79 | 59 | 5946 | 43 | 6.03 |
+| r075_wet_blocked | ok | 60.2 | 62 | 41 | 5289 | 23 | 4.49 |
+| r125_dry_blocked | ok | 116.9 | 71 | 47 | 5533 | 26 | 4.51 |
+| r125_frozen_blocked | ok | 96.0 | 293 | 195 | 19326 | 93 | 9.05 |
+| r125_wet_blocked | ok | 112.5 | 187 | 116 | 11899 | 64 | 7.13 |
