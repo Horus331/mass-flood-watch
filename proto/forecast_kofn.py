@@ -234,7 +234,8 @@ def cmd_ensemble(a):
             for sg in set().union(*L): mean[sg] = round(sum(x.get(sg, 0.0) for x in L) / len(L), 4)
         for e in K['segments']: e['pi'] = mean.get(int(e['segment']))
         top = sorted(mean.items(), key=lambda kv: -kv[1])[:10]
-        K['pi'] = dict(note='mean calibrated flooding probability over the members (latent model, PREREG_LIVE_PI.md); stored, not shown yet',
+        K['pi_seg'] = {str(k): v for k, v in mean.items() if v >= 0.01}   # every segment at 1 % or more, for the packs
+        K['pi'] = dict(note='mean calibrated flooding probability over the members (latent model, docs/proto/latent/LIVE_PI.md: checks 1-4 passed)',
                        members_with_pi={b: len(L) for b, L in PI.items()}, top10=[[k, v] for k, v in top],
                        top10_mean=round(sum(v for _, v in top) / max(1, len(top)), 4), over_50pct=sum(v >= 0.5 for v in mean.values()))
         log('ensemble: pi from', sum(len(L) for L in PI.values()), 'member runs; top-10 mean', K['pi']['top10_mean'])
@@ -267,9 +268,11 @@ def cmd_pack(a):
     od = a.dir or os.path.join(root, 'docs', 'site', 'data', a.key)
     K = json.load(open(a.kofn)); mine = {e['segment']: e for e in K['segments'] if e.get('box') == a.box}
     R = json.load(open(os.path.join(od, 'roads.json'))); have = set()
+    PS = K.get('pi_seg') or {}
     for f in R['features']:
         e = mine.get(int(f['id']))
         if e: f['properties']['k'] = e['k']; f['properties']['kn'] = e['n']; have.add(int(f['id']))
+        if str(int(f['id'])) in PS: f['properties']['pi'] = PS[str(int(f['id']))]   # calibrated chance of flooding (latent model; LIVE_PI.md)
     miss = [e for sid, e in mine.items() if sid not in have]
     if miss:
         S = json.load(open(a.segments or os.path.join(root, 'docs', 'graph_segments.json'))); P = S['props']
@@ -278,7 +281,7 @@ def cmd_pack(a):
             i = e['segment']
             R['features'].append(dict(type='Feature', id=i, geometry=dict(type='MultiLineString', coordinates=_seg_lines(S, i)),
                                       properties=dict(n=P['road'][i] or e['road'] or '', t=P['town'][i] or e['town'] or '', c=0, p=0, m=0, k=e['k'], kn=e['n'],
-                                                      w=f"closed in {e['k']} of the {K['n_members']} forecast runs (not in the run shown)")))
+                                                      w=f"closed in {e['k']} of the {K['n_members']} forecast runs (not in the run shown)", **({'pi': PS[str(e['segment'])]} if str(e['segment']) in PS else {}))))
     json.dump(R, open(os.path.join(od, 'roads.json'), 'w'), separators=(',', ':'))
     M = json.load(open(os.path.join(od, 'meta.json')))
     M['kofn'] = dict(n=K['n_members'], finished=len(K['finished'].get(a.box, [])), likely=sum(e['k'] >= 2 for e in mine.values()),
