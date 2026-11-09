@@ -220,6 +220,24 @@ def cmd_ensemble(a):
             except Exception: pass
     if rk: K['rain_km'] = rk
     log('ensemble: 1 km rain kept for', len(rk), 'of', len(M), 'member runs')
+    # calibrated flooding probability (docs/proto/latent/PREREG_LIVE_PI.md): each member's pi.json (proto/latent_live.py), mean over the members
+    # that ran in the segment's box. Stored only: the site shows it after check 4 (forced no-rain cycles) passes.
+    PI = {}
+    for m, bid, d in M:
+        f = os.path.join(d or '', 'pi.json')
+        if d and os.path.exists(f):
+            try: PI.setdefault(bid, []).append({int(k): v for k, v in json.load(open(f))['segments'].items()})
+            except Exception as e: log('pi unreadable', m, bid, repr(e)[:80])
+    if PI:
+        mean = {}
+        for bid, L in PI.items():
+            for sg in set().union(*L): mean[sg] = round(sum(x.get(sg, 0.0) for x in L) / len(L), 4)
+        for e in K['segments']: e['pi'] = mean.get(int(e['segment']))
+        top = sorted(mean.items(), key=lambda kv: -kv[1])[:10]
+        K['pi'] = dict(note='mean calibrated flooding probability over the members (latent model, PREREG_LIVE_PI.md); stored, not shown yet',
+                       members_with_pi={b: len(L) for b, L in PI.items()}, top10=[[k, v] for k, v in top],
+                       top10_mean=round(sum(v for _, v in top) / max(1, len(top)), 4), over_50pct=sum(v >= 0.5 for v in mean.values()))
+        log('ensemble: pi from', sum(len(L) for L in PI.values()), 'member runs; top-10 mean', K['pi']['top10_mean'])
     json.dump(K, open(a.out, 'w'), separators=(',', ':'))
     log('ensemble:', K['likely'], 'likely,', K['possible'], 'possible; finished', {k: len(v) for k, v in K['finished'].items()})
     if a.viewers:
