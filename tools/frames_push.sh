@@ -39,12 +39,14 @@ for p, k in zip(packs, keys):
     mf = os.environ.get('FRAMES_META', 'meta.json'); m = os.path.join(p, mf)
     if mf != '-' and not os.path.exists(m): print('skip (no %s):' % mf, p); continue
     dst = os.path.join(tree, k, tag); os.makedirs(dst, exist_ok=True); n = 0
-    for f in sorted(os.listdir(p)):
-        s = os.path.join(p, f)
-        if f.endswith('.json') or f.startswith('rain.'):
-            if f.startswith('rain.'): shutil.copy(s, dst)
-            continue
-        shutil.copy(s, os.path.join(dst, f)); n += 1; man.append(dict(pack=p, file=f))
+    for r_, _, fs_ in os.walk(p):   # sub-folders too (tiles/ of a tiled pack)
+        for f0 in sorted(fs_):
+            f = os.path.relpath(os.path.join(r_, f0), p); s = os.path.join(p, f)
+            if f0.endswith('.json') or f.startswith('rain.'):
+                if f.startswith('rain.'): shutil.copy(s, dst)
+                continue
+            os.makedirs(os.path.dirname(os.path.join(dst, f)), exist_ok=True)
+            shutil.copy(s, os.path.join(dst, f)); n += 1; man.append(dict(pack=p, file=f))
     sz = sum(os.path.getsize(os.path.join(r, x)) for r, _, fs in os.walk(dst) for x in fs); tot += sz
     bases[p] = f'{url}/{k}/{tag}/'
     print(f'{k}: {n} files, {sz / 1e6:.1f} MB -> {bases[p]}')
@@ -66,6 +68,9 @@ python3 - "$W/manifest.json" <<'PY'
 import json, os, sys
 M = json.load(open(sys.argv[1]))
 for e in M['files']: os.remove(os.path.join(e['pack'], e['file']))
+for p in M['bases']:   # sub-folders left empty
+    for r_, ds_, fs_ in os.walk(p, topdown=False):
+        if r_ != p and not os.listdir(r_): os.rmdir(r_)
 mf = os.environ.get('FRAMES_META', 'meta.json')
 for p, b in M['bases'].items():
     if mf == '-': continue

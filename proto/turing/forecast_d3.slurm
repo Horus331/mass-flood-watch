@@ -13,7 +13,7 @@
 # LF_PARITY=1, 2 mm/h, LF_QOUT=1), only the box is the whole district (17.6 M cells); 30-min depth frames (w9 default)
 # feed the map. Then proto/prototype.py -> $LF_WORK/fcd3_<PFX>_<cycle>/m<j>/.
 # Publishing (under a lock, from the task that completes it): when task 0 is done, and again when the last member is done (k-of-n complete):
-# replay pack docs/site/data/<PFX>/ (build_tiled, hourly frames, kept at the 80 m overview: no 20 m tiles on the main site), k-of-n (proto/forecast_kofn.py), network.json and
+# replay pack docs/site/data/<PFX>/ (build_tiled, 5-min frames, 80 m overview and 20 m tiles; the image sheets on the branch frames-<PFX>), k-of-n (proto/forecast_kofn.py), network.json and
 # docs/site/data/<PFX>_status.json. The public forecast_status.json only gets a 'shadow' pointer (same cycle only); its headline, roads and map
 # stay the boxes'. One commit per publish, pushed through the deploy key.
 #   FORCE=1: run even if the gate is quiet for CYCLE (tests on past storms).  PFX other than forecast_d3: a test, live status untouched.
@@ -85,16 +85,17 @@ cd $REPO
 exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 1800 8 || echo "git lock wait timed out"   # take turns with other jobs on this shared repository
 git pull -q --rebase --autostash "$(git remote get-url --push origin)" main || true
 flock -u 8
-BD_TILES=0 python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 5 --budget-mb 400   # shadow map: 5-min frames at the 80 m overview (no 20 m tiles), no flow; the sheets go to the frames branch below
-python - docs/site/data/$PFX <<'PY'
-# the main site keeps no whole-district 20 m tiles (Pages size): the shadow map shows the 80 m overview of the same depth frames
+python docs/site/build_data.py --run $PFX --src $DIR --run-dir $RD --frame-min 5 --budget-mb 400   # shadow map: 5-min frames, 80 m overview + 20 m tiles, no flow; all image sheets go to the frames branch below
+python proto/forecast_kofn.py pack --kofn $P/kofn.json --key $PFX --box b1
+# image sheets -> branch frames-$PFX (one commit, replaced every cycle; raw.githubusercontent.com), main keeps the JSON (tools/frames_push.sh)
+if ! GIT_AUTHOR_NAME="Mohab Eldokla" GIT_AUTHOR_EMAIL="Horus331@users.noreply.github.com" bash tools/frames_push.sh frames-$PFX $(echo $CYCLE | tr -dc 0-9 | cut -c1-10) docs/site/data/$PFX; then
+  echo "frames push failed: this cycle keeps the 80 m overview on main, without the 20 m tiles (Pages size)"
+  python - docs/site/data/$PFX <<'PY'
 import json, os, shutil, sys
 d = sys.argv[1]; shutil.rmtree(os.path.join(d, 'tiles'), ignore_errors=True)
 m = json.load(open(os.path.join(d, 'meta.json'))); (m.get('depthc') or {}).pop('tiles', None); json.dump(m, open(os.path.join(d, 'meta.json'), 'w'), separators=(',', ':'))
 PY
-python proto/forecast_kofn.py pack --kofn $P/kofn.json --key $PFX --box b1
-# image sheets -> branch frames-$PFX (one commit, replaced every cycle; raw.githubusercontent.com), main keeps the JSON (tools/frames_push.sh)
-GIT_AUTHOR_NAME="Mohab Eldokla" GIT_AUTHOR_EMAIL="Horus331@users.noreply.github.com" bash tools/frames_push.sh frames-$PFX $(echo $CYCLE | tr -dc 0-9 | cut -c1-10) docs/site/data/$PFX || echo "frames push failed: the sheets stay in the pack on main this cycle"
+fi
 
 python proto/build_network.py $PFX || true
 python - $FC $P "$N" "${REQ_AT:-}" "$PFX" "$MM" <<'PY'
