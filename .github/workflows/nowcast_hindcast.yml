@@ -1,0 +1,28 @@
+name: Nowcast hindcast (radar nowcast vs HRRR vs MRMS, NOWCAST_WINDOWS_PREREG part A)
+# proto/nowcast_hindcast.py over past storms (catalogue ids); writes docs/proto/forecast/nowcast_hindcast.json. Rain only, no flood model.
+on:
+  workflow_dispatch:
+    inputs:
+      storms: {description: 'comma list of catalogue storm ids (MRMS on AWS: Oct 2020 on)', default: 'aug2023,aug2026,sep2023,jul2023,sep2021,sep2022'}
+      out: {description: 'output json', default: 'docs/proto/forecast/nowcast_hindcast.json'}
+permissions:
+  contents: write
+concurrency: {group: nowcast-hindcast, cancel-in-progress: false}
+jobs:
+  hindcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow netCDF4 matplotlib pysteps opencv-python-headless
+      - run: python proto/nowcast_hindcast.py selftest
+      - run: |
+          set -o pipefail
+          python -u proto/nowcast_hindcast.py run --storms "${{ inputs.storms }}" --out "${{ inputs.out }}" 2>&1 | tee hc.log | tail -60
+      - name: commit
+        run: |
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add "${{ inputs.out }}"; git commit -qm "Nowcast hindcast: ${{ inputs.storms }}" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && exit 0; sleep 15; done; exit 1
