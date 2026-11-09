@@ -8,7 +8,6 @@
 #SBATCH -N 1
 #SBATCH -n 8
 #SBATCH --mem=64G
-#SBATCH --gres=gpu:1
 #SBATCH -t 01:30:00
 #SBATCH -o whatif_run_%A_%a.out
 set -eo pipefail
@@ -20,8 +19,12 @@ export PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain      # closure depth above t
 export RUN_DIR=runs/${STORM}_proto_${NAME}
 R=results/$NAME
 if [ -s $R/summary.json ] && [ "${RERUN:-0}" != 1 ]; then echo "$WHATIF_ID already done ($R)"; exit 0; fi
-echo "== $WHATIF_ID: $(env | grep -E '^LF_(RAIN_SCALE|CN_AMC|CN_FROZEN|INFIL_MMH|XINGS_BLOCKED|CN_SCALE|PARITY|SAVEINT)=' | sort | tr '\n' ' ')"
-nvidia-smi -L || true
+# STAGE (8 Nov 2026; whatif_pipeline.slurm): solve = GPU job, solver only, never a non-zero exit; post = CPU job (no GPU), the rest.
+# No GPU is held while 5-min frames are post-processed.  No STAGE: both (needs a GPU in the sbatch call).
+STAGE=${STAGE:-}; [[ "$STAGE" =~ ^(|solve|post)$ ]] || { echo "STAGE must be solve or post"; exit 2; }
+export LF_STAGE=$STAGE
+echo "== $WHATIF_ID stage ${STAGE:-all}: $(env | grep -E '^LF_(RAIN_SCALE|CN_AMC|CN_FROZEN|INFIL_MMH|XINGS_BLOCKED|CN_SCALE|PARITY|SAVEINT)=' | sort | tr '\n' ' ')"
+if [ "$STAGE" = solve ]; then nvidia-smi -L || true; time python sim/colab/w9_lisflood.py || echo "solve failed: $WHATIF_ID"; exit 0; fi
 time python sim/colab/w9_lisflood.py
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 mkdir -p $R
