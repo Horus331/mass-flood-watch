@@ -36,3 +36,9 @@ The blend mostly removes false closures (290 -> 231) at nearly the same hits; on
 
 **Adopted 9 Nov 2026** (checks 1-3 passed): the issue cycle's member of the live forecast runs with `LF_NOWCAST=1` (forecast.yml); the
 older 7 members stay pure HRRR (and cached), as tested. Part B (time windows) is still to be run.
+
+## B. Chance by time window: status (9 Nov 2026)
+
+Check 5 can be judged: the 9 T2 storms' report files hold 369 reports with a clock time (fewer distinct sites after matching), well above
+the 15-site floor. It needs members' closure start times from forecast runs issued before the reports, i.e. hindcast ensembles per storm,
+which have not been run. Not shown on the site until they are.
