@@ -15,11 +15,12 @@ def boxes():
     return {t['storm']: t['env']['BOX'] for t in P['tasks']}
 
 
-def plan(min_mm=3.0):
+def plan(min_mm=3.0, max_cycles=0):
     R = json.load(open(os.path.join(ROOT, 'docs', 'proto', 'forecast', 'nowcast_hindcast.json'))); B = boxes(); M = []
     for c in R['cycles']:
         if sum(r['truth_mean'] for r in c['leads'] if r['lead_h'] <= 3) < min_mm or c['storm'] not in B: continue
         tau = dt.datetime.strptime(c['tau'], '%Y-%m-%dT%H:%MZ'); init = tau - dt.timedelta(hours=1)
+        if max_cycles and len(M) >= 3 * max_cycles: break
         for a in ARMS:
             M.append(dict(storm=c['storm'], tau=c['tau'], tag=f"{c['storm']}_{tau:%Y%m%d%H}_{a}", arm=a, box=B[c['storm']],
                           init=f'{init:%Y-%m-%dT%HZ}', t0=f'{init:%Y-%m-%dT%H:00Z}'))
@@ -56,8 +57,8 @@ def score(d, out):
 
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['plan', 'closures', 'score']); ap.add_argument('--min-mm', type=float, default=3.0)
+    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['plan', 'closures', 'score']); ap.add_argument('--min-mm', type=float, default=3.0); ap.add_argument('--max-cycles', type=int, default=0)
     ap.add_argument('--run'); ap.add_argument('--out'); ap.add_argument('--dir'); a = ap.parse_args()
-    if a.cmd == 'plan': print(json.dumps(plan(a.min_mm)))
+    if a.cmd == 'plan': print(json.dumps(plan(a.min_mm, a.max_cycles)))
     elif a.cmd == 'closures': closures(a.run, a.out)
     else: score(a.dir, a.out)
