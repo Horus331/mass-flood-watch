@@ -38,7 +38,7 @@ sys.path.insert(0, os.path.join(ROOT, 'docs', 'site'))
 
 STORM, BOX, HOURS, RES = 'sep2023', '168000,908000,188000,928000', 48, 20
 BASE_ENV = dict(STORM=STORM, BOX=BOX, HOURS=str(HOURS), RES=str(RES), LF_PARITY='1', LF_LOSS='cn', LF_CN_SCALE='0.88', LF_INFIL_MMH='2',
-                LF_QOUT='1', LF_VOUT='1', LF_SAVEINT='300', LF_NOTCH_FIX='1', LF_CHAN_ENFORCE='1', LF_NO_UPLOAD='1')
+                LF_QOUT='1', LF_VOUT='1', LF_SAVEINT='300', LF_COMPACT='1', LF_NOTCH_FIX='1', LF_CHAN_ENFORCE='1', LF_NO_UPLOAD='1')
 RAIN = [('r050', 0.5, {'LF_RAIN_SCALE': '0.5'}), ('r075', 0.75, {'LF_RAIN_SCALE': '0.75'}), ('r100', 1.0, {}), ('r125', 1.25, {'LF_RAIN_SCALE': '1.25'})]
 SOIL = [('dry', 'Dry', {'LF_CN_AMC': 'I'}), ('normal', 'Normal', {}), ('wet', 'Saturated', {'LF_CN_AMC': 'III'}),
         ('frozen', 'Frozen', {'LF_CN_FROZEN': '1', 'LF_INFIL_MMH': '0'})]
