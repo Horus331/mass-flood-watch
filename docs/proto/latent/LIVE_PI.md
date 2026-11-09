@@ -36,3 +36,11 @@ of the time. Most roads in most storms stay below 50 %; only the big storm (Sept
 All four checks passed (check 4 on forecast run 42592456041, 9 Nov). As pre-registered, the forecast now shows "Chance of flooding X %" on the
 road rows and in the road details; the headline stays the k-of-8 count. Every forecast member computes π (forecast.yml, proto/latent_live.py);
 the mean over members is in kofn.json (pi, pi_seg) and on the roads (pi). The forward test will show how it does on new storms.
+
+
+## Display withdrawn (9 Nov 2026, evening)
+
+Mo's master prompt (claude/model_colab/2026-11-09_Master_Prompt_Product_Roadmap.md) requires calibration proven on held-out storms before
+any percentage is shown. Checks 1-3 above used storms the frozen fit had seen, so the "Chance of flooding" text is hidden again
+(viewer.js PI_SHOW = false); road rows show "k of N forecast runs" as before. π is still computed and archived with every forecast.
+Next: a leave-one-storm-out reliability check of π on the T2 runs (refit without the test storm), pre-registered first.

@@ -198,6 +198,9 @@
     if (!RA || id == null || RA.own[id] == null) return null;
     return { own: RA.own_names[RA.own[id]] || '', code: RA.own_codes[RA.own[id]] || '', rt: RA.rt[id] || '', spd: RA.spd[id] || 0, mi0: RA.mi0[id], mi1: RA.mi1[id] };
   }
+  // Percentages stay hidden until calibration is proven on HELD-OUT storms (Master prompt 9 Nov 2026, Goal 1.3): the 9 Nov checks
+  // (docs/proto/latent/LIVE_PI.md) used storms the fit had seen. Until then the rows show "k of N forecast runs". Data (pi) is still computed.
+  var PI_SHOW = false;
   function piTxt(v) { v = +v || 0; return v >= 0.995 ? '99 %+' : v < 0.01 ? 'under 1 %' : Math.round(v * 100) + ' %'; }   // calibrated chance of flooding (docs/proto/latent/LIVE_PI.md)
   function fastRoad(p, a) { return (a && a.spd >= 45) || p.c === 2; }   // posted 45 mph or more, or a highway: shallow water is a hazard there
   var ART = null;   // places where the model is known to be wrong (known_artifacts.json): road rows inside get a low-confidence note
@@ -2443,7 +2446,7 @@
     var h = '<div class="pp"><h3>' + esc(p.n || 'Unnamed road') + '</h3><p class="sub">' + esc(p.t ? p.t + ', ' : '') + CLS[p.c || 0] +
       (ends && ends.length ? (ends.length > 1 ? ', between ' + esc(ends[0]) + ' and ' + esc(ends[1]) : ', at ' + esc(ends[0])) : '') + '</p>' + spark(d) + '<dl>';
     if (p.k) h += '<dt>Forecast runs closing it</dt><dd><b>' + p.k + ' of ' + meta.kofn.n + '</b> (' + (p.k >= 2 ? 'likely closed' : 'possible') + ')</dd>';
-    if (p.pi != null) h += '<dt>Chance of flooding</dt><dd><b>' + piTxt(p.pi) + '</b> (calibrated on 25 past storms)</dd>';
+    if (PI_SHOW && p.pi != null) h += '<dt>Chance of flooding</dt><dd><b>' + piTxt(p.pi) + '</b> (calibrated on 25 past storms)</dd>';
     h += '<dt>' + (p.k ? 'Chance of closing, run shown' : 'Chance of closing') + '</dt><dd><b>' + likely(p.p) + '</b></dd>';
     if (d) {
       var fa = Math.min(Math.floor(t), nf - 1), now = Math.round(((d[fa] || 0) * (1 - (t - fa)) + (d[fa + 1] || 0) * (t - fa)));
@@ -3358,7 +3361,7 @@
       if (ownTag) b.innerHTML += ownTag;
       if (r.culv && cOnly) { var cw = String(p.w || '').match(/culvert[^;]*/i); if (cw) b.innerHTML += '<span class="rt culv-t">' + esc(cw[0].charAt(0).toUpperCase() + cw[0].slice(1)) + '</span>'; }
       if (fast) b.innerHTML += '<span class="rt fast-t">Shallow water on a ' + (ra && ra.spd ? ra.spd + ' mph' : 'high-speed') + ' road: hydroplaning risk</span>';
-      if (runKey === 'forecast' && p.pi != null) b.innerHTML += '<span class="rt pi-t" title="Calibrated on 25 past storms: of roads given about this chance, about this share flooded (reports and city logs)">Chance of flooding <b>' + piTxt(p.pi) + '</b></span>';
+      if (PI_SHOW && runKey === 'forecast' && p.pi != null) b.innerHTML += '<span class="rt pi-t" title="Calibrated on 25 past storms: of roads given about this chance, about this share flooded (reports and city logs)">Chance of flooding <b>' + piTxt(p.pi) + '</b></span>';
       var sn = runKey === 'forecast' && meta.kofn ? fhSeen(+r.s.id) : null;
       if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
       var kn = ksNear(r.s.f, 120); r.known = kn;
