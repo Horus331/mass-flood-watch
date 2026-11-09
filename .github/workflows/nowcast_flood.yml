@@ -1,0 +1,80 @@
+name: Nowcast flood check (NOWCAST_WINDOWS_PREREG check 3)
+# 12 h box runs per issue time: HRRR rain, the radar-nowcast blend (LF_NOWCAST=1) and the radar rain that fell; live model settings.
+# proto/nowcast_flood.py plans the matrix from docs/proto/forecast/nowcast_hindcast.json and scores -> docs/proto/forecast/nowcast_flood.json
+on:
+  workflow_dispatch:
+    inputs:
+      min_mm: {description: 'issue times with at least this much observed rain (box mean) in hours 1-3', default: '3'}
+permissions:
+  contents: write
+concurrency: {group: nowcast-flood, cancel-in-progress: false}
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs: {m: '${{ steps.p.outputs.m }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        run: echo "m=$(python proto/nowcast_flood.py plan --min-mm ${{ inputs.min_mm }})" >> $GITHUB_OUTPUT
+  flood:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        c: ${{ fromJSON(needs.plan.outputs.m) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely pysteps opencv-python-headless
+      - name: flood depth
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: ${{ matrix.c.box }}
+          RES: '20'
+          RUN_DIR: runs/nowcast_${{ matrix.c.tag }}
+          LF_ALLOW_DRY: '1'
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.88'
+          LF_PARITY: '1'
+          LF_NOTCH_FIX: '1'
+          LF_CHAN_ENFORCE: '1'
+          LF_INFIL_MMH: '2'
+          LF_SAVEINT: '300'
+          LF_COMPACT: '1'
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          if [ "${{ matrix.c.arm }}" = radar ]; then
+            export STORM=${{ matrix.c.storm }} T0=${{ matrix.c.t0 }} HOURS=12
+          else
+            export STORM=forecast LF_RAIN=hrrr LF_HRRR_INIT=${{ matrix.c.init }} LF_HRRR_HOURS=9 LF_DRAIN_H=3 LF_HRRR_NBHD='20,90'
+            [ "${{ matrix.c.arm }}" = blend ] && export LF_NOWCAST=1
+          fi
+          python sim/colab/w9_lisflood.py 2>&1 | tee w9.txt | grep -E "rain:|HRRR|LF_NOWCAST|LISFLOOD-FP run|Error|Traceback" | tail -12
+      - name: closures
+        env: {PROTO_RES_CONSISTENT: '1', PROTO_RC_START_H: rain}
+        run: |
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); P=${{ runner.temp }}/proto
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm forecast 2>&1 | tail -3
+          mkdir -p art && python proto/nowcast_flood.py closures --run $P --out art/closures_${{ matrix.c.tag }}.json
+      - uses: actions/upload-artifact@v4
+        with: {name: 'c_${{ matrix.c.tag }}', path: art}
+  score:
+    needs: flood
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {path: cl, pattern: 'c_*'}
+      - run: python proto/nowcast_flood.py score --dir cl --out docs/proto/forecast/nowcast_flood.json
+      - run: |
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add docs/proto/forecast/nowcast_flood.json; git commit -qm "Nowcast flood check (check 3)" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && exit 0; sleep 15; done; exit 1

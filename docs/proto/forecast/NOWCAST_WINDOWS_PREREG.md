@@ -34,3 +34,12 @@ Checks (on the archived forecast cycles and the T2 replay storms re-run as hindc
    least 0.5 pooled. With fewer than 15 timed report sites in the set the result is reported as "too few to judge" and B is not shown.
 
 Adopt A if 1-3 pass; adopt B if 4-5 pass. Either can pass alone.
+
+## Amendment 1 (9 Nov 2026, after checks 1-2 were scored, before any check-3 run)
+
+Check 3 is run on one member per issue time, not the k-of-8 ensemble: the cycle 1 h before issue (as in checks 1-2), 12 h runs (9 forecast
+hours + 3 dry), the live model settings, on each storm's catalogue box. Arms: HRRR, blend (`LF_NOWCAST=1`), and the radar-rain run of the same
+box and window as truth. Closures = p_close >= 0.5 with the live P1 rise rule (>= 30 cm above the depth at rain onset). Issue times: the
+check-1 cycles whose observed rain in hours 1-3 is at least 3 mm box-mean in total. Pooled F1 over all issue times (TP, FP, FN summed);
+pass if F1(blend) >= F1(HRRR) - 0.02. Reason: 8 members x 3 arms x every issue time is ~25 x the compute of this design, and the blend
+changes the same first hours of every member, so one member per issue time measures the same effect.
