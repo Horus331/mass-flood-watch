@@ -1,0 +1,31 @@
+name: Create the forecast archive dataset on Hugging Face (run by hand, once)
+on: workflow_dispatch
+permissions: {contents: read}
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pip install -q huggingface_hub
+      - env: {HF_TOKEN: '${{ secrets.HF_TOKEN }}'}
+        run: |
+          python - <<'PY'
+          import io, os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ['HF_TOKEN']); who = api.whoami()['name']; repo = f'{who}/mass-flood-watch-archive'
+          api.create_repo(repo, repo_type='dataset', private=False, exist_ok=True)
+          card = """---
+          license: cc-by-4.0
+          pretty_name: Mass Flood Watch forecast and observation archive
+          ---
+          # Mass Flood Watch archive
+
+          Every flash-flood road-closure forecast issued by Mass Flood Watch (https://horus331.github.io/mass-flood-watch/) for MassDOT
+          District 3, archived when it is issued and never changed afterwards, with the observations that followed. This is the evidence
+          for the forward test (Nov 2026 - Oct 2027): forecasts are compared with what happened only after the event.
+
+          Layout: `forecasts/YYYY/MM/<issue time>/` (per-segment forecast file + manifest: input sources and their run times, code version,
+          parameters) and `observations/YYYY/MM/` (radar rain, gauges, NWS alerts and storm reports). Code: github.com/Horus331/mass-flood-watch.
+          """.replace('\n          ', '\n')
+          api.upload_file(path_or_fileobj=io.BytesIO(card.encode()), path_in_repo='README.md', repo_id=repo, repo_type='dataset', commit_message='Dataset card')
+          print('created', f'https://huggingface.co/datasets/{repo}')
+          PY
