@@ -2,6 +2,48 @@
  "paused": false,
  "jobs": [
   {
+   "id": "fcd3_test5c_d3_2026110612",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2026-11-06T12Z",
+    "MEMBERS": "2026-11-06T12Z",
+    "HOURS": "48",
+    "PFX": "test5c_d3",
+    "REQ_AT": "2026-11-09T05:34:32Z",
+    "FORCE": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "array": "0-0",
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "03:00:00"
+   }
+  },
+  {
+   "id": "fcd3_test5c_d3_2026110612_post",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2026-11-06T12Z",
+    "MEMBERS": "2026-11-06T12Z",
+    "HOURS": "48",
+    "PFX": "test5c_d3",
+    "REQ_AT": "2026-11-09T05:34:32Z",
+    "FORCE": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "fcd3_test5c_d3_2026110612"
+   ],
+   "sbatch": {
+    "array": "0-0",
+    "partition": "short",
+    "mem": "160G",
+    "time": "08:00:00"
+   }
+  },
+  {
    "id": "fcd3_test5b_d3_2026110612",
    "kind": "forecast_d3",
    "env": {
