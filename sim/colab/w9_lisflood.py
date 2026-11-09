@@ -1175,6 +1175,24 @@ def build_inputs(BOX, RES, S, TOK):
             RAIN.append(v_)
         RAIN += [np.zeros((ny, nx), np.float32)] * (S['hours'] - SP - nh)
         log(f'HRRR {init:%Y-%m-%d %H}z: forecast hours 1-{nh} (cycle horizon {H} h), {S["hours"] - SP - nh} dry drain-down hours; window {sampler.window}')
+        if os.environ.get('LF_NOWCAST') == '1':   # opt-in (docs/proto/forecast/NOWCAST_WINDOWS_PREREG.md part A): radar in the first hours.
+            # Issue time tau = cycle + LF_NOWCAST_LAG_H (default 1 h, when the cycle is on the web): the hours ending <= tau are observed MRMS,
+            # the next hour is the radar nowcast (proto/live_feeds advection), the hour after it half nowcast half HRRR, then HRRR.
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'proto'))
+            import live_feeds as LFD, nowcast_hindcast as NH
+            lag = int(os.environ.get('LF_NOWCAST_LAG_H', '1')); tau = (init + pd.Timedelta(hours=lag)).to_pydatetime()
+            for k_ in range(lag):                            # hours ending init+1..tau: observed (MRMS Pass2)
+                try: RAIN[SP + k_] = mrms_hour(init + pd.Timedelta(hours=k_ + 1))
+                except Exception as e: log('  nowcast: observed hour missing', k_ + 1, repr(e)[:80])
+            N_ = NH.nowcast_hourly(tau, LFD)
+            if N_ is None: log('LF_NOWCAST: no radar frames at', tau, '-> HRRR kept')
+            else:
+                NV, nla, nlo, how_ = N_
+                ii = np.abs(nla[:, None] - lat_c[None, :]).argmin(0); jj = np.abs(nlo[:, None] - lon_c[None, :]).argmin(0)
+                for h_, w_ in NH.W_RADAR.items():
+                    k_ = SP + lag + h_ - 1
+                    if k_ < len(RAIN): RAIN[k_] = (w_ * NV[h_ - 1][np.ix_(ii, jj)] + (1 - w_) * RAIN[k_]).astype(np.float32)
+                log(f'LF_NOWCAST: issue {tau:%Y-%m-%d %H:%M}Z, {lag} observed hour(s), radar nowcast ({how_}) for the next {len(NH.W_RADAR)} hours (weights {NH.W_RADAR})')
     else:
         for ts in hours:
             for kk in range(4):
