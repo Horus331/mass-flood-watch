@@ -1,0 +1,19 @@
+# Baseline layers for the v3 benchmark (PROTOCOL_v3.md, Phase 0.2)
+
+Status of each named baseline. Nothing here has been scored against road reports yet.
+
+| id | baseline | status | file |
+|---|---|---|---|
+| B1 | NWS flash-flood warning polygons (VTEC FF.W, WFO BOX), IEM storm-based-warning archive | fetched 9 Nov 2026 for all 107 unlocked catalogue storms (26 D3, 81 D4–6), 0 failures | `nws_ffw.json` |
+| B2 | FEMA NFHL 100-yr zone | exists (`static/STATIC.md`, `static/HYBRID.md`); to be re-scored under v3 rules | `../static/static_flags.json` |
+| B3 | MassDOT repeating flood points | points exist (`claude/model_colab/data/massdot_repeating_flood_points_2026-10-17.csv`) | to do |
+| B4 | radar rain threshold (I60 / 3 h max, MRMS) | to do: thresholds tuned on Leominster sep2023 only | |
+| B5 | HAND from the model's 20 m terrain | to do | |
+| B6 | static H×V×C | to do if inputs exist for both district groups | |
+
+## B1 notes
+
+- Query: IEM `api/1/vtec/sbw_interval.geojson`, WFO BOX, storm window [t0, t0 + hours] of the catalogue; polygons kept unsimplified with their valid times.
+- Storms with at least one FF.W polygon anywhere in the BOX area during the window: 20 of 26 in D3, 50 of 81 in D4–6. Whether a polygon
+  covers the storm's box is decided at scoring (segment midpoint inside a polygon), not here.
+- By year (storms with a warning / storms): 2014 1/1, 2018 17/30, 2019 6/15, 2020 6/11, 2021 9/14, 2022 3/5, 2023 23/25, 2025 1/1, 2026 4/5.
