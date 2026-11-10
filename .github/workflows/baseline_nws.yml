@@ -1,0 +1,27 @@
+name: Baseline B1 fetch (NWS flash-flood warning polygons, PROTOCOL_v3)
+# proto/baseline_nws_ffw.py: IEM storm-based-warning archive, WFO BOX, FF.W, every unlocked catalogue storm. Fetch only, no scoring.
+on:
+  workflow_dispatch:
+    inputs:
+      out: {description: 'output json', default: 'docs/proto/baselines/nws_ffw.json'}
+permissions:
+  contents: write
+concurrency: {group: baseline-nws, cancel-in-progress: false}
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -q requests
+      - run: python proto/baseline_nws_ffw.py selftest
+      - run: python -u proto/baseline_nws_ffw.py fetch --out "${{ inputs.out }}" 2>&1 | tee fetch.log | tail -120
+      - name: commit
+        if: always()
+        run: |
+          [ -f "${{ inputs.out }}" ] || exit 0
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add "${{ inputs.out }}"; git commit -qm "Baseline B1: NWS flash-flood warning polygons fetched (IEM)" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && exit 0; sleep 15; done; exit 1
