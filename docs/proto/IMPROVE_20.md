@@ -8,7 +8,7 @@ Inventory below is from the repository docs (STATUS.md is from 25 Oct; CHANGE_20
 | # | Item | Already in the repository | Verdict so far | Left to do (order of work) |
 |---|---|---|---|---|
 | 0 | 5-min frames everywhere | live boxes 15 min, district shadow 60 min, what-if 15 min, replays 5 min | in progress 8 Nov (tools/frames_push.sh, LF_COMPACT) | test, then live |
-| 1 | HRRR bias correction | qmfit, LF_HRRR_QMAP, forecast/ENSEMBLE.md §2 | rejected: lift falls, no recall gain; the error is where/when, not how much | volume fix that keeps placement (DISTRICT_VOLCAL P*=80) |
+| 1 | HRRR bias correction | qmfit, LF_HRRR_QMAP, forecast/ENSEMBLE.md §2 | rejected: lift falls, no recall gain; the error is where/when, not how much | volume fix that keeps placement: tested 10 Nov on 17 issue times, p90 F1 0.504 vs p80 0.442: live 20,90 kept (forecast/BOX_PERCENTILE.md) |
 | 2 | more NWP members | REFS archived every 6 h since 29 Oct | not tried (no HREF hindcast archive) | forward-only check on the REFS archive |
 | 3 | radar nowcast | live_feeds pysteps, display only | 0-1 h beats persistence 3 of 4 | blend 0-3 h into the forecast rain; verify |
 | 4 | bigger ensemble | 8 lagged members live; n12 perturbation never scored | lagged adopted (recall 0.21 -> 0.34) | score perturbations; finish P2 |
