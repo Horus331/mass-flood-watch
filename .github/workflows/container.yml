@@ -1,0 +1,50 @@
+name: Container (build the pinned image, run the golden storm inside it, publish to GHCR)
+# ADR-004. lock=true first resolves container/requirements.in into container/requirements.lock (committed). Then: docker build, the golden
+# storm inside the image (must pass against docs/proto/golden/reference.json), and only then push ghcr.io/horus331/mass-flood-watch:<sha> and
+# :latest (GHCR is free for public repositories).
+on:
+  push:
+    branches: [main]
+    paths: ['container/**', '.github/workflows/container.yml']
+  workflow_dispatch:
+    inputs:
+      lock: {description: 're-resolve and commit requirements.lock first', type: boolean, default: false}
+permissions:
+  contents: write
+  packages: write
+concurrency:
+  group: container
+  cancel-in-progress: true
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: lock (resolve requirements.in in the same base image)
+        if: ${{ inputs.lock || hashFiles('container/requirements.lock') == '' }}
+        run: |
+          docker run --rm -v $PWD/container:/c python:3.11-slim-bookworm sh -c "pip install -q -r /c/requirements.in && pip freeze > /c/requirements.lock"
+          sudo chown $(id -u) container/requirements.lock; head -40 container/requirements.lock
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add container/requirements.lock; git commit -qm "Container: requirements.lock" || true
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && break; sleep 10; done
+      - run: docker build -f container/Dockerfile -t mfw:test .
+      - name: golden storm inside the image
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          mkdir -p $RUNNER_TEMP/lf
+          docker run --rm -v $PWD:/work -v $RUNNER_TEMP/lf:/lf -e HF_TOKEN -e GIT_SHA=$GITHUB_SHA \
+            -e LF_WORK=/lf -e LF_NO_UPLOAD=1 -e STORM=sep2023 -e BOX=168000,914000,176000,922000 -e RES=20 -e HOURS=12 -e RUN_DIR=runs/golden \
+            -e LF_LOSS=cn -e LF_CN_AMC=II -e LF_CN_SCALE=0.88 -e LF_PARITY=1 -e LF_NOTCH_FIX=1 -e LF_CHAN_ENFORCE=1 -e LF_INFIL_MMH=2 -e LF_QOUT=1 \
+            -e OMP_NUM_THREADS=4 -e PROTO_RES_CONSISTENT=1 -e PROTO_RC_START_H=rain mfw:test sh -c '
+              set -e; python sim/colab/w9_lisflood.py > /lf/w9.txt 2>&1 || { tail -40 /lf/w9.txt; exit 1; }; tail -5 /lf/w9.txt
+              O=$(ls -d /lf/run_*/out | head -1); python proto/prototype.py --run-dir $O --out /lf/proto --storm sep2023 | tail -3
+              python tools/golden.py fingerprint $O /lf/proto /lf/golden_new.json
+              python tools/golden.py compare docs/proto/golden/reference.json /lf/golden_new.json'
+      - name: push to GHCR (only after the golden storm passed)
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          for t in ${GITHUB_SHA::12} latest; do docker tag mfw:test ghcr.io/horus331/mass-flood-watch:$t; docker push -q ghcr.io/horus331/mass-flood-watch:$t; done
+          docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/horus331/mass-flood-watch:latest | tee -a $GITHUB_STEP_SUMMARY
