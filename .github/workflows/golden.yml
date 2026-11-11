@@ -13,7 +13,9 @@ on:
       update: {description: 'write the result as the new reference', type: boolean, default: false}
 permissions:
   contents: write
-concurrency: {group: golden-${{ github.ref }}, cancel-in-progress: true}
+concurrency:
+  group: golden-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   golden:
     runs-on: ubuntu-latest
