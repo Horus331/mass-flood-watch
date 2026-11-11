@@ -3,7 +3,7 @@
 # from source by sim/colab/w9_lisflood.py at run time (CPU here; CUDA on Turing), with the build tools below already present.
 FROM python:3.11-slim-bookworm
 RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends \
-      build-essential cmake git libnetcdf-dev netcdf-bin libnuma-dev time ca-certificates && rm -rf /var/lib/apt/lists/*
+      build-essential cmake git libnetcdf-dev netcdf-bin libnuma-dev libeccodes-dev time ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY container/requirements.lock /tmp/requirements.lock
 RUN pip install --no-cache-dir -r /tmp/requirements.lock
 WORKDIR /work

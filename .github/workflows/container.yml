@@ -24,7 +24,7 @@ jobs:
       - name: lock (resolve requirements.in in the same base image)
         if: ${{ inputs.lock || hashFiles('container/requirements.lock') == '' }}
         run: |
-          docker run --rm -v $PWD/container:/c python:3.11-slim-bookworm sh -c "pip install -q -r /c/requirements.in && pip freeze > /c/requirements.lock"
+          docker run --rm -v $PWD/container:/c python:3.11-slim-bookworm sh -c "apt-get update -qq && apt-get install -y -qq build-essential libnetcdf-dev libeccodes-dev > /dev/null && pip install -q -r /c/requirements.in && pip freeze > /c/requirements.lock"
           sudo chown $(id -u) container/requirements.lock; head -40 container/requirements.lock
           git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
           git add container/requirements.lock; git commit -qm "Container: requirements.lock" || true
