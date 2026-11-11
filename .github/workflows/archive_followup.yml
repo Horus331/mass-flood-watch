@@ -62,7 +62,7 @@ jobs:
         r: ${{ fromJSON(needs.plan.outputs.radar) }}
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: for i in 1 2 3 4 5; do sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev && exit 0; echo "apt attempt $i failed"; sleep $((i * 20)); done; exit 1   # runner DNS fails now and then (11 Nov)
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn
       - uses: actions/download-artifact@v4
         with: {name: plan, path: plan}
