@@ -16,3 +16,6 @@ reference, and say why in `CHANGELOG.md`.
 
 | date | reference from | why |
 |---|---|---|
+| 2026-11-11 | run 43019264848 (sha 20c67cca) | first reference. Repeat run on the same code: identical (closures 5 → 5, flooded ≥ 0.3 m 0.551 → 0.551 km², rain 186 / 84.4 mm). CI time about 6 min, solver about 2–3 min. |
+
+Reference values: 290 road segments in the box, 5 closed, 3.32 km² of land wetter than 0.1 m and 0.55 km² wetter than 0.3 m, storm total 186 mm, peak hour 84.4 mm.
