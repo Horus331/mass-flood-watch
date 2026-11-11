@@ -110,6 +110,61 @@ def check(runs, out):
     return res
 
 
+def heldout(runs, out):
+    """PREREG_PI_HELDOUT.md: for each run's storm t, refit the latent model without t, then checks 1-2 (+ reliability, ranking) on t's run."""
+    import tempfile
+    import latent_label as LL, score_v2 as SV
+    from scipy.special import expit as _ex
+    try: D = LL.get_cache()
+    except Exception: D = {s_: LL.load_storm(s_, d_) for s_, d_ in LL.run_dirs().items()}
+    rows_out = []; rel_e = []; rel_y = []
+    for rd in runs:
+        storm = SV.storm_of(os.path.basename(rd.rstrip('/')))
+        fc = os.path.join(rd, f'features_{storm}.csv') if storm else ''
+        if not storm or storm in LL.LOCKED or not os.path.exists(fc) or not os.path.exists(os.path.join(rd, 'segments.geojson')):
+            print('skip', rd); continue
+        tr = [u for u in sorted(D) if u != storm]; A = LL.assemble(D, tr); fit = LL.em(A)
+        Dt = LL.load_storm(storm, rd, fc); o, H, R = LL.design_new(Dt, A['stats'], tr, D)
+        pi = _ex(LL._pi_logit(fit['th'], o, H)); pdet = LL.p_detect(fit['ph'], R, Dt['Y']); yany = np.nan_to_num(Dt['Y'], nan=0).max(1)
+        rel_e.append(pi * pdet); rel_y.append(yany)
+        r = dict(run=rd, storm=storm, fold_storms=len(tr), em_iters=int(fit['iters']), segments=int(len(pi)), sum_pi=float(pi.sum()),
+                 expected_reports=float((pi * pdet).sum()), observed_reported_segments=int(yany.sum()), max_pi=float(pi.max()), n_pi_ge_50=int((pi >= 0.5).sum()))
+        r['ratio_obs_exp'] = r['observed_reported_segments'] / max(r['expected_reports'], 1e-9)
+        with tempfile.TemporaryDirectory() as tmp:
+            dst = os.path.join(tmp, os.path.basename(rd.rstrip('/')))
+            LL.write_run(rd, dst, storm, LL.rank_to_p(pi, Dt['n_rule']), features_csv=fc)
+            for name, d_ in (('published', rd), ('pi', dst)):
+                B = SV.score_run(SV.load_run(d_, storm))['domains']['box']['rule']
+                r[name] = dict(site_hits=B['site_hits'], sites=len(B['_hits']), site_recall=B['site_recall'])
+        if storm in LL.COMPLETE:
+            dom = np.isin(Dt['town'], LL.COMPLETE[storm]); y = yany[dom]; p = pi[dom]; e = np.argsort(-p); top = np.array_split(e, 5)[0]
+            r['complete_domain'] = dict(n=int(dom.sum()), observed=int(y.sum()), expected=float(p.sum()),
+                                        brier_skill=float(1 - ((p - y) ** 2).mean() / max(((y.mean() - y) ** 2).mean(), 1e-12)),
+                                        top_fifth_pred=float(p[top].mean()), top_fifth_obs=float(y[top].mean()))
+        rows_out.append(r)
+        print(f"{storm:9s} held out: obs/exp {r['ratio_obs_exp']:.2f} (obs {r['observed_reported_segments']}, exp {r['expected_reports']:.1f}), "
+              f"EM {r['em_iters']} it | sites hit published {r['published']['site_hits']:.0f} pi {r['pi']['site_hits']:.0f} of {r['published']['sites']}", flush=True)
+    obs = sum(r['observed_reported_segments'] for r in rows_out); exp = sum(r['expected_reports'] for r in rows_out)
+    rec = lambda k: sum(r[k]['site_hits'] for r in rows_out) / max(1, sum(r[k]['sites'] for r in rows_out))
+    cd = [r['complete_domain'] for r in rows_out if 'complete_domain' in r]
+    E = np.concatenate(rel_e) if rel_e else np.zeros(0); Yv = np.concatenate(rel_y) if rel_y else np.zeros(0)
+    edges = np.quantile(E, np.linspace(0, 1, 11)) if len(E) else []; rel = []
+    for i in range(10 if len(E) else 0):
+        k = (E >= edges[i]) & ((E < edges[i + 1]) if i < 9 else (E <= edges[i + 1]))
+        if k.any(): rel.append(dict(bin=i + 1, n=int(k.sum()), expected=float(E[k].sum()), observed=int(Yv[k].sum())))
+    C = dict(c1_pooled_ratio=obs / max(exp, 1e-9), c1_storm_ratios={r['storm']: round(r['ratio_obs_exp'], 3) for r in rows_out},
+             ranking_recall_published=rec('published'), ranking_recall_pi=rec('pi'), reliability_deciles=rel)
+    sr = list(C['c1_storm_ratios'].values())
+    C['c1_pass'] = bool(0.67 <= C['c1_pooled_ratio'] <= 1.5 and all(1 / 3 <= x <= 3 for x in sr))
+    if cd: C['c2'] = cd[0]; C['c2_pass'] = bool(cd[0]['brier_skill'] > 0 and abs(cd[0]['top_fifth_pred'] - cd[0]['top_fifth_obs']) <= 0.1)
+    else: C['c2_pass'] = False; C['c2'] = 'sep2023 run missing'
+    C['adopt'] = bool(C['c1_pass'] and C['c2_pass'])
+    res = dict(made_by='proto/latent_live.py heldout', prereg='docs/proto/latent/PREREG_PI_HELDOUT.md', checks=C, runs=rows_out)
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True); json.dump(res, open(out, 'w'), indent=1)
+    print(json.dumps({k: v for k, v in C.items() if k != 'reliability_deciles'}, indent=1))
+    return res
+
+
 def selftest():
     th, hm, hs = frozen()
     assert len(th) == 2 + len(hm) == 13 and np.all(hs > 0)
@@ -131,9 +186,10 @@ def selftest():
 
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['features', 'pi', 'check', 'selftest'])
+    ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['features', 'pi', 'check', 'heldout', 'selftest'])
     ap.add_argument('--run-dir'); ap.add_argument('--out'); ap.add_argument('--features'); ap.add_argument('--runs', nargs='*'); a = ap.parse_args()
     if a.cmd == 'selftest': selftest()
     elif a.cmd == 'check': check(a.runs, a.out)
+    elif a.cmd == 'heldout': heldout(a.runs, a.out)
     elif a.cmd == 'features': print(features(a.run_dir, a.out))
     else: cmd_pi(a.features, a.out)
