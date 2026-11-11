@@ -1,29 +1,40 @@
-# Benchmark v3: the model vs NWS warnings, FEMA zones and MassDOT repeat points (Test 1: 10 Nov; Test 2: 11 Nov 2026)
+# Benchmark v3: the model vs six named baselines (10–11 Nov 2026)
 
 Rules: `docs/proto/PROTOCOL_v3.md` (committed c91b0587 before any of this was scored). Code: `proto/bench_v3.py`. Raw: `benchmark_v3.json`.
 Full tables: `BENCHMARK_v3_tables.md`. Model = the clean CPU parity runs (`docs/proto/parity/catalog`), the frozen runs scored in
 BASELINE_v2_expanded. Test 2 uses the frozen r1 transfer runs (work branch `transfer-d456`) and the SFHA overlaps of HYBRID.md (run 40966174644).
-Not in yet: B4 rain threshold, B5 HAND, B6 H×V×C. B3 is District 3 only (MassDOT's list covers District 3).
+B4–B6 as defined in PROTOCOL_v3 amendment 1 (tuned on Leominster sep2023: peak hour ≥ 85 mm, storm total off; HAND ≤ 0 m). B3 is District 3
+only (MassDOT's list covers District 3). All rows for all methods: `BENCHMARK_v3_tables.md`; the tables below are from the first run (M, B1–B3).
 
-## In plain words
+## In plain words (all six baselines, 11 Nov 2026)
 
-**Districts 4–6 (81 storms, never used to build or tune anything): the model beats both NWS warnings and the FEMA 100-yr zone on all five
-measures, every one significant.** At 3 % of roads it finds 21 % of report sites; FEMA 7 %, NWS warnings 9 %, chance 9 %. FEMA and the
-warnings are no better than chance there. This settles the open question from District 3 for FEMA (below).
+Share of report sites found when each method flags its top 3 % of roads (chance in brackets):
 
-District 3 (23 held-out storms):
+| method | District 3, 23 held-out storms | Districts 4–6, 81 storms |
+|---|---|---|
+| **Model** | 20 % | **21 %** |
+| NWS flash-flood warnings | 5 % | 9 % |
+| FEMA 100-yr zone | 12 % | 7 % |
+| MassDOT repeat flood points | 14 % | (District 3 list only) |
+| Radar rain threshold (tuned on Leominster) | 5 % | 6 % |
+| Terrain only (HAND) | 8 % | 10 % |
+| **Static H×V×C** (flood zone + low ground × road type × traffic) | **32 %** | 10 % |
+| chance | 7 % | 9 % |
 
-- **The model clearly beats NWS flash-flood warnings.** Warnings covered half of all road segments in the test storms; at the same number
-  of flagged roads the model finds 9 % of report sites vs 1 % for the warnings (chance 1.4 %), and at 3 % of roads 20 % vs 5 %. All four
-  ranking/yes-no comparisons are significant over the 23 storms.
-- **Against the FEMA 100-yr zone and MassDOT's repeat-flood list the model is ahead on every number but not significantly.** At 3 % of roads:
-  model 20 %, FEMA 12 %, MassDOT points 14 % of sites (chance 7 %). The 95 % intervals include 0. The one significant difference is the
-  Brier score against FEMA (FEMA's probabilities are worse).
-- **Probabilities fitted on Leominster do not carry over.** Roads the Leominster-calibrated model gives about 60 % flooded about 3 % of the
-  time in the other 23 storms (reliability table below). Part of this is that outside Leominster most flooded roads are never reported, but
-  it confirms the master-prompt rule: the site keeps "k of N", no percentage, until held-out calibration works.
-- **Absolute skill is low.** At its own rule (p_close ≥ 0.5) the model catches 5 % of reported segments with 97 % of its flags unreported
-  (CSI 0.018). It is a ranking that beats chance by about 3–6 x, not yet a warning tool on its own.
+- **Districts 4–6 (never used to build or tune anything): the model beats all five baselines there on CSI, PR-AUC and site recall, every
+  difference significant.** The baselines are at or near chance.
+- **District 3: the model beats NWS warnings, the rain threshold and terrain alone significantly, is ahead of FEMA and MassDOT but not
+  significantly, and is behind the static H×V×C score** (32 % vs 20 % at 3 %; 95 % interval of model minus H×V×C [−0.23, 0.00], just short of
+  significant). The likely reason is who reports: in District 3 the reported segments are 25 % arterials against 4 % of all roads, with a
+  median traffic of 5,300 vs 1,000 vehicles a day (most District 3 reports come from MassDOT and the news). A score that ranks busy roads
+  first finds reports, not necessarily floods. In Districts 4–6, where reports are more varied, the same score is at chance (10 % vs 9 %).
+  This is a finding to take seriously, not to explain away: (1) the label set of District 3 is biased to busy roads, and (2) traffic is a
+  strong predictor of *reported* closures, which is what an operations user sees.
+- **The rain threshold tuned on Leominster (peak hour ≥ 85 mm) almost never fires elsewhere**, so it is near chance; its good Brier score only
+  means it predicts "no" everywhere. Brier and BSS reward low predictions when reports are this rare; ranking measures are the ones to read.
+- **Probabilities fitted on Leominster do not carry over** (reliability below): the site keeps "k of N".
+- **Absolute skill is low.** At its own rule the model catches 3–5 % of reported segments (CSI ≈ 0.02). It ranks roads 2–3× better than
+  chance at 3 %.
 
 ## Test 1: 23 held-out District 3 storms (65,958 segments in the reported domain, 222 reported; 126,830 segments in the boxes)
 
