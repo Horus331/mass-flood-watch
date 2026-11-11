@@ -58,3 +58,20 @@ all its inputs exist for both district groups; otherwise it is dropped and the d
 All rows are reported, including any metric on which a baseline beats the model. No threshold, domain, metric or storm list changes after
 results are seen; changes need a dated amendment here with the reason, before re-running. Results go to `scoring/BENCHMARK_v3.md`, with a
 one-page plain-language summary first.
+
+## Amendment 1 (11 Nov 2026, after B1–B3 were scored, before any B4–B6 value was computed against a report)
+
+Concrete definitions of B4–B6, from the per-segment fields every run already writes (`features_<storm>.csv`), so that all storms and both
+district groups use the same inputs:
+
+- **B4** rain: `peak1h_mm` (I60: the segment's peak 1-h MRMS rain, the rain the run was driven with) and `storm_total_mm` in place of the
+  3-h maximum, which is not stored per segment (recomputing it would mean re-reading MRMS for 105 storms). Flag: I60 ≥ T60 or total ≥ Ttot.
+  Grid on Leominster sep2023 (complete domain), maximise CSI: T60 in 5–100 mm by 5, Ttot in 20–300 mm by 10, each also "off". Score:
+  max(I60/T60, total/Ttot) over the thresholds that are on.
+- **B5** terrain: `hand_m` (height above the nearest stream/water cell of the model's 20 m terrain, capped at 20 m). Flag HAND ≤ H*, H* in
+  0–5 m by 0.25, tuned the same way. Score −HAND.
+- **B6** static H×V×C, now feasible (all inputs exist in both groups): hazard = SFHA share (0–1) + 1 if HAND ≤ H* (B5's tuned value);
+  vulnerability = 1.0 local/collector, 0.7 arterial, 0.4 highway; consequence = log10(1 + AADT). Score = product; flag the top 3 % per storm.
+  No tuning beyond H*.
+
+Ties in tuning go to the larger threshold (fewer flags).
