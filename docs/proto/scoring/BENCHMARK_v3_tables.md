@@ -19,6 +19,23 @@ Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 =
 
 \* = the 95 % interval excludes 0.
 
+## test2_d456_81: 81 storms, 668830 segments in the reported domain (1487 reported), 1756867 in the boxes
+
+| method | POD | FAR | CSI | flagged share | Brier | BSS vs climatology | PR-AUC | ROC-AUC | site recall at model share (chance) | site recall at 3 % (chance) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| M Model (p_close) | 0.028 | 0.961 | 0.017 | 0.1 % | 0.0034 | 0.470 | 0.005 | 0.586 | 0.036 (0.005) | 0.206 (0.086) |
+| B1 NWS flash-flood warning | 0.504 | 0.998 | 0.002 | 44.7 % | 0.0064 | 0.000 | 0.002 | 0.474 | 0.006 (0.005) | 0.088 (0.086) |
+| B2 FEMA 100-yr zone (SFHA) | 0.085 | 0.997 | 0.003 | 5.3 % | 0.0118 | -0.839 | 0.002 | 0.517 | 0.006 (0.005) | 0.070 (0.086) |
+
+Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 = model better):
+
+| vs | CSI | Brier | PR-AUC | site recall at model share | site recall at 3 % |
+|---|---|---|---|---|---|
+| B1 | [+0.004, +0.026] * | [+0.003, +0.003] * | [+0.001, +0.007] * | [+0.013, +0.050] * | [+0.081, +0.156] * |
+| B2 | [+0.002, +0.025] * | [+0.008, +0.009] * | [+0.001, +0.007] * | [+0.011, +0.050] * | [+0.089, +0.180] * |
+
+\* = the 95 % interval excludes 0.
+
 ## dev_aug2021: 1 storms, 4469 segments in the reported domain (25 reported), 8566 in the boxes
 
 | method | POD | FAR | CSI | flagged share | Brier | BSS vs climatology | PR-AUC | ROC-AUC | site recall at model share (chance) | site recall at 3 % (chance) |
