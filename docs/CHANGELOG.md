@@ -3,7 +3,9 @@
 Newest first. Model changes, live-system changes and evaluation results that change what the site says.
 
 ## 2026-11-11
-- Golden-storm regression test in CI (`golden.yml`, `docs/proto/GOLDEN.md`).
+- Golden-storm regression test in CI (`golden.yml`, `docs/proto/GOLDEN.md`); first reference, repeat run identical.
+- Container with pinned dependencies (`container/`), golden storm passes inside it; published to ghcr.io/horus331/mass-flood-watch.
+- Keeper also re-runs the sentinel when GitHub's schedule is late.
 - Sentinel: QUIET / WATCH / ACTIVE every ~10 min, `/status/` page, auto Issues on failing live workflows (`docs/proto/live/SENTINEL.md`).
 - Benchmark v3 against six named baselines (`docs/proto/scoring/BENCHMARK_v3.md`): on 81 District 4–6 storms the model beats all, every
   difference significant; on District 3 the static H×V×C score ranks ahead (reports there favour busy roads).

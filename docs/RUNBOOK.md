@@ -29,6 +29,12 @@ What runs, where, and how to fix or restart each piece. Repository: Horus331/mas
   (remove the file and submit once to restart). Pause new submissions only: `"paused": true` in `jobs.json` on `turing-queue`.
 - **Site not updating:** check the Pages deployment in Actions; the site is `docs/` on `main`.
 
+## Container
+`ghcr.io/horus331/mass-flood-watch:latest` (and `:<sha>`), rebuilt by `container.yml` when `container/` changes; pushed only if the golden
+storm passes inside it. On Turing: `apptainer build mfw.sif docker://ghcr.io/horus331/mass-flood-watch:latest`. If the pull asks for a login,
+set the package to public (GitHub → Packages → mass-flood-watch → Package settings → Change visibility). New Python package: add it to
+`container/requirements.in`, run `container.yml` with `lock = true`.
+
 ## Re-run a storm
 - Replay on the CPU set-up: `parity_test.yml` with a case `{name, storm, box, hours, env}` (catalogue storms: `docs/proto/obs/catalog.json`).
 - On Turing (GPU solve + CPU post): add a job to `jobs.json` on `turing-queue` (kinds in `proto/turing/queue_kinds.json`).
