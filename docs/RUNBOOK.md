@@ -12,7 +12,7 @@ What runs, where, and how to fix or restart each piece. Repository: Horus331/mas
 | Keeper (re-runs whatever GitHub's schedule skipped) | `keeper.yml` | chain, restarted every 3 h | — |
 | MassDOT events log | `events_log.yml` | every 15 min | events archive |
 | Storm archive follow-up | `archive_followup.yml` | twice a day | `docs/proto/archive/` |
-| Failure Issues | `failure_issue.yml` | on each live run | GitHub Issue "Failing: <workflow>" |
+| Failure Issues | `tools/health_issues.py` in `sentinel.yml` | every ~15 min | GitHub Issue "Failing: <workflow>" |
 | Golden storm | `golden.yml` | on model code changes | pass / fail |
 | Turing queue | `proto/turing/queue_runner.slurm` on Turing | every 30 min | jobs from `turing-queue` branch |
 

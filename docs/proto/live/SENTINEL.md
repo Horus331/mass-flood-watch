@@ -33,5 +33,5 @@ work (Phase 3) and for ARC's answer on recurring Turing jobs.
 
 ## Failures
 
-`.github/workflows/failure_issue.yml` opens one GitHub Issue per failing live workflow ("Failing: <name>"), comments on repeat failures and
+`tools/health_issues.py` (a step of the sentinel, every ~15 min) opens one GitHub Issue per failing live workflow ("Failing: <name>"), comments on repeat failures and
 closes it on the next success.

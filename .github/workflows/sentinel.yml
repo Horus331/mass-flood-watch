@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  issues: write
+  actions: read
 concurrency: {group: sentinel, cancel-in-progress: false}
 jobs:
   sentinel:
@@ -26,3 +28,8 @@ jobs:
           git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
           git add docs/site/data/status.json; git commit -qm "Sentinel: ${{ steps.s.outputs.state }}${{ steps.s.outputs.changed == 'true' && ' (changed)' || '' }}" || exit 0
           for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && exit 0; sleep 10; done; exit 1
+      - name: failure Issues for the live workflows (tools/health_issues.py)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: timeout 120 python tools/health_issues.py || true
