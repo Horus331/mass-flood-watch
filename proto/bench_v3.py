@@ -28,7 +28,8 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 METHODS = ('M', 'B1', 'B2', 'B3')
-NAMES = dict(M='Model (p_close)', B1='NWS flash-flood warning', B2='FEMA 100-yr zone (SFHA)', B3='MassDOT repeat flood points')
+NAMES = dict(M='Model (p_close)', B1='NWS flash-flood warning', B2='FEMA 100-yr zone (SFHA)', B3='MassDOT repeat flood points',
+             B4='Radar rain threshold (I60 / storm total)', B5='Terrain only (HAND)', B6='Static HxVxC')
 NEG_M = 500.0; MATCH_M = 30.0; SITE_LINK_M = 150.0; SHARE3 = 0.03; SEEDS = 5; NBOOT = 2000
 TUNE = 'sep2023'; DEV = ('aug2021',)
 D456_ROOT = os.environ.get('D456_ROOT')    # staged copy of the transfer-d456 branch (r1 runs, roads_osm) + hybrid_d456_sfha.json
@@ -105,9 +106,56 @@ def storm_arrays(storm, run, FFW, SF, MDP, sf_key='fema_sfha'):
     sf = SF['categories'].get(sf_key, {}); b2 = np.array([float(sf.get(str(int(s)), 0.0)) for s in R['seg']])
     dmd = cKDTree(MDP).query(np.column_stack([X, Y]))[0] if MDP is not None and len(MDP) else np.full(n, np.inf)
     b1 = ffw_hours(storm, X, Y, FFW)
+    fx = features(run, storm, R['seg'])
     score = dict(M=R['p'].astype(float), B1=b1, B2=b2); flag = dict(M=R['p'] >= 0.5, B1=b1 > 0, B2=b2 >= 30.0)
     if MDP is not None: score['B3'] = 1.0 / np.maximum(dmd, 1.0); flag['B3'] = dmd <= MATCH_M
-    return dict(storm=storm, n=n, y=y, rep=rep, comp=comp, sites=sites, score=score, flag=flag, run=R['run'])
+    return dict(storm=storm, n=n, y=y, rep=rep, comp=comp, sites=sites, score=score, flag=flag, run=R['run'], fx=fx, sfha=b2)
+
+
+def features(run, storm, seg):
+    """Per-segment fields of the run's features csv (plain or .gz), aligned to seg: i60, total, hand, vuln, aadt (amendment 1)."""
+    import csv, gzip
+    p = os.path.join(run, f'features_{storm}.csv'); fh = open(p) if os.path.exists(p) else gzip.open(p + '.gz', 'rt')
+    V = dict(arterial=0.7, highway=0.4); D = {}
+    for r in csv.DictReader(fh):
+        g = lambda k, d=0.0: float(r[k]) if r.get(k) not in (None, '') else d
+        D[int(r['segment'])] = (g('peak1h_mm'), g('storm_total_mm'), g('hand_m', 20.0), V.get(r.get('road_class', ''), 1.0), g('aadt'))
+    M = np.array([D.get(int(s), (0.0, 0.0, 20.0, 1.0, 0.0)) for s in seg], float)
+    return dict(i60=M[:, 0], total=M[:, 1], hand=M[:, 2], vuln=M[:, 3], aadt=M[:, 4])
+
+
+def csi(f, y):
+    tp = (f & y).sum(); return tp / max(1, tp + (f & ~y).sum() + (~f & y).sum())
+
+
+def tune_b4_b5(T):
+    """Grid search on the complete domain (amendment 1); ties -> the larger threshold."""
+    c = T['comp']; y = T['y'][c]; F = {k: v[c] for k, v in T['fx'].items()}; best = (-1, None, None)
+    for t60 in [None] + list(range(5, 101, 5)):
+        for tt in [None] + list(range(20, 301, 10)):
+            if t60 is None and tt is None: continue
+            f = np.zeros(len(y), bool)
+            if t60: f |= F['i60'] >= t60
+            if tt: f |= F['total'] >= tt
+            v = csi(f, y)
+            if v > best[0] + 1e-12 or (abs(v - best[0]) <= 1e-12 and ((t60 or 1e9) + (tt or 1e9)) > ((best[1] or 1e9) + (best[2] or 1e9))): best = (v, t60, tt)
+    hb = (-1, None)
+    for h in np.arange(0, 5.0001, 0.25):
+        v = csi(F['hand'] <= h, y)
+        if v > hb[0] + 1e-12: hb = (v, float(h))
+    return dict(T60=best[1], Ttot=best[2], csi_b4=float(best[0]), Hstar=hb[1], csi_b5=float(hb[0]))
+
+
+def add_b456(A, TU):
+    fx = A['fx']; T60, Tt, H = TU['T60'], TU['Ttot'], TU['Hstar']; r = []
+    f4 = np.zeros(A['n'], bool)
+    if T60: f4 |= fx['i60'] >= T60; r.append(fx['i60'] / T60)
+    if Tt: f4 |= fx['total'] >= Tt; r.append(fx['total'] / Tt)
+    A['score']['B4'] = np.max(r, axis=0); A['flag']['B4'] = f4
+    A['score']['B5'] = -fx['hand']; A['flag']['B5'] = fx['hand'] <= H
+    s6 = (A['sfha'] / 100.0 + (fx['hand'] <= H)) * fx['vuln'] * np.log10(1 + fx['aadt']); A['score']['B6'] = s6
+    k = max(1, int(round(SHARE3 * A['n']))); o = np.lexsort((np.random.default_rng(0).random(A['n']), -s6)); f6 = np.zeros(A['n'], bool); f6[o[:k]] = True
+    A['flag']['B6'] = f6
 
 
 # ------------------------------------------------------------------------------------------------ metrics
@@ -223,18 +271,20 @@ def run(out, md):
             if not os.path.isdir(rd): print('missing run', e['name']); continue
             t = time.time(); A_all[e['id']] = storm_arrays(e['id'], rd, FFW, SF2, None, sf_key=f"sfha|{e['id']}"); test2.append(e['id']); show(e['id'])
         assert len(test2) == 81, len(test2)
-    # tuning: isotonic maps on the complete domain (Leominster sep2023), frozen
-    T = A_all[TUNE]; c = T['comp']; ISO = {m: iso_fit(T['score'][m][c], T['y'][c]) for m in METHODS}; clim = float(T['y'][c].mean())
+    # tuning: B4/B5 thresholds, then isotonic maps, on the complete domain (Leominster sep2023), frozen
+    TU = tune_b4_b5(A_all[TUNE]); print('tuned on', TUNE, TU, flush=True)
+    for A in A_all.values(): add_b456(A, TU)
+    T = A_all[TUNE]; c = T['comp']; ISO = {m: iso_fit(T['score'][m][c], T['y'][c]) for m in T['score']}; clim = float(T['y'][c].mean())
     P_all = {s: {m: ISO[m].predict(A['score'][m]) for m in A['score']} for s, A in A_all.items()}
     ST = {s: per_storm_stats(A, P_all[s], tuple(A['score'])) for s, A in A_all.items()}
     res = dict(made_by='proto/bench_v3.py', protocol='docs/proto/PROTOCOL_v3.md', made=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
-               methods=NAMES, not_yet=dict(B4='radar rain threshold: MRMS per segment not built yet', B5='HAND: not built yet',
-                                           B6='static HxVxC: not built yet', B3_test2='MassDOT repeat-flood list covers District 3 only'),
+               methods=NAMES, not_available=dict(B3_test2='MassDOT repeat-flood list covers District 3 only'),
                tuning=dict(storm=TUNE, domain='complete (Leominster DPW)', climatology_p=clim,
-                           complete_domain={m: complete_metrics(T, P_all[TUNE], m) for m in METHODS}),
+                           thresholds=TU, complete_domain={m: complete_metrics(T, P_all[TUNE], m) for m in T['score']}),
                sets={}, per_storm={s: ST[s] for s in ST})
-    sets = [('test1_d3_heldout23', test1, METHODS), ('dev_aug2021', list(DEV), METHODS), ('tuning_sep2023_reported_domain', [TUNE], METHODS)]
-    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2')))
+    ALL = METHODS + ('B4', 'B5', 'B6')
+    sets = [('test1_d3_heldout23', test1, ALL), ('dev_aug2021', list(DEV), ALL), ('tuning_sep2023_reported_domain', [TUNE], ALL)]
+    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2', 'B4', 'B5', 'B6')))
     for name, storms, ms in sets:
         res['sets'][name] = pooled(ST, storms, P_all, A_all, clim, ms)
         if name.startswith('test'): res['sets'][name]['model_minus_baseline'] = boot(ST, storms, A_all, P_all, ms=ms)
