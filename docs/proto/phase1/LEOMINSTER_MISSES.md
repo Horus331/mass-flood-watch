@@ -42,8 +42,8 @@ reporting bias) why traffic ranks the damage well even in the DPW's complete inv
 "an inventoried stream crossing within 30 m" (`docs/network/crossings_all.json`: UMass stream crossings, MassDOT, NBI bridges).
 - 17 of the 54 DPW points are within 30 m of an inventoried crossing, against **1.9 %** of Leominster's road length: crossings are about
   16 times over-represented among damage sites. 11 of those 17 were hit.
-- Misses re-classed: **culvert 6**, flow 25, drainage 1, debris 0 (the debris point is at a crossing, so it is culvert), terrain 0,
-  label 0, unexplained 1. The "flow" class still rests on a speed test that most roads pass, so read it as "little modelled water, not
+- Misses re-classed: **culvert 6**, flow 26, drainage 1, debris 0 (the debris point is at a crossing, so it is culvert), terrain 0,
+  label 0, unexplained 0. The "flow" class still rests on a speed test that most roads pass, so read it as "little modelled water, not
   at a crossing": edge erosion along the road.
 
 **Named limitations.** One storm, one city; DPW points are damage, not closures; the city's storm-drain network (provided by the DPW) is
