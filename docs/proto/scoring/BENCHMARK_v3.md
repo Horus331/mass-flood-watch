@@ -1,10 +1,17 @@
-# Benchmark v3, part 1: District 3 held-out storms vs NWS warnings, FEMA zones and MassDOT repeat points (10 Nov 2026)
+# Benchmark v3: the model vs NWS warnings, FEMA zones and MassDOT repeat points (Test 1: 10 Nov; Test 2: 11 Nov 2026)
 
 Rules: `docs/proto/PROTOCOL_v3.md` (committed c91b0587 before any of this was scored). Code: `proto/bench_v3.py`. Raw: `benchmark_v3.json`.
 Full tables: `BENCHMARK_v3_tables.md`. Model = the clean CPU parity runs (`docs/proto/parity/catalog`), the frozen runs scored in
-BASELINE_v2_expanded. Not in this part yet: B4 rain threshold, B5 HAND, B6 H×V×C, Test 2 (Districts 4–6).
+BASELINE_v2_expanded. Test 2 uses the frozen r1 transfer runs (work branch `transfer-d456`) and the SFHA overlaps of HYBRID.md (run 40966174644).
+Not in yet: B4 rain threshold, B5 HAND, B6 H×V×C. B3 is District 3 only (MassDOT's list covers District 3).
 
 ## In plain words
+
+**Districts 4–6 (81 storms, never used to build or tune anything): the model beats both NWS warnings and the FEMA 100-yr zone on all five
+measures, every one significant.** At 3 % of roads it finds 21 % of report sites; FEMA 7 %, NWS warnings 9 %, chance 9 %. FEMA and the
+warnings are no better than chance there. This settles the open question from District 3 for FEMA (below).
+
+District 3 (23 held-out storms):
 
 - **The model clearly beats NWS flash-flood warnings.** Warnings covered half of all road segments in the test storms; at the same number
   of flagged roads the model finds 9 % of report sites vs 1 % for the warnings (chance 1.4 %), and at 3 % of roads 20 % vs 5 %. All four
@@ -43,6 +50,21 @@ Model reliability on Test 1 (isotonic map fitted on Leominster sep2023, frozen):
 | 0.1–0.2 | 3,446 | 0.144 | 0.006 |
 | 0.2–0.3 | 980 | 0.227 | 0.016 |
 | 0.6–0.7 | 181 | 0.611 | 0.028 |
+
+## Test 2: 81 District 4–6 storms (668,830 segments in the reported domain, 1,487 reported; 1,756,867 segments in the boxes)
+
+| method | POD | FAR | CSI | flagged share | Brier | PR-AUC | ROC-AUC | site recall at model's share (chance) | site recall at 3 % (chance) |
+|---|---|---|---|---|---|---|---|---|---|
+| Model (p_close) | 0.028 | 0.961 | **0.017** | 0.1 % | **0.0034** | **0.005** | **0.586** | **0.036** (0.005) | **0.206** (0.086) |
+| NWS flash-flood warning | 0.504 | 0.998 | 0.002 | 44.7 % | 0.0064 | 0.002 | 0.474 | 0.006 (0.005) | 0.088 (0.086) |
+| FEMA 100-yr zone (≥ 30 % of length) | 0.085 | 0.997 | 0.003 | 5.3 % | 0.0118 | 0.002 | 0.517 | 0.006 (0.005) | 0.070 (0.086) |
+
+| vs | CSI | Brier | PR-AUC | site recall at model's share | site recall at 3 % |
+|---|---|---|---|---|---|
+| NWS warnings | [+0.004, +0.026] * | [+0.003, +0.003] * | [+0.001, +0.007] * | [+0.013, +0.050] * | [+0.081, +0.156] * |
+| FEMA zone | [+0.002, +0.025] * | [+0.008, +0.009] * | [+0.001, +0.007] * | [+0.011, +0.050] * | [+0.089, +0.180] * |
+
+Check: the model's 3 % recall (0.206) matches the transfer result of TRANSFER.md (0.21), so the scorer reproduces the earlier score.
 
 ## Tuning storm (Leominster sep2023, complete DPW inventory; in-sample, for reference only)
 

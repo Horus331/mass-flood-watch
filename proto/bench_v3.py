@@ -31,6 +31,7 @@ METHODS = ('M', 'B1', 'B2', 'B3')
 NAMES = dict(M='Model (p_close)', B1='NWS flash-flood warning', B2='FEMA 100-yr zone (SFHA)', B3='MassDOT repeat flood points')
 NEG_M = 500.0; MATCH_M = 30.0; SITE_LINK_M = 150.0; SHARE3 = 0.03; SEEDS = 5; NBOOT = 2000
 TUNE = 'sep2023'; DEV = ('aug2021',)
+D456_ROOT = os.environ.get('D456_ROOT')    # staged copy of the transfer-d456 branch (r1 runs, roads_osm) + hybrid_d456_sfha.json
 
 
 # ------------------------------------------------------------------------------------------------ per-storm arrays
@@ -83,7 +84,7 @@ def massdot_xy():
     return np.array(P)
 
 
-def storm_arrays(storm, run, FFW, SF, MDP):
+def storm_arrays(storm, run, FFW, SF, MDP, sf_key='fema_sfha'):
     import score_v2 as S
     from scipy.spatial import cKDTree
     R = S.load_run(run, storm); n = len(R['seg']); X, Y = midpoints(R)
@@ -101,11 +102,11 @@ def storm_arrays(storm, run, FFW, SF, MDP):
     mk = [k for k, v in R['matches'].items() if k in labs]
     cl = S.link_clusters(np.array([[labs[k]['x'], labs[k]['y']] for k in mk]).reshape(-1, 2), SITE_LINK_M)
     sites = [sorted({s for i in np.nonzero(cl == c)[0] for s in R['matches'][mk[i]]}) for c in (np.unique(cl) if len(cl) else [])]
-    sf = SF['categories']['fema_sfha']; b2 = np.array([float(sf.get(str(int(s)), 0.0)) for s in R['seg']])
-    dmd = cKDTree(MDP).query(np.column_stack([X, Y]))[0] if len(MDP) else np.full(n, np.inf)
+    sf = SF['categories'].get(sf_key, {}); b2 = np.array([float(sf.get(str(int(s)), 0.0)) for s in R['seg']])
+    dmd = cKDTree(MDP).query(np.column_stack([X, Y]))[0] if MDP is not None and len(MDP) else np.full(n, np.inf)
     b1 = ffw_hours(storm, X, Y, FFW)
-    score = dict(M=R['p'].astype(float), B1=b1, B2=b2, B3=1.0 / np.maximum(dmd, 1.0))
-    flag = dict(M=R['p'] >= 0.5, B1=b1 > 0, B2=b2 >= 30.0, B3=dmd <= MATCH_M)
+    score = dict(M=R['p'].astype(float), B1=b1, B2=b2); flag = dict(M=R['p'] >= 0.5, B1=b1 > 0, B2=b2 >= 30.0)
+    if MDP is not None: score['B3'] = 1.0 / np.maximum(dmd, 1.0); flag['B3'] = dmd <= MATCH_M
     return dict(storm=storm, n=n, y=y, rep=rep, comp=comp, sites=sites, score=score, flag=flag, run=R['run'])
 
 
@@ -126,10 +127,10 @@ def site_recall(A, m, k, seeds=SEEDS):
     return hits / seeds, ch, len(A['sites'])
 
 
-def per_storm_stats(A, P):
+def per_storm_stats(A, P, ms=METHODS):
     """Counts and sums per method for one storm (all additive, so the storm bootstrap resamples them)."""
     out = {}; d = A['rep']; y = A['y'][d]; kr = int(A['flag']['M'].sum()); k3 = max(1, int(round(SHARE3 * A['n'])))
-    for m in METHODS:
+    for m in ms:
         f = A['flag'][m][d]; p = P[m][d]
         h_r, c_r, ns = site_recall(A, m, kr) if kr else (0.0, 0.0, len(A['sites'])); h_3, c_3, _ = site_recall(A, m, k3)
         out[m] = dict(tp=int((f & y).sum()), fp=int((f & ~y).sum()), fn=int((~f & y).sum()), nflag_box=int(A['flag'][m].sum()),
@@ -138,13 +139,13 @@ def per_storm_stats(A, P):
     return out
 
 
-def pooled(ST, storms, P_all, A_all, clim):
-    T = {m: {k: sum(ST[s][m][k] for s in storms) for k in ST[storms[0]][m]} for m in METHODS}
+def pooled(ST, storms, P_all, A_all, clim, ms=METHODS):
+    T = {m: {k: sum(ST[s][m][k] for s in storms) for k in ST[storms[0]][m]} for m in ms}
     nb = sum(ST[s]['_']['n_box'] for s in storms); nr = sum(ST[s]['_']['n_rep'] for s in storms); pos = sum(ST[s]['_']['pos'] for s in storms)
     yy = np.concatenate([A_all[s]['y'][A_all[s]['rep']] for s in storms]); bclim = float(((clim - yy) ** 2).sum())
     out = dict(storms=len(storms), segments_box=nb, segments_reported_domain=nr, positives=pos, climatology_p=clim, methods={})
     from sklearn.metrics import average_precision_score, roc_auc_score
-    for m in METHODS:
+    for m in ms:
         t = T[m]; tp, fp, fn = t['tp'], t['fp'], t['fn']
         pp = np.concatenate([P_all[s][m][A_all[s]['rep']] for s in storms]); ss = np.concatenate([A_all[s]['score'][m][A_all[s]['rep']] for s in storms])
         out['methods'][m] = dict(name=NAMES[m], POD=tp / max(1, tp + fn), FAR=fp / max(1, tp + fp) if tp + fp else None, CSI=tp / max(1, tp + fp + fn),
@@ -155,7 +156,7 @@ def pooled(ST, storms, P_all, A_all, clim):
                                  site_recall_rule_share=t['hit_rule_share'] / max(1, t['sites']), chance_rule_share=t['chance_rule_share'] / max(1, t['sites']),
                                  site_recall_3pct=t['hit_3'] / max(1, t['sites']), chance_3pct=t['chance_3'] / max(1, t['sites']), sites=t['sites'],
                                  reliability=reliability(pp, yy))
-    for m in METHODS[1:]:
+    for m in ms[1:]:
         out['methods']['M'].setdefault('BSS_vs', {})[m] = 1 - T['M']['brier'] / T[m]['brier'] if T[m]['brier'] else None
     return out
 
@@ -168,11 +169,11 @@ def reliability(p, y, bins=10):
     return R
 
 
-def boot(ST, storms, A_all, P_all, nboot=NBOOT, seed=0):
+def boot(ST, storms, A_all, P_all, nboot=NBOOT, seed=0, ms=METHODS):
     """Paired storm bootstrap of model minus baseline: CSI, Brier (lower is better: baseline - model), PR-AUC, site recall at the rule share and 3 %."""
     from sklearn.metrics import average_precision_score
-    rng = np.random.default_rng(seed); S = list(storms); D = {m: {k: [] for k in ('CSI', 'Brier', 'PR_AUC', 'recall_rule_share', 'recall_3pct')} for m in METHODS[1:]}
-    Y = {s: A_all[s]['y'][A_all[s]['rep']] for s in S}; SC = {s: {m: A_all[s]['score'][m][A_all[s]['rep']] for m in METHODS} for s in S}
+    rng = np.random.default_rng(seed); S = list(storms); D = {m: {k: [] for k in ('CSI', 'Brier', 'PR_AUC', 'recall_rule_share', 'recall_3pct')} for m in ms[1:]}
+    Y = {s: A_all[s]['y'][A_all[s]['rep']] for s in S}; SC = {s: {m: A_all[s]['score'][m][A_all[s]['rep']] for m in ms} for s in S}
 
     def stat(sel, m):
         t = {k: sum(ST[s][m][k] for s in sel) for k in ('tp', 'fp', 'fn', 'brier', 'hit_rule_share', 'hit_3', 'sites')}
@@ -182,7 +183,7 @@ def boot(ST, storms, A_all, P_all, nboot=NBOOT, seed=0):
     for _ in range(nboot):
         sel = [S[i] for i in rng.integers(0, len(S), len(S))]; yy = np.concatenate([Y[s] for s in sel])
         sm = stat(sel, 'M'); apm = average_precision_score(yy, np.concatenate([SC[s]['M'] for s in sel])) if yy.any() else np.nan
-        for m in METHODS[1:]:
+        for m in ms[1:]:
             sb = stat(sel, m); apb = average_precision_score(yy, np.concatenate([SC[s][m] for s in sel])) if yy.any() else np.nan
             D[m]['CSI'].append(sm['CSI'] - sb['CSI']); D[m]['Brier'].append(sb['Brier'] - sm['Brier']); D[m]['PR_AUC'].append(apm - apb)
             D[m]['recall_rule_share'].append(sm['rr'] - sb['rr']); D[m]['recall_3pct'].append(sm['r3'] - sb['r3'])
@@ -204,23 +205,39 @@ def run(out, md):
     test1 = [s for s in S.HELDOUT + S.NEW16 if s in runs and s not in S.LOCKED]
     assert len(test1) == 23 and TUNE in runs, (len(test1), sorted(runs))
     A_all = {}
-    for s in [TUNE] + list(DEV) + test1:
-        t = time.time(); A_all[s] = storm_arrays(s, runs[s], FFW, SF, MDP)
+
+    def show(s):
         A = A_all[s]; print(f"{s:9s} seg {A['n']:6d} rep {A['rep'].sum():6d} pos {A['y'].sum():4d} sites {len(A['sites']):3d} "
-                            + ' '.join(f"{m}:{A['flag'][m].sum()}" for m in METHODS) + f" ({time.time() - t:.0f} s)", flush=True)
+                            + ' '.join(f"{m}:{A['flag'][m].sum()}" for m in A['flag']) + f" ({time.time() - t:.0f} s)", flush=True)
+    for s in [TUNE] + list(DEV) + test1:
+        t = time.time(); A_all[s] = storm_arrays(s, runs[s], FFW, SF, MDP); show(s)
+    # Test 2: Districts 4-6, frozen r1 transfer runs (work branch transfer-d456, staged under D456_ROOT), SFHA from hybrid_d456_sfha.json.
+    # MassDOT's repeat-flood list covers District 3 only, so B3 is not available there.
+    test2 = []
+    if D456_ROOT:
+        import hybrid_d456 as HD
+        HD.read_gz_features(S); SF2 = json.load(open(os.path.join(D456_ROOT, 'hybrid_d456_sfha.json')))
+        for e in HD.events():
+            if e['id'] in S.LOCKED: continue
+            rd = os.path.join(D456_ROOT, 'docs', 'proto', 'transfer', 'r1', e['name'])
+            if not os.path.isdir(rd): print('missing run', e['name']); continue
+            t = time.time(); A_all[e['id']] = storm_arrays(e['id'], rd, FFW, SF2, None, sf_key=f"sfha|{e['id']}"); test2.append(e['id']); show(e['id'])
+        assert len(test2) == 81, len(test2)
     # tuning: isotonic maps on the complete domain (Leominster sep2023), frozen
     T = A_all[TUNE]; c = T['comp']; ISO = {m: iso_fit(T['score'][m][c], T['y'][c]) for m in METHODS}; clim = float(T['y'][c].mean())
-    P_all = {s: {m: ISO[m].predict(A['score'][m]) for m in METHODS} for s, A in A_all.items()}
-    ST = {s: per_storm_stats(A, P_all[s]) for s, A in A_all.items()}
+    P_all = {s: {m: ISO[m].predict(A['score'][m]) for m in A['score']} for s, A in A_all.items()}
+    ST = {s: per_storm_stats(A, P_all[s], tuple(A['score'])) for s, A in A_all.items()}
     res = dict(made_by='proto/bench_v3.py', protocol='docs/proto/PROTOCOL_v3.md', made=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
                methods=NAMES, not_yet=dict(B4='radar rain threshold: MRMS per segment not built yet', B5='HAND: not built yet',
-                                           B6='static HxVxC: not built yet', test2='Districts 4-6: next'),
+                                           B6='static HxVxC: not built yet', B3_test2='MassDOT repeat-flood list covers District 3 only'),
                tuning=dict(storm=TUNE, domain='complete (Leominster DPW)', climatology_p=clim,
                            complete_domain={m: complete_metrics(T, P_all[TUNE], m) for m in METHODS}),
-               sets={}, per_storm={s: {m: ST[s][m] for m in list(METHODS) + ['_']} for s in ST})
-    for name, storms in (('test1_d3_heldout23', test1), ('dev_aug2021', list(DEV)), ('tuning_sep2023_reported_domain', [TUNE])):
-        res['sets'][name] = pooled(ST, storms, P_all, A_all, clim)
-        if name.startswith('test1'): res['sets'][name]['model_minus_baseline'] = boot(ST, storms, A_all, P_all)
+               sets={}, per_storm={s: ST[s] for s in ST})
+    sets = [('test1_d3_heldout23', test1, METHODS), ('dev_aug2021', list(DEV), METHODS), ('tuning_sep2023_reported_domain', [TUNE], METHODS)]
+    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2')))
+    for name, storms, ms in sets:
+        res['sets'][name] = pooled(ST, storms, P_all, A_all, clim, ms)
+        if name.startswith('test'): res['sets'][name]['model_minus_baseline'] = boot(ST, storms, A_all, P_all, ms=ms)
     json.dump(res, open(out, 'w'), indent=1); open(md, 'w').write(tables(res)); print(tables(res))
 
 
