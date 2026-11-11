@@ -67,7 +67,7 @@ dl.rules{display:grid;grid-template-columns:90px 1fr;gap:6px 12px;font-size:15px
     var el=document.getElementById('state');el.className='state '+S.state;
     el.innerHTML='<div><div class="big">'+esc(S.state)+'</div><div class="what">'+esc(WHAT[S.state]||'')+' Since '+t(S.since)+'.</div></div>';
     document.getElementById('made').innerHTML='Last check: '+t(S.made)+'.';
-    document.getElementById('reasons').innerHTML=(S.reasons||[]).map(function(r){return '<li>'+esc(r)+'</li>'}).join('');
+    document.getElementById('reasons').innerHTML=(S.state=='QUIET'&&!S.blind?[]:(S.reasons||[])).map(function(r){return '<li>'+esc(r)+'</li>'}).join('');
     var rows='';['nws','radar','hrrr','forecast','live_feeds','usgs_gauges'].forEach(function(k){var s=(S.sources||{})[k]||{};
       var cls=s.error?'err':stale(s.last,LIM[k])?'late':'',det='';
       if(s.error)det='Not reachable: '+esc(s.error).slice(0,120);
@@ -77,7 +77,8 @@ dl.rules{display:grid;grid-template-columns:90px 1fr;gap:6px 12px;font-size:15px
       else if(k=='forecast')det=esc(s.headline||'')+(s.issued?' (issued '+esc(s.issued)+')':'');
       else if(k=='live_feeds')det=Object.keys(s.feeds||{}).map(function(f){return f+': '+s.feeds[f]}).join(', ');
       else if(k=='usgs_gauges')det=(s.gauges||'–')+' gauges';
-      var nx=s.next&&/^\d{4}-/.test(s.next)?t(s.next):esc(s.next||'–');
+      var nx=s.next&&/^\d{4}-/.test(s.next)?(new Date(s.next)<Date.now()?'due now <span class="small">(read at the next check)</span>':t(s.next)):esc(s.next||'–');
+      if(k=='radar'&&!s.error)nx='every ~2 min at the source';
       rows+='<tr><td><span class="dot '+cls+'"></span>'+NAMES[k]+'</td><td>'+t(s.last)+'</td><td>'+nx+'</td><td>'+det+'</td></tr>'});
     document.getElementById('src').innerHTML=rows;
     var R=S.rules||{};document.getElementById('rules').innerHTML=['ACTIVE','WATCH','QUIET'].map(function(k){return '<dt style="color:var(--'+k.toLowerCase()+')">'+k+'</dt><dd>'+esc(R[k]||'')+'</dd>'}).join('');
