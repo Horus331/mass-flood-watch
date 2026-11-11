@@ -29,7 +29,8 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 METHODS = ('M', 'B1', 'B2', 'B3')
 NAMES = dict(M='Model (p_close)', B1='NWS flash-flood warning', B2='FEMA 100-yr zone (SFHA)', B3='MassDOT repeat flood points',
-             B4='Radar rain threshold (I60 / storm total)', B5='Terrain only (HAND)', B6='Static HxVxC')
+             B4='Radar rain threshold (I60 / storm total)', B5='Terrain only (HAND)', B6='Static HxVxC',
+             H='Model + traffic (PREREG_HYBRID)')
 NEG_M = 500.0; MATCH_M = 30.0; SITE_LINK_M = 150.0; SHARE3 = 0.03; SEEDS = 5; NBOOT = 2000
 TUNE = 'sep2023'; DEV = ('aug2021',)
 D456_ROOT = os.environ.get('D456_ROOT')    # staged copy of the transfer-d456 branch (r1 runs, roads_osm) + hybrid_d456_sfha.json
@@ -274,7 +275,16 @@ def run(out, md):
     # tuning: B4/B5 thresholds, then isotonic maps, on the complete domain (Leominster sep2023), frozen
     TU = tune_b4_b5(A_all[TUNE]); print('tuned on', TUNE, TU, flush=True)
     for A in A_all.values(): add_b456(A, TU)
-    T = A_all[TUNE]; c = T['comp']; ISO = {m: iso_fit(T['score'][m][c], T['y'][c]) for m in T['score']}; clim = float(T['y'][c].mean())
+    # hybrid H (PREREG_HYBRID.md): logistic on the complete domain, inputs p_close and log10(1 + AADT), frozen; flag = top 3 % per storm
+    from sklearn.linear_model import LogisticRegression
+    hx = lambda A: np.column_stack([A['score']['M'], np.log10(1 + A['fx']['aadt'])])
+    T = A_all[TUNE]; c = T['comp']; HY = LogisticRegression(C=1e6, max_iter=2000).fit(hx(T)[c], T['y'][c])
+    print('hybrid coef', HY.coef_.tolist(), HY.intercept_.tolist(), flush=True)
+    for A in A_all.values():
+        h = HY.predict_proba(hx(A))[:, 1]; A['score']['H'] = h; k = max(1, int(round(SHARE3 * A['n'])))
+        o = np.lexsort((np.random.default_rng(0).random(A['n']), -h)); f = np.zeros(A['n'], bool); f[o[:k]] = True; A['flag']['H'] = f
+    TU['hybrid'] = dict(coef=HY.coef_.tolist(), intercept=HY.intercept_.tolist(), inputs=['p_close', 'log10(1+AADT)'])
+    ISO = {m: iso_fit(T['score'][m][c], T['y'][c]) for m in T['score']}; clim = float(T['y'][c].mean())
     P_all = {s: {m: ISO[m].predict(A['score'][m]) for m in A['score']} for s, A in A_all.items()}
     ST = {s: per_storm_stats(A, P_all[s], tuple(A['score'])) for s, A in A_all.items()}
     res = dict(made_by='proto/bench_v3.py', protocol='docs/proto/PROTOCOL_v3.md', made=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
@@ -282,9 +292,9 @@ def run(out, md):
                tuning=dict(storm=TUNE, domain='complete (Leominster DPW)', climatology_p=clim,
                            thresholds=TU, complete_domain={m: complete_metrics(T, P_all[TUNE], m) for m in T['score']}),
                sets={}, per_storm={s: ST[s] for s in ST})
-    ALL = METHODS + ('B4', 'B5', 'B6')
+    ALL = METHODS + ('B4', 'B5', 'B6', 'H')
     sets = [('test1_d3_heldout23', test1, ALL), ('dev_aug2021', list(DEV), ALL), ('tuning_sep2023_reported_domain', [TUNE], ALL)]
-    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2', 'B4', 'B5', 'B6')))
+    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2', 'B4', 'B5', 'B6', 'H')))
     for name, storms, ms in sets:
         res['sets'][name] = pooled(ST, storms, P_all, A_all, clim, ms)
         if name.startswith('test'): res['sets'][name]['model_minus_baseline'] = boot(ST, storms, A_all, P_all, ms=ms)
