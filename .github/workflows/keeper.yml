@@ -3,6 +3,7 @@ name: Keeper (re-runs the live feeds and the forecast when GitHub's schedule ski
 # every 5 minutes, and starts by hand (workflow_dispatch, which GitHub always honours) whatever is overdue:
 #   live_feeds.yml   no run started in the last 55 min
 #   forecast.yml     no run started in the last 60 min (its 'due' job skips the run when the newest HRRR cycle is already published)
+#   sentinel.yml     no run started in the last 14 min (storm state, every ~10 min on its own schedule)
 #   events_log.yml   no run started in the last 20 min
 #   refresh.yml      no run started in the last 6 h 10 min
 #   archive_followup.yml  no run started in the last 13 h (its twice-a-day schedule was 7 h late on 8 Nov; its plan job exits when nothing is due)
@@ -47,7 +48,7 @@ jobs:
           # one keeper at a time
           other = [r for r in runs('keeper.yml') if r['status'] == 'in_progress' and r['databaseId'] != me]
           if other: print('another keeper is running; exit'); raise SystemExit
-          RULES = [('live_feeds.yml', 55, []), ('forecast.yml', 60, ['-f', 'turing=0']), ('events_log.yml', 20, []), ('refresh.yml', 370, []), ('archive_followup.yml', 780, [])]
+          RULES = [('sentinel.yml', 14, []), ('live_feeds.yml', 55, []), ('forecast.yml', 60, ['-f', 'turing=0']), ('events_log.yml', 20, []), ('refresh.yml', 370, []), ('archive_followup.yml', 780, [])]
           end = time.time() + 5 * 3600 + 45 * 60
           while time.time() < end:
               for wf, lim, extra in RULES:
