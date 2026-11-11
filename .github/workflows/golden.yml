@@ -1,0 +1,71 @@
+name: Golden storm (regression test of the model, Leominster Sept 2023, 8 km box, CPU)
+# tools/golden.py, docs/proto/GOLDEN.md. Runs the live model settings on a small fixed storm and compares rain, flooded area, peak depth and
+# road closures with docs/proto/golden/reference.json. Fails on a change beyond tolerance. update=true writes a new reference (only after an
+# intended model change, with the reason in docs/proto/GOLDEN.md and CHANGELOG.md).
+on:
+  push:
+    branches: [main]
+    paths: ['sim/**', 'proto/prototype.py', 'proto/closure*.py', 'tools/golden.py', '.github/workflows/golden.yml']
+  pull_request:
+    paths: ['sim/**', 'proto/prototype.py', 'proto/closure*.py', 'tools/golden.py', '.github/workflows/golden.yml']
+  workflow_dispatch:
+    inputs:
+      update: {description: 'write the result as the new reference', type: boolean, default: false}
+permissions:
+  contents: write
+concurrency: {group: golden-${{ github.ref }}, cancel-in-progress: true}
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely
+      - run: python tools/golden.py selftest
+      - name: flood depth (LISFLOOD-FP, CPU, observed MRMS rain, live settings)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          STORM: sep2023
+          BOX: '168000,914000,176000,922000'
+          RES: '20'
+          HOURS: '12'
+          RUN_DIR: runs/golden
+          LF_LOSS: cn
+          LF_CN_AMC: II
+          LF_CN_SCALE: '0.88'
+          LF_PARITY: '1'
+          LF_NOTCH_FIX: '1'
+          LF_CHAN_ENFORCE: '1'
+          LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
+        run: |
+          set -o pipefail
+          /usr/bin/time -v python sim/colab/w9_lisflood.py 2>&1 | tee w9_stdout.txt | tail -25
+      - name: road closures + fingerprint
+        env:
+          PROTO_RES_CONSISTENT: '1'
+          PROTO_RC_START_H: rain
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -o pipefail
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1); P=${{ runner.temp }}/proto
+          python proto/prototype.py --run-dir $OUTDIR --out $P --storm sep2023 2>&1 | tail -5
+          python tools/golden.py fingerprint $OUTDIR $P golden_new.json
+      - name: compare with the reference
+        if: ${{ !inputs.update }}
+        run: |
+          if [ ! -f docs/proto/golden/reference.json ]; then echo "::warning::no reference yet"; cat golden_new.json; exit 0; fi
+          python tools/golden.py compare docs/proto/golden/reference.json golden_new.json | tee cmp.txt
+          echo "### Golden storm" >> $GITHUB_STEP_SUMMARY; cat cmp.txt >> $GITHUB_STEP_SUMMARY
+      - name: write the new reference
+        if: ${{ inputs.update }}
+        run: |
+          mkdir -p docs/proto/golden; cp golden_new.json docs/proto/golden/reference.json
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add docs/proto/golden/reference.json; git commit -qm "Golden storm: new reference (${GITHUB_SHA::8})" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && exit 0; sleep 10; done; exit 1
