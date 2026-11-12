@@ -866,7 +866,7 @@ def is_bridge(row):
         (xt not in ('', 'tiger2020 road') and 'culvert' not in xt) or float(row.get('span_m') or 0) >= 6.0
 
 
-def block_crossings(Z, rows_x, xx, yy, BOX, RES, kp):
+def block_crossings(Z, rows_x, xx, yy, BOX, RES, kp, mode=1, burn=None):
     """Culverts full or blocked (LF_XINGS_BLOCKED=1): the opposite of open_crossings.  The 3x3 cells at each crossing are raised to their
     highest cell (the road fill is solid: no notch, and the channel burn cannot pass under the road there), and a (2 kp + 1)^2 block around
     it is protected from depression breaching, so no carved path stands in for the pipe.  Water behind the road can only leave over the
@@ -876,7 +876,10 @@ def block_crossings(Z, rows_x, xx, yy, BOX, RES, kp):
         if not (x0 <= xq < x1 and y0 <= yq < y1): continue
         rq, cq = int((y1 - yq) // RES), int((xq - x0) // RES)
         blk = (slice(max(0, rq - 1), rq + 2), slice(max(0, cq - 1), cq + 2))
-        zmin, zcrest = float(Z[blk].min()), float(Z[blk].max()); Z[blk] = zcrest
+        if mode == 2:     # version 2 (docs/proto/whatif/PREREG_BLOCKED_V2.md): lidar surface kept, only the channel burn undone; nothing raised
+            if burn is not None: Z[blk] = Z[blk] + burn[blk]
+            zmin, zcrest = float(Z[blk].min()), float(Z[blk].max())
+        else: zmin, zcrest = float(Z[blk].min()), float(Z[blk].max()); Z[blk] = zcrest
         P[max(0, rq - kp):rq + kp + 1, max(0, cq - kp):cq + kp + 1] = True
         XG.append(dict(id=row.get('id'), r=rq, c=cq, r0=blk[0].start, r1=min(ny, rq + 2), c0=blk[1].start, c1=min(nx, cq + 2), zmin=round(zmin, 2),
                        zcrest=round(zcrest, 2), zcut=round(zcrest, 2), n_eq=None, blocked=True))
@@ -1046,7 +1049,7 @@ def build_inputs(BOX, RES, S, TOK):
     # real barrel(s); crossings without a size (and bridges) keep the default full opening.
     nb = 0; NOV = np.full((ny, nx), np.nan, np.float32); XG = []; nsized = 0
     XPROT = None
-    if os.environ.get('LF_XINGS_BLOCKED', '0') == '1':      # opt-in (what-if scenarios): culverts full / blocked, sim/colab/w9_lisflood.py block_crossings
+    if os.environ.get('LF_XINGS_BLOCKED', '0') in ('1', '2'):      # opt-in (what-if scenarios; 2 = PREREG_BLOCKED_V2): culverts full / blocked, sim/colab/w9_lisflood.py block_crossings
         try:
             xp = os.environ.get('LF_CROSSINGS') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'network', 'crossings_all.json')
             XJ = json.load(open(xp)); C = XJ['columns']; il, ia = C.index('lon'), C.index('lat')
@@ -1054,8 +1057,9 @@ def build_inputs(BOX, RES, S, TOK):
             tf = Transformer.from_crs(4326, 26986, always_xy=True)
             rows_x = [dict(zip(C, r_)) for r_ in XJ['rows'] if r_[il] is not None and not is_bridge(dict(zip(C, r_)))]
             xx, yy = tf.transform([r_['lon'] for r_ in rows_x], [r_['lat'] for r_ in rows_x])
-            Z, XPROT, XG = block_crossings(Z, rows_x, xx, yy, BOX, RES, int(math.ceil(float(os.environ.get('LF_XING_BLOCK_M', '40')) / RES)))
-            log(f'LF_XINGS_BLOCKED=1: {len(XG)} culverts / small crossings closed (road fill kept as a dam, no notch, never carved); bridges stay open')
+            Z, XPROT, XG = block_crossings(Z, rows_x, xx, yy, BOX, RES, int(math.ceil(float(os.environ.get('LF_XING_BLOCK_M', '40')) / RES)),
+                                           mode=int(os.environ['LF_XINGS_BLOCKED']), burn=None if SGC else burn)
+            log(f"LF_XINGS_BLOCKED={os.environ['LF_XINGS_BLOCKED']}: {len(XG)} culverts / small crossings closed (road fill kept as a dam, no notch, never carved); bridges stay open")
         except Exception as e:
             raise SystemExit(f'LF_XINGS_BLOCKED=1 failed: {e!r}')
     if os.environ.get('LF_BREACH_XINGS', '1') == '1' and XPROT is None:
