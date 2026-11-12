@@ -30,7 +30,7 @@ sys.path.insert(0, HERE)
 METHODS = ('M', 'B1', 'B2', 'B3')
 NAMES = dict(M='Model (p_close)', B1='NWS flash-flood warning', B2='FEMA 100-yr zone (SFHA)', B3='MassDOT repeat flood points',
              B4='Radar rain threshold (I60 / storm total)', B5='Terrain only (HAND)', B6='Static HxVxC',
-             H='Model + traffic (PREREG_HYBRID)')
+             H='Model + traffic (PREREG_HYBRID)', X='Model + stream crossing (PREREG_CROSSING)', BX='Stream crossing within 30 m')
 NEG_M = 500.0; MATCH_M = 30.0; SITE_LINK_M = 150.0; SHARE3 = 0.03; SEEDS = 5; NBOOT = 2000
 TUNE = 'sep2023'; DEV = ('aug2021',)
 D456_ROOT = os.environ.get('D456_ROOT')    # staged copy of the transfer-d456 branch (r1 runs, roads_osm) + hybrid_d456_sfha.json
@@ -108,9 +108,23 @@ def storm_arrays(storm, run, FFW, SF, MDP, sf_key='fema_sfha'):
     dmd = cKDTree(MDP).query(np.column_stack([X, Y]))[0] if MDP is not None and len(MDP) else np.full(n, np.inf)
     b1 = ffw_hours(storm, X, Y, FFW)
     fx = features(run, storm, R['seg'])
+    dx, _ = XING().query(np.column_stack([R['px'], R['py']])); dseg = np.full(n, np.inf); np.minimum.at(dseg, R['pidx'], dx); fx['xing'] = (dseg <= 30.0).astype(float)
     score = dict(M=R['p'].astype(float), B1=b1, B2=b2); flag = dict(M=R['p'] >= 0.5, B1=b1 > 0, B2=b2 >= 30.0)
     if MDP is not None: score['B3'] = 1.0 / np.maximum(dmd, 1.0); flag['B3'] = dmd <= MATCH_M
     return dict(storm=storm, n=n, y=y, rep=rep, comp=comp, sites=sites, score=score, flag=flag, run=R['run'], fx=fx, sfha=b2)
+
+
+_XT = []
+
+
+def XING():
+    """KD-tree of inventoried stream crossings (docs/network/crossings_all.json), EPSG:26986 (PREREG_CROSSING.md)."""
+    if not _XT:
+        from scipy.spatial import cKDTree
+        from pyproj import Transformer
+        d = json.load(open(os.path.join(ROOT, 'docs', 'network', 'crossings_all.json'))); tr = Transformer.from_crs(4326, 26986, always_xy=True)
+        _XT.append(cKDTree(np.array([tr.transform(r[0], r[1]) for r in d['rows']])))
+    return _XT[0]
 
 
 def features(run, storm, seg):
@@ -284,6 +298,14 @@ def run(out, md):
         h = HY.predict_proba(hx(A))[:, 1]; A['score']['H'] = h; k = max(1, int(round(SHARE3 * A['n'])))
         o = np.lexsort((np.random.default_rng(0).random(A['n']), -h)); f = np.zeros(A['n'], bool); f[o[:k]] = True; A['flag']['H'] = f
     TU['hybrid'] = dict(coef=HY.coef_.tolist(), intercept=HY.intercept_.tolist(), inputs=['p_close', 'log10(1+AADT)'])
+    # X (PREREG_CROSSING.md): logistic on the complete domain, inputs p_close and crossing-within-30 m; plus the crossing flag alone (BX)
+    xx = lambda A: np.column_stack([A['score']['M'], A['fx']['xing']])
+    XY = LogisticRegression(C=1e6, max_iter=2000).fit(xx(T)[c], T['y'][c]); print('crossing coef', XY.coef_.tolist(), XY.intercept_.tolist(), flush=True)
+    for A in A_all.values():
+        k = max(1, int(round(SHARE3 * A['n']))); rr = np.random.default_rng(0).random(A['n'])
+        for m, sc in (('X', XY.predict_proba(xx(A))[:, 1]), ('BX', A['fx']['xing'] + 0.0)):
+            o = np.lexsort((rr, -sc)); f = np.zeros(A['n'], bool); f[o[:k]] = True; A['score'][m] = sc; A['flag'][m] = f
+    TU['crossing'] = dict(coef=XY.coef_.tolist(), intercept=XY.intercept_.tolist(), inputs=['p_close', 'crossing within 30 m'])
     ISO = {m: iso_fit(T['score'][m][c], T['y'][c]) for m in T['score']}; clim = float(T['y'][c].mean())
     P_all = {s: {m: ISO[m].predict(A['score'][m]) for m in A['score']} for s, A in A_all.items()}
     ST = {s: per_storm_stats(A, P_all[s], tuple(A['score'])) for s, A in A_all.items()}
@@ -292,9 +314,9 @@ def run(out, md):
                tuning=dict(storm=TUNE, domain='complete (Leominster DPW)', climatology_p=clim,
                            thresholds=TU, complete_domain={m: complete_metrics(T, P_all[TUNE], m) for m in T['score']}),
                sets={}, per_storm={s: ST[s] for s in ST})
-    ALL = METHODS + ('B4', 'B5', 'B6', 'H')
+    ALL = METHODS + ('B4', 'B5', 'B6', 'H', 'X', 'BX')
     sets = [('test1_d3_heldout23', test1, ALL), ('dev_aug2021', list(DEV), ALL), ('tuning_sep2023_reported_domain', [TUNE], ALL)]
-    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2', 'B4', 'B5', 'B6', 'H')))
+    if test2: sets.insert(1, ('test2_d456_81', test2, ('M', 'B1', 'B2', 'B4', 'B5', 'B6', 'H', 'X', 'BX')))
     for name, storms, ms in sets:
         res['sets'][name] = pooled(ST, storms, P_all, A_all, clim, ms)
         if name.startswith('test'): res['sets'][name]['model_minus_baseline'] = boot(ST, storms, A_all, P_all, ms=ms)
