@@ -948,7 +948,7 @@
     rain: ['Half the radar rain', 'Three quarters of the radar rain', 'The storm as the radar measured it', 'A quarter more rain than measured'],
     soil: ['Dry ground soaks up more of the rain (the driest soil class)', 'Ground as it was: the model’s calibrated setting',
       'Soaked ground from earlier rain sheds more of it (the wettest soil class)', 'Frozen ground sheds rain like pavement: nothing soaks in (an upper bound)'],
-    culv: ['Water passes under roads through culverts and pipes', 'Culverts are full or blocked: road embankments hold water back like dams (bridges stay open)']
+    culv: ['Water passes under roads through culverts and pipes', 'Culverts are full or blocked: road embankments hold water back like dams (bridges stay open). Not reliable yet: the closure count at blocked culverts is under-counted (docs/proto/whatif/BLOCKED_V2.md)']
   };
   var wiCtl = { rain: ['r050', 'r075', 'r100', 'r125'], soil: ['dry', 'normal', 'wet', 'frozen'], culv: ['open', 'blocked'] };
   function wiKey() { return wiCtl.rain[+$('wiRain').value] + '_' + wiCtl.soil[+$('wiSoil').value] + '_' + wiCtl.culv[+$('wiCulv').value]; }
