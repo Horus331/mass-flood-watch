@@ -2,6 +2,11 @@
 
 Newest first. Model changes, live-system changes and evaluation results that change what the site says.
 
+## 2026-11-12
+- Held-out calibration of the chance of flooding: not adopted (pooled 0.56 vs 0.67 needed); site keeps "k of 8" (`docs/proto/latent/PI_HELDOUT.md`).
+- Model + stream crossing ranking: not adopted (`docs/proto/scoring/CROSSING_v3.md`).
+- Failure Issues now polled by the sentinel (`tools/health_issues.py`).
+
 ## 2026-11-11
 - Model + traffic ranking: not adopted (`docs/proto/scoring/HYBRID_v3.md`).
 - Phase 1 Leominster deep dive: 33 of 54 DPW damage sites missed, mostly edge washouts with ~2 cm modelled water (`docs/proto/phase1/LEOMINSTER_MISSES.md`).
