@@ -1211,6 +1211,13 @@ def build_inputs(BOX, RES, S, TOK):
     if int(os.environ.get('LF_RAIN_DT', '60') or 60) < 60 and S.get('rain_src') != 'hrrr':    # opt-in: radar timing inside each Pass2 hour (sim/colab/lf_subhourly.py, docs/proto/rain/RAIN.md)
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_subhourly
         SUB = lf_subhourly.build(hours, int(os.environ['LF_RAIN_DT']), lat_c, lon_c, cache=os.environ.get('LF_MRMS_DIR'), log=log, pass2=RAIN)
+    PHASE = None
+    if os.environ.get('LF_PHASE') == '1':    # candidate C1 (docs/proto/prospective/storm_2026-11-13_watch.md): frozen precipitation kept out of the water
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import lf_phase
+        XX_, YY_ = np.meshgrid(xc - SHIFT[0], yc - SHIFT[1]) if SHIFT else np.meshgrid(xc, yc)
+        RAIN, _swe, PHASE = lf_phase.apply(RAIN, hours, XX_, YY_, init=S.get('hrrr_init') if S.get('rain_src') == 'hrrr' else None,
+                                           spinup=int(S.get('spinup_h') or 0) if S.get('rain_src') == 'hrrr' else 0, log=log)
+        del XX_, YY_, _swe
     tot = RAIN.sum(0); log(f'rain: max {tot.max():.0f} mm, mean {tot.mean():.0f} mm over {len(hours)} h; missing {MISSING}')
     if tot.max() <= 0 and os.environ.get('LF_ALLOW_DRY') != '1': raise SystemExit('no rain data at all; refusing to run a dry storm')
     RAIN_OBS = RAIN.copy()
@@ -1229,7 +1236,7 @@ def build_inputs(BOX, RES, S, TOK):
         cnt_ = {}
         for v_ in PRODUCTS.values(): cnt_[v_] = cnt_.get(v_, 0) + 1
         log(f'MRMS products (hours): {cnt_}')
-    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, CN=CNG, RAIN=RAIN, rain_total=tot, missing=MISSING, rain_products=PRODUCTS, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
+    return dict(Z=Z, sea=sea, water=water, chan=chan, burn=burn, IMP=IMP, CN=CNG, RAIN=RAIN, rain_total=tot, missing=MISSING, rain_products=PRODUCTS, phase=PHASE, ny=ny, nx=nx, RAIN_OBS=RAIN_OBS, carved=carved, CW=CW, CD=CD, SGC=SGC,
                 NOV=NOV, XG=XG, Z_RAW=Z_RAW, ZMAX10=ZMAX10, DAMS=DAMS, DOM=DOM, SUB=SUB, GAUGE=GAUGE)
 
 
@@ -1580,7 +1587,7 @@ def main():
                 crs='EPSG:26986', model=model, model_source=src_url, model_build=dict(cuda=bool(is_cuda), exe=os.path.basename(exe), build_s=round(build_s)),
                 solver='acceleration (local inertial, Bates et al. 2010)' + (' on GPU (cuda)' if is_cuda else ' on CPU (OpenMP)'),
                 inputs=dict(dem='HF data/dem10 averaged to RES', channels=os.environ.get('LF_CHAN', 'vol'), manning=f"{os.environ.get('LF_N_CHAN', '0.035')} water/channel, 0.10 dense urban, " + ('NLCD table (forest ' + os.environ.get('LF_N_FOREST', '0.12') + ')' if LC is not None else os.environ.get('LF_N_FP', '0.08') + ' other'),
-                            rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS ' + ' + '.join(sorted(set(I.get('rain_products', {}).values())) or ['AWS MultiSensor_QPE_01H_Pass2'])) + ' -> TUFLOW NetCDF dynamicrainfile', loss=os.environ.get('LF_LOSS', 'none'),
+                            rain=(f"NOAA HRRR forecast APCP 1-h buckets, cycle {S['hrrr_init']}Z, forecast hours 1-{S['hrrr_hours']} (bilinear from the 3 km Lambert grid), then dry" if S.get('rain_src') == 'hrrr' else 'MRMS ' + ' + '.join(sorted(set(I.get('rain_products', {}).values())) or ['AWS MultiSensor_QPE_01H_Pass2'])) + ' -> TUFLOW NetCDF dynamicrainfile', phase=I.get('phase'), loss=os.environ.get('LF_LOSS', 'none'),
                             boundary='FREE on all edges', baseflow=start is not None, inflows=INFLOW['report'] if INFLOW else 'none',
                             env={k: ('set (private file; path not recorded)' if k == 'LF_DRAINS' else os.environ[k]) for k in sorted(os.environ) if k.startswith('LF_') and k not in ('LF_WORK',)},
                             drains=DRAINS or 'none', infiltration=INFIL, initial_tstep_s=INIT_TSTEP, t0_snapshot=T0_SNAP),
