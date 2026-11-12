@@ -56,3 +56,6 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   without it, all counted as rain. HRRR 18Z total for this box: max 6 mm, mean 5 mm over 18 h, a light event for the model. Both runs
   stopped after the solver at a post-processing step that needs a storm gauge file (`gauges_forecast.json`) the parity workflow does not
   have for STORM=forecast; the C1 code itself ran cleanly.
+- **12 Nov 19–23Z (hours 20–21Z backfilled).** Light rain so far: District 3 box mean 0.36, 0.19, 0.17, 0.05, 0.08 mm per hour (max
+  5.9 mm). HRRR 1 h earlier said 0.14, 0.06, 0.03, 0.01, 0.01: about 3–5 × too little in these light hours (all leads 1–6 h similar). No
+  snow flagged, no MassDOT water events, sentinel QUIET, forecast "no closures". The recorder now backfills hours GitHub's schedule skips.
