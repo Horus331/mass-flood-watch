@@ -14,6 +14,7 @@
 | H Model + traffic (PREREG_HYBRID) | 0.189 | 0.978 | 0.020 | 3.0 % | 0.0134 | -0.809 | 0.017 | 0.805 | 0.082 (0.014) | 0.286 (0.066) |
 | X Model + stream crossing (PREREG_CROSSING) | 0.099 | 0.988 | 0.011 | 3.0 % | 0.0099 | -0.341 | 0.009 | 0.703 | 0.110 (0.014) | 0.210 (0.066) |
 | BX Stream crossing within 30 m | 0.077 | 0.989 | 0.009 | 3.0 % | 0.0177 | -1.393 | 0.006 | 0.622 | 0.020 (0.014) | 0.147 (0.066) |
+| P Chance of flooding pi, frozen fit (PREREG_PI_RANK) | 0.189 | 0.979 | 0.020 | 3.0 % | 0.0036 | 0.521 | 0.021 | 0.775 | 0.122 (0.014) | 0.337 (0.066) |
 
 Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 = model better):
 
@@ -28,6 +29,7 @@ Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 =
 | H | [-0.012, +0.004] | [+0.006, +0.008] * | [-0.014, -0.005] * | [+0.000, +0.033] | [-0.171, +0.010] |
 | X | [-0.001, +0.012] | [+0.003, +0.004] * | [-0.002, +0.001] | [-0.051, +0.000] | [-0.035, +0.024] |
 | BX | [-0.006, +0.019] | [+0.010, +0.013] * | [-0.001, +0.006] | [+0.011, +0.130] * | [-0.044, +0.150] |
+| P | [-0.011, +0.005] | [-0.004, -0.002] * | [-0.023, -0.008] * | [-0.074, +0.011] | [-0.241, -0.037] * |
 
 \* = the 95 % interval excludes 0.
 
@@ -44,6 +46,7 @@ Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 =
 | H Model + traffic (PREREG_HYBRID) | 0.127 | 0.991 | 0.008 | 3.0 % | 0.0055 | 0.144 | 0.006 | 0.654 | 0.035 (0.005) | 0.196 (0.086) |
 | X Model + stream crossing (PREREG_CROSSING) | 0.082 | 0.994 | 0.006 | 3.0 % | 0.0042 | 0.346 | 0.004 | 0.593 | 0.026 (0.005) | 0.143 (0.086) |
 | BX Stream crossing within 30 m | 0.045 | 0.996 | 0.003 | 3.0 % | 0.0071 | -0.111 | 0.002 | 0.516 | 0.011 (0.005) | 0.096 (0.086) |
+| P Chance of flooding pi, frozen fit (PREREG_PI_RANK) | 0.123 | 0.992 | 0.007 | 3.0 % | 0.0023 | 0.648 | 0.005 | 0.620 | 0.028 (0.005) | 0.251 (0.086) |
 
 Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 = model better):
 
@@ -57,6 +60,7 @@ Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 =
 | H | [-0.002, +0.019] | [+0.002, +0.002] * | [-0.002, +0.000] | [-0.001, +0.005] | [-0.021, +0.041] |
 | X | [+0.001, +0.021] * | [+0.001, +0.001] * | [+0.000, +0.004] * | [-0.002, +0.023] | [+0.036, +0.094] * |
 | BX | [+0.002, +0.025] * | [+0.003, +0.004] * | [+0.001, +0.007] * | [+0.007, +0.043] * | [+0.072, +0.147] * |
+| P | [-0.000, +0.020] | [-0.001, -0.001] * | [-0.006, +0.002] | [-0.006, +0.022] | [-0.086, -0.002] * |
 
 \* = the 95 % interval excludes 0.
 
@@ -74,6 +78,7 @@ Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 =
 | H Model + traffic (PREREG_HYBRID) | 0.240 | 0.945 | 0.047 | 3.0 % | 0.0150 | -0.606 | 0.122 | 0.825 | 0.250 (0.023) | 0.333 (0.061) |
 | X Model + stream crossing (PREREG_CROSSING) | 0.080 | 0.983 | 0.014 | 3.0 % | 0.0124 | -0.323 | 0.018 | 0.712 | 0.083 (0.023) | 0.167 (0.061) |
 | BX Stream crossing within 30 m | 0.040 | 0.990 | 0.008 | 3.0 % | 0.0189 | -1.026 | 0.007 | 0.563 | 0.083 (0.023) | 0.133 (0.061) |
+| P Chance of flooding pi, frozen fit (PREREG_PI_RANK) | 0.200 | 0.928 | 0.056 | 3.0 % | 0.0057 | 0.393 | 0.047 | 0.802 | 0.167 (0.023) | 0.333 (0.061) |
 
 ## tuning_sep2023_reported_domain: 1 storms, 2543 segments in the reported domain (113 reported), 4542 in the boxes
 
@@ -89,3 +94,4 @@ Model minus baseline, 95 % CI over storms (Brier: baseline minus model, so > 0 =
 | H Model + traffic (PREREG_HYBRID) | 0.239 | 0.649 | 0.166 | 3.0 % | 0.0374 | 0.129 | 0.280 | 0.816 | 0.354 (0.037) | 0.367 (0.050) |
 | X Model + stream crossing (PREREG_CROSSING) | 0.221 | 0.731 | 0.138 | 3.0 % | 0.0382 | 0.112 | 0.239 | 0.820 | 0.342 (0.037) | 0.380 (0.050) |
 | BX Stream crossing within 30 m | 0.106 | 0.855 | 0.065 | 3.0 % | 0.0466 | -0.085 | 0.085 | 0.654 | 0.124 (0.037) | 0.180 (0.050) |
+| P Chance of flooding pi, frozen fit (PREREG_PI_RANK) | 0.354 | 0.452 | 0.274 | 3.0 % | 0.0302 | 0.296 | 0.504 | 0.931 | 0.468 (0.037) | 0.557 (0.050) |

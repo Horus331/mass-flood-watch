@@ -3321,8 +3321,12 @@
       var iv = s.iv || [], sev = iv.length ? 3 : mx >= 15 ? 2 : 1, st = iv.length ? iv[0][0] : d.findIndex(function (v) { return v >= 3; });
       rows.push({ s: s, mx: mx, pk: pk, sev: sev, st: st, end: iv.length ? iv[iv.length - 1][1] : null });
     });
-    rows.sort(function (a, b) { return b.sev - a.sev || a.st - b.st; });
+    // forecast: order by the flooding score pi (frozen fit), tested on 81 District 4-6 storms (docs/proto/scoring/PI_RANK_v3.md); the k-of-N count stays the headline
+    var byPi = runKey === 'forecast' && rows.some(function (r) { return r.s.f.properties.pi != null; });
+    rows.sort(byPi ? function (a, b) { return (b.s.f.properties.pi || 0) - (a.s.f.properties.pi || 0) || b.sev - a.sev || a.st - b.st; }
+                   : function (a, b) { return b.sev - a.sev || a.st - b.st; });
     rankRows = rows;
+    var rsum = document.querySelector('#rank > summary'); if (rsum) rsum.textContent = byPi ? 'Roads, most likely to flood first' : 'Roads, most severe first';
     var tsel = $('rankTown'), towns = {}, want = tsel ? tsel.value : '';
     rows.forEach(function (r) { var tn = r.s.f.properties.t; if (tn) towns[tn] = (towns[tn] || 0) + 1; });
     if (tsel) {   // filter the list by town (an engineer looks at their own streets); kept in the link as ?town=
