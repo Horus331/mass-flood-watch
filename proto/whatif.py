@@ -42,7 +42,7 @@ BASE_ENV = dict(STORM=STORM, BOX=BOX, HOURS=str(HOURS), RES=str(RES), LF_PARITY=
 RAIN = [('r050', 0.5, {'LF_RAIN_SCALE': '0.5'}), ('r075', 0.75, {'LF_RAIN_SCALE': '0.75'}), ('r100', 1.0, {}), ('r125', 1.25, {'LF_RAIN_SCALE': '1.25'})]
 SOIL = [('dry', 'Dry', {'LF_CN_AMC': 'I'}), ('normal', 'Normal', {}), ('wet', 'Saturated', {'LF_CN_AMC': 'III'}),
         ('frozen', 'Frozen', {'LF_CN_FROZEN': '1', 'LF_INFIL_MMH': '0'})]
-CULV = [('open', 'Open', {}), ('blocked', 'Blocked', {'LF_XINGS_BLOCKED': '1'})]
+CULV = [('open', 'Open', {}), ('blocked', 'Blocked', {'LF_XINGS_BLOCKED': '2'})]   # v2 since 12 Nov 2026 (docs/proto/whatif/PREREG_BLOCKED_V2.md)
 BASELINE = 'r100_normal_open'
 FRAME_MIN = 5
 FLOW_MIN = 30
