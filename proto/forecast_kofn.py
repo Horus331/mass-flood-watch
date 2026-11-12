@@ -235,7 +235,7 @@ def cmd_ensemble(a):
         for e in K['segments']: e['pi'] = mean.get(int(e['segment']))
         top = sorted(mean.items(), key=lambda kv: -kv[1])[:10]
         K['pi_seg'] = {str(k): v for k, v in mean.items() if v >= 0.01}   # every segment at 1 % or more, for the packs
-        K['pi'] = dict(note='mean calibrated flooding probability over the members (latent model, docs/proto/latent/LIVE_PI.md: checks 1-4 passed)',
+        K['pi'] = dict(note='mean flooding score pi over the members (latent model); orders the road list (scoring/PI_RANK_v3.md); not shown as a percentage (latent/PI_HELDOUT.md)',
                        members_with_pi={b: len(L) for b, L in PI.items()}, top10=[[k, v] for k, v in top],
                        top10_mean=round(sum(v for _, v in top) / max(1, len(top)), 4), over_50pct=sum(v >= 0.5 for v in mean.values()))
         log('ensemble: pi from', sum(len(L) for L in PI.values()), 'member runs; top-10 mean', K['pi']['top10_mean'])
