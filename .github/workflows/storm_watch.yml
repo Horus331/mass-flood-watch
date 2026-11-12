@@ -1,0 +1,28 @@
+name: Storm watch recorder (hourly while docs/proto/prospective/active_watch.json is active)
+# proto/storm_watch.py: observed MRMS rain and phase, HRRR forecast for the same hour by lead, the published forecast, sentinel state,
+# NWS alerts and MassDOT water-related events, one line per hour -> <watch dir>/record.jsonl. Light (~2 min).
+on:
+  schedule:
+    - cron: '9 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: storm-watch
+  cancel-in-progress: false
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj shapely
+      - run: python proto/storm_watch.py selftest
+      - run: timeout 420 python -u proto/storm_watch.py record
+      - name: commit
+        run: |
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add docs/proto/prospective; git commit -qm "Storm watch: hourly record" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase -X theirs origin main && git push -q && exit 0; git rebase --abort 2>/dev/null; sleep 10; done; exit 1

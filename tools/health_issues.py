@@ -8,7 +8,7 @@ each new failed run adds one comment; the next successful run closes it.  Cancel
 """
 import json, os, subprocess, sys
 
-WATCH = ['sentinel.yml', 'forecast.yml', 'live_feeds.yml', 'keeper.yml', 'archive_followup.yml', 'events_log.yml']
+WATCH = ['sentinel.yml', 'forecast.yml', 'live_feeds.yml', 'keeper.yml', 'archive_followup.yml', 'events_log.yml', 'storm_watch.yml']
 REPO = os.environ.get('GITHUB_REPOSITORY', 'Horus331/mass-flood-watch')
 
 

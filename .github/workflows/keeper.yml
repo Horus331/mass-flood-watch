@@ -48,7 +48,7 @@ jobs:
           # one keeper at a time
           other = [r for r in runs('keeper.yml') if r['status'] == 'in_progress' and r['databaseId'] != me]
           if other: print('another keeper is running; exit'); raise SystemExit
-          RULES = [('sentinel.yml', 14, []), ('live_feeds.yml', 55, []), ('forecast.yml', 60, ['-f', 'turing=0']), ('events_log.yml', 20, []), ('refresh.yml', 370, []), ('archive_followup.yml', 780, [])]
+          RULES = [('sentinel.yml', 14, []), ('storm_watch.yml', 62, []), ('live_feeds.yml', 55, []), ('forecast.yml', 60, ['-f', 'turing=0']), ('events_log.yml', 20, []), ('refresh.yml', 370, []), ('archive_followup.yml', 780, [])]
           end = time.time() + 5 * 3600 + 45 * 60
           while time.time() < end:
               for wf, lim, extra in RULES:
