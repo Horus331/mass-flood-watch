@@ -46,3 +46,13 @@ fix where it removes a stated artefact). None is adopted on this storm alone.
 ### 3. What is reported, whatever happens
 A results file `storm_2026-11-13_results.md` within 48 h of the end of the rain: the error budget, the per-road classes, and each
 candidate's test with its adoption decision. If nothing floods, that is a result too: the false-alarm side of the forward test.
+
+## Running log
+
+- **12 Nov 19Z.** First hour recorded: District 3 box mean 0.4 mm, max 3.9 mm; HRRR 1 h earlier said 0.1 mm. No snow flagged, no
+  MassDOT water events. Sentinel QUIET. Forecast 12Z: no closures in 48 h.
+- **12 Nov ~19:30Z, C1 smoke test** (parity_test run 43289609204, hills box 155000,910000–165000,920000, HRRR 18Z cycle, 18 h, live
+  settings): with LF_PHASE=1, 5.2 % of the forecast precipitation is frozen (max 1.3 mm water as snow; lowest 2 m temperature 0.7 °C);
+  without it, all counted as rain. HRRR 18Z total for this box: max 6 mm, mean 5 mm over 18 h, a light event for the model. Both runs
+  stopped after the solver at a post-processing step that needs a storm gauge file (`gauges_forecast.json`) the parity workflow does not
+  have for STORM=forecast; the C1 code itself ran cleanly.
