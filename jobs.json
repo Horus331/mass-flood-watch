@@ -2,6 +2,46 @@
  "paused": false,
  "jobs": [
   {
+   "id": "fcd3_forecast_d3_2026111212",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2026-11-12T12Z",
+    "MEMBERS": "2026-11-12T12Z,2026-11-12T06Z,2026-11-12T00Z,2026-11-11T18Z,2026-11-12T11Z,2026-11-12T10Z,2026-11-12T09Z,2026-11-12T08Z",
+    "HOURS": "48",
+    "PFX": "forecast_d3",
+    "REQ_AT": "2026-11-12T14:02:59Z",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "array": "0-7",
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "03:00:00"
+   }
+  },
+  {
+   "id": "fcd3_forecast_d3_2026111212_post",
+   "kind": "forecast_d3",
+   "env": {
+    "CYCLE": "2026-11-12T12Z",
+    "MEMBERS": "2026-11-12T12Z,2026-11-12T06Z,2026-11-12T00Z,2026-11-11T18Z,2026-11-12T11Z,2026-11-12T10Z,2026-11-12T09Z,2026-11-12T08Z",
+    "HOURS": "48",
+    "PFX": "forecast_d3",
+    "REQ_AT": "2026-11-12T14:02:59Z",
+    "STAGE": "post"
+   },
+   "after": [
+    "fcd3_forecast_d3_2026111212"
+   ],
+   "sbatch": {
+    "array": "0-7",
+    "partition": "short",
+    "mem": "160G",
+    "time": "08:00:00"
+   }
+  },
+  {
    "id": "fcd3_forecast_d3_2026111206",
    "kind": "forecast_d3",
    "env": {
