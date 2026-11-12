@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-12T01:21:47Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-12T01:52:00Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -294,5 +294,5 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | fcd3_forecast_d3_2026111112 | forecast_d3 | completed | 2507171 | 8 / 0 | 2026-11-11T15:17:21Z | 2026-11-11T16:47:57Z |  |
 | fcd3_forecast_d3_2026111112_post | forecast_d3 | completed | 2507172 | 8 / 0 | 2026-11-11T15:17:21Z | 2026-11-11T18:18:30Z |  |
 | fcd3_forecast_d3_2026111118 | forecast_d3 | completed | 2510064 | 8 / 0 | 2026-11-11T22:20:19Z | 2026-11-12T00:21:24Z |  |
-| fcd3_forecast_d3_2026111118_post | forecast_d3 | running | 2510065 | 4 / 0 | 2026-11-11T22:20:19Z |  |  |
-| pi_heldout_t2 | pitest | submitted | 2511076 |  /  | 2026-11-12T01:21:47Z |  |  |
+| fcd3_forecast_d3_2026111118_post | forecast_d3 | completed | 2510065 | 8 / 0 | 2026-11-11T22:20:19Z | 2026-11-12T01:52:00Z |  |
+| pi_heldout_t2 | pitest | completed | 2511076 | 1 / 0 | 2026-11-12T01:21:47Z | 2026-11-12T01:52:00Z |  |
