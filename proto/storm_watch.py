@@ -40,7 +40,7 @@ def rain_hour(t_end):
 
 def phase(t_end):
     import numpy as np, live_feeds as LF
-    L = LF.mrms_recent('PrecipFlag_00.00', t_end - dt.timedelta(minutes=10), t_end + dt.timedelta(minutes=5))
+    L = LF.mrms_recent('PrecipFlag_00.00', t_end - dt.timedelta(minutes=10), t_end + dt.timedelta(minutes=5))   # past hours: AWS keeps the 2-min files
     if not L: return None
     t, u = min(L, key=lambda x: abs((x[0] - t_end).total_seconds())); F, _, _ = LF.mrms_box(u); F = np.nan_to_num(F, nan=-3)
     p = F > 0
@@ -101,14 +101,21 @@ def record(a):
     w0, w1 = (dt.datetime.strptime(x, '%Y-%m-%dT%H:%MZ') for x in W['window'])
     if not (w0 <= now <= w1 + dt.timedelta(hours=2)): print('outside the watch window', W['window']); return
     d = os.path.join(ROOT, W['dir']); os.makedirs(d, exist_ok=True); rec = os.path.join(d, 'record.jsonl')
-    t_end = now.replace(minute=0, second=0, microsecond=0)
+    last = now.replace(minute=0, second=0, microsecond=0)
     done = set()
     if os.path.exists(rec):
         for line in open(rec):
             try: done.add(json.loads(line)['hour_end'])
             except Exception: pass
-    if iso(t_end) in done: print('hour already recorded', iso(t_end)); forecast_now(d); return
-    R = dict(hour_end=iso(t_end), recorded=iso(now)); errs = {}
+    # every hour of the window not recorded yet, newest 12 at most (GitHub's schedule skips hours; MRMS keeps the files)
+    todo = [last - dt.timedelta(hours=k) for k in range(11, -1, -1)]
+    todo = [t for t in todo if w0 < t <= w1 + dt.timedelta(hours=2) and iso(t) not in done]
+    if not todo: print('hour already recorded', iso(last)); forecast_now(d); return
+    for t_end in todo: one_hour(t_end, now, d, rec, live=(t_end == last))
+
+
+def one_hour(t_end, now, d, rec, live):
+    R = dict(hour_end=iso(t_end), recorded=iso(now), backfilled=not live); errs = {}
     try: R['rain'], grid = rain_hour(t_end)
     except Exception as e: errs['rain'] = repr(e)[:200]; grid = None
     try: R['phase'] = phase(t_end)
@@ -116,17 +123,18 @@ def record(a):
     if grid is not None:
         try: R['hrrr'] = hrrr_leads(t_end, grid)
         except Exception as e: errs['hrrr'] = repr(e)[:200]
-    try: R['forecast'] = forecast_now(d)
-    except Exception as e: errs['forecast'] = repr(e)[:200]
-    S = jl(os.path.join(DATA, 'status.json'), {}) or {}
-    R['sentinel'] = dict(state=S.get('state'), reasons=S.get('reasons')); R['alerts'] = ((S.get('sources') or {}).get('nws') or {}).get('alerts')
+    if live:
+        try: R['forecast'] = forecast_now(d)
+        except Exception as e: errs['forecast'] = repr(e)[:200]
+        S = jl(os.path.join(DATA, 'status.json'), {}) or {}
+        R['sentinel'] = dict(state=S.get('state'), reasons=S.get('reasons')); R['alerts'] = ((S.get('sources') or {}).get('nws') or {}).get('alerts')
     try: R['events'] = events(t_end - dt.timedelta(hours=1), t_end)
     except Exception as e: errs['events'] = repr(e)[:200]
     R['errors'] = errs
     open(rec, 'a').write(json.dumps(R) + '\n')
     r = R.get('rain') or {}; h = (R.get('hrrr') or {}).get('1', {})
-    print(f"{iso(t_end)} rain mean {r.get('mean_mm')} max {r.get('max_mm')} | HRRR 1 h ahead {h.get('mean_mm')} | snow share {(R.get('phase') or {}).get('snow_share')} | "
-          f"events {len(R.get('events') or [])} | state {R['sentinel']['state']} | errors {list(errs)}", flush=True)
+    print(f"{iso(t_end)}{'' if live else ' (backfill)'} rain mean {r.get('mean_mm')} max {r.get('max_mm')} | HRRR 1 h ahead {h.get('mean_mm')} | snow share "
+          f"{(R.get('phase') or {}).get('snow_share')} | events {len(R.get('events') or [])} | errors {list(errs)}", flush=True)
 
 
 def selftest():
