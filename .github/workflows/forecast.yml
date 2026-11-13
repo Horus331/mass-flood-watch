@@ -216,6 +216,9 @@ jobs:
         env:
           PROTO_RES_CONSISTENT: '1'   # closure depth = water above what was on the road when the rain began (CHANGE_2026-11-05.md)
           PROTO_RC_START_H: rain
+          # per-frame depth PNGs (793 at 5 min) are only a fallback for the map pack, which reads frames_cm.npz from the issue cycle's run;
+          # the other members skip them (13 Nov 2026: the closure step took 45-75 min per member, most of it writing these images)
+          PROTO_FRAME_PNG: ${{ matrix.b.init == needs.gate.outputs.init && '1' || '0' }}
         run: |
           set -o pipefail
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out | head -1)
