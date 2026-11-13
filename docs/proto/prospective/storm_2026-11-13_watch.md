@@ -64,3 +64,11 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   still running at 00:30Z: per member the flood solve takes 55–95 min and the road-closure step 45–75 min (5-min frames), so a cycle is
   published about 7 h after the HRRR cycle time. In a fast storm that is too late; candidate fix (pipeline, not physics): compute the
   closure statistics from 15-min frames while keeping 5-min frames for the map, checked on the golden storm before use.
+- **13 Nov ~01:30Z, C3 on its development set (Leominster DPW, 9 segments with edge washouts):** as defined (peak unit discharge
+  ≥ 0.1 m²/s) it flags 2.8 % of Leominster's segments and **0 of the 9** edge-washout segments (≥ 0.05: 1 of 9). C3 as written is dropped
+  before any test. What does separate the edge-washout segments from the other 1,512 (ROC-AUC, exploratory, 9 positives): segment length
+  0.93 (exposure: more road edge), peak speed 0.88, freeboard 0.83, peak depth 0.81, AADT 0.74, slope 0.74. A replacement (expected eroded
+  length = length × P(speed above a permissible velocity)) needs damage-type labels from another town to be tested; none exist yet.
+- **Live forecast speed-up:** the 7 non-issue members now skip the 5-min frame images they never publish (commit deff33b2b); measured on
+  the next cycle.
+- **C1 for the live forecast:** pre-registered as an artifact fix (`PREREG_PHASE_LIVE.md`); held-out check running.
