@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-13T03:32:26Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-13T04:03:01Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -307,4 +307,6 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | fcd3_forecast_d3_2026111218_post | forecast_d3 | completed | 2514662 | 8 / 0 | 2026-11-12T22:29:02Z | 2026-11-13T03:32:26Z |  |
 | whatif_diag1 |  | rejected |  |  /  | 2026-11-13T01:30:33Z |  | env value of PAIRS has characters outside [A-Za-z0-9_.,:=/@+%~-] |
 | whatif_diag2 | whatif_diag | completed | 2515238 | 1 / 0 | 2026-11-13T03:02:12Z | 2026-11-13T03:32:26Z |  |
-| whatif_v3a | whatif_v3 | submitted | 2515295 |  /  | 2026-11-13T03:32:26Z |  |  |
+| whatif_v3a | whatif_v3 | completed | 2515295 | 1 / 0 | 2026-11-13T03:32:26Z | 2026-11-13T04:03:01Z |  |
+| fcd3_forecast_d3_2026111300 | forecast_d3 | submitted | 2515344 |  /  | 2026-11-13T04:03:01Z |  |  |
+| fcd3_forecast_d3_2026111300_post | forecast_d3 | submitted | 2515345 |  /  | 2026-11-13T04:03:01Z |  |  |
