@@ -2,7 +2,13 @@
 
 Newest first. Model changes, live-system changes and evaluation results that change what the site says.
 
+## 2026-11-13
+- Precipitation phase (snow kept out of the water) on in the live forecast as an artifact fix (`docs/proto/prospective/PHASE_LIVE.md`).
+- Forecast: non-issue members skip the per-frame images (speed).
+
 ## 2026-11-12
+- Road list ordered by pi in the forecast (`docs/proto/scoring/PI_RANK_v3.md`).
+- What-if blocked culverts v2: not adopted; the culvert switch is labelled "not reliable yet" (`docs/proto/whatif/BLOCKED_V2.md`).
 - Held-out calibration of the chance of flooding: not adopted (pooled 0.56 vs 0.67 needed); site keeps "k of 8" (`docs/proto/latent/PI_HELDOUT.md`).
 - Model + stream crossing ranking: not adopted (`docs/proto/scoring/CROSSING_v3.md`).
 - Failure Issues now polled by the sentinel (`tools/health_issues.py`).
