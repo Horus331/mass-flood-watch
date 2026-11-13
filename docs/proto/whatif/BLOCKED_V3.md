@@ -38,3 +38,8 @@ at once (an upper bound); the closure threshold is 30 cm over the lidar road sur
 
 Why version 2 failed: in the open run, stream water standing in the notch cut through the road (median 2.3 m deep) was read as water on
 the road; blocking removed the notch and with it that reading, so blocked runs looked drier (27 of 27 open-only closures).
+
+**In the explorer:** the "culverts overtopped" tile now uses this reading (water surface on the low side above the road crest) for clear
+and blocked culverts alike, wherever a version-3 number exists (the 12 rain × ground pairs above); elsewhere the old count stays. With
+blocked culverts the road and people totals are shown without a comparison to the clear run, because away from the culverts they move
+with small terrain changes (paired overlap Jaccard 0.0–0.45); the near-culvert numbers are in the note under the tiles.
