@@ -99,3 +99,10 @@ candidate's test with its adoption decision. If nothing floods, that is a result
 - **Latency after the fixes:** road-closure step 7–19 min per member with the frame skip only (00Z run), **0–2 min** with
   `resilience --no-eff` (next run 43380569651). What is left is the solver: 38–100 min per member (issue member 1 h 21 min wall clock),
   so a cycle now takes about 1 h 45 min from start to publish. The next latency target is the solver.
+- **13 Nov 08–12Z.** Rain easing: box mean 2.21, 2.24, 1.21, 0.70, 0.43 mm/h (max 7.1 mm); 17.8 mm box-mean total since 19Z. HRRR 1 h
+  earlier 1.29, 1.51, 0.89, 0.92, 0.99: the low bias of the night has turned into a small high bias as the rain eases. First snow flag:
+  0.4 % of precipitating pixels at 12Z. No MassDOT water events; sentinel QUIET. Recorder: all 18 hours 19Z–12Z present.
+- **06Z cycle** published 11:59Z ("no road closures in 48 h"); LF_PHASE 0.2 % frozen (min 2 m temperature 1.5 °C). Issue member: solver
+  1 h 33 min wall clock at 302 % CPU (the 4-core runner is already used), grid 1000 × 1000 at 20 m.
+- **Failure 08:29Z run:** one member got non-JSON answers from Zenodo for 3 min (LISFLOOD-FP source download) and the run failed; the
+  source zip is now cached in Actions (`forecast.yml`, `w9_lisflood.get_lisflood`).
