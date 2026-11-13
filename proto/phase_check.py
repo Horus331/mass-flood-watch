@@ -17,17 +17,22 @@ def main():
     from concurrent.futures import ThreadPoolExecutor
     cat = {e['id']: e for e in json.load(open(os.path.join(ROOT, 'docs', 'proto', 'obs', 'catalog.json')))['events']}
     storms = [s for s in list(SV.HELDOUT + SV.NEW16) + ['sep2023', 'aug2021'] if s in cat and s not in SV.LOCKED]
-    out = {}
+    out = {}; ERR = []
     for s in storms:
-        e = cat[s]; t0 = pd.Timestamp(e['t0'].replace('Z', '')); lo0, la0, lo1, la1 = e['bbox_lonlat']
+        e = cat[s]; t0 = pd.Timestamp(e['t0'].replace('Z', '')); lo0, la0, lo1, la1 = e['bbox_lonlat']; G = {}
         def one(h):
             ts = t0 + pd.Timedelta(hours=h)
             try:
                 m = LP.tmp2m(ts, 0)
                 if m is None: return h, None
-                v, la, lo = m.data(lat1=la0 - 0.05, lat2=la1 + 0.05, lon1=lo0 + 360 - 0.05, lon2=lo1 + 360 + 0.05)
-                return h, float(np.min(v)) - 273.15
-            except Exception as ex: return h, None
+                if 'LL' not in G:
+                    la, lo = m.latlons(); lo = np.where(lo > 180, lo - 360, lo)
+                    G['LL'] = (la >= la0 - 0.05) & (la <= la1 + 0.05) & (lo >= lo0 - 0.05) & (lo <= lo1 + 0.05)
+                return h, float(np.min(m.values[G['LL']])) - 273.15
+            except Exception as ex:
+                if not ERR: ERR.append(repr(ex)[:300]); print('first error', s, h, ERR[0], flush=True)
+                return h, None
+        one(0)
         with ThreadPoolExecutor(8) as ex: T = dict(ex.map(one, range(e['hours'] + 1)))
         got = [v for v in T.values() if v is not None]
         out[s] = dict(month=e['t0'][:7], hours=e['hours'] + 1, hours_with_t=len(got), tmin_c=round(min(got), 1) if got else None,
