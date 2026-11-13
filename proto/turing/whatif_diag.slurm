@@ -5,11 +5,11 @@
 #SBATCH --mem=24G
 #SBATCH -t 00:45:00
 #SBATCH -o whatif_diag_%j.out
-# Blocked-culvert diagnostic (docs/proto/whatif/BLOCKED_V2.md): proto/whatif_diag.py on PAIRS (space separated, e.g. "r100_normal r075_wet"),
+# Blocked-culvert diagnostic (docs/proto/whatif/BLOCKED_V2.md): proto/whatif_diag.py on PAIRS (comma separated, e.g. "r100_normal,r075_wet"),
 # CPU only, reads the kept what-if runs; pushes docs/proto/whatif/diag_<pair>.json to main.
 set -o pipefail
 cd ~/mass-flood-watch; source proto/turing/env.sh >/dev/null 2>&1 || true
-PAIRS=${PAIRS:-r100_normal}
+PAIRS=${PAIRS:-r100_normal}; PAIRS=${PAIRS//,/ }   # the queue allows no spaces in env values: comma separated
 for p in $PAIRS; do [[ "$p" =~ ^r[0-9]{3}_(dry|normal|wet|frozen)$ ]] || { echo "bad pair $p"; exit 1; }; done
 mkdir -p /tmp/wdiag.$$
 for p in $PAIRS; do python proto/whatif_diag.py --pair $p --out /tmp/wdiag.$$/diag_$p.json || echo "diag failed: $p"; done
