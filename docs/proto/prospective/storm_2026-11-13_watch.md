@@ -77,3 +77,16 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   The whatif_diag1 Turing job was rejected by the queue (spaces in an env value); the script now takes comma-separated pairs and the job
   is queued again as whatif_diag2. The forecast run in progress (43323977755, 18Z cycle) predates the LF_PHASE and frame-image commits;
   the 00Z cycle is the first with both.
+- **13 Nov 03–04Z.** Rain steadier: box mean 1.13 then 1.93 mm/h (max 9.0 mm). HRRR 1 h earlier 0.54, 1.13: still about 2 × too little at
+  the shortest lead; 3–4 h leads closer (1.65, 2.3). No snow flagged, no MassDOT water events, sentinel QUIET. Recorder: all 10 hours
+  19Z–04Z present.
+- **Pipeline fault found (13 Nov 03:39Z run).** The 00Z cycle fired the gate (Uxbridge 6 h 25.0 mm, 24 h 28.3 mm) but chose no box, so
+  no flood model ran and the outlook said "Flood model run failed" for Thu–Sat. Cause: the town test used the 0.1 mm-rounded value, the
+  box score the unrounded one (just under 25 mm). Fixed (`proto/forecast.py`: unrounded test, and a fired trigger always gets a box);
+  the 00Z cycle re-run by hand (run 43366123146, box 176000,859000–196000,879000, 8 members, first cycle with LF_PHASE and the frame skip).
+- **Latency finding.** In the 18Z cycle's issue member the "road closures" step took 64 min, of which prototype.py took **1 min** and
+  `proto/resilience.py` **~63 min** (all-pairs network efficiency per 40-min frame, then again at 15 cm). The forecast never publishes
+  efficiency; only `resilience_segments.csv` (closed hours, delay) feeds `risk.py` → `risk_segments.json` in the replay pack. Candidate
+  fix (pipeline only): `resilience.py --no-eff` (skip efficiency and the 15 cm curve) for the issue member, and no resilience / risk for
+  the other 7 members (their outputs are never read). Check before use: `resilience_segments.csv` and `risk_segments.json` byte-identical
+  with and without `--no-eff` on the Sept 2023 Leominster run.
