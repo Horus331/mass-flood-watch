@@ -18,13 +18,17 @@ DIR = os.path.join(ROOT, 'docs', 'proto', 'drains', 'inlets_v1')
 NAME = re.compile(r'^inl1_(?P<cat>(?P<storm>[a-z]{3}20\d\d[a-z]?)_[a-z]+_20m)_(?P<arm>base|inlets|inlets_clog0|inlets_clog065)$')
 HELD = SV.HELDOUT + SV.NEW16
 CALIB = 'sep2023'
+ALIAS = {'c2v1': 'c2'}    # run prefix -> candidate arm name, read as 'inlets' (docs/proto/drains/PREREG_C2_ROADS.md)
 PROP_RATIO = 0.8        # failure-mode flag (pre-registered): sites lost at the rule >= 0.8 x the share of flagged segments removed
 
 
 def load(d):
     runs = {}
-    for p in sorted(glob.glob(os.path.join(d, 'inl1_*', 'score_v2.json'))):
-        m = NAME.match(os.path.basename(os.path.dirname(p)))
+    for p in sorted(glob.glob(os.path.join(d, '*', 'score_v2.json'))):
+        nm = os.path.basename(os.path.dirname(p))
+        for pre, cand in ALIAS.items():      # other sink tests scored by the same pre-registered rule (C2: c2v1_<cat>_{base,c2})
+            if nm.startswith(pre + '_'): nm = 'inl1_' + nm[len(pre) + 1:]; nm = nm[:-len('_' + cand)] + '_inlets' if nm.endswith('_' + cand) else nm
+        m = NAME.match(nm)
         if not m: continue
         r = json.load(open(p)); r['primary'] = True; r['storm'] = m['storm']
         fm = os.path.join(os.path.dirname(p), 'flood_meta.json'); sc = os.path.join(os.path.dirname(p), 'score.json')

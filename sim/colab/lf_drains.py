@@ -38,7 +38,7 @@ reports carry only aggregate numbers.
 
 Dependencies: numpy, scipy, pyproj (no GDAL: a minimal shapefile/dbf reader below).
 """
-import io, math, os, re, struct, zipfile
+import io, math, os, re, struct, sys, zipfile
 import numpy as np
 
 # --- Manning n by material (HEC-22 4th ed. ch. 6 storm-drain roughness; ASCE MOP 77) -------------------------------------------
@@ -256,6 +256,25 @@ def design_sink(IMP, block=None, mmh=43.0, eff=0.5, imp_min=0.2):
     return s.astype(np.float32)
 
 
+def road_design_sink(IMP, BOX, RES, block=None, mmh=25.0, imp_min=0.5, radius_m=150.0, segments=None):
+    """C2 (docs/proto/drains/PREREG_C2_ROADS.md): a constant sink of mmh on road cells (MassDOT segments of docs/graph_segments.json,
+    points every RES/2 m) whose surroundings are built up: mean impervious fraction within radius_m >= imp_min (curbed streets with
+    inlets; rural roads drain to ditches and get none).  Not scaled by imperviousness or efficiency: 25 mm/h is the inlet rate itself."""
+    import json
+    from scipy.ndimage import uniform_filter
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'sim', 'infra'))
+    import impacts as IM
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    S = json.load(open(segments or os.path.join(root, 'docs', 'graph_segments.json')))
+    ny, nx = IMP.shape; P = IM.road_points(S, dict(box=list(BOX), res_m=RES, shape=[ny, nx]))
+    road = np.zeros((ny, nx), bool); road[P['r'], P['c']] = True
+    k = max(1, int(round(2 * radius_m / RES)) | 1); area = uniform_filter(np.nan_to_num(IMP.astype(np.float32)), size=k, mode='nearest')
+    on = road & (area >= imp_min)
+    if block is not None: on &= ~block
+    return np.where(on, mmh, 0.0).astype(np.float32), dict(road_cells=int(road.sum()), cells=int(on.sum()), mmh=mmh, imp_min=imp_min, radius_m=radius_m,
+                                                         q_m3s=round(float(on.sum()) * RES * RES * mmh / 3.6e6, 2))
+
+
 def from_env(Z, IMP, block, BOX, RES, log=print):
     """w9 hook: sink raster (mm/h) and an aggregate report from LF_DRAINS / LF_DRAIN_DESIGN; (None, None) when both are off."""
     path = os.environ.get('LF_DRAINS'); design = os.environ.get('LF_DRAIN_DESIGN', '0') == '1'
@@ -275,7 +294,10 @@ def from_env(Z, IMP, block, BOX, RES, log=print):
             f"capacity sum {r2.get('q_full_sum_m3s')} m3/s, network-capped {r2.get('q_network_capped_m3s')}, in box after inlet cap {r2.get('q_after_inlet_cap_m3s')} m3/s "
             f"on {r2.get('cells', 0):,} cells (median {r2.get('cell_rate_mmh_p50')} mm/h)")
     if design:
-        ds = design_sink(IMP, block, g('LF_DRAIN_DESIGN_MMH', '43'), g('LF_DRAIN_EFF', '0.5'), g('LF_DRAIN_IMP_MIN', '0.2'))
+        if os.environ.get('LF_DRAIN_DESIGN_ROADS', '0') == '1':     # C2: constant rate on built-up road cells
+            ds, rr = road_design_sink(IMP, BOX, RES, block, g('LF_DRAIN_DESIGN_MMH', '25'), g('LF_DRAIN_IMP_MIN', '0.5'), g('LF_DRAIN_IMP_RADIUS_M', '150'))
+            log(f"LF_DRAIN_DESIGN_ROADS: {rr['cells']:,} of {rr['road_cells']:,} road cells built up, {rr['mmh']} mm/h, {rr['q_m3s']} m3/s"); rep['design_roads'] = rr
+        else: ds = design_sink(IMP, block, g('LF_DRAIN_DESIGN_MMH', '43'), g('LF_DRAIN_EFF', '0.5'), g('LF_DRAIN_IMP_MIN', '0.2'))
         if path and (sink > 0).any():
             from scipy.ndimage import distance_transform_edt
             far = distance_transform_edt(sink <= 0) * RES > g('LF_DRAIN_COVER_M', '300'); ds = np.where(far, ds, 0.0)
