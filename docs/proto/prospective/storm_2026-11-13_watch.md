@@ -59,3 +59,8 @@ candidate's test with its adoption decision. If nothing floods, that is a result
 - **12 Nov 19–23Z (hours 20–21Z backfilled).** Light rain so far: District 3 box mean 0.36, 0.19, 0.17, 0.05, 0.08 mm per hour (max
   5.9 mm). HRRR 1 h earlier said 0.14, 0.06, 0.03, 0.01, 0.01: about 3–5 × too little in these light hours (all leads 1–6 h similar). No
   snow flagged, no MassDOT water events, sentinel QUIET, forecast "no closures". The recorder now backfills hours GitHub's schedule skips.
+- **13 Nov 00Z.** Hour mean 0.10 mm (max 3.4), HRRR 1 h earlier 0.02: the light-rain low bias holds (6 hours, observed / HRRR-1h
+  ≈ 2.6–6 ×). Still no snow, no MassDOT water events. **Pipeline finding:** the 18Z forecast cycle (run 43311579673, started 21:34Z) is
+  still running at 00:30Z: per member the flood solve takes 55–95 min and the road-closure step 45–75 min (5-min frames), so a cycle is
+  published about 7 h after the HRRR cycle time. In a fast storm that is too late; candidate fix (pipeline, not physics): compute the
+  closure statistics from 15-min frames while keeping 5-min frames for the map, checked on the golden storm before use.
