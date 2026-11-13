@@ -244,7 +244,7 @@ def load_inputs(out, segments):
     return summ, S, inbox, hours, D, props, P
 
 
-def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, sens=True, png=True, blocks=BLOCKS):
+def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, sens=True, png=True, blocks=BLOCKS, eff=True):
     t_start = time.time()
     segments = segments or os.path.join(ROOT, 'docs', 'graph_segments.json'); facilities = facilities or os.path.join(ROOT, 'docs', 'network', 'facilities.json')
     summ, S, inbox, hours, D, props, P = load_inputs(out, segments)
@@ -260,7 +260,7 @@ def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, s
     lw = net.len_m / 1000.0; aw = net.aadt * net.len_m
     # dry baselines
     mult0 = np.ones(n); G0 = net.graph(mult0); Gb0 = net.graph(mult0, nodes)
-    E0 = efficiency(Gb0, len(nodes), srcs)
+    E0 = efficiency(Gb0, len(nodes), srcs) if eff else float('nan')   # eff=False (--no-eff): Q_eff and the 15 cm curve are skipped
     acc0 = {k: access_minutes(net, G0, FS[k]) for k in ACCESS_MIN}
     ok0 = {k: inbox & (acc0[k] <= ACCESS_MIN[k]) for k in ACCESS_MIN}
     km0 = {k: float(lw[ok0[k]].sum()) for k in ACCESS_MIN}
@@ -281,7 +281,7 @@ def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, s
     for k, h in enumerate(hours):
         d = D[k].astype(float); mult, f = speed_mult(d, close_cm); closed = inbox & ~np.isfinite(mult); ncl.append(int(closed.sum()))
         G = net.graph(mult); Gb = net.graph(mult, nodes)
-        Qe.append(100.0 * efficiency(Gb, len(nodes), srcs) / E0 if E0 > 0 else 100.0)
+        Qe.append((100.0 * efficiency(Gb, len(nodes), srcs) / E0 if E0 > 0 else 100.0) if eff else float('nan'))
         sh = []; shp = []; lost_any = np.zeros(n, bool)
         for s in ACCESS_MIN:
             src = [j for j in FS[s] if np.isfinite(mult[j])]; A = access_minutes(net, G, src)
@@ -310,10 +310,10 @@ def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, s
         nodet.append(nd); vhd_t.append(round(float(vhd_close.sum() + vhd_slow.sum()), 1))
         if sens and k % 8 == 0: print(f'  t={h:5.1f} h closed {closed.sum():4d}  Q_eff {Qe[-1]:6.2f}  Q_access {Qa[-1]:6.2f}  Q_traffic {Qt[-1]:6.2f}', flush=True)
     # sensitivity: efficiency at the 15 cm cut
-    if sens:
+    if sens and eff:
         for k in range(len(hours)):
             mult, _ = speed_mult(D[k].astype(float), CLOSE_CM_SENS); Qs.append(100.0 * efficiency(net.graph(mult, nodes), len(nodes), srcs) / E0)
-    V = {'Q_eff': Qe, 'Q_access': Qa, 'Q_traffic': Qt, 'Q_access_km': Qk}
+    V = {'Q_eff': Qe, 'Q_access': Qa, 'Q_traffic': Qt, 'Q_access_km': Qk} if eff else {'Q_access': Qa, 'Q_traffic': Qt, 'Q_access_km': Qk}
     res = dict(run=summ.get('run'), storm_start=summ.get('storm_start'), box_epsg26986=summ['box_epsg26986'], made=time.strftime('%Y-%m-%d %H:%M'),
                segments_in_box=int(inbox.sum()), road_km_in_box=round(float(lw[inbox].sum()), 1), frame_hours=[round(float(h), 2) for h in hours], dt_h=dt_h,
                closure_depth_cm=close_cm, closed_segments=ncl,
@@ -322,7 +322,7 @@ def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, s
                access=dict(thresholds_min=ACCESS_MIN, facilities_snapped={k: int(len(v)) for k, v in FS.items()},
                            dry_km_within={k: round(v, 1) for k, v in km0.items()}, dry_share_of_box_km={k: round(100 * v / max(float(lw[inbox].sum()), 1e-9), 1) for k, v in km0.items()},
                            share_pct=acc_t, metrics={k: curve_metrics(hours, v) for k, v in acc_t.items()}),
-               efficiency=dict(E_dry_per_min=round(float(E0), 6), sources='all' if srcs is None else int(len(srcs)), weight='free-flow minutes x Pregnolato slowdown'),
+               efficiency=dict(E_dry_per_min=round(float(E0), 6) if eff else None, sources='all' if srcs is None else int(len(srcs)), weight='free-flow minutes x Pregnolato slowdown'),
                delay=dict(vehicle_hours_total=round(float(vhd_close.sum() + vhd_slow.sum()), 1), vehicle_hours_detour=round(float(vhd_close.sum()), 1),
                           vehicle_hours_slow_wet=round(float(vhd_slow.sum()), 1), unserved_vehicle_trips=round(float(unserved.sum()), 0),
                           detour_cap_min=DETOUR_CAP_MIN, cumulative_vehicle_hours=vhd_t, closed_stretches_without_detour=nodet,
@@ -365,7 +365,7 @@ def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, s
                    'not now (segment closed, or no open facility within the standard); person-hours = trapezoid of people losing over the window; '
                    'isolated = no route to any open hospital / fire / police (strongly connected component of the open whole-MA graph)')
     res['access']['variant'] = 'population (2020 Census blocks)' if pop is not None else 'road-km (no census file)'
-    if sens:
+    if sens and eff:
         res['sensitivity_15cm'] = dict(Q_eff=[round(float(v), 3) for v in Qs], metrics=curve_metrics(hours, Qs))
     res['runtime_s'] = round(time.time() - t_start, 1)
     json.dump(res, open(os.path.join(out, 'resilience.json'), 'w'), indent=1)
@@ -459,7 +459,9 @@ if __name__ == '__main__':
     ap.add_argument('--blocks', default=BLOCKS, help='census blocks .npz (proto/census_blocks.py); missing -> road-km access')
     ap.add_argument('--eff-sources', type=int, default=0, help='sample this many sources for global efficiency (0 = all pairs)')
     ap.add_argument('--no-sens', action='store_true', help='skip the 15 cm sensitivity curve')
+    ap.add_argument('--no-eff', action='store_true', help='skip global efficiency (Q_eff) and the 15 cm curve: the slow all-pairs part; '
+                    'resilience_segments.csv (read by proto/risk.py) is unchanged')
     ap.add_argument('--selftest', action='store_true')
     a = ap.parse_args()
     if a.selftest: sys.exit(0 if selftest() else 1)
-    run(a.out, a.segments, a.facilities, a.eff_sources, sens=not a.no_sens, blocks=a.blocks)
+    run(a.out, a.segments, a.facilities, a.eff_sources, sens=not a.no_sens, blocks=a.blocks, eff=not a.no_eff)
