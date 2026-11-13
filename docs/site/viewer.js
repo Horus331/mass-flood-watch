@@ -1064,18 +1064,25 @@
   }
   function wiNumbers() {
     var N = (wi.dj && wi.dj.numbers) || {}, B = wi.index && wi.index.scenarios[wi.index.baseline], base_ = wi.key !== (wi.index && wi.index.baseline) && B && B.status === 'ok' ? B : null;
-    var delta = function (v, b) { if (!base_ || v == null || b == null) return ''; var d = v - b; return d === 0 ? ' <i>same as the actual storm</i>' : ' <i>' + (d > 0 ? '+' : '−') + n(Math.abs(d)) + ' vs actual</i>'; };
+    // blocked culverts: box-wide totals shift with small terrain changes far from the culverts, so they are not compared with the clear run;
+    // culverts overtopped uses the version-3 reading against the road surface for both (docs/proto/whatif/BLOCKED_V3.md)
+    var V3s = wi.index && wi.index.blocked_v3 && wi.index.blocked_v3.by_rain_soil, v3 = V3s && wi.key ? V3s[wi.key.replace(/_(open|blocked)$/, '')] : null;
+    var blk = /_blocked$/.test(wi.key || '');
+    var delta = function (v, b) { if (blk || !base_ || v == null || b == null) return ''; var d = v - b; return d === 0 ? ' <i>same as the actual storm</i>' : ' <i>' + (d > 0 ? '+' : '−') + n(Math.abs(d)) + ' vs actual</i>'; };
     $('wiNRain').innerHTML = N.rain_total_mm != null ? Math.round(N.rain_total_mm) + ' mm' + (N.rain_peak1h_mm ? '<i>up to ' + Math.round(N.rain_peak1h_mm) + ' mm in one hour</i>' : '') : '–';
     $('wiNClosed').innerHTML = N.segments_closed != null ? n(N.segments_closed) + (N.pct_closed != null ? '<small>' + N.pct_closed.toFixed(1) + '% of roads</small>' : '') + delta(N.segments_closed, base_ && base_.segments_closed) : '–';
     $('wiNPeople').innerHTML = N.people_cut_off != null ? n(N.people_cut_off) + delta(N.people_cut_off, base_ && base_.people_cut_off) : '–';
-    $('wiNCulv').innerHTML = N.culverts_overtopped != null ? n(N.culverts_overtopped) + delta(N.culverts_overtopped, base_ && base_.culverts_overtopped) : '–';
+    $('wiNCulv').innerHTML = blk && v3 ? n(v3.overtopped_blocked) + ' <i>' + n(v3.overtopped_open) + ' with clear culverts</i>' :
+      v3 ? n(v3.overtopped_open) + delta(v3.overtopped_open, V3s.r100_normal && V3s.r100_normal.overtopped_open) :
+      N.culverts_overtopped != null ? n(N.culverts_overtopped) + delta(N.culverts_overtopped, base_ && base_.culverts_overtopped) : '–';
     $('wiNote').innerHTML = 'Each setting is a full LISFLOOD-FP flood-model run of the real storm with that one input changed: ' +
       (wi.index ? wi.index.n_ok + ' runs' : 'runs') + ' on WPI’s Turing GPU cluster, not an extrapolation. People cut off: residents with no route to a hospital, fire or police station.' +
       (function () {
         var V = wi.index && wi.index.blocked_v3 && wi.index.blocked_v3.by_rain_soil, k = wi.key ? wi.key.replace(/_(open|blocked)$/, '') : '', v = V && V[k];
         if (!v) return '';
-        return ' <b>Culverts, read against the road surface:</b> with them clear, ' + v.closed_open + ' road segments near culverts close and ' + v.overtopped_open +
-          ' culverts overtop; blocked, ' + v.closed_blocked + ' and ' + v.overtopped_blocked + '. The road colours on the map near culverts use the model’s cell depth, which counts water in a culvert opening (docs/proto/whatif/BLOCKED_V3.md).';
+        return ' <b>Culverts, water over the road surface:</b> with them clear, ' + v.closed_open + ' road segments near culverts close and ' + v.overtopped_open +
+          ' culverts overtop; blocked, ' + v.closed_blocked + ' and ' + v.overtopped_blocked + '.' + (/_blocked$/.test(wi.key) ? ' Totals for the whole area are not compared with the clear run: away from the culverts they shift with small terrain changes.' : '') +
+          ' The road colours near culverts use the model’s water depth in the cell, which includes water in the culvert opening (docs/proto/whatif/BLOCKED_V3.md).';
       })();
     $('runStats').innerHTML = '<b>' + n(N.segments_closed || 0) + '</b> road segments close (' + (N.km_closed || 0) + ' km), <b>' + n(N.culverts_overtopped || 0) +
       '</b> culverts overtopped, out of ' + n(N.segments_in_box || 0) + ' segments in the area.';
