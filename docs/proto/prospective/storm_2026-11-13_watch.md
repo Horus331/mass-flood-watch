@@ -106,3 +106,12 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   1 h 33 min wall clock at 302 % CPU (the 4-core runner is already used), grid 1000 × 1000 at 20 m.
 - **Failure 08:29Z run:** one member got non-JSON answers from Zenodo for 3 min (LISFLOOD-FP source download) and the run failed; the
   source zip is now cached in Actions (`forecast.yml`, `w9_lisflood.get_lisflood`).
+- **13 Nov 13–16Z.** Light rain with some snow: box mean 0.43, 0.57, 0.62, 0.38 mm/h (max 2.2 mm); snow flags on 4.8 %, 14 %, 4 %, 1.7 %
+  of precipitating pixels (the hills). HRRR 1 h earlier 0.30, 0.36, 0.39, 0.20 (about 1.5 × too little again). No MassDOT water
+  events; sentinel QUIET; recorder: all 22 hours 19Z–16Z present. The 12Z cycle did not fire the gate (no flood run, "no road closures
+  in 48 h"); the 13Z–15Z runs also stayed below it, so the LISFLOOD zip cache is not exercised yet. Golden storm passed after the cache
+  commit (run 43426065279).
+- **C2 note (before testing):** the storm-drain sink is close to two candidates already tested: generic design drains on Leominster
+  (`drains/DRAINS.md`) and the inlet sink on the 23 held-out storms (`drains/INLETS.md`, not adopted under §5a). C2 as fixed here (25 mm/h
+  on road cells in areas ≥ 50 % impervious) differs in rate and placement, so the held-out test stands as planned; it needs 23 GPU
+  solves on Turing (about 4–6 h), which needs Mo's OK (rule: ask before Turing jobs over ~3 h).
