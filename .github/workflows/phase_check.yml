@@ -1,0 +1,18 @@
+name: C1 phase check on the held-out storms (HRRR 2 m temperature)
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj
+      - run: python -u proto/phase_check.py --out docs/proto/prospective/phase_check.json
+      - run: |
+          git config user.name "Mohab Eldokla"; git config user.email "Horus331@users.noreply.github.com"
+          git add docs/proto/prospective/phase_check.json; git commit -qm "C1 phase check on the held-out storms" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q && exit 0; sleep 10; done; exit 1
