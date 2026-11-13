@@ -91,14 +91,16 @@ def evaluate(init, H, R, gate, force=False):
     import pandas as pd
     init = pd.Timestamp(init); S = stats(R); ins = gate.inside
     def iso(h): return (init + pd.Timedelta(hours=int(h))).strftime('%Y-%m-%dT%H:%MZ')
-    towns = []
+    towns = []; raw = {}
     for (n, lab, _), idx in zip(gate.towns, gate.town_pts):
+        raw[n.title()] = (float(S['max6h'][idx].max()), float(S['max24h'][idx].max()))
         k = idx[int(np.argmax(S['max6h'][idx]))]; k24 = idx[int(np.argmax(S['max24h'][idx]))]
         towns.append(dict(town=n.title(), max1h_mm=round(float(S['max1h'][idx].max()), 1), max6h_mm=round(float(S['max6h'][k]), 1),
                           max6h_window=[iso(S['t6'][k]), iso(S['t6'][k] + min(6, H))], max24h_mm=round(float(S['max24h'][k24]), 1),
                           total_mm=round(float(S['total'][idx].max()), 1), mean_total_mm=round(float(S['total'][idx].mean()), 1)))
     towns.sort(key=lambda t: -t['max6h_mm'])
-    hit = [t for t in towns if t['max6h_mm'] >= GATE_6H_MM or t['max24h_mm'] >= GATE_24H_MM]
+    # on the unrounded values (13 Nov 2026: a town at 24.96 mm rounded to 25.0, fired the trigger, and no box scored >= 1: no flood run)
+    hit = [t for t in towns if raw[t['town']][0] >= GATE_6H_MM or raw[t['town']][1] >= GATE_24H_MM]
     water = (not hit) and float(S['total'][ins].max()) >= WATER_MM
     trig = bool(hit) or force or water
     # boxes: greedy on the exceedance score over points inside District 3
@@ -122,6 +124,15 @@ def evaluate(init, H, R, gate, force=False):
                               max24h_mm=round(float(S['max24h'][inb & ins].max()), 1) if (inb & ins).any() else 0.0,
                               max6h_window=[iso(S['t6'][k]), iso(S['t6'][k] + min(6, H))], towns=tw))
             left &= ~(cov | (np.hypot(gate.X - gate.X[k], gate.Y - gate.Y[k]) < half + 5000))   # always retire the peak itself, even when the box was clamped away from it
+    if trig and not boxes:   # the trigger fired from points outside District 3 (a town's points reach past the district): one box on the wettest point inside
+        k = int(np.argmax(np.where(ins, np.maximum(S['max6h'] / GATE_6H_MM, S['max24h'] / GATE_24H_MM), -1.0))); x0d, y0d, x1d, y1d = D3_BOX; half = BOX_KM * 500.0
+        cx = min(max(round(gate.X[k] / 1000) * 1000, x0d + half), x1d - half); cy = min(max(round(gate.Y[k] / 1000) * 1000, y0d + half), y1d - half)
+        b = [cx - half, cy - half, cx + half, cy + half]; inb = (gate.X >= b[0]) & (gate.X < b[2]) & (gate.Y >= b[1]) & (gate.Y < b[3])
+        boxes.append(dict(id='b1', box=[int(v) for v in b], center_lonlat=[round(float(gate.lon.ravel()[k]), 3), round(float(gate.lat.ravel()[k]), 3)],
+                          max6h_mm=round(float(S['max6h'][inb & ins].max()), 1) if (inb & ins).any() else 0.0,
+                          max24h_mm=round(float(S['max24h'][inb & ins].max()), 1) if (inb & ins).any() else 0.0,
+                          max6h_window=[iso(S['t6'][k]), iso(S['t6'][k] + min(6, H))],
+                          towns=sorted({n.title() for (n, _, _), idx in zip(gate.towns, gate.town_pts) if inb[idx].any()}), fallback=True))
     k6 = int(np.argmax(np.where(ins, S['max6h'], -1)))
     d3 = dict(max1h_mm=round(float(S['max1h'][ins].max()), 1), max6h_mm=round(float(S['max6h'][ins].max()), 1), max24h_mm=round(float(S['max24h'][ins].max()), 1),
               max_total_mm=round(float(S['total'][ins].max()), 1), mean_total_mm=round(float(S['total'][ins].mean()), 1),
