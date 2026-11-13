@@ -90,3 +90,12 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   fix (pipeline only): `resilience.py --no-eff` (skip efficiency and the 15 cm curve) for the issue member, and no resilience / risk for
   the other 7 members (their outputs are never read). Check before use: `resilience_segments.csv` and `risk_segments.json` byte-identical
   with and without `--no-eff` on the Sept 2023 Leominster run.
+- **13 Nov 05–07Z.** Steady light rain: box mean 2.14, 1.98, 1.62 mm/h (max 10.9 mm). HRRR 1 h earlier 1.55, 1.36, 0.96: the low bias
+  shrinks as the rain becomes widespread (observed / HRRR-1h ≈ 1.4–1.7). No snow flagged, no MassDOT water events; sentinel WATCH for
+  the 05Z hour, otherwise QUIET. Recorder: all 13 hours 19Z–07Z present.
+- **00Z cycle (hand re-run 43366123146, published 06:38Z):** box 176000,859000–196000,879000 (Uxbridge area), 8 members, "no road
+  closures in 48 h". First cycle with LF_PHASE: 0.0 % of the precipitation frozen (lowest 2 m temperature 1.6 °C; max 0.1 mm as snow),
+  28 of 28 wet hours had a temperature; the temperature fetch adds about 4 min. Rain in the box: max 36 mm, mean 32 mm over 66 h.
+- **Latency after the fixes:** road-closure step 7–19 min per member with the frame skip only (00Z run), **0–2 min** with
+  `resilience --no-eff` (next run 43380569651). What is left is the solver: 38–100 min per member (issue member 1 h 21 min wall clock),
+  so a cycle now takes about 1 h 45 min from start to publish. The next latency target is the solver.
