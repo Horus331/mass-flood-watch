@@ -56,3 +56,7 @@ Newest first. Model changes, live-system changes and evaluation results that cha
 - The "road closures" step spent ~63 of its ~64 min in `proto/resilience.py`'s all-pairs network efficiency curve, which the forecast
   never publishes. The issue member now runs `resilience.py --no-eff` (risk_segments.json byte-identical on the Sept 2023 Leominster run,
   4.5 min → 16 s there); the other 7 members skip resilience and risk (their outputs were never read).
+
+## 13 Nov 2026 — LISFLOOD-FP source cached
+- The 08:29Z forecast run failed because one member could not reach Zenodo (the LISFLOOD-FP 8.2 source; non-JSON answers for 3 min:
+  rate limit or outage). The source zip is now kept in the Actions cache with its md5 and used without any Zenodo call when present.

@@ -176,6 +176,14 @@ jobs:
         if: steps.c.outputs.cache-hit != 'true'
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely pysteps opencv-python-headless
         if: steps.c.outputs.cache-hit != 'true'
+      - name: LISFLOOD-FP source zip (cached; Zenodo rate-limits 8 parallel jobs and was down 13 Nov 08:34Z)
+        if: steps.c.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/lf/*.zip
+            ${{ runner.temp }}/lf/*.zip.meta.json
+          key: lisflood-zenodo-13121102-v1
       - name: flood depth (LISFLOOD-FP 8.2, CPU, HRRR rain)
         if: steps.c.outputs.cache-hit != 'true'
         env:

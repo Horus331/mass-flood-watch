@@ -470,6 +470,17 @@ def get_lisflood():
     import requests
     os.makedirs(WORK, exist_ok=True)
     recs = [os.environ['LF_ZENODO']] if os.environ.get('LF_ZENODO') else ZENODO_RECORDS
+    def cached():                     # a zip saved by an earlier run (forecast.yml caches $LF_WORK/*.zip + .meta.json): no Zenodo call at all
+        import glob, hashlib
+        for m in sorted(glob.glob(f'{WORK}/*.zip.meta.json')):
+            try:
+                M = json.load(open(m)); dst = m[:-len('.meta.json')]
+                if M.get('rec') in recs and os.path.exists(dst) and (not M.get('md5') or hashlib.md5(open(dst, 'rb').read()).hexdigest() == M['md5']):
+                    log(f"LISFLOOD-FP {M.get('ver')} from the cache ({os.path.basename(dst)}, zenodo {M['rec']})"); return dst, str(M.get('ver')), f"https://doi.org/10.5281/zenodo.{M['rec']}"
+            except Exception as e: log('cached LISFLOOD zip unusable:', repr(e)[:120])
+        return None
+    c = cached()
+    if c: return c
     for k, rec in enumerate([r for _ in range(4) for r in recs]):     # Zenodo rate-limits parallel CI jobs (HTML 429 -> JSONDecodeError): 4 rounds, backoff
         if k and k % len(recs) == 0: time.sleep(30 * (k // len(recs)) + 30 * np.random.rand())
         try:
@@ -487,6 +498,7 @@ def get_lisflood():
             if ck.startswith('md5:'):
                 import hashlib; h = hashlib.md5(open(dst, 'rb').read()).hexdigest()
                 if h != ck[4:]: raise RuntimeError(f'md5 mismatch {h} != {ck}')
+            json.dump(dict(rec=rec, ver=str(ver), md5=ck[4:] if ck.startswith('md5:') else None), open(dst + '.meta.json', 'w'))
             return dst, str(ver), f'https://doi.org/10.5281/zenodo.{rec}'
         except Exception as e:
             log(f'zenodo {rec} failed:', repr(e)[:200])
