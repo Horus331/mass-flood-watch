@@ -948,7 +948,7 @@
     rain: ['Half the radar rain', 'Three quarters of the radar rain', 'The storm as the radar measured it', 'A quarter more rain than measured'],
     soil: ['Dry ground soaks up more of the rain (the driest soil class)', 'Ground as it was: the model’s calibrated setting',
       'Soaked ground from earlier rain sheds more of it (the wettest soil class)', 'Frozen ground sheds rain like pavement: nothing soaks in (an upper bound)'],
-    culv: ['Water passes under roads through culverts and pipes', 'Culverts are full or blocked: road embankments hold water back like dams (bridges stay open). Not reliable yet: the closure count at blocked culverts is under-counted (docs/proto/whatif/BLOCKED_V2.md)']
+    culv: ['Water passes under roads through culverts and pipes', 'Culverts are full or blocked: road embankments hold water back like dams (bridges stay open). Every mapped culvert blocked at once: an upper bound']
   };
   var wiCtl = { rain: ['r050', 'r075', 'r100', 'r125'], soil: ['dry', 'normal', 'wet', 'frozen'], culv: ['open', 'blocked'] };
   function wiKey() { return wiCtl.rain[+$('wiRain').value] + '_' + wiCtl.soil[+$('wiSoil').value] + '_' + wiCtl.culv[+$('wiCulv').value]; }
@@ -1070,7 +1070,13 @@
     $('wiNPeople').innerHTML = N.people_cut_off != null ? n(N.people_cut_off) + delta(N.people_cut_off, base_ && base_.people_cut_off) : '–';
     $('wiNCulv').innerHTML = N.culverts_overtopped != null ? n(N.culverts_overtopped) + delta(N.culverts_overtopped, base_ && base_.culverts_overtopped) : '–';
     $('wiNote').innerHTML = 'Each setting is a full LISFLOOD-FP flood-model run of the real storm with that one input changed: ' +
-      (wi.index ? wi.index.n_ok + ' runs' : 'runs') + ' on WPI’s Turing GPU cluster, not an extrapolation. People cut off: residents with no route to a hospital, fire or police station.';
+      (wi.index ? wi.index.n_ok + ' runs' : 'runs') + ' on WPI’s Turing GPU cluster, not an extrapolation. People cut off: residents with no route to a hospital, fire or police station.' +
+      (function () {
+        var V = wi.index && wi.index.blocked_v3 && wi.index.blocked_v3.by_rain_soil, k = wi.key ? wi.key.replace(/_(open|blocked)$/, '') : '', v = V && V[k];
+        if (!v) return '';
+        return ' <b>Culverts, read against the road surface:</b> with them clear, ' + v.closed_open + ' road segments near culverts close and ' + v.overtopped_open +
+          ' culverts overtop; blocked, ' + v.closed_blocked + ' and ' + v.overtopped_blocked + '. The road colours on the map near culverts use the model’s cell depth, which counts water in a culvert opening (docs/proto/whatif/BLOCKED_V3.md).';
+      })();
     $('runStats').innerHTML = '<b>' + n(N.segments_closed || 0) + '</b> road segments close (' + (N.km_closed || 0) + ' km), <b>' + n(N.culverts_overtopped || 0) +
       '</b> culverts overtopped, out of ' + n(N.segments_in_box || 0) + ' segments in the area.';
   }

@@ -38,3 +38,10 @@ Newest first. Model changes, live-system changes and evaluation results that cha
 
 ## 2026-11-05
 - Terrain fix T2 and closure depth from the rain onset live (`docs/proto/prospective/CHANGE_2026-11-05.md`).
+
+## 13 Nov 2026 — What-if: blocked culverts fixed (version 3, adopted)
+- The blocked-culvert switch closed fewer roads than the open one because stream water standing in the notch cut through the road was
+  read as water on the road (diagnostic `docs/proto/whatif/diag_*.json`: 27 of 27 open-only closures). Read against the lidar road
+  surface in both runs, blocking closes more roads near culverts in 12 of 12 scenario pairs and raises the pool behind them in 12 of 12
+  (pre-registered, `docs/proto/whatif/PREREG_BLOCKED_V3.md` → `BLOCKED_V3.md`). The explorer's "not reliable yet" label is removed and it
+  shows the version-3 numbers per scenario. The live forecast is unchanged.
