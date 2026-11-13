@@ -235,8 +235,13 @@ jobs:
           # calibrated flooding probability per segment (PREREG_LIVE_PI.md; stored, not shown yet): never fails the member
           timeout 1500 python proto/latent_live.py features --run-dir $OUTDIR --out $P/pi_feat > /dev/null 2>&1 && timeout 300 python proto/latent_live.py pi --features $P/pi_feat/features.csv --out $P/pi.json || echo "pi: not computed"
           rm -rf $P/pi_feat
-          python proto/resilience.py --out $P || true
-          python proto/risk.py --out $P --run-dir $OUTDIR || true
+          # network delay -> risk class / repair cost (risk_segments.json, read by the replay pack): only the issue member's pack is published, so the
+          # other 7 skip it; --no-eff drops the all-pairs efficiency curve the forecast never shows (~60 min per member; risk_segments.json identical,
+          # checked on the Sept 2023 Leominster run 13 Nov 2026: 4.5 min -> 16 s)
+          if [ "${{ matrix.b.init }}" = "${{ needs.gate.outputs.init }}" ]; then
+            python proto/resilience.py --out $P --no-eff || true
+            python proto/risk.py --out $P --run-dir $OUTDIR || true
+          fi
           cp $OUTDIR/meta.json $P/flood_meta.json; tail -c 100000 w9_stdout.txt > $P/w9_stdout.txt
           # the issue cycle's run is the one the replay shows: keep its model frames so the pack has continuous depth at 20 m, 5-min frames,
           # pieces from the full-resolution depth and the solver's flow (docs/site/build_data.py --run-dir)
