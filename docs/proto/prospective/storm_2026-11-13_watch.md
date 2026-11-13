@@ -72,3 +72,8 @@ candidate's test with its adoption decision. If nothing floods, that is a result
 - **Live forecast speed-up:** the 7 non-issue members now skip the 5-min frame images they never publish (commit deff33b2b); measured on
   the next cycle.
 - **C1 for the live forecast:** pre-registered as an artifact fix (`PREREG_PHASE_LIVE.md`); held-out check running.
+- **13 Nov 01–02Z.** Rain picking up: box mean 0.30 then 0.94 mm/h (max 6.7 mm). HRRR 1 h earlier: 0.15, 0.35; leads 3–6 h were closer
+  (0.53–0.90 for 02Z), so the shortest lead is the worst one here. No snow flagged, no MassDOT water events, sentinel QUIET.
+  The whatif_diag1 Turing job was rejected by the queue (spaces in an env value); the script now takes comma-separated pairs and the job
+  is queued again as whatif_diag2. The forecast run in progress (43323977755, 18Z cycle) predates the LF_PHASE and frame-image commits;
+  the 00Z cycle is the first with both.
