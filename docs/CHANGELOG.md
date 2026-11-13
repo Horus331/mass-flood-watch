@@ -51,3 +51,8 @@ Newest first. Model changes, live-system changes and evaluation results that cha
   outlook said "Flood model run failed" for Thu–Sat. Cause: the town test compared the value rounded to 0.1 mm with 25 mm, the box score
   used the unrounded value (just under 25). Now both use the unrounded value, and a fired trigger always gets at least one box (the
   wettest point inside District 3), marked `fallback`.
+
+## 13 Nov 2026 — Forecast about an hour faster
+- The "road closures" step spent ~63 of its ~64 min in `proto/resilience.py`'s all-pairs network efficiency curve, which the forecast
+  never publishes. The issue member now runs `resilience.py --no-eff` (risk_segments.json byte-identical on the Sept 2023 Leominster run,
+  4.5 min → 16 s there); the other 7 members skip resilience and risk (their outputs were never read).
