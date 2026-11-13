@@ -45,3 +45,9 @@ Newest first. Model changes, live-system changes and evaluation results that cha
   surface in both runs, blocking closes more roads near culverts in 12 of 12 scenario pairs and raises the pool behind them in 12 of 12
   (pre-registered, `docs/proto/whatif/PREREG_BLOCKED_V3.md` → `BLOCKED_V3.md`). The explorer's "not reliable yet" label is removed and it
   shows the version-3 numbers per scenario. The live forecast is unchanged.
+
+## 13 Nov 2026 — Forecast gate: trigger without a box (fixed)
+- The 00Z cycle of 13 Nov fired the trigger (Uxbridge 6 h ≈ 25.0 mm) but chose no flood-model box, so no flood run happened and the
+  outlook said "Flood model run failed" for Thu–Sat. Cause: the town test compared the value rounded to 0.1 mm with 25 mm, the box score
+  used the unrounded value (just under 25). Now both use the unrounded value, and a fired trigger always gets at least one box (the
+  wettest point inside District 3), marked `fallback`.
