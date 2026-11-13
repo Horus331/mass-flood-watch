@@ -115,3 +115,9 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   (`drains/DRAINS.md`) and the inlet sink on the 23 held-out storms (`drains/INLETS.md`, not adopted under §5a). C2 as fixed here (25 mm/h
   on road cells in areas ≥ 50 % impervious) differs in rate and placement, so the held-out test stands as planned; it needs 23 GPU
   solves on Turing (about 4–6 h), which needs Mo's OK (rule: ask before Turing jobs over ~3 h).
+- **13 Nov 17–19Z: rain over** (box mean 0.10, 0.00, 0.00 mm/h). Storm so far (25 hours 19Z–19Z, all recorded): **19.9 mm** box mean
+  (MRMS RadarOnly; gauge-corrected Pass2 to come), peak hour 2.2 mm box mean, wettest cell-hour 10.9 mm: a long, light rain, well
+  below flooding intensity. HRRR, summed by lead over the same 25 hours: 13.2 mm at 1 h, 9.2 at 2 h, 12.8–13.0 at 3–6 h, i.e. **about
+  35 % too little at every lead** (46 % at 2 h). Snow: at most 14 % of precipitating pixels (14Z), none after 17Z. No MassDOT water
+  events, no NWS flood alerts, sentinel QUIET throughout; every published cycle (12 Nov 12Z – 13 Nov 12Z) said "no road closures in
+  48 h". Post-storm work starts after 6 dry hours (from ~23Z): reports, radar replay, results file.
