@@ -2,6 +2,10 @@
 
 Newest first. Model changes, live-system changes and evaluation results that change what the site says.
 
+## 2026-11-14
+- C2 storm-drain sink on built-up road cells (25 mm/h): held-out test on 23 storms, **not adopted** (`docs/proto/drains/C2_ROADS.md`). Live forecast unchanged.
+- 13 Nov storm results: `docs/proto/prospective/storm_2026-11-13_results.md` (forecast and radar replay both 0 closures; HRRR ~35 % low).
+
 ## 2026-11-13
 - Precipitation phase (snow kept out of the water) on in the live forecast as an artifact fix (`docs/proto/prospective/PHASE_LIVE.md`).
 - Forecast: non-issue members skip the per-frame images (speed).
