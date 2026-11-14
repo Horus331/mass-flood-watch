@@ -121,3 +121,6 @@ candidate's test with its adoption decision. If nothing floods, that is a result
   35 % too little at every lead** (46 % at 2 h). Snow: at most 14 % of precipitating pixels (14Z), none after 17Z. No MassDOT water
   events, no NWS flood alerts, sentinel QUIET throughout; every published cycle (12 Nov 12Z – 13 Nov 12Z) said "no road closures in
   48 h". Post-storm work starts after 6 dry hours (from ~23Z): reports, radar replay, results file.
+- **Replay rerun with the live closure rules** (parity_test 43535831025, `PROTO_RES_CONSISTENT=1 PROTO_RC_START_H=rain`): 0 segments
+  p ≥ 0.5 with and without C2 (first replay: 2, both culvert-notch start-up water). Matches the reports (none). Summary:
+  `storm_2026-11-13_results.md`.
