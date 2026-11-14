@@ -47,7 +47,7 @@ Running log: `storm_2026-11-13_watch.md` (candidates fixed 12 Nov, before the st
 
 ## Lessons
 - **Raw HRRR ran about 35 % low on this long stratiform rain, but the live 20,90 spreading more than undid it** in the forecast box
-  (1.8–3.5 × the radar). A rain correction toward more rain is therefore not indicated. The open problem stays the one `DISTRICT_VOLCAL.md`
-  named: 20,90 gets the extent of rain about right but the amounts too high; its proposed fix (keep the 20,90 footprint, rescale to the
-  raw HRRR volume each hour) is the next candidate, pre-registered before any run.
+  (1.8–3.5 × the radar), so a correction toward more rain is not indicated. The box surplus is deliberate: less spreading loses 2–3 of 29
+  held-out box sites (`docs/proto/forecast/DISTRICT.md` §B), and here the surplus still produced no false closure. The over-rain matters
+  for the whole-district map (`DISTRICT_VOLCAL.md`), which stays a shadow run.
 - **Notch water at crossings** reads as road depth unless start-up water is subtracted. The live forecast does this; any offline evaluation has to do it too.
