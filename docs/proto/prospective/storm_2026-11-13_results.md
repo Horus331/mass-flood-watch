@@ -10,9 +10,16 @@ Running log: `storm_2026-11-13_watch.md` (candidates fixed 12 Nov, before the st
 
 ## Forecast
 - Every published cycle (12 Nov 12Z – 13 Nov 12Z) said **"no road closures in 48 h"**, which matches the reports.
-- **Rain error by lead (HRRR, summed over the 25 storm hours, vs 19.9 mm observed):** 1 h 13.2 mm, 2 h 9.2 mm, 3–6 h 12.5–13.0 mm.
-  So about **35 % too little at every lead** (46 % at 2 h). The bias flipped to slightly too much while the rain eased (08–12Z), then back to about 1.5× too little in the light rain of 13–16Z.
-- On this storm the rain error did not change the answer: even the observed rain did not close a road in the model (replay below).
+- **Raw HRRR, whole District 3 box, by lead** (recorder, summed over the 25 storm hours, vs 19.9 mm MRMS RadarOnly): 1 h 13.2 mm, 2 h 9.2 mm,
+  3–6 h 12.5–13.0 mm, i.e. about 35 % too little (46 % at 2 h). Per synoptic cycle, the HRRR district mean for the rest of the storm vs
+  radar: 12Z 18.6 vs 19.9, 18Z 8.1 vs 19.9, 00Z 13.9 vs 18.9, 06Z 6.4 vs 10.5 mm (pooled 0.68 ×).
+- **But the flood model did not get too little rain.** The live members spread HRRR with `LF_HRRR_NBHD=20,90` (90th percentile within
+  20 km), and the box sits where the forecast was wettest. Rain fed to the 8 members of the 00Z cycle in the Uxbridge box (job logs of run
+  43366123146): mean 16–32 mm (median 20; 12 Nov 06Z member 29, 12Z 28, 13 Nov 00Z 32). Radar over the same box and storm
+  (replay): **mean 9 mm, max 17 mm**. So the model's rain there was **1.8–3.5 × the radar**; the heaviest rain fell elsewhere in the
+  district. This is the known over-forecast of 20,90 (`docs/proto/forecast/DISTRICT_VOLCAL.md`: 1.8 × district volume, 1.23 × inside
+  storm boxes, on the held-out storms), plus placement.
+- Even with 2–3 × the observed rain, the members closed no road, and nothing was reported. The answer was right; the rain was not.
 
 ## Replay on radar rain (same box, T0 12 Nov 18Z, 36 h, live physics)
 | case | closure rules | segments p ≥ 0.5 | summed p (expected closures, 2,600 segments) |
@@ -39,5 +46,8 @@ Running log: `storm_2026-11-13_watch.md` (candidates fixed 12 Nov, before the st
 4. **Replay set-up** (above): replays and benchmarks must use the live start-up subtraction, or culvert-notch water reads as road flooding.
 
 ## Lessons
-- **HRRR runs low on long stratiform rain** (about 35 % here). For a flooding storm, that bias would matter. A bias-corrected or radar-blended rain for the first hours is worth a pre-registered test on past storms.
+- **Raw HRRR ran about 35 % low on this long stratiform rain, but the live 20,90 spreading more than undid it** in the forecast box
+  (1.8–3.5 × the radar). A rain correction toward more rain is therefore not indicated. The open problem stays the one `DISTRICT_VOLCAL.md`
+  named: 20,90 gets the extent of rain about right but the amounts too high; its proposed fix (keep the 20,90 footprint, rescale to the
+  raw HRRR volume each hour) is the next candidate, pre-registered before any run.
 - **Notch water at crossings** reads as road depth unless start-up water is subtracted. The live forecast does this; any offline evaluation has to do it too.
