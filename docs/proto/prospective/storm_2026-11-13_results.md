@@ -29,7 +29,7 @@ Running log: `storm_2026-11-13_watch.md` (candidates fixed 12 Nov, before the st
 
 ## Candidates fixed before the storm
 - **C1, rain/snow split (`LF_PHASE`):** live from the 00Z cycle. Frozen share 0.0–0.2 % (lowest 2 m temperature 1.5–1.6 °C), so no effect on this storm; costs about 4 min per run.
-- **C2, storm-drain sink on built-up road cells:** pre-registered in `docs/proto/drains/PREREG_C2_ROADS.md`; the held-out test (23 storms × {base, C2}) is running on Actions. On this storm C2 changes nothing (no flags with or without it; 1,075 of 55,787 road cells drained, 2.99 m³/s). Verdict goes to `docs/proto/drains/C2_ROADS.md`.
+- **C2, storm-drain sink on built-up road cells:** pre-registered in `docs/proto/drains/PREREG_C2_ROADS.md`; held-out test (23 storms × {base, C2}): **not adopted** (site recall at 3 % −0.010, lower bound −0.050, FSS down; `docs/proto/drains/C2_ROADS.md`). On this storm C2 changes nothing (no flags with or without it; 1,075 of 55,787 road cells drained, 2.99 m³/s).
 - **C3:** dropped (see watch log).
 
 ## Faults found and fixed during the storm
