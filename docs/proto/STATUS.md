@@ -1,4 +1,4 @@
-# Project status (25 Oct 2026): the single source of truth
+# Project status (updated 14 Nov 2026; sections 1 and 3 brought up to date, section 4 is the 25 Oct list): the single source of truth
 
 If another doc disagrees with this page about what is deployed or what a result means, this page wins. Paths are relative to `docs/proto/`.
 
@@ -6,10 +6,10 @@ If another doc disagrees with this page about what is deployed or what a result 
 
 | | setting | source |
 |---|---|---|
-| Flood model | LISFLOOD-FP 8.2, 20 m, **`LF_PARITY=1`** (infiltration in the rain, step ≤ 1 s, same physics on CPU and GPU), `LF_LOSS=cn`, AMC II, **`LF_CN_SCALE=0.88`**, `LF_INFIL_MMH=2`, `LF_QOUT=1`, hourly MRMS Pass2 rain, no dams, no drains | `parity/BASELINE.md` |
-| Closure rule | **p_close ≥ 0.5**, P = Φ((d − 0.30 m) / 0.10), d = second-highest road point per segment; bridge decks read depth from their approaches | `recall/RECALL.md` §4, `proto/prototype.py` |
-| Live forecast | gate 25 mm / 6 h or 40 mm / 24 h on HRRR; 8-member time-lagged HRRR ensemble, **likely closed = 2 of 8**, possible = 1 of 8; same model settings as above since 25 Oct 2026 (was CN × 0.91, default step) | `forecast/GATE.md`, `forecast/ENSEMBLE.md` |
-| Opt-in layers (default off, never change `p_close` unless noted) | `PROTO_TIERS=1` watch tier (rule + learned v1 P ≥ 0.02); `PROTO_PLUVIAL=1` pluvial v1 (adds to p_close when on); `PROTO_DAMAGE=1` crossing damage; `PROTO_RES_CONSISTENT=1` resolution-consistent depth; `PROTO_FLASH=1` MRMS FLASH features; `LF_DRAINS`; `LF_DAMS=1`; `LF_RAIN_DT=5`; `LF_RAIN_GAUGE=idw` (hindcast only); `SCORE_CRASHWATER=1`; `FORECAST_KOFN`; `FORECAST_ENSEMBLE=0` (single cycle) | the experiment files below |
+| Flood model | LISFLOOD-FP 8.2, 20 m, **`LF_PARITY=1`** (infiltration in the rain, step ≤ 1 s, same physics on CPU and GPU), `LF_LOSS=cn`, AMC II, **`LF_CN_SCALE=0.88`**, `LF_INFIL_MMH=2`, `LF_QOUT=1`, hourly MRMS Pass2 rain (replays), no dams, no drains; terrain **`LF_NOTCH_FIX=1` + `LF_CHAN_ENFORCE=1`** (T2, live since 5 Nov); **`LF_PHASE=1`** (snow held out of the water from HRRR 2 m temperature, live since 13 Nov, artifact fix) | `parity/BASELINE.md`, `terrain/TERRAIN.md`, `prospective/CHANGE_2026-11-05.md`, `prospective/PHASE_LIVE.md` |
+| Closure rule | **p_close ≥ 0.5**, P = Φ((d − 0.30 m) / 0.10), d = second-highest road point per segment; bridge decks read depth from their approaches. Live forecast: depth above the rain-onset depth (`PROTO_RES_CONSISTENT=1`, `PROTO_RC_START_H=rain`, 5 Nov) and the **P1 rise rule** (≥ 30 cm rise after onset, 8 Nov). Replays and benchmarks of live behaviour must use the same start-up rule, or stream water in culvert notches reads as road flooding (`prospective/storm_2026-11-13_results.md`) | `recall/RECALL.md` §4, `proto/prototype.py`, `prospective/CHANGE_2026-11-08.md` |
+| Live forecast | gate 25 mm / 6 h or 40 mm / 24 h on HRRR (unrounded test, fallback box, 13 Nov); 8-member time-lagged HRRR ensemble, `LF_HRRR_NBHD=20,90`, 12 h MRMS spin-up, **radar nowcast in the issue member's first hours** (9 Nov); **likely closed = 2 of 8**, possible = 1 of 8; road list **ordered by π** (12 Nov), no percentage shown | `forecast/GATE.md`, `forecast/ENSEMBLE.md`, `forecast/NOWCAST_WINDOWS.md`, `scoring/PI_RANK_v3.md`, `latent/PI_HELDOUT.md` |
+| Opt-in layers (default off, never change `p_close` unless noted) | `PROTO_TIERS=1` watch tier (rule + learned v1 P ≥ 0.02); `PROTO_PLUVIAL=1` pluvial v1 (adds to p_close when on); `PROTO_DAMAGE=1` crossing damage; `PROTO_FLASH=1` MRMS FLASH features; `LF_DRAINS`; `LF_INLETS=1`; `LF_DRAIN_DESIGN_ROADS=1` (C2); `LF_DAMS=1`; `LF_RAIN_DT=5`; `LF_RAIN_GAUGE=idw` (hindcast only); `SCORE_CRASHWATER=1`; `FORECAST_KOFN`; `FORECAST_ENSEMBLE=0` (single cycle); what-if knobs `LF_CN_FROZEN`, `LF_XINGS_BLOCKED` | the experiment files below |
 | Protocol | PROTOCOL v2: decision set = held-out 23 storms; locked storms aug2015, aug2018, aug2020, jul2018, oct2016 never run or read | `PROTOCOL.md` |
 
 ## 2. Honest headline numbers (the ones to quote)
@@ -25,6 +25,8 @@ If another doc disagrees with this page about what is deployed or what a result 
   (`parity/BASELINE.md`, `scoring/BASELINE_v2_expanded.md`).
 - **Forecast** (`forecast/ENSEMBLE.md` §4, 7 out-of-sample storms, 29 sites, run at CN × 0.91): 2-of-8 pooled recall 0.21 → 0.34 at
   ~9–10 h lead and 0.07 → 0.28 at ~3–4 h vs the single cycle; lift lower than the single cycle at long lead (4.0 vs 5.3).
+- **Cycle 1–2 benchmark** (`scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`; 81 District 4–6 storms never used for tuning): top 3 % site
+  recall, depth rule 0.206, **π ranking 0.251** (live order), chance 0.086; NWS warnings 0.09, FEMA zone 0.07, HAND 0.10.
 - **In-sample** numbers (Leominster sep2023 30 / 79 at 3 %, Worcester aug2021) are development storms and are never the headline.
 
 ## 3. Experiment ledger
@@ -64,6 +66,19 @@ If another doc disagrees with this page about what is deployed or what a result 
 | Terrain conditioning (1 Nov, k = 2): T1 `LF_NOTCH_FIX=1` (crossing notches not chained, joined to their outlet), T2 + `LF_CHAN_ENFORCE=1` (flowlines incl. the Mill Brook conduit carved as conveyance) | **not adopted** (opt-in): skill-neutral (held-out 23 at 3 %: 0.194 → 0.200 / 0.194; T2 FSS −0.0001), but T2 removes the artefacts (road depth > 2 m: 12 → 1 storm-segments; Route 2 8.5 → 0.1 m, MLK Jr Blvd 3.6 → 0.6 m, Foster St 1.9 → 0.02 m), flags 25 % fewer roads at higher lift (6.3 → 7.2) and improves gauges slightly. In-run baseline differs from the catalogue on aug2026 by one site | `terrain/TERRAIN.md` |
 | B0 `LF_INFIL_MMH=0` retest under v2 (light storms, 1 Nov) | **not adopted**: held-out 23 at 3 % +0.031 (lower bound −0.022); alert tier 8 → 12 / 98 at unchanged lift; light storms 1 → 2 / 58; best gauge setting again (rise error 0.371 → 0.310 m) | `runoff/B0_V2.md` |
 | District 3 forecast map: percentile chosen for district rain volume on dev storms (P* = 80) | **not adopted** (fails the held-out area condition); 20,90 carries 1.8 × the radar's district rain on 14 held-out cycles (bias confirmed out of sample); next: volume-preserving neighbourhood | `forecast/DISTRICT_VOLCAL.md` |
+| Radar nowcast in the first forecast hours (issue member) | **adopted** (9 Nov; rain error × 0.83) | `forecast/NOWCAST_WINDOWS.md` |
+| P1 rise rule in the live forecast | **adopted** (8 Nov, after advisor review) | `prospective/CHANGE_2026-11-08.md` |
+| Benchmark v3: model vs six baselines (NWS warnings, FEMA zone, MassDOT repeat points, rain threshold, HAND, static H×V×C) | **benchmark**: on 81 D4–6 storms the model (0.21 at 3 %) beats all six significantly; on D3 the traffic-weighted H×V×C is ahead (0.32 vs 0.20), likely report bias | `scoring/BENCHMARK_v3.md` |
+| Phase 1: why Leominster damage sites were missed | **diagnostic**: 21 / 54 hit; misses have ~2 cm modelled water, 26 of 33 edge washouts; crossings 16 × over-represented | `phase1/LEOMINSTER_MISSES.md` |
+| Model + traffic ranking | not adopted (D4–6 0.196 vs 0.206, CI [−0.041, +0.021]) | `scoring/HYBRID_v3.md` |
+| Model + stream-crossing flag | not adopted (worse on D4–6, CI [+0.036, +0.094] for model alone) | `scoring/CROSSING_v3.md` |
+| Rank roads by π | **adopted** (D4–6 0.206 → 0.251, CI [+0.002, +0.086]) | `scoring/PI_RANK_v3.md` |
+| Show π as a percentage (leave-one-storm-out calibration) | not adopted (pooled reported / expected 0.56 < 0.67); Leominster DPW check passes | `latent/PI_HELDOUT.md` |
+| Catch-basin sink (`LF_INLETS=1`) | not adopted (+0.000 at 3 %) | `drains/INLETS.md` |
+| C2 storm-drain sink on built-up roads (25 mm/h) | not adopted (0.194 → 0.184; rule-hit sites 7 → 5) | `drains/C2_ROADS.md` |
+| C1 rain/snow phase (`LF_PHASE=1`) | **adopted as an artifact fix** (13 Nov; no held-out storm below 2 °C) | `prospective/PHASE_LIVE.md` |
+| What-if blocked culverts v2 / v3 | v2 not adopted (notch artifact); **v3 adopted for the explorer** (12 / 12, 12 / 12) | `whatif/BLOCKED_V3.md` |
+| Forward test, storm of 12–13 Nov | **live record**: every cycle "no closures", nothing reported, radar replay 0; raw HRRR ~35 % low, box rain 1.8–3.5 × radar under 20,90 | `prospective/storm_2026-11-13_results.md` |
 
 ## 4. Open items
 
