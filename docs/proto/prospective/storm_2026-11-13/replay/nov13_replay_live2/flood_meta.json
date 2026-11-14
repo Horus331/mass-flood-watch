@@ -1,0 +1,135 @@
+{
+ "run": "arc20261113_loss_nov13_replay_live2",
+ "title": "Archived storm arc20261113 (observed MRMS radar rain) \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  176000.0,
+  859000.0,
+  196000.0,
+  879000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2026-11-12T18:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 48
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "MRMS AWS MultiSensor_QPE_01H_Pass2 + IEM RadarOnly_QPE_01H -> TUFLOW NetCDF dynamicrainfile",
+  "phase": null,
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CHAN_ENFORCE": "1",
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.88",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NOTCH_FIX": "1",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_SAVEINT": "300",
+   "LF_VOUT": "1"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 0.71,
+   "excess_out_mean_mm": 0.05,
+   "kept_share": 0.069,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver",
+  "rain_products": {
+   "hours": {
+    "AWS MultiSensor_QPE_01H_Pass2": 30,
+    "IEM RadarOnly_QPE_01H": 1
+   },
+   "by_hour": {
+    "2026-11-12T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-12T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-12T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-12T22:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-12T23:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T00:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T01:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T02:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T03:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T04:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T05:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T06:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T07:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T08:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T09:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T10:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T11:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T12:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T13:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T14:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T15:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T16:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T17:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T18:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T22:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-13T23:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-14T00:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+    "2026-11-14T01:00Z": "IEM RadarOnly_QPE_01H"
+   }
+  }
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 17,
+ "rain_total_mean_mm": 9,
+ "rain_missing_hours": [
+  "2026-11-14T02:00Z",
+  "2026-11-14T03:00Z",
+  "2026-11-14T04:00Z",
+  "2026-11-14T05:00Z",
+  "2026-11-14T06:00Z"
+ ],
+ "runtime_s": 1988,
+ "total_s": 2776,
+ "peak_wet_km2": 0.1,
+ "peak_snapshot_wet_km2": 0.1,
+ "mass_tail": [
+  "129300.000   1.0000     1.0000     129300     4296800.0000  370074.9800  0.000       0.000      2.074            -0.0000      -0.0000   19539.2241",
+  "129600.000   1.0000     1.0000     129600     4293600.0000  369453.9874  0.000       0.000      2.076             0.0000       0.0000   19539.2241"
+ ],
+ "git_sha": "6e624e39",
+ "forecast": null
+}
