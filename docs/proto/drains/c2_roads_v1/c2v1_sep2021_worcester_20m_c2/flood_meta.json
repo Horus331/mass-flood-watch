@@ -1,0 +1,151 @@
+{
+"run": "sep2021_proto_c2v1_sep2021_worcester_20m_c2",
+"title": "Sept 1-2, 2021 flash floods (Ida), Worcester \u00b7 LISFLOOD-FP benchmark",
+"box": [
+160000.0,
+882000.0,
+180000.0,
+902000.0
+],
+"res_m": 20.0,
+"shape": [
+1000,
+1000
+],
+"t0": "2021-09-01T18:00Z",
+"frame_min": 30,
+"crs": "EPSG:26986",
+"model": "LISFLOOD-FP 8.2",
+"model_source": "https://doi.org/10.5281/zenodo.13121102",
+"model_build": {
+"cuda": false,
+"exe": "lisflood",
+"build_s": 68
+},
+"solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+"inputs": {
+"dem": "HF data/dem10 averaged to RES",
+"channels": "vol",
+"manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+"rain": "MRMS AWS MultiSensor_QPE_01H_Pass2 -> TUFLOW NetCDF dynamicrainfile",
+"phase": null,
+"loss": "cn",
+"boundary": "FREE on all edges",
+"baseflow": true,
+"inflows": "none",
+"env": {
+"LF_CHAN_ENFORCE": "1",
+"LF_CN_AMC": "II",
+"LF_CN_SCALE": "0.88",
+"LF_DRAIN_DESIGN": "1",
+"LF_DRAIN_DESIGN_MMH": "25",
+"LF_DRAIN_DESIGN_ROADS": "1",
+"LF_DRAIN_IMP_MIN": "0.5",
+"LF_DRAIN_IMP_RADIUS_M": "150",
+"LF_INFIL_MMH": "2",
+"LF_INFIL_MODE": "rain",
+"LF_INIT_TSTEP": "1",
+"LF_LOSS": "cn",
+"LF_NOTCH_FIX": "1",
+"LF_NO_UPLOAD": "1",
+"LF_PARITY": "1",
+"LF_QOUT": "1",
+"LF_VOUT": "1"
+},
+"drains": {
+"design_roads": {
+"road_cells": 111915,
+"cells": 16377,
+"mmh": 25.0,
+"imp_min": 0.5,
+"radius_m": 150.0,
+"q_m3s": 45.49
+},
+"design": {
+"mmh": 25.0,
+"eff": 0.5,
+"imp_min": 0.5,
+"cells": 16377,
+"q_m3s": 45.5
+},
+"total_q_m3s": 45.5,
+"cells": 16377,
+"probe": {
+"volume_ratio": 1.0,
+"west_minus_east_m": 0.0505,
+"expect_west_m": 0.06,
+"mass_last": "600.000      5.0000     5.0000     120         640000.0000   44800.0000  0.000       0.000      0.000            -0.0000      -0.0000  -19200.0000"
+},
+"cells_m2": 400.0,
+"note": "aggregate only; the per-cell raster is deleted after the run (pipe data shared for research only)"
+},
+"infiltration": {
+"mode": "rain",
+"mmh": 2.0,
+"excess_in_mean_mm": 34.36,
+"excess_out_mean_mm": 20.88,
+"kept_share": 0.608,
+"applied_by": "rain excess, hourly, before the solver (both solvers)"
+},
+"initial_tstep_s": 1.0,
+"t0_snapshot": "solver",
+"rain_products": {
+"hours": {
+"AWS MultiSensor_QPE_01H_Pass2": 24
+},
+"by_hour": {
+"2021-09-01T19:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-01T20:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-01T21:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-01T22:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-01T23:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T00:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T01:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T02:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T03:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T04:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T05:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T06:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T07:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T08:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T09:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T10:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T11:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T12:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T13:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T14:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T15:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T16:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T17:00Z": "AWS MultiSensor_QPE_01H_Pass2",
+"2021-09-02T18:00Z": "AWS MultiSensor_QPE_01H_Pass2"
+}
+}
+},
+"rain_probe": {
+"quadrants": {
+"NW": 0.05369,
+"NE": 0.00894,
+"SW": 0.00894,
+"SE": 0.00031
+},
+"flip_y": false,
+"flip_x": false,
+"scale": 1.0,
+"probe_B_ratio": 1.0,
+"convention": "forward"
+},
+"hmax_source": "max file",
+"rain_total_max_mm": 116,
+"rain_total_mean_mm": 102,
+"rain_missing_hours": [],
+"runtime_s": 2712,
+"total_s": 2972,
+"peak_wet_km2": 15.8,
+"peak_snapshot_wet_km2": 12.3,
+"mass_tail": [
+"86100.000    1.0000     1.0000     86100      31019200.0000 4627795.2206  0.000       0.000      64.867            0.0000       0.0000 7672102.8374",
+"86400.000    1.0000     1.0000     86400      30946000.0000 4607957.7413  0.000       0.000      64.408            0.0000       0.0000 7671659.2097"
+],
+"git_sha": "5963d0bd",
+"forecast": null
+}
