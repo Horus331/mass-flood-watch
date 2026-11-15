@@ -46,6 +46,13 @@ reporting bias) why traffic ranks the damage well even in the DPW's complete inv
   label 0, unexplained 0. The "flow" class still rests on a speed test that most roads pass, so read it as "little modelled water, not
   at a crossing": edge erosion along the road.
 
+**Note 2 (15 Nov 2026, post hoc, for reading only): the misses are mostly one street.** 32 of the 54 DPW points are on **Wachusett
+Street** (DPW road code "wa"; notes "edge wash out" 31, "Storm Drain wash out" 1), along a 2.8 km stretch in the south-west of the city.
+7 of them were hit; the other 25 are **25 of the 27 non-crossing misses** (24 *flow*, 1 *drainage*). Off Wachusett Street, 14 of 22
+points were hit and 8 missed (6 at crossings, 2 elsewhere). So "edge erosion" is one corridor failure counted point by point, not 26
+independent sites: as evidence for a missed mechanism it is one strong case, and the count should be quoted with that. Figure:
+`fig/leominster_deep_dive.png` (`proto/phase1_figure.py`).
+
 **Named limitations.** One storm, one city; DPW points are damage, not closures; the city's storm-drain network (provided by the DPW) is
 not in the public repository and was not used; classes rest on model output at 20 m.
 

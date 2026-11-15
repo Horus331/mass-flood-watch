@@ -20,7 +20,8 @@
 
 **Why the model misses (Leominster, 54 DPW damage points: 21 hit, 33 missed).** The misses had almost no modelled water (median 2.4 cm;
 hits 79 cm). 26 of the 33 are **edge washouts**: erosion along curb lines and gutters, which a 20 m grid and a 30 cm ponding threshold
-cannot see. Crossings are **16 ×** over-represented among damage points (17 of 54 vs 1.9 % of road length); 11 of those 17 were hit.
+cannot see. But 25 of those are on **one street** (Wachusett St, 32 of the 54 points along 2.8 km), so this is one strong corridor case,
+not 26 independent sites; off Wachusett St, 14 of 22 points were hit. Crossings are **16 ×** over-represented among damage points (17 of 54 vs 1.9 % of road length); 11 of those 17 were hit.
 
 **Second live storm (12–13 Nov, 19.9 mm District 3 mean, long light rain).** Every forecast said "no road closures"; nothing was
 reported (MassDOT, NWS, storm reports). A radar replay with the live rules also found 0. Raw HRRR was ~35 % low across District 3,
@@ -50,7 +51,7 @@ but the live 20 km / 90th-percentile spreading gave the forecast box **1.8–3.5
 
 ## Slide bullets (complete story)
 - **Last time → this update:** we benchmarked against six methods; this cycle asked *why* the model misses and tested five fixes, all with rules fixed first.
-- **The miss mechanism:** most missed Leominster damage is edge erosion with ~2 cm of modelled water; ponding depth can't see it.
+- **The miss mechanism:** most missed Leominster damage is edge erosion with ~2 cm of modelled water, almost all along one street (Wachusett St); ponding depth can't see it. Off that street the model found 14 of 22 damage sites.
 - **Adopted:** ranking by the chance of flooding (unseen storms 21 % → 25 % of reported sites in the top 3 %).
 - **Rejected honestly:** drains (twice), traffic, crossing flag, showing a percentage; each failed its pre-set rule.
 - **Live system:** second real storm (13 Nov): correct "no closures", radar replay agrees; three operational faults found and fixed during the storm.
