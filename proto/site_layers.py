@@ -48,9 +48,9 @@ def fetch(a):
 
 
 # ------------------------------------------------------------------------------------------------ render (runs anywhere, no network)
-NLCD_RGB = {11: (70, 107, 159), 12: (209, 222, 248), 21: (222, 197, 197), 22: (217, 146, 130), 23: (235, 0, 0), 24: (171, 0, 0),
-            31: (179, 172, 159), 41: (104, 171, 95), 42: (28, 95, 44), 43: (181, 197, 143), 52: (204, 184, 121), 71: (223, 223, 194),
-            81: (220, 217, 57), 82: (171, 108, 40), 90: (184, 217, 235), 95: (108, 159, 184)}
+NLCD_RGB = {11: (122, 164, 206), 12: (226, 234, 245), 21: (233, 221, 214), 22: (220, 182, 168), 23: (198, 128, 116), 24: (150, 74, 70),
+            31: (196, 190, 178), 41: (132, 182, 118), 42: (66, 122, 82), 43: (164, 196, 140), 52: (208, 196, 150), 71: (226, 228, 196),
+            81: (222, 218, 128), 82: (196, 150, 96), 90: (170, 206, 214), 95: (132, 178, 196)}   # NLCD legend hues, softened for print
 NLCD_NAME = {11: 'Open water', 21: 'Developed, open space', 22: 'Developed, low', 23: 'Developed, medium', 24: 'Developed, high',
              31: 'Barren', 41: 'Deciduous forest', 42: 'Evergreen forest', 43: 'Mixed forest', 52: 'Shrub', 71: 'Grassland',
              81: 'Pasture', 82: 'Crops', 90: 'Woody wetland', 95: 'Herbaceous wetland'}
@@ -105,7 +105,8 @@ def render(a):
     cn = L['cn'].astype(np.float32); cnN = up(cn, N)
     lo, hi = 40.0, 98.0
     rgb = ramp([(0, (245, 241, 230)), (0.35, (226, 200, 150)), (0.65, (196, 132, 82)), (0.85, (150, 78, 52)), (1, (92, 44, 40))], np.clip((cnN - lo) / (hi - lo), 0, 1))
-    save('runoff', (rgb * (0.85 + 0.15 * hsN[..., None])).astype(np.uint8), lo=lo, hi=hi)
+    rgb = (rgb * (0.85 + 0.15 * hsN[..., None])).astype(np.uint8); rgb[water | chan] = (150, 184, 216)
+    save('runoff', rgb, lo=lo, hi=hi)
     # 4 terrain + streams + water + crossings
     zl, zh = np.percentile(z, 1), np.percentile(z, 99)
     tint = ramp([(0, (196, 214, 186)), (0.4, (222, 220, 190)), (0.75, (214, 196, 166)), (1, (236, 232, 226))], np.clip((zN - zl) / (zh - zl), 0, 1)).astype(np.float32)
@@ -140,8 +141,8 @@ def render(a):
             p = np.asarray(part, np.float64); lon = np.cumsum(p[0::2]) / 1e5; lat = np.cumsum(p[1::2]) / 1e5
             if lon.size < 2 or abs(lon[0] + 71.81) > 0.06 or abs(lat[0] - 42.27) > 0.05: continue
             X_, Y_ = tr.transform(lon, lat); fx = (np.asarray(X_) - x0) / (x1 - x0); fy = (y1 - np.asarray(Y_)) / (y1 - y0)
-            k = len(fx) // 2; d = np.hypot(fx[k] - 0.62, fy[k] - 0.42)
-            if 0.1 < fx[k] < 0.9 and 0.1 < fy[k] < 0.9 and (best is None or d < best[0]): best = (d, [round(float(fx[k]), 4), round(float(fy[k]), 4)], G['props']['road'][i])
+            k = len(fx) // 2; dd = np.hypot(fx[k] - 0.62, fy[k] - 0.42)
+            if 0.1 < fx[k] < 0.9 and 0.1 < fy[k] < 0.9 and (best is None or dd < best[0]): best = (dd, [round(float(fx[k]), 4), round(float(fy[k]), 4)], G['props']['road'][i])
     if best: meta['road_anchor'] = dict(at=best[1], name=best[2])
     for c, pts in sorted(lines, key=lambda t: -(t[0] or 9)):
         major = (c or 9) <= 2
