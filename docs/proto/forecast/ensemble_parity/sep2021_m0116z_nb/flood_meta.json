@@ -1,0 +1,95 @@
+{
+ "run": "sep2021_ens_sep2021_m0116z_nb",
+ "title": "Sept 1-2, 2021 flash floods (Ida), Worcester \u00b7 NOAA HRRR forecast issued Sep 01 16z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  160000.0,
+  882000.0,
+  180000.0,
+  902000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2021-09-01T16:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 211
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2021-09-01T16:00Z, forecast hours 1-18 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "phase": null,
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.88",
+   "LF_HRRR_INIT": "2021-09-01T16Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 47.26,
+   "excess_out_mean_mm": 30.88,
+   "kept_share": 0.653,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 131,
+ "rain_total_mean_mm": 122,
+ "rain_missing_hours": [],
+ "runtime_s": 1242,
+ "total_s": 1487,
+ "peak_wet_km2": 21.9,
+ "peak_snapshot_wet_km2": 19.2,
+ "mass_tail": [
+  "93300.000    1.0000     1.0000     93300      35568400.0000 7112968.1981  0.000       0.000      111.097           0.0000       0.0000 12353064.6932",
+  "93600.000    1.0000     1.0000     93600      35458800.0000 7079774.2610  0.000       0.000      110.226           0.0000       0.0000 12353064.6932"
+ ],
+ "git_sha": "9dfe0cc5",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2021-09-01T16:00Z",
+  "forecast_hours": 18,
+  "run_hours": 26,
+  "spinup_h": 0
+ }
+}
