@@ -61,7 +61,12 @@ jobs:
           D=drafts/layers/${{ inputs.name }}
           python proto/site_layers.py fetch --surr ${{ runner.temp }}/surr.npz --out $D --px ${{ inputs.px }}
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out 2>/dev/null | head -1)
-          if [ "${{ inputs.solve }}" = "true" ] && [ -n "$OUTDIR" ]; then python proto/parity_pack.py $OUTDIR $D; cp $OUTDIR/meta.json $D/flood_meta.json || true; fi
+          if [ "${{ inputs.solve }}" = "true" ] && [ -n "$OUTDIR" ]; then
+            python proto/parity_pack.py $OUTDIR $D; cp $OUTDIR/meta.json $D/flood_meta.json || true
+            python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)" || true
+            P=${{ runner.temp }}/proto; python proto/prototype.py --run-dir $OUTDIR --out $P --storm ${{ inputs.storm }} 2>&1 | tail -5 || true
+            cp $P/summary.json $D/ 2>/dev/null || true; [ -f $P/segments.geojson ] && gzip -9c $P/segments.geojson > $D/segments.geojson.gz || true
+          fi
           tail -c 20000 w9.txt > $D/w9_tail.txt
           ls -la $D
       - name: commit
