@@ -6,7 +6,7 @@ Inputs: the model's own input pack (sim/colab/w9_lisflood.py with LF_SURR_SAVE=1
 water / channel masks, hourly MRMS rain), plus NLCD 2021 land-cover classes (MRLC WCS) and a USGS NAIP aerial image
 (USGS The National Map image service). Writes small files only (float16 / uint8, compressed).
 """
-import argparse, io, json, os, sys
+import argparse, io, json, os, sys, time
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,6 +14,21 @@ BOX = (162000, 908000, 182000, 928000)     # EPSG:26986, the Leominster catalogu
 
 
 def naip(box, px, out):
+    """Aerial image; large requests are fetched as a grid of tiles of at most 2000 px and stitched (the service times out on bigger ones)."""
+    if px > 2000:
+        from PIL import Image
+        n = int(np.ceil(px / 2000)); t = px // n; x0, y0, x1, y1 = box; dx, dy = (x1 - x0) / n, (y1 - y0) / n; canvas = Image.new('RGB', (t * n, t * n)); src = None
+        for j in range(n):
+            for i in range(n):
+                b = (x0 + i * dx, y1 - (j + 1) * dy, x0 + (i + 1) * dx, y1 - j * dy); tmp = out + f'.{i}{j}.jpg'
+                src = naip1(b, t, tmp)
+                if not src: return None
+                canvas.paste(Image.open(tmp).convert('RGB').resize((t, t)), (i * t, j * t)); os.remove(tmp)
+        canvas.save(out, quality=92); return src
+    return naip1(box, px, out)
+
+
+def naip1(box, px, out):
     import requests
     x0, y0, x1, y1 = box
     for u in ('https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage',
@@ -21,6 +36,7 @@ def naip(box, px, out):
         q = dict(bbox=f'{x0},{y0},{x1},{y1}', bboxSR=26986, imageSR=26986, size=f'{px},{px}', format='jpg', f='image')
         try:
             r = requests.get(u, params=q, timeout=300)
+            if r.status_code != 200: time.sleep(5); r = requests.get(u, params=q, timeout=300)
             if r.status_code == 200 and r.content[:3] == b'\xff\xd8\xff':
                 open(out, 'wb').write(r.content); return u
             print('naip: bad response', u, r.status_code, r.content[:120])
@@ -58,7 +74,7 @@ def osm_buildings(box, out):
     q = f'[out:json][timeout:120];(way["building"]({la0},{lo0},{la1},{lo1}););out geom tags;'
     for u in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'):
         try:
-            r = requests.post(u, data=dict(data=q), timeout=200)
+            r = requests.post(u, data=dict(data=q), timeout=200, headers={'User-Agent': 'mass-flood-watch research site (github.com/Horus331/mass-flood-watch)', 'Accept': '*/*'})
             if r.status_code != 200: print('osm: bad response', u, r.status_code); continue
             B = []
             for e in r.json().get('elements', []):
