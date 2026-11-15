@@ -29,6 +29,56 @@ def naip(box, px, out):
     return None
 
 
+def dem_fine(box, res, out):
+    """USGS 3DEP bare-earth elevation (best available, 1 m lidar here) resampled to `res` m by the USGS image service."""
+    import requests, tifffile
+    x0, y0, x1, y1 = box; nx, ny = int(round((x1 - x0) / res)), int(round((y1 - y0) / res))
+    u = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage'
+    q = dict(bbox=f'{x0},{y0},{x1},{y1}', bboxSR=26986, imageSR=26986, size=f'{nx},{ny}', format='tiff', pixelType='F32',
+             interpolation='RSP_BilinearInterpolation', noData=-9999, f='image')
+    for k in range(3):
+        try:
+            r = requests.get(u, params=q, timeout=300)
+            if r.status_code == 200 and r.content[:2] in (b'II', b'MM'):
+                z = tifffile.imread(io.BytesIO(r.content)).astype(np.float32)
+                z = np.where(z < -1000, np.nan, z)
+                np.savez_compressed(out, z=z.astype(np.float32), res_m=np.float32(res)); return dict(src=u, res_m=res, shape=list(z.shape), nan=int(np.isnan(z).sum()))
+            print('dem: bad response', r.status_code, r.content[:200])
+        except Exception as e:
+            print('dem: failed', repr(e)[:200])
+    return None
+
+
+def osm_buildings(box, out):
+    """Building footprints with height (m) from OpenStreetMap (Overpass API): height tag, else building:levels x 3.5 m, else 8 m."""
+    import requests
+    from pyproj import Transformer
+    tr = Transformer.from_crs(26986, 4326, always_xy=True); x0, y0, x1, y1 = box
+    lo0, la0 = tr.transform(x0, y0); lo1, la1 = tr.transform(x1, y1)
+    q = f'[out:json][timeout:120];(way["building"]({la0},{lo0},{la1},{lo1}););out geom tags;'
+    for u in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'):
+        try:
+            r = requests.post(u, data=dict(data=q), timeout=200)
+            if r.status_code != 200: print('osm: bad response', u, r.status_code); continue
+            B = []
+            for e in r.json().get('elements', []):
+                g = e.get('geometry') or []
+                if len(g) < 4: continue
+                t = e.get('tags', {}); h = None
+                try: h = float(str(t.get('height', '')).replace('m', '').strip())
+                except ValueError: h = None
+                if not h:
+                    try: h = float(t.get('building:levels')) * 3.5
+                    except (TypeError, ValueError): h = None
+                B.append(dict(h=round(h or 8.0, 1), hs='tag' if t.get('height') else ('levels' if t.get('building:levels') else 'default'),
+                              n=t.get('name', ''), p=[[round(p['lon'], 6), round(p['lat'], 6)] for p in g]))
+            json.dump(dict(src=u, license='© OpenStreetMap contributors (ODbL)', buildings=B), open(out, 'w'))
+            return dict(src=u, n=len(B))
+        except Exception as e:
+            print('osm: failed', u, repr(e)[:200])
+    return None
+
+
 def fetch(a):
     sys.path.insert(0, f'{ROOT}/sim/colab')
     import w9_lisflood as W
@@ -41,8 +91,10 @@ def fetch(a):
                         imp=S['imp'], mask=S['mask'], rain_total=rain.sum(0).astype(np.float16), rain_hourly_mean=rain.mean(axis=(1, 2)).astype(np.float32),
                         nlcd=(lc if lc is not None else np.zeros((ny, nx), np.uint8)))
     src = naip(box, a.px, f'{a.out}/naip.jpg')
+    dem = dem_fine(box, a.dem_res, f'{a.out}/dem_fine.npz') if a.dem_res else None
+    bld = osm_buildings(box, f'{a.out}/buildings.json') if a.buildings else None
     info = dict(box=list(box), crs='EPSG:26986', res_m=res, shape=[ny, nx], t0=meta['t0'], hours=meta['hours'], rain_src=meta.get('rain_src'),
-                rain_coarsen=int(S['rain_coarsen']), nlcd=cov, naip=src, env=meta.get('env'), git_sha=meta.get('git_sha'),
+                rain_coarsen=int(S['rain_coarsen']), nlcd=cov, naip=src, dem_fine=dem, buildings=bld, env=meta.get('env'), git_sha=meta.get('git_sha'),
                 made_by='proto/site_layers.py fetch')
     json.dump(info, open(f'{a.out}/layers.json', 'w'), indent=1); print(json.dumps(info, indent=1))
 
@@ -198,6 +250,7 @@ def render(a):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); sp = ap.add_subparsers(dest='cmd', required=True)
     f = sp.add_parser('fetch'); f.add_argument('--surr', required=True); f.add_argument('--out', default='drafts/layers/data'); f.add_argument('--px', type=int, default=2000)
+    f.add_argument('--dem-res', type=float, default=0); f.add_argument('--buildings', action='store_true')
     r = sp.add_parser('render'); r.add_argument('--data', required=True); r.add_argument('--flood'); r.add_argument('--out', required=True); r.add_argument('--size', type=int, default=1400); r.add_argument('--grid', type=int, default=300)
     a = ap.parse_args()
     if a.cmd == 'fetch': fetch(a)
