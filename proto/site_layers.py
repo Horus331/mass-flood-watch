@@ -365,8 +365,8 @@ def render_campus(a):
         g = ft['geometry']; parts = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]; p = dict(ft['properties'])
         if 'p_close' in p:   # a model run's segments.geojson: same rating as the map (closed p >= 0.5; at risk = may close; wet >= 5 cm)
             dpt = p.get('peak_depth_m') or 0
-            if (p.get('p_close') or 0) < 0.5 and (p.get('p_may_close') or 0) < 0.5 and dpt < 0.05: continue
-            p = dict(n=p.get('road', ''), p=p.get('p_close') or 0, m=1 if (p.get('p_may_close') or 0) >= 0.5 else 0, d=dpt)
+            if (p.get('p_close') or 0) < 0.5 and dpt < 0.05: continue   # the map's tiers: closed (p >= 0.5), at risk 15-30 cm, wet 5-15 cm
+            p = dict(n=p.get('road', ''), p=p.get('p_close') or 0, m=1 if dpt >= 0.15 else 0, d=dpt)
         for part in parts:
             q = np.asarray(part)[:, :2]; fx, fy = frac(*tr.transform(q[:, 0], q[:, 1]))
             if fx.max() < 0 or fx.min() > 1 or fy.max() < 0 or fy.min() > 1: continue
@@ -398,7 +398,7 @@ def render_campus(a):
     rgb = ramp([(0, (245, 241, 230)), (0.35, (226, 200, 150)), (0.65, (196, 132, 82)), (0.85, (150, 78, 52)), (1, (92, 44, 40))], np.clip((cnN - 40) / 58, 0, 1)); rgb[wN] = (150, 184, 216)
     Image.fromarray(rgb).save(f'{a.out}/runoff.jpg', quality=88); meta['layers']['runoff'] = dict(lo=40, hi=98, res_m=info['res_m'])
     # places for labels
-    P = dict(kaven=(-71.80577, 42.27514), wpi=(-71.8085, 42.2746), pond=(-71.8048, 42.2774), field=(-71.8113, 42.2741), park_ave=(-71.8138, 42.2752), institute_park=(-71.8030, 42.2760))
+    P = dict(kaven=(-71.80577, 42.27514), boy_n=(-71.80524, 42.27514), boy_s=(-71.80606, 42.27114), wpi=(-71.8085, 42.2746), pond=(-71.8048, 42.2774), field=(-71.8113, 42.2741), park_ave=(-71.8138, 42.2752), institute_park=(-71.8030, 42.2760))
     meta['places'] = {k: [round(float(v), 4) for v in frac(*tr.transform(*ll))] for k, ll in P.items()}
     meta['rain_total_mm'] = None
     L = np.load(f'{a.data}/layers.npz'); rt = L['rain_total'].astype(np.float32)
