@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Model Tree · Mass Flood Watch</title>
+<meta name="description" content="Interactive map of the Mass Flood Watch road-flood model: every input, grid, the LISFLOOD-FP engine, failure checks, network consequences, forecast and validation, with sources and formulas.">
+<link rel="icon" href="wpi-logo.svg">
+<link rel="stylesheet" href="model-tree/lib/katex.min.css">
+<link rel="stylesheet" href="model-tree/app.css?v=1">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <h1>Model tree<small>Mass Flood Watch · how the model works, from rain to a closed road</small></h1>
+  <input id="q" type="search" placeholder="Search (e.g. culvert, Manning)" list="qlist" aria-label="Search the model tree"><datalist id="qlist"></datalist>
+  <span class="seg" role="group" aria-label="Detail"><button class="btn on" id="bSimple" type="button">Simple</button><button class="btn" id="bSci" type="button">Scientific</button></span>
+  <button class="btn" id="bFit" type="button">Fit to screen</button>
+  <button class="btn" id="bFollow" type="button">Follow the rain</button>
+  <button class="btn" id="bPng" type="button">Download PNG</button>
+  <button class="btn" id="bPdf" type="button">PDF</button>
+  <span class="grow"></span>
+  <a class="btn" href="./">Open the model</a>
+  <a class="btn" href="model-tree-print.html">Printable version</a>
+</header>
+<div id="cy" aria-label="Model tree diagram"></div>
+<aside id="panel" aria-live="polite"></aside>
+<details id="legend" open>
+  <summary>Legend</summary>
+  <div class="row"><i style="border-color:var(--input)"></i>input data</div>
+  <div class="row"><i style="border-color:var(--process)"></i>processing step</div>
+  <div class="row"><i style="border-color:var(--engine);border-width:4px"></i>flood engine and its outputs</div>
+  <div class="row"><i style="border-color:var(--check)"></i>failure check</div>
+  <div class="row"><i style="border-color:var(--label)"></i>validation (reports are never inputs)</div>
+  <div class="row"><i style="border-color:var(--whatif);border-style:dashed"></i>what-if only, not live</div>
+  <div class="row"><i style="border-color:var(--limit);background:rgba(138,143,150,.15)"></i>can't capture yet</div>
+  <div class="row"><b class="ln"></b>data / process flow</div>
+  <div class="row"><b class="ln o"></b>used only for checking</div>
+  <div class="row"><b class="ln d"></b>what-if / limitation</div>
+  <div class="row" style="color:var(--muted)">Zoom in for units, sources and formulas. Click a box for everything.</div>
+</details>
+<div id="hint" hidden></div>
+<script src="model-tree/lib/cytoscape.min.js"></script>
+<script src="model-tree/lib/katex.min.js"></script>
+<script src="model-tree/app.js?v=1"></script>
+</body>
+</html>

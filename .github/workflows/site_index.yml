@@ -1,0 +1,20 @@
+name: site index (docs/index.html = docs/viewer.html)
+# The site's front page is the model itself (Mo, 15 Nov 2026). index.html is generated from viewer.html by tools/sync_index.py;
+# this keeps it in step when viewer.html changes.
+on:
+  push:
+    branches: [main]
+    paths: ['docs/viewer.html', 'tools/sync_index.py']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/sync_index.py --check && exit 0 || python tools/sync_index.py
+      - run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/index.html; git commit -qm "site: index.html synced from viewer.html" || exit 0
+          for i in 1 2 3 4 5; do { git pull --rebase -X theirs -q || { git rebase --abort; false; }; } && git push -q && break; sleep $((RANDOM % 20 + 5)); done

@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mass Flood Watch</title>
+<meta name="description" content="Flash-flood road-closure forecasting for MassDOT Highway District 3 in central Massachusetts. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<link rel="icon" href="wpi-logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+@font-face{font-family:"Overpass";src:url(site/fonts/overpass-latin-wght.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@view-transition{navigation:auto}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+/* palette "harbour mist": soft blue-grey surfaces, slate-teal accent (shared with the map and About) */
+:root{
+  --bg:#E6EDF0;--surface:#F4F7F9;--surface-2:#DFE7EB;--ink:#1B2A33;--muted:#55656F;--rule:#CBD5DA;--plate:#244B5E;
+  --accent:#2C5F73;--water:#2171b5;--closed:#b2182b;--may:#c4620a;--dev:#7a4b00;--dev-bg:#fff1d6;
+  --sans:Overpass,"Segoe UI",system-ui,-apple-system,sans-serif;--serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121A20;--surface:#1B242C;--surface-2:#26323D;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;
+  --accent:#7FB6CB;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121A20;--surface:#1B242C;--surface-2:#26323D;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;
+  --accent:#7FB6CB;--water:#6aaee0;--closed:#ff5a5f;--may:#f6a04d;--dev:#ffd28a;--dev-bg:#3a2c12;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--serif);overflow-x:hidden}
+a{color:inherit;text-decoration-color:color-mix(in srgb,var(--accent) 60%,transparent);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+h1,h2,h3,.sans{font-family:var(--sans)}
+h2{font-size:30px;line-height:1.15;font-weight:800;margin:0 0 12px;letter-spacing:-.01em}
+h3{font-size:17px;line-height:1.3;font-weight:800;margin:0 0 6px}
+p{margin:0 0 14px;max-width:68ch}
+.lede{font-size:19px;color:var(--ink)}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums lining-nums}
+
+/* header */
+.top{border-bottom:1px solid var(--rule);background:var(--surface)}
+.top .wrap{display:flex;align-items:center;gap:18px;min-height:68px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+.logo{height:34px;width:auto;display:block;background:#fff;border-radius:4px;padding:3px 5px}
+.ident{display:flex;flex-direction:column;font-family:var(--sans);line-height:1.25}
+.ident b{align-self:flex-start;font-size:16px;font-weight:800;letter-spacing:.01em;line-height:1;color:#fff;background:var(--plate);padding:7px 10px 5px;border-radius:6px;margin-bottom:5px;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),inset 0 0 0 3px var(--plate);view-transition-name:mfw-plate}
+.ident span{font-size:13.5px;color:var(--muted)}
+.nav{margin-left:auto;display:flex;gap:18px;align-items:center;font:600 14px var(--sans)}
+.nav a{text-decoration:none;color:var(--muted)}
+.nav a:hover{color:var(--ink)}
+.nav a.open-map{color:#fff;background:var(--accent);padding:8px 14px 6px;border-radius:999px}
+.nav a.open-map:hover{color:#fff;filter:brightness(1.1)}
+:root[data-theme="dark"] .nav a.open-map{color:#10202A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nav a.open-map{color:#10202A}}
+.theme{background:none;border:1px solid var(--rule);border-radius:5px;padding:4px 9px 3px;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
+
+/* hero */
+.hero{padding:56px 0 28px}
+.hero h1{font-size:clamp(34px,5.2vw,60px);line-height:1.04;font-weight:800;letter-spacing:-.02em;margin:0 0 18px;max-width:17ch}
+.hero .lede{max-width:60ch}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);margin:38px 0 0;border-top:3px solid var(--ink)}
+.fact{padding:16px 22px 4px 0;border-right:1px solid var(--rule);margin-right:22px}
+.fact:last-child{border-right:0;margin-right:0}
+.fact .v{font:800 clamp(30px,3.6vw,44px)/1 var(--sans);letter-spacing:-.02em;display:block;margin-bottom:8px}
+.fact .v small{font-size:.5em;font-weight:600;color:var(--muted);letter-spacing:0}
+.fact p{font:15px/1.45 var(--serif);margin:0 0 8px}
+.fact .src{font:13px/1.4 var(--sans);color:var(--muted)}
+
+/* replay */
+.replay{padding:40px 0 18px}
+.replay-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+.replay-head p{margin:0}
+.frame{position:relative;height:min(78vh,760px);min-height:560px;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.open{font:600 14px var(--sans);white-space:nowrap}
+
+/* sections */
+section.block{padding:56px 0 8px}
+.cols{display:block}.cols>div:first-child{margin-bottom:34px}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:0;counter-reset:s;border-top:1px solid var(--rule)}
+.steps li{position:relative;padding:18px 26px 10px 0;counter-increment:s}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface);border:2px solid var(--water);color:var(--water);font:800 14px var(--sans);margin:-33px 0 12px;position:relative}
+.steps li p{font-size:15px;line-height:1.5;margin:0}
+.loop{margin:22px 0 0;padding:16px 20px;border-left:3px solid var(--accent);background:var(--surface)}
+.loop p{margin:0;font-size:16px}
+
+table{border-collapse:collapse;width:100%;font:14.5px/1.4 var(--sans)}
+.datatable{margin-top:34px}.datatable h3{font:800 20px var(--sans);margin:0 0 4px}.datatable table td{vertical-align:top}.datatable tr.grp th{text-align:left;background:var(--bg);font:800 13px var(--sans);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}.datatable .small{font-size:13px;margin-top:8px}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+thead th{font-weight:800;background:var(--surface-2);border-bottom:1px solid var(--rule)}
+thead th span{display:block;font-weight:400;color:var(--muted);font-size:13px}
+tbody th{font-weight:600;width:30%}
+tbody th span{display:block;font-weight:400;color:var(--muted);font-size:13px}
+td b{font-weight:800}
+td{font-variant-numeric:tabular-nums}
+tr:last-child th,tr:last-child td{border-bottom:0}
+.note{font-size:14.5px;color:var(--muted);margin-top:12px}
+.limits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 40px;margin:26px 0 0;padding:0;list-style:none}
+.limits li{font-size:16px;line-height:1.5;padding-left:16px;border-left:2px solid var(--rule)}
+.limits b{font-family:var(--sans);font-weight:800}
+
+.impact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:20px 22px}
+.panel h3{margin-bottom:2px}
+.panel .sub{font:13.5px var(--sans);color:var(--muted);margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:0;font:15px/1.35 var(--sans);margin:0}
+.kv dt,.kv dd{padding:7px 0;border-bottom:1px solid var(--rule);margin:0}
+.kv dd{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;padding-left:12px}
+.kv dt span{display:block;color:var(--muted);font-size:13px}
+.kv dt:last-of-type,.kv dd:last-of-type{border-bottom:0}
+.top5{margin:16px 0 0;padding:0;list-style:none;font:14px/1.4 var(--sans)}
+.top5 li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px dashed var(--rule)}
+.top5 li span:last-child{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cls{display:inline-block;font:700 12px var(--sans);padding:0 6px;border-radius:3px;background:#67000d;color:#fff;margin-right:6px}
+
+/* validation */
+.vh{font-size:19px;margin:38px 0 6px}
+.vsub{font-size:15.5px;color:var(--muted);margin:0 0 14px}
+tr.grp th{background:var(--surface-2);font:800 13px/1.3 var(--sans);letter-spacing:.02em;text-transform:uppercase;padding:8px 14px;width:auto}
+tr.grp th span{display:inline;text-transform:none;letter-spacing:0;font-weight:400;margin-left:8px}
+.storms td .pc{display:block;color:var(--muted);font-size:13px}
+.sm{display:inline-block;font:700 11px/1 var(--sans);color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:2px 4px 1px;margin-left:4px;white-space:nowrap}
+tr.tot th,tr.tot td{border-top:2px solid var(--ink)}
+.barcell{width:34%;min-width:180px;vertical-align:middle}
+.bar,.db{position:relative;display:block;height:10px;border-radius:5px;background:var(--surface-2)}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--water);border-radius:5px;min-width:0}
+.bar u{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1px;background:var(--ink);border-radius:1px}
+thead .key{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-weight:400;font-size:13px;color:var(--muted)}
+thead .key i{display:inline-block;width:12px;height:10px;border-radius:3px;background:var(--water);margin-right:-8px}
+thead .key i.k-rnd{width:3px;height:14px;border-radius:1px;background:var(--ink)}
+thead .key i.k-obs{width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--ink)}
+thead .key i.k-mod{border-radius:3px}
+.gauges thead .key i.k-mod{width:10px;border-radius:50%}
+thead .scale{display:flex;justify-content:space-between;font-weight:400;font-size:12px;color:var(--muted);margin-top:4px}
+thead .scale b{font-weight:400}
+.dbcell{width:42%;min-width:220px}
+.db{height:4px;margin:8px 6px 6px;background:var(--rule)}
+.db s{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--water) 45%,transparent)}
+.db em{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%}
+.db em.o{background:var(--surface);border:2px solid var(--ink);z-index:1}
+.db em.m{background:var(--water);box-shadow:0 0 0 2px var(--surface);z-index:2}
+.dbv{display:block;font-size:13px;color:var(--muted)}
+.gauges td:last-child{white-space:nowrap}
+.vchecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:8px 0 0;padding:0;list-style:none;border-top:3px solid var(--ink)}
+.vchecks li{padding:16px 22px 18px 0;margin-right:22px;border-right:1px solid var(--rule)}
+.vchecks li:last-child{border-right:0;margin-right:0;padding-right:0}
+.vchecks h3{margin:0 0 6px}
+.vchecks p{font-size:15.5px;line-height:1.5;margin:0}
+.vchecks .src{display:block;font:13px/1.6 var(--sans);color:var(--muted);margin-top:10px}
+.vchecks .tag-dev{margin-left:4px;vertical-align:1px}
+@media (max-width:980px){.vchecks{grid-template-columns:1fr}.vchecks li{border-right:0;margin-right:0;padding-right:0;border-bottom:1px solid var(--rule)}.vchecks li:last-child{border-bottom:0}}
+
+@media (max-width:640px){
+  .tablewrap table.storms,.tablewrap table.gauges{min-width:0}
+  .storms th,.storms td,.gauges th,.gauges td{padding:9px 6px}
+  .storms th:first-child,.storms td:first-child,.gauges th:first-child{padding-left:10px}
+  .storms .barcell{display:none}.storms tbody th{width:auto}.dbcell{min-width:110px;width:auto}
+  .storms,.gauges{font-size:13.5px}
+  tr.grp th span{display:block;margin:2px 0 0}
+  thead .key{font-size:12px;gap:2px 12px}
+  .gauges td:last-child{white-space:normal}
+}
+
+/* byline */
+.byline{display:flex;flex-direction:column;gap:2px;margin:22px 0 0;padding:12px 0 0 16px;border-left:3px solid var(--accent);font:15px/1.4 var(--sans);color:var(--muted);max-width:none}
+.byline b{font-size:18px;font-weight:800;color:var(--ink)}
+
+/* what comes next */
+.next{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:26px 0 0;padding:0;list-style:none;border-top:3px solid var(--ink)}
+.next li{padding:18px 22px 20px 0;margin-right:22px;border-bottom:1px solid var(--rule)}
+.next li:nth-child(3n){margin-right:0;padding-right:0}
+.next h3{margin:10px 0 6px}
+.next p{font-size:15.5px;line-height:1.5;margin:0}
+.next .src{display:block;font:13px/1.4 var(--sans);color:var(--muted);margin-top:8px}
+.tag-dev{display:inline-block;font:800 12px/1 var(--sans);color:var(--dev);background:var(--dev-bg);border-radius:4px;padding:5px 8px 3px}
+.tag-live{display:inline-block;font:800 12px/1 var(--sans);color:#fff;background:var(--accent);border-radius:4px;padding:5px 8px 3px}
+.next a{font:700 14px var(--sans)}
+@media (max-width:980px){.next{grid-template-columns:repeat(2,minmax(0,1fr))}.next li:nth-child(3n){margin-right:22px;padding-right:22px}.next li:nth-child(2n){margin-right:0;padding-right:0}}
+@media (max-width:640px){.next{grid-template-columns:1fr}.next li,.next li:nth-child(3n){margin-right:0;padding-right:0}}
+
+footer{margin-top:64px;border-top:1px solid var(--rule);background:var(--surface);padding:34px 0 40px;font:14px/1.6 var(--sans);color:var(--muted)}
+footer .wrap{display:grid;grid-template-columns:2fr 1fr;gap:30px}
+footer h3{color:var(--ink);font-size:14px}
+footer p{max-width:none;margin:0 0 8px}
+footer .disc{color:var(--ink);font-weight:600}
+
+@media (max-width:980px){
+  .facts{grid-template-columns:repeat(2,1fr)}
+  .fact{margin-right:0;padding-right:18px;border-right:0;border-bottom:1px solid var(--rule)}
+  .fact:nth-child(odd){border-right:1px solid var(--rule);margin-right:18px}
+  .steps{grid-template-columns:1fr;border-top:0;border-left:1px solid var(--rule);margin-left:14px}
+  .steps li{padding:0 0 18px 26px}
+  .steps li::before{position:absolute;left:-15px;top:-3px;margin:0}
+  .cols{grid-template-columns:1fr;gap:10px}
+  .impact,.limits{grid-template-columns:1fr}
+  footer .wrap{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  .wrap{padding:0 16px}
+  .nav a{display:none}
+  .top .wrap{flex-wrap:nowrap;gap:12px}
+  .ident{min-width:0}
+  .ident b{font-size:17px}.ident span{font-size:12.5px}
+  .logo{height:28px}
+  .hero{padding:34px 0 18px}
+  .facts{grid-template-columns:1fr}
+  .fact,.fact:nth-child(odd){border-right:0;margin-right:0;padding-right:0}
+  h2{font-size:25px}
+  .frame{height:82vh;min-height:620px;border-radius:6px}
+  th,td{padding:9px 10px}
+  .tablewrap table{min-width:640px}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <img class="logo" src="wpi-logo.svg" alt="Worcester Polytechnic Institute" width="105" height="34">
+    <div class="ident"><b>Mass Flood Watch</b><span>PhD dissertation research by Mohab Eldokla, WPI</span></div>
+    <nav class="nav" aria-label="Sections">
+      <a href="#replay">Storm replay</a><a href="#how">How it works</a><a href="#validation">Validation</a><a href="#impact">Impact</a><a href="#next">What comes next</a><a href="about.html">About</a><a href="status/">Status</a><a href="model-tree.html" target="_blank" rel="noopener">Model tree</a><a class="open-map" href="./">Open the map</a>
+      <button class="theme" id="theme" type="button" aria-label="Colour theme">Auto</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <h1>Which roads a flash flood will close, when, and why</h1>
+    <p class="lede">Mass Flood Watch turns radar rainfall into a road-by-road forecast of flash-flood closures for MassDOT Highway District 3 in central Massachusetts: where water reaches the road, when each segment closes and reopens, and who loses access to a hospital, fire station or police station while it is shut.</p>
+    <p class="byline"><b>Mohab Eldokla</b><span>PhD dissertation research, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute</span><span>Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff</span></p>
+    <div class="facts" role="list">
+      <div class="fact" role="listitem">
+        <span class="v num">35<small> of 89</small></span>
+        <p>documented closure and damage sites caught in Leominster–Fitchburg while flagging 1.97% of road segments: 12.8 times better than flagging at random.</p>
+        <span class="src">Sept 11, 2023, the tuned storm. Sites matched within 30 m.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">20<small> of 98</small></span>
+        <p>sites on 23 held-out storms fall in the model’s top 3% of road segments: 0.20 [0.10, 0.30] against 0.066 by chance (3.1 times). The fixed alert rule alone catches 9 of 98 (6.4 times chance).</p>
+        <span class="src">Storms never used for tuning, 2018–2026. 90% bootstrap interval. Second label round, 98 sites (the first round, 90 sites, gave 15 and 5).</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">0.46<small> m</small></span>
+        <p>mean error in river rise at USGS gauges, down from 0.82 m once every storm ran with the same converged solver settings. Gauges with no modelled rise: 9 of 16 down to 3 of 16.</p>
+        <span class="src">9 catalogue storms, 16 gauge-storm pairs.</span>
+      </div>
+      <div class="fact" role="listitem">
+        <span class="v num">9–10<small> h</small></span>
+        <p>of lead time from the live 8-member HRRR forecast ensemble. Out of sample, its 2-of-8 rule beat the single newest forecast in 7 of 14 storm-lead cases and never did worse.</p>
+        <span class="src">7 out-of-sample storms, each at a long and a short lead.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="replay" id="replay">
+  <div class="wrap">
+    <div class="replay-head">
+      <div>
+        <h2>Storm replay</h2>
+        <p class="muted">Press play to watch the radar rain arrive, the modelled water rise and roads close through the storm. Click a road for when it closes, why, and who loses access; click a river gauge to compare observed and modelled flow. Switch storms at the top of the map.</p>
+      </div>
+      <span class="open"><a href="viewer.html?run=leominster_sep2023">Open the replay full screen</a><br><a href="viewer.html?run=whatif">What if the storm were heavier, or the ground frozen?</a></span>
+    </div>
+    <div class="frame"><iframe id="viewer" title="Storm replay map" src="viewer.html?run=leominster_sep2023&amp;embed=1" loading="lazy" allow="fullscreen"></iframe></div>
+  </div>
+</section>
+
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h2>How it works</h2>
+        <p class="muted">Rain goes in; closed roads and what they cost come out. Every step uses public data and open-source code.</p>
+        <p class="muted"><a href="about.html#modelmap">See the whole model as one diagram</a>: every input, the flood model, the result on each road, what people see and what it is checked against.</p>
+      </div>
+      <div>
+        <ol class="steps">
+          <li><h3>Rain</h3><p>NOAA MRMS radar-and-gauge rainfall, 1 km, every hour of the storm.</p></li>
+          <li><h3>Flood model</h3><p>LISFLOOD-FP 8.2 spreads the rain over USGS 3DEP lidar terrain at 20 m. Soils and land cover set how much soaks in. Validated runs use one converged solver setting for every storm.</p></li>
+          <li><h3>Water on every road</h3><p>Depth on each road segment every 5 to 30 minutes: when water arrives, how deep, and for how long.</p></li>
+          <li><h3>Closure rules</h3><p>30 cm of water stops an ordinary car, so the chance of closing rises steeply past 30 cm. A stream reaching road level marks a road that may close. Culverts are checked against FHWA HDS-5.</p></li>
+          <li><h3>Network impact</h3><p>Residents from the 2020 Census who lose a hospital within 30 min, a fire station within 8 min or police within 10 min; detour delay; risk class and repair cost.</p></li>
+        </ol>
+        <div class="loop"><p>Every run is scored against what happened: USGS river gauges, NWS storm reports, NOAA Storm Events, and documented city and MassDOT closure and damage sites, each compared with random road points.</p></div>
+      </div>
+    </div>
+    <div class="datatable"><h3>Data behind the model</h3><p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p><div class="tablewrap"><table><thead><tr><th>Data</th><th>Source</th><th>What it describes</th><th>Units and resolution</th><th>How the model uses it</th></tr></thead><tbody>
+<tr class="grp"><th colspan="5">Model inputs</th></tr>
+<tr><td><b>Radar rainfall</b></td><td>NOAA MRMS MultiSensor QPE Pass2 (radar corrected with rain gauges); before Oct 2020 the GaugeCorr QPE from the Iowa State (IEM) archive</td><td>Rain that fell, per hour</td><td>mm per hour, 1 km grid, hourly</td><td>Fed into the flood model as rain on every 20 m cell; also gives each road its storm total, peak 1 h and 3 h rain</td></tr>
+<tr><td><b>Forecast rainfall</b></td><td>NOAA HRRR (High-Resolution Rapid Refresh)</td><td>Rain forecast for the next 48 h</td><td>mm per hour, 3 km grid, hourly; new run every 6 h</td><td>Drives the live forecast; the last 8 forecast runs form the ensemble (likely closed = closed in ≥ 2 of 8)</td></tr>
+<tr><td><b>Ground elevation</b></td><td>USGS 3DEP elevation, 1/3 arc-second (≈ 10 m, lidar-based in Massachusetts)</td><td>Height of the ground surface</td><td>metres above sea level (NAVD88)</td><td>Averaged to the 20 m model grid that water flows over; the highest 10 m cell is kept as the road-surface height</td></tr>
+<tr><td><b>Streams</b></td><td>USGS NHDPlus HR flowlines</td><td>Where streams and rivers run</td><td>lines, with drainage area (km²)</td><td>Carved into the terrain so rivers carry water downstream</td></tr>
+<tr><td><b>Soils</b></td><td>USDA NRCS SSURGO, hydrologic soil group A–D</td><td>How fast the ground absorbs water</td><td>class A (sandy, fast) to D (clay, slow)</td><td>With land cover, sets the NRCS curve number: how much rain soaks in vs runs off</td></tr>
+<tr><td><b>Land cover</b></td><td>USGS NLCD 2021 land cover and imperviousness</td><td>What covers the ground; share that is paved</td><td>% paved per 30 m cell</td><td>Runoff (curve number) and surface roughness (Manning's n, 0.035–0.10 s/m<sup>1/3</sup>)</td></tr>
+<tr><td><b>Roads</b></td><td>MassDOT Road Inventory</td><td>Every road segment: class, town, traffic</td><td>segments; traffic in vehicles per day (AADT)</td><td>Water depth is read along each segment every half cell; traffic weights detour delay</td></tr>
+<tr><td><b>Stream crossings and culverts</b></td><td>USGS national stream crossings, MA Stream Crossings Project (NAACC surveys), MassDOT structures</td><td>Where roads cross streams; culvert size and type</td><td>location; dimensions in m</td><td>Culvert capacity (FHWA HDS-5, m³/s) compared with modelled flow: overtopping and damage risk</td></tr>
+<tr><td><b>Bridges</b></td><td>MassDOT bridge layer, FHWA National Bridge Inventory</td><td>Bridge decks over water</td><td>location, deck extent</td><td>Water under a bridge is not water on the road, so decks are skipped and their approaches are checked</td></tr>
+<tr><td><b>Population</b></td><td>2020 US Census blocks</td><td>Where people live</td><td>residents per block</td><td>People who lose timely access to emergency services when roads close</td></tr>
+<tr><td><b>Emergency facilities</b></td><td>OpenStreetMap (hospitals, fire, police)</td><td>Where help comes from</td><td>locations</td><td>Access standards: hospital within 30 min, fire within 8 min, police within 10 min</td></tr>
+<tr class="grp"><th colspan="5">Checked against</th></tr>
+<tr><td><b>River gauges</b></td><td>USGS Water Data API</td><td>Observed river level and flow</td><td>m and m³/s, every 15 min</td><td>Modelled river rise and peak time compared with observed at every gauge in the area</td></tr>
+<tr><td><b>Storm reports</b></td><td>NWS Local Storm Reports, NOAA Storm Events database, news and agency reports</td><td>Roads reported flooded, closed or washed out</td><td>location and time of each report</td><td>Scoring: how many reported sites the model catches vs random road points</td></tr>
+<tr><td><b>City damage inventory and drains</b></td><td>City of Leominster DPW (Sept 2023), shared for this research</td><td>Complete list of damaged roads and culverts; storm-drain pipe network</td><td>points; pipe size in m</td><td>A complete city record to score against; drain capacity test</td></tr>
+<tr><td><b>Repeat flood sites</b></td><td>MassDOT District 3</td><td>Road spots that flood again and again</td><td>locations, no dates</td><td>Sanity check that the model finds known trouble spots</td></tr>
+</tbody></table></div><p class="muted small">Model output: water depth (m) on every 20 m cell and road segment every 5–30 minutes, river flow (m³/s) at crossings and gauges, and each road's chance of closing (0–100 %).</p></div>
+  </div>
+</section>
+
+<section class="block" id="validation">
+  <div class="wrap">
+    <h2>Validation</h2>
+    <p class="muted">Every storm is scored against what happened on the ground, with the same closure rule and the same settings. The one runoff setting (curve number × 0.88) was chosen on Leominster, Sept 2023, from the river gauges alone, then frozen. Leominster and the Worcester, Aug 2021 blind test are development storms. The 23 held-out storms (7 from the storm catalogue and 16 added later from news and agency reports) were each run once without any change.</p>
+
+    <h3 class="vh">Documented closure sites caught, storm by storm</h3>
+    <p class="vsub">A site counts as caught when a road segment within 30 m of it has a 50% or higher chance of closing (30 cm of modelled water). Flagged share is the share of all road segments in the area the model flags. Lift is the share caught divided by the share random flagging of the same number of segments would catch. “At 3% budget” counts sites caught when the top 3% of segments by modelled depth are flagged instead.</p>
+    <div class="tablewrap">
+      <table class="storms">
+        <thead><tr><th scope="col">Storm</th><th scope="col">Sites caught</th>
+          <th scope="col" class="barcell"><span class="key"><i class="k-mod"></i>caught <i class="k-rnd"></i>random flagging</span><span class="scale"><b>0%</b><b>25%</b><b>50%</b></span></th>
+          <th scope="col">Flagged</th><th scope="col">Lift</th></tr></thead>
+        <tbody>
+<tr class="grp"><th scope="rowgroup" colspan="5">Development storms<span>in-sample: used to set or check the settings; never pooled into the held-out score</span></th></tr>
+<tr title="Sept 11, 2023, Leominster–Fitchburg: 35 of 89 sites caught at 1.97% flagged"><th scope="row">Sept 11, 2023<span>Leominster–Fitchburg, tuned case, 48 h</span></th><td><b>35</b> of 89<span class="pc">39%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:78.7%"></i><u style="left:3.9%"></u></span></td><td>1.97%</td><td><b>12.8</b></td></tr>
+<tr title="Aug 19, 2021, Worcester: 3 of 12 sites caught at 1.13% flagged"><th scope="row">Aug 19, 2021<span>Worcester, blind test, 48 h</span></th><td><b>3</b> of 12<span class="pc">25%</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:50.0%"></i><u style="left:2.3%"></u></span></td><td>1.13%</td><td><b>10.3</b></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="5">Held out: catalogue storms<span>7 storms, same settings, never used for tuning</span></th></tr>
+<tr title="July 9, 2021, Worcester–Millbury: 0 of 4 sites caught at 0.2% flagged; 0 of 4 in the top 3% of segments"><th scope="row">July 9, 2021<span>Worcester–Millbury</span></th><td><b>0</b> of 4<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.4%"></u></span></td><td>0.2%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Sept 1–2, 2021, Worcester–West Boylston: 2 of 6 sites caught at 2.4% flagged; 3 of 6 in the top 3% of segments"><th scope="row">Sept 1–2, 2021<span>Worcester–West Boylston</span></th><td><b>2</b> of 6<span class="pc">33% · 3 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:66.7%"></i><u style="left:4.8%"></u></span></td><td>2.4%</td><td><b>7.1</b></td></tr>
+<tr title="Sept 5, 2022, Webster–Southbridge: 0 of 3 sites caught at 0.6% flagged; 0 of 3 in the top 3% of segments"><th scope="row">Sept 5, 2022<span>Webster–Southbridge</span></th><td><b>0</b> of 3<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:1.2%"></u></span></td><td>0.6%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 14, 2023, Worcester–Holden: 0 of 5 sites caught at 0.1% flagged; 0 of 5 in the top 3% of segments"><th scope="row">July 14, 2023<span>Worcester–Holden</span></th><td><b>0</b> of 5<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.2%"></u></span></td><td>0.1%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 8, 2023, Hopkinton–Framingham: 1 of 5 sites caught at 1.6% flagged; 1 of 5 in the top 3% of segments"><th scope="row">Aug 8, 2023<span>Hopkinton–Framingham</span></th><td><b>1</b> of 5<span class="pc">20% · 1 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:40.0%"></i><u style="left:3.2%"></u></span></td><td>1.6%</td><td><b>5.2</b></td></tr>
+<tr title="Aug 18, 2023, Millbury–Grafton: 0 of 2 sites caught at 0.1% flagged; 0 of 2 in the top 3% of segments"><th scope="row">Aug 18, 2023<span>Millbury–Grafton</span></th><td><b>0</b> of 2<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.2%"></u></span></td><td>0.1%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 3, 2026, Leominster–Fitchburg: 1 of 7 sites caught at 1.4% flagged; 2 of 7 in the top 3% of segments"><th scope="row">Aug 3, 2026<span>Leominster–Fitchburg</span></th><td><b>1</b> of 7<span class="pc">14% · 2 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:28.6%"></i><u style="left:2.8%"></u></span></td><td>1.4%</td><td><b>5.3</b></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="5">Held out: label-expansion storms<span>16 more storms, 2018–2023, run once with the frozen settings</span></th></tr>
+<tr title="May 15, 2018, Shrewsbury: 0 of 3 sites caught at 0.1% flagged; 1 of 3 in the top 3% of segments"><th scope="row">May 15, 2018<span>Shrewsbury <span class="sm">small storm</span></span></th><td><b>0</b> of 3<span class="pc">0% · 1 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.2%"></u></span></td><td>0.1%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 11, 2018, Holden: 0 of 3 sites caught at 0.2% flagged; 0 of 3 in the top 3% of segments"><th scope="row">Aug 11, 2018<span>Holden <span class="sm">small storm</span></span></th><td><b>0</b> of 3<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.4%"></u></span></td><td>0.2%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Sept 18, 2018, Fitchburg: 1 of 5 sites caught at 0.2% flagged; 1 of 5 in the top 3% of segments"><th scope="row">Sept 18, 2018<span>Fitchburg</span></th><td><b>1</b> of 5<span class="pc">20% · 1 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:40.0%"></i><u style="left:0.4%"></u></span></td><td>0.2%</td><td><b>49.2</b></td></tr>
+<tr title="Sept 18, 2018, Shrewsbury: 0 of 4 sites caught at 0.6% flagged; 0 of 4 in the top 3% of segments"><th scope="row">Sept 18, 2018<span>Shrewsbury <span class="sm">small storm</span></span></th><td><b>0</b> of 4<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:1.2%"></u></span></td><td>0.6%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Sept 18, 2018, Milford: 0 of 4 sites caught at 0.3% flagged; 1 of 4 in the top 3% of segments"><th scope="row">Sept 18, 2018<span>Milford</span></th><td><b>0</b> of 4<span class="pc">0% · 1 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.6%"></u></span></td><td>0.3%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Sept 26, 2018, Gardner: 0 of 5 sites caught at 0.0% flagged; 0 of 5 in the top 3% of segments"><th scope="row">Sept 26, 2018<span>Gardner</span></th><td><b>0</b> of 5<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.0%"></u></span></td><td>0.0%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 6, 2019, Spencer: 0 of 5 sites caught at 0.1% flagged; 0 of 5 in the top 3% of segments"><th scope="row">July 6, 2019<span>Spencer</span></th><td><b>0</b> of 5<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.2%"></u></span></td><td>0.1%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 7, 2019, Oxford: 0 of 2 sites caught at 0.0% flagged; 0 of 2 in the top 3% of segments"><th scope="row">Aug 7, 2019<span>Oxford <span class="sm">small storm</span></span></th><td><b>0</b> of 2<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.0%"></u></span></td><td>0.0%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Sept 2, 2019, Northbridge: 0 of 2 sites caught at 0.0% flagged; 1 of 2 in the top 3% of segments"><th scope="row">Sept 2, 2019<span>Northbridge <span class="sm">small storm</span></span></th><td><b>0</b> of 2<span class="pc">0% · 1 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.0%"></u></span></td><td>0.0%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="June 28, 2020, Northbridge: 0 of 6 sites caught at 0.5% flagged; 2 of 6 in the top 3% of segments"><th scope="row">June 28, 2020<span>Northbridge</span></th><td><b>0</b> of 6<span class="pc">0% · 2 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:1.0%"></u></span></td><td>0.5%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="June 28, 2020, Gardner: 0 of 4 sites caught at 0.0% flagged; 0 of 4 in the top 3% of segments"><th scope="row">June 28, 2020<span>Gardner</span></th><td><b>0</b> of 4<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.0%"></u></span></td><td>0.0%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="Aug 27, 2020, Worcester: 0 of 3 sites caught at 0.1% flagged; 0 of 3 in the top 3% of segments"><th scope="row">Aug 27, 2020<span>Worcester <span class="sm">small storm</span></span></th><td><b>0</b> of 3<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.2%"></u></span></td><td>0.1%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 17, 2021, Worcester: 0 of 4 sites caught at 0.4% flagged; 2 of 4 in the top 3% of segments"><th scope="row">July 17, 2021<span>Worcester</span></th><td><b>0</b> of 4<span class="pc">0% · 2 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.8%"></u></span></td><td>0.4%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 10, 2023, Worcester: 0 of 2 sites caught at 0.3% flagged; 0 of 2 in the top 3% of segments"><th scope="row">July 10, 2023<span>Worcester <span class="sm">small storm</span></span></th><td><b>0</b> of 2<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.6%"></u></span></td><td>0.3%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 16, 2023, Fitchburg: 0 of 4 sites caught at 0.5% flagged; 1 of 4 in the top 3% of segments"><th scope="row">July 16, 2023<span>Fitchburg</span></th><td><b>0</b> of 4<span class="pc">0% · 1 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:1.0%"></u></span></td><td>0.5%</td><td><span class="muted">none caught</span></td></tr>
+<tr title="July 21, 2023, Hubbardston: 0 of 2 sites caught at 0.4% flagged; 0 of 2 in the top 3% of segments"><th scope="row">July 21, 2023<span>Hubbardston</span></th><td><b>0</b> of 2<span class="pc">0% · 0 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:0.0%"></i><u style="left:0.8%"></u></span></td><td>0.4%</td><td><span class="muted">none caught</span></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="5">All 23 held-out storms<span>pooled</span></th></tr>
+<tr class="tot" title="23 held-out storms: 5 of 90 sites caught at 0.43% mean flagged share; 15 of 90 in the top 3% of segments"><th scope="row">23 storms<span>90 documented sites, first label round</span></th><td><b>5</b> of 90<span class="pc">6% · 15 at 3% budget</span></td><td class="barcell"><span class="bar" aria-hidden="true"><i style="width:11.1%"></i><u style="left:0.9%"></u></span></td><td>0.43%</td><td><b>4.8</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">The fixed alert rule transfers poorly: it catches 1 of 58 sites on the 16 label-expansion storms, where it flags 0.23% of segments on average. Ranked by modelled depth, the same runs do better than chance on held-out storms (15 of 90 at 3%, chance 0.064). This table uses the first label round; a second round of report checking added 8 sites (98 in all) and, with the same runs, gives 9 of 98 for the rule (lift 6.4) and 20 of 98 at 3% (0.20, lift 3.1). That is a change in measurement, not a better model, but spatial skill there is at chance (FSS at 300 m: 0.019 held out against 0.234 on the development storms). Light convective storms (16–71 mm of storm-mean rain) seldom push a 20 m road segment past 30 cm. <span class="sm">small storm</span> marks the 7 storms with only 2–3 road sites. Sept 18, 2018 (Fitchburg) has a lift of 49.2 from a single site. Labels: Sept 2023 closures, washouts and failed culverts in the Leominster area, Aug 2021 sites in Worcester, and NWS storm reports, NOAA Storm Events and news reports for the held-out storms (<a href="proto/obs/CATALOG.md">storm catalogue</a>).</p>
+
+    <h3 class="vh">Development and held-out storms, every check</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th scope="col">Check</th>
+          <th scope="col">Leominster, Sept 2023<span>tuned case</span></th>
+          <th scope="col">Worcester, Aug 2021<span>blind test</span></th>
+          <th scope="col">23 held-out storms<span>98 sites (second label round), never used for tuning</span></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Documented sites caught, alert rule<span>segment within 30 m with a 50% or higher chance of closing</span></th>
+            <td><b>35</b> of 89 at 1.97% flagged, lift 12.8</td><td><b>3</b> of 12 at 1.13% flagged, lift 10.3</td><td><b>9</b> of 98, lift 6.4<span class="muted"> (first round: 5 of 90 at 0.43% flagged, lift 4.8)</span></td></tr>
+          <tr><th scope="row">Sites caught at a 3% budget<span>top 3% of segments by modelled depth</span></th>
+            <td><b>30</b> of 79<span class="muted"> (catalogue box)</span></td><td><b>3</b> of 12</td><td><b>20</b> of 98 = 0.20 [0.10, 0.30]; chance 0.066<span class="muted"> (first round: 15 of 90)</span></td></tr>
+          <tr><th scope="row">River-gauge rise error<span>mean absolute, model against USGS</span></th>
+            <td><b>0.22 m</b>, 2 gauges</td><td><b>0.40 m</b>, 3 gauges</td><td><b>0.51 m</b> on 7 catalogue storms; <b>0.31 m</b> on 15 newer storms with gauges</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="vh">River gauges: observed and modelled rise</h3>
+    <p class="vsub">Stage rise from before the storm to the peak at each USGS gauge, and when the modelled peak arrives compared with the observed one.</p>
+    <div class="tablewrap">
+      <table class="gauges">
+        <thead><tr><th scope="col">Gauge</th>
+          <th scope="col" class="dbcell"><span class="key"><i class="k-obs"></i>observed <i class="k-mod"></i>modelled</span><span class="scale"><b>0 m</b><b>1.75 m</b><b>3.5 m</b></span></th>
+          <th scope="col">Modelled peak</th></tr></thead>
+        <tbody>
+<tr class="grp"><th scope="rowgroup" colspan="3">Leominster, Sept 2023<span>tuned case: mean rise error 0.22 m, mean peak-time error 0.4 h, 2 gauges</span></th></tr>
+<tr><th scope="row">North Nashua River at Fitchburg<span>USGS 01094400, 166.3 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:27.4%;width:1.1%"></s><em class="o" style="left:28.6%"></em><em class="m" style="left:27.4%"></em></span><span class="dbv">1.00 m observed, 0.96 m modelled</span></td><td>0.8 h late</td></tr>
+<tr><th scope="row">North Nashua River near Leominster<span>USGS 01094500, 284.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:83.4%;width:11.4%"></s><em class="o" style="left:83.4%"></em><em class="m" style="left:94.9%"></em></span><span class="dbv">2.92 m observed, 3.32 m modelled</span></td><td>within the gap<sup>*</sup></td></tr>
+<tr class="grp"><th scope="rowgroup" colspan="3">Worcester, Aug 2021<span>blind test: mean rise error 0.40 m, mean peak-time error 4.8 h, 3 gauges</span></th></tr>
+<tr><th scope="row">Blackstone River at Millbury<span>USGS 01109730, 184.9 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:28.3%;width:18.6%"></s><em class="o" style="left:46.9%"></em><em class="m" style="left:28.3%"></em></span><span class="dbv">1.64 m observed, 0.99 m modelled</span></td><td>1.8 h early</td></tr>
+<tr><th scope="row">Quinsigamond River at North Grafton<span>USGS 01110000, 66.3 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:0.6%;width:9.7%"></s><em class="o" style="left:10.3%"></em><em class="m" style="left:0.6%"></em></span><span class="dbv">0.36 m observed, 0.02 m modelled</span></td><td>10.5 h early</td></tr>
+<tr><th scope="row">Blackstone River at Northbridge<span>USGS 01110500, 365.2 km²</span></th><td class="dbcell"><span class="db" aria-hidden="true"><s style="left:40.6%;width:5.7%"></s><em class="o" style="left:40.6%"></em><em class="m" style="left:46.3%"></em></span><span class="dbv">1.42 m observed, 1.62 m modelled</span></td><td>2.2 h early</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Over all 9 catalogue storms (16 gauge-storm pairs) the mean rise error fell from 0.82 m to 0.46 m, and gauges with no modelled rise from 9 to 3, once every storm ran with the same converged solver settings. The model still rises too little on most storms (bias −0.28 m on the 16 newer storms): a runoff setting tuned on the big Leominster storm under-predicts the lighter summer storms. <sup>*</sup>The Leominster gauge record has a gap around the peak; the modelled peak falls inside it.</p>
+
+    <h3 class="vh">Forecast, learned model and other tests</h3>
+    <ul class="vchecks">
+      <li><h3>Forecast skill</h3><p>The live forecast runs an 8-member time-lagged ensemble of NOAA HRRR rain forecasts and flags a road when at least 2 of 8 members close it. Issued 9 to 10 h ahead, it catches <b>32%</b> of Leominster and <b>58%</b> of Worcester sites, where the single newest forecast caught 8% and 0%. On 7 out-of-sample storms it beat the single forecast in 7 of 14 storm-lead cases and never lost a site; pooled recall rose from 0.21 to 0.34 at long lead.</p><span class="src"><a href="proto/forecast/ENSEMBLE.md">Ensemble test</a> · <a href="proto/forecast/HINDCAST.md">Forecast hindcast</a>. Tested at the earlier curve-number setting (× 0.91); since 25 Oct 2026 the live forecast runs the clean baseline (× 0.88, converged 1 s time step).</span></li>
+      <li><h3>Learned ranking, 25 storms</h3><p>A two-tier candidate (the alert rule, then a learned model filling a 3% budget) caught <b>26 of 90</b> held-out sites (0.29) against 15 of 90 for depth alone, on the first label round. It failed the pre-registered significance test after 5 comparisons (P = 0.014 against the 0.01 required), so it is not deployed. <span class="tag-dev">In development</span></p><span class="src"><a href="proto/ml/EXPANDED.md">Pre-registered held-out test</a></span></li>
+      <li><h3>Tested and not adopted</h3><p><b>Storm drains as a sink:</b> the Leominster pipe network cut city flags by about a third but removed documented sites in proportion. <b>5-minute rain:</b> peak depths moved about 1 cm; no extra site on any of 7 storms. <b>Connected pavement runoff:</b> still 1 of 15 sites on the four flash-miss storms. <b>Dam storage:</b> more roads flagged, few or no extra sites, so lift fell.</p><span class="src"><a href="proto/drains/DRAINS.md">Drains</a> · <a href="proto/rain/RAIN.md">Rain</a> · <a href="proto/urban/DCIA.md">Pavement</a> · <a href="proto/exp/DAMS_2026-10-22.md">Dams</a></span></li>
+    </ul>
+
+    <h3 class="vh">Limitations</h3>
+    <ul class="limits">
+      <li><b>Light storms are under-predicted.</b> The runoff setting tuned on Leominster leaves summer thunderstorms too dry: the alert rule catches 1 of 58 sites on the 16 newer storms. Drains, 5-minute rain and connected-pavement runoff were each tested and none fixed it.</li>
+      <li><b>Spatial skill outside the development storms is at chance.</b> On held-out storms the model ranks roads better than chance but does not place the flooded area (FSS at 300 m: 0.019 against 0.234 on the development storms).</li>
+      <li><b>Labels follow who reported.</b> Outside Leominster, closure sites come from news, NWS and agency reports, which favour named main roads and towns that report. An unreported road is not proof it stayed open, so a flagged road with no report is not necessarily a false alarm, and storms with 2 to 7 sites carry wide uncertainty.</li>
+      <li><b>20 m grid.</b> Curbs, gutters and narrow ditches are smaller than one cell, so water on city streets is smoothed out.</li>
+      <li><b>River floods need basin-scale runs.</b> Large rivers drain land outside the model and peak after the 48-hour window (see the gauge table).</li>
+      <li><b>Forecast tested on few sites.</b> The ensemble’s out-of-sample test rests on 29 sites across 7 storms, so one site moves a storm’s recall by 0.2 to 0.5.</li>
+    </ul>
+    <p class="note">Sources: <a href="proto/parity/BASELINE.md">clean baseline and recalibration</a> (runs in <code>proto/parity/calib/leo48_cn088/</code> and <code>proto/parity/catalog/</code>, CPU, 20 m, one converged solver setting), <a href="proto/scoring/BASELINE_v2_expanded.md">25-storm scoring</a> and <a href="proto/ml/EXPANDED.md">learned-ranking test</a>; gauge and report scores in each run’s score.json and points.json. These replace the earlier GPU runs, which had solver start-up artefacts at the gauges.</p>
+  </div>
+</section>
+
+<section class="block" id="impact">
+  <div class="wrap">
+    <h2>Network impact and risk</h2>
+    <p class="muted">What the closures mean for the people who live there and for the agency that repairs the roads. Residents are 2020 Census counts, each placed on its nearest road. Response standards: hospital within 30 min, fire station within 8 min, police within 10 min.</p>
+    <div class="impact">
+      <div class="panel">
+        <h3>Leominster, Sept 11, 2023</h3>
+        <p class="sub">120,789 residents in the 20 × 20 km box, 48 hours modelled</p>
+        <dl class="kv">
+          <dt>Residents losing at least one service<span>worst moment, 7 h into the replay</span></dt><dd>38,092</dd>
+          <dt>Losing fire coverage, 8 min</dt><dd>33,502</dd>
+          <dt>Losing police coverage, 10 min</dt><dd>26,145</dd>
+          <dt>Losing hospital access, 30 min</dt><dd>18,665</dd>
+          <dt>Cut off from every facility<span>worst moment, 6.5 h in</span></dt><dd>12,370</dd>
+          <dt>Traffic delay</dt><dd>63,472 vehicle-h</dd>
+          <dt>Roads and crossings rated Extreme or High<span>73 segments and 136 stream crossings</span></dt><dd>209</dd>
+          <dt>Repair cost if all rated items fail<span>2023 dollars; expected cost $31.9M</span></dt><dd>$19.3M–$105.5M</dd>
+        </dl>
+        <ol class="top5" aria-label="Highest-risk items">
+          <li><span><i class="cls">Extreme</i>Fall Brook crossing, Decicco Dr</span><span>623 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Route 12, Leominster</span><span>1,810 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Catacunemaug Road, Shirley</span><span>665 residents</span></li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>Worcester, Aug 19, 2021</h3>
+        <p class="sub">295,856 residents in the 20 × 20 km box, 18 hours modelled</p>
+        <dl class="kv">
+          <dt>Residents losing at least one service<span>worst moment, 6.5 h into the replay</span></dt><dd>67,695</dd>
+          <dt>Losing fire coverage, 8 min</dt><dd>53,134</dd>
+          <dt>Losing police coverage, 10 min</dt><dd>48,704</dd>
+          <dt>Losing hospital access, 30 min</dt><dd>11,599</dd>
+          <dt>Cut off from every facility<span>worst moment, 7.5 h in</span></dt><dd>11,341</dd>
+          <dt>Traffic delay</dt><dd>51,478 vehicle-h</dd>
+          <dt>Roads and crossings rated Extreme or High<span>58 segments and 171 stream crossings</span></dt><dd>229</dd>
+          <dt>Repair cost if all rated items fail<span>2023 dollars; expected cost $30.4M</span></dt><dd>$13.9M–$145.1M</dd>
+        </dl>
+        <ol class="top5" aria-label="Highest-risk items">
+          <li><span><i class="cls">Extreme</i>Providence Road, Sutton</span><span>3,111 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Providence Street, Millbury</span><span>861 residents</span></li>
+          <li><span><i class="cls">Extreme</i>Stafford Street, Worcester</span><span>734 residents</span></li>
+        </ol>
+      </div>
+    </div>
+    <p class="note">Residents in the lists lose access within the standard if that one road closes. Night-time population; staying home is not modelled. Detours have no congestion, so delay is a lower bound. Risk class is likelihood × consequence on a 5 × 5 matrix. Computed on the earlier GPU runs; not yet rerun on the clean baseline. Sources: each storm’s <a href="proto/leominster_sep2023/resilience.json">resilience.json</a> and <a href="proto/leominster_sep2023/risk.json">risk.json</a> (<a href="proto/worcester_aug2021/resilience.json">Worcester</a>, <a href="proto/worcester_aug2021/risk.json">risk</a>).</p>
+  </div>
+</section>
+<section class="block" id="next">
+  <div class="wrap">
+    <h2>What comes next</h2>
+    <p class="muted">The parts of the dissertation still being built. Each will appear here and in the storm replay when it is finished and checked against observed storms.</p>
+    <ul class="next">
+      <li id="nextForecast"><span class="tag-dev">In development</span><h3>Live forecast</h3><p>The next 48 hours of road closures across District 3, from an 8-member time-lagged ensemble of NOAA HRRR rain forecasts.</p><span class="src">NOAA HRRR, the flood model and closure rules above</span></li>
+      <li><span class="tag-dev">In development</span><h3>Learned closure model</h3><p>A machine-learning model trained on 25 District 3 storms that turns the flood model’s water, rain and road features into a calibrated chance of closing.</p><span class="src">Documented closures from city, MassDOT and NWS records</span></li>
+      <li><span class="tag-dev">In development</span><h3>Live traffic impact</h3><p>Detours and delay measured from live travel times instead of daily counts, so the impact of each closure reflects real congestion.</p><span class="src">MassDOT GoTime travel times</span></li>
+      <li><span class="tag-dev">In development</span><h3>Storm-drain capacity</h3><p>The Leominster pipe network is in the model as an opt-in layer; as built it drains too much. Street inlets with clogging (FHWA HEC-22) were tested on the 23 held-out storms in Nov 2026 and did not improve the ranking, so they stay off. Next: returning drained water at the outfalls.</p><span class="src">City of Leominster storm-drain network, MassDOT stormwater inventory</span></li>
+      <li><span class="tag-dev">In development</span><h3>Infrastructure damage and repair cost</h3><p>Which culverts and road embankments fail, not only which are overtopped: washout, scour and blockage, with the repair bill for each.</p><span class="src">NAACC culvert surveys, FHWA HDS-5, National Bridge Inventory</span></li>
+      <li><span class="tag-dev">In development</span><h3>Cascading hazards</h3><p>What the flood leaves behind: groundwater rise after the storm and the risk it poses to foundations, pavements and buried pipes.</p><span class="src">USGS groundwater wells, soils and geotechnical records</span></li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <h3>Data</h3>
+      <p>Rain: NOAA MRMS. Terrain and river gauges: USGS 3DEP and the USGS Water Data API. Roads, traffic counts and repeat flood sites: MassGIS and MassDOT. Culverts: North Atlantic Aquatic Connectivity Collaborative (NAACC). Bridges: FHWA National Bridge Inventory. Residents: US Census 2020. Hospitals, fire and police stations: © OpenStreetMap contributors. Storm reports: NOAA National Weather Service. Flood model: LISFLOOD-FP 8.2, University of Bristol. Basemaps: OpenFreeMap and Esri, © OpenStreetMap contributors; terrain: AWS Terrain Tiles.</p>
+      <p><a href="proto/advisors/pipeline.html">Pipeline diagram</a> · <a href="proto/advisors/datasets.md">Dataset list</a></p>
+    </div>
+    <div>
+      <h3>About</h3>
+      <p>PhD dissertation research by Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</p>
+      <p class="disc">Dissertation research; not an official WPI or MassDOT product.</p>
+    </div>
+  </div>
+</footer>
+<script>
+(function(){
+  var b=document.getElementById('theme'),root=document.documentElement,order=['','light','dark'],names={'':'Auto',light:'Light',dark:'Dark'};
+  function cur(){return root.dataset.theme||''}
+  b.textContent=names[cur()];
+  b.addEventListener('click',function(){
+    var n=order[(order.indexOf(cur())+1)%3];
+    if(n)root.dataset.theme=n;else delete root.dataset.theme;
+    try{n?localStorage.setItem('mfw-theme',n):localStorage.removeItem('mfw-theme')}catch(e){}
+    b.textContent=names[n];
+    var f=document.getElementById('viewer');
+    if(f&&f.contentWindow)f.contentWindow.postMessage({mfwTheme:n},location.origin);
+  });
+})();
+(function(){ // the live forecast card turns live once a forecast is published (site/data/forecast_status.json)
+  fetch('site/data/forecast_status.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).then(function(s){
+    if(!s||!(s.ready===true||s.status==='ok'||s.state==='quiet'||s.state==='run'))return;
+    var li=document.getElementById('nextForecast');
+    li.querySelector('.tag-dev').outerHTML='<span class="tag-live">Live</span>';
+    var a=document.createElement('a');a.href='viewer.html?run=forecast';a.textContent=(s.headline?s.headline+' · ':'')+'Open the live forecast';
+    var p=document.createElement('p');p.style.marginTop='10px';p.appendChild(a);li.appendChild(p);
+  }).catch(function(){});
+})();
+</script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
+<script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
