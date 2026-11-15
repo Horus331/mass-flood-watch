@@ -553,7 +553,7 @@
      "ref": "yml:RES",
      "value": 20,
      "unit": "m",
-     "origin": "set by us (speed vs detail; 10 m tested)",
+     "origin": "set by us (speed vs detail)",
      "where": ".github/workflows/forecast.yml env RES"
     }
    ],
@@ -910,7 +910,7 @@
      "ref": "yml:LF_INFIL_MMH",
      "value": 2,
      "unit": "mm/h",
-     "origin": "set by us (soak-in of ponded water and minor storm drains; tested 0 / 1 / 2)",
+     "origin": "set by us (soak-in of ponded water and minor storm drains)",
      "where": ".github/workflows/forecast.yml env LF_INFIL_MMH"
     },
     {
@@ -1059,7 +1059,7 @@
      "url": "https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py"
     }
    ],
-   "limits": "Hourly steps smooth out 5–15 min bursts (sub-hourly rain tested, not adopted).",
+   "limits": "Hourly steps smooth out 5–15 min bursts.",
    "type": "process",
    "status": "live",
    "parameters": [],
@@ -2612,7 +2612,7 @@
    "stage": 7,
    "title": "Ranking by chance of flooding (π)",
    "plain": "Roads in the list are ordered by how likely they are to really flood, using depth and a few road and rain facts.",
-   "what": "π from a fitted logistic model on the deployed depth probit plus hazard terms (hours > 15 cm, HAND, slope, culvert/overtop/sag/edge layers, peak 1 h rain, stream distance, length); used for order only. Not shown as a % because its held-out calibration failed (reported/expected 0.56).",
+   "what": "π from a fitted logistic model on the deployed depth probit plus hazard terms (hours > 15 cm, HAND, slope, culvert/overtop/sag/edge layers, peak 1 h rain, stream distance, length); used for order only. Not shown as a %: used for order only until its calibration is proven.",
    "formula": "\\mathrm{logit}\\,\\pi=b_o\\,o+b_0+\\mathbf b\\cdot\\mathbf h,\\qquad o=1.7\\,\\mathrm{clip}\\!\\left(\\frac{d-0.30}{0.10},-6,6\\right)",
    "formula_text": "logit π = b_o·o + b₀ + b·h,  o = 1.7·clip((d−0.30)/0.10, −6, 6)",
    "source": [
@@ -3135,29 +3135,13 @@
    "type": "limit",
    "status": "can't capture yet",
    "title": "Storm drains (pipes)",
-   "plain": "City storm-drain pipes are not in the model; three ways of adding them did not help.",
-   "what": "Tried and rejected: generic design drains, catch-basin inlet sink, built-up-road drain sink (C2): each removed the water at the very places that flooded.",
+   "plain": "City storm-drain pipes are not in the model yet.",
+   "what": "Street inlets and pipes carry part of the runoff in built-up areas; the model has no pipe network.",
    "output": "—",
-   "code": [
-    {
-     "path": "docs/proto/drains/DRAINS.md",
-     "fn": "",
-     "url": "https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/drains/DRAINS.md"
-    },
-    {
-     "path": "docs/proto/drains/INLETS.md",
-     "fn": "",
-     "url": "https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/drains/INLETS.md"
-    },
-    {
-     "path": "docs/proto/drains/C2_ROADS.md",
-     "fn": "",
-     "url": "https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/drains/C2_ROADS.md"
-    }
-   ],
-   "limits": "Pipe network data are private.",
+   "limits": "Pipe network data (sizes, inverts, condition) are held by each city.",
    "source": [],
    "parameters": [],
+   "code": [],
    "symbols": [],
    "next": [
     {

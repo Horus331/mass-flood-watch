@@ -1,0 +1,262 @@
+{
+ "updated": "2026-11-15",
+ "statuses": {
+  "ready": "Ready",
+  "dev": "Under development",
+  "model": "Still being modelled",
+  "none": "Not started"
+ },
+ "checks": [
+  "Not checked yet",
+  "Checked on one storm",
+  "Checked on storms it never saw",
+  "Checked live"
+ ],
+ "groups": [
+  {
+   "t": "Rain and weather",
+   "parts": [
+    {
+     "t": "Observed rain",
+     "d": "Radar rain, corrected with gauges, on every 1 km square every hour.",
+     "s": "ready",
+     "pct": 100,
+     "chk": 3,
+     "done": "Hourly radar rain for every past storm and for every live forecast cycle.",
+     "left": "Nothing planned.",
+     "prob": "Hourly steps smooth out short bursts of 5 to 15 minutes."
+    },
+    {
+     "t": "Rain forecast",
+     "d": "The newest eight NOAA HRRR forecasts, up to 48 hours ahead.",
+     "s": "ready",
+     "pct": 85,
+     "chk": 3,
+     "done": "Eight forecasts every hour, a rain gate that starts the flood model, and spreading of the forecast rain to allow for misplaced storms.",
+     "left": "Compare the forecast rain with the radar automatically after every storm.",
+     "prob": "Forecast rain can be wrong in amount and place, and that carries straight into the road list."
+    },
+    {
+     "t": "Rain or snow",
+     "d": "Air temperature from the forecast splits rain from snow.",
+     "s": "ready",
+     "pct": 100,
+     "chk": 0,
+     "done": "Live since 13 Nov 2026.",
+     "left": "Check it on the first cold-season storm.",
+     "prob": "No storm cold enough to check it has happened since it went live."
+    }
+   ]
+  },
+  {
+   "t": "Ground and water",
+   "parts": [
+    {
+     "t": "Ground height",
+     "d": "USGS lidar, used on a 20 m grid, with streams carved in and road crossings opened.",
+     "s": "ready",
+     "pct": 95,
+     "chk": 2,
+     "done": "District-wide terrain with carved streams and opened road–stream crossings.",
+     "left": "Finer squares in dense town centres.",
+     "prob": "20 m squares smooth out narrow ditches and road edges."
+    },
+    {
+     "t": "Land cover and pavement",
+     "d": "NLCD 2021: what covers the ground and how much of it is paved.",
+     "s": "ready",
+     "pct": 100,
+     "chk": 2,
+     "done": "Pavement share and surface roughness on every square.",
+     "left": "Nothing planned.",
+     "prob": "None open."
+    },
+    {
+     "t": "Soils and runoff",
+     "d": "USDA soils and land cover give how much rain runs off (NRCS curve number).",
+     "s": "ready",
+     "pct": 80,
+     "chk": 2,
+     "done": "Curve numbers on every square, with one calibration factor.",
+     "left": "Tie runoff to how wet the ground is before each storm.",
+     "prob": "One calibration factor is used for every storm."
+    },
+    {
+     "t": "Wet, dry or frozen ground",
+     "d": "How wet or frozen the ground is before the storm.",
+     "s": "dev",
+     "pct": 40,
+     "chk": 1,
+     "done": "Dry, soaked and frozen ground can be set for what-if runs.",
+     "left": "A daily soil-moisture feed for live forecasts.",
+     "prob": "No reliable daily soil-moisture source for the district yet."
+    },
+    {
+     "t": "Streams and culverts",
+     "d": "Where streams pass under roads, and how much water each culvert can pass.",
+     "s": "dev",
+     "pct": 65,
+     "chk": 2,
+     "done": "Streams carved to their normal depth; culvert sizes from NAACC surveys where they exist; blocked-culvert what-if runs.",
+     "left": "Sizes and condition for culverts with no survey.",
+     "prob": "Many culverts have no recorded size or condition."
+    },
+    {
+     "t": "Storm drains",
+     "d": "Street inlets and pipes that carry water in built-up areas.",
+     "s": "model",
+     "pct": 15,
+     "chk": 0,
+     "done": "City inlet locations collected.",
+     "left": "Pipe sizes and a way to represent the network.",
+     "prob": "Pipe network data (sizes, depths, condition) are held by each city."
+    },
+    {
+     "t": "Groundwater",
+     "d": "Rising groundwater under roads and foundations.",
+     "s": "none",
+     "pct": 0,
+     "chk": 0,
+     "done": "—",
+     "left": "Choose the groundwater data and how it links to roads and foundations.",
+     "prob": "Groundwater observations near roads are sparse."
+    }
+   ]
+  },
+  {
+   "t": "Flood engine and roads",
+   "parts": [
+    {
+     "t": "Flood engine",
+     "d": "LISFLOOD-FP 8.2 moves the water across every 20 m square, every second.",
+     "s": "ready",
+     "pct": 95,
+     "chk": 3,
+     "done": "Runs for past storms and for every live forecast on free cloud computers.",
+     "left": "Shorter run times.",
+     "prob": "A forecast takes a few hours from the weather model's issue time to the road list."
+    },
+    {
+     "t": "Is the road closed?",
+     "d": "Water depth read every 10 m along every road; about 30 cm means likely closed.",
+     "s": "dev",
+     "pct": 75,
+     "chk": 2,
+     "done": "Depth along every road segment, counting only the water the storm added.",
+     "left": "Better handling of bridges and roads beside streams.",
+     "prob": "Roads damaged when their edge washes out, without deep standing water, are missed."
+    },
+    {
+     "t": "Road damage",
+     "d": "Washouts and edge erosion along roads and at crossings.",
+     "s": "model",
+     "pct": 20,
+     "chk": 1,
+     "done": "Water speed and depth beside every road are recorded.",
+     "left": "A damage rule built and checked on more storms.",
+     "prob": "Detailed damage records exist for one storm only."
+    },
+    {
+     "t": "Who loses access",
+     "d": "People who can no longer reach a hospital, fire station or police station in time.",
+     "s": "dev",
+     "pct": 60,
+     "chk": 0,
+     "done": "Road network, detours and access to hospitals, fire and police for every storm run.",
+     "left": "Network-level measures of delay; a check against real response records.",
+     "prob": "No recorded emergency response times to check against."
+    }
+   ]
+  },
+  {
+   "t": "Forecasts and warnings",
+   "parts": [
+    {
+     "t": "Live forecast and road list",
+     "d": "Before a storm, the roads most likely to close, updated every hour.",
+     "s": "ready",
+     "pct": 85,
+     "chk": 3,
+     "done": "Automatic forecasts when heavy rain is coming; roads listed as likely or possible.",
+     "left": "Automatic scoring of every forecast after the storm.",
+     "prob": "Its quality depends on the forecast rain."
+    },
+    {
+     "t": "Chance of closure as a percentage",
+     "d": "A calibrated probability for each road, instead of \"k of 8\".",
+     "s": "model",
+     "pct": 35,
+     "chk": 2,
+     "done": "Roads are ordered by their chance of flooding.",
+     "left": "Show it as a percentage once it is proven.",
+     "prob": "Needs more storms with reported closures to calibrate."
+    },
+    {
+     "t": "Culvert inspection priorities",
+     "d": "Which culverts would close roads first if they were blocked.",
+     "s": "dev",
+     "pct": 40,
+     "chk": 1,
+     "done": "A ranked list from what-if runs on one storm.",
+     "left": "Confirm the list with culvert condition data.",
+     "prob": "Culvert condition data are needed to confirm it."
+    },
+    {
+     "t": "What-if explorer",
+     "d": "The same storm with more rain, wetter or frozen ground, or blocked culverts.",
+     "s": "ready",
+     "pct": 80,
+     "chk": 1,
+     "done": "Public what-if runs for one storm.",
+     "left": "More storms.",
+     "prob": "Only one storm so far."
+    },
+    {
+     "t": "Faster engine for district-wide maps",
+     "d": "A learned copy of the flood engine for fast, district-wide forecasts.",
+     "s": "none",
+     "pct": 0,
+     "chk": 0,
+     "done": "—",
+     "left": "Start after the physics model is validated.",
+     "prob": "Waits on the physics model."
+    }
+   ]
+  },
+  {
+   "t": "Checking against reality",
+   "parts": [
+    {
+     "t": "Flood reports and damage records",
+     "d": "Road closures and damage from news, agencies, cities and the public, never used as inputs.",
+     "s": "dev",
+     "pct": 70,
+     "chk": null,
+     "done": "Reports gathered and matched to roads for past storms in central and eastern Massachusetts.",
+     "left": "Official damage inventories for more storms.",
+     "prob": "Reports cluster where people live and drive, and official records are few."
+    },
+    {
+     "t": "Live forward test",
+     "d": "Every live forecast is recorded and checked after the storm.",
+     "s": "ready",
+     "pct": 90,
+     "chk": 3,
+     "done": "Running since 3 Nov 2026.",
+     "left": "More storms.",
+     "prob": "Few storms so far this season."
+    },
+    {
+     "t": "This website",
+     "d": "The map, this page and the explanation of the model.",
+     "s": "dev",
+     "pct": 70,
+     "chk": null,
+     "done": "Live map, replays, what-if explorer and forecast view.",
+     "left": "The 3D explanation and this progress page.",
+     "prob": "None open."
+    }
+   ]
+  }
+ ]
+}

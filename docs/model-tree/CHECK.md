@@ -1,4 +1,4 @@
-# Model tree check (2026-11-15 12:56Z)
+# Model tree check (2026-11-15 13:35Z)
 
 `python proto/model_tree.py check`: every parameter on the tree re-read from the code and the live forecast workflow (`.github/workflows/forecast.yml`) and compared with `docs/model-tree/tree.json`.
 

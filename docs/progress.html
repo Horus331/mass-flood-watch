@@ -1,28 +1,109 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="120">
-<title>Build progress · Mass Flood Watch</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Progress · Mass Flood Watch</title>
+<meta name="description" content="Where each part of the Mass Flood Watch road-flood model stands: what is ready, what is under development, what is left and how far each part has been checked.">
+<link rel="icon" href="wpi-logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site/shell.css?v=1">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-:root{--ink:#0e1a24;--muted:#5d6b78;--panel:#fff;--line:#dbe3ea;--bg:#f3f6f9;--accent:#0b5f8f;--ok:#2e8b57;--now:#f08c28}
-@media(prefers-color-scheme:dark){:root{--ink:#e8eef4;--muted:#9fb0bf;--panel:#15202b;--line:#2a3845;--bg:#0b141c;--accent:#5fb3e6}}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"IBM Plex Sans",Segoe UI,sans-serif}
-main{max-width:860px;margin:0 auto;padding:28px 18px 60px}
-h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);margin:0 0 18px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 16px}
-table{width:100%;border-collapse:collapse}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--line);color:var(--ink)}
-.pill.now{background:var(--now);color:#fff}.pill.ok{background:var(--ok);color:#fff}
-.upd{white-space:pre-wrap}.t{color:var(--muted);font-size:13px}
-a{color:var(--accent)}
-</style></head><body><main>
-<h1>Build progress</h1><p class="sub">Mass Flood Watch · the week plan · this page refreshes itself every 2 minutes · <a href="./">open the model</a></p>
-<div class="card" id="stages"></div>
-<div class="card"><h2 style="margin:0 0 6px;font-size:16px">Latest update</h2><div class="t" id="when"></div><div class="upd" id="latest"></div></div>
-<div class="card"><h2 style="margin:0 0 6px;font-size:16px">Earlier updates</h2><div id="log"></div></div>
+.hero{padding:48px 24px 8px}
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:28px 0 8px}
+.sum button{border:1px solid var(--s-line);border-radius:12px;background:var(--s-bg);padding:16px 18px;text-align:left;cursor:pointer;font:inherit;color:var(--s-ink);transition:box-shadow .15s,border-color .15s}
+.sum button:hover{box-shadow:var(--s-shadow);border-color:transparent}
+.sum button[aria-pressed="true"]{border-color:var(--s-accent);box-shadow:0 0 0 1px var(--s-accent)}
+.sum b{display:block;font:400 32px/1.1 var(--s-font)}
+.sum span{display:flex;align-items:center;gap:8px;font:500 14px/1.3 var(--s-font);color:var(--s-mut);margin-top:4px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.st-ready{--c:var(--s-ok);--cs:var(--s-ok-soft)}.st-dev{--c:var(--s-accent);--cs:var(--s-accent-soft)}.st-model{--c:var(--s-warn);--cs:var(--s-warn-soft)}.st-none{--c:var(--s-mut);--cs:var(--s-grey-soft)}
+.dot{background:var(--c)}
+.key{display:flex;flex-wrap:wrap;gap:6px 22px;margin:18px 0 0;font:400 13.5px/1.5 var(--s-font);color:var(--s-mut)}
+.key .ck{display:inline-flex;gap:3px;margin-right:6px;vertical-align:-1px}
+.grp{margin:40px 0 0}
+.grp h2{font:400 22px/1.3 var(--s-font);margin:0 0 12px}
+.list{border:1px solid var(--s-line);border-radius:12px;overflow:hidden}
+.part{border-top:1px solid var(--s-line2)}
+.part:first-child{border-top:0}
+.part summary{list-style:none;display:grid;grid-template-columns:minmax(0,1fr) 168px 150px 190px 24px;gap:18px;align-items:center;padding:16px 20px;cursor:pointer}
+.part summary::-webkit-details-marker{display:none}
+.part summary:hover{background:var(--s-bg2)}
+.part .nm b{display:block;font:500 16px/1.35 var(--s-font)}
+.part .nm span{display:block;color:var(--s-mut);font-size:14px;line-height:1.45;margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:14px;background:var(--cs);color:var(--c);font:500 13px/1 var(--s-font);white-space:nowrap}
+.bar{display:flex;align-items:center;gap:10px;font:500 14px/1 var(--s-font);color:var(--s-ink2)}
+.bar i{position:relative;flex:1;height:6px;border-radius:3px;background:var(--s-line2);overflow:hidden}
+.bar i u{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--c)}
+.bar em{font-style:normal;width:38px;text-align:right}
+.chk{display:flex;align-items:center;gap:8px;font:400 13px/1.3 var(--s-font);color:var(--s-mut)}
+.ck{display:inline-flex;gap:3px;flex:none}
+.ck i{width:9px;height:9px;border-radius:2px;background:var(--s-line)}
+.ck i.on{background:var(--s-ink2)}
+.chev{width:24px;height:24px;color:var(--s-mut);transition:transform .2s}
+.part[open] .chev{transform:rotate(180deg)}
+.more{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:4px 20px 22px}
+.more div{background:var(--s-bg2);border-radius:10px;padding:14px 16px}
+.more h3{margin:0 0 4px;font:500 12.5px/1.3 var(--s-font);letter-spacing:.05em;text-transform:uppercase;color:var(--s-mut)}
+.more p{margin:0;font-size:14.5px;line-height:1.55}
+.more .pb{background:var(--s-warn-soft)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:20px 0 0}
+.tools .sp{flex:1}
+.note{margin:36px 0 0;color:var(--s-mut);font-size:14px}
+@media (max-width:980px){.part summary{grid-template-columns:minmax(0,1fr) 150px 24px;row-gap:10px}.part .bar{grid-column:1/2}.part .chk{grid-column:2/4}.sum{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.part summary{grid-template-columns:minmax(0,1fr) 24px}.part .pill{grid-column:1}.part .bar,.part .chk{grid-column:1/-1}.more{grid-template-columns:1fr}}
+</style>
+</head>
+<body class="page">
+<!--sh:start--><header class="sh"><div class="sh-in"><a class="sh-brand" href="./"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></a><nav class="sh-nav" aria-label="Site"><a href="./">Model</a><a href="how-it-works.html">How it works</a><a href="progress.html" aria-current="page">Progress</a><a href="about.html">About</a></nav><span class="sh-grow"></span><span class="sh-tag">Research prototype · WPI</span><a class="sh-icon" href="https://github.com/Horus331/mass-flood-watch" title="Code and data on GitHub" aria-label="Code and data on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.5.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg></a></div></header><!--sh:end-->
+<main class="wrap">
+  <section class="hero" style="padding-left:0;padding-right:0">
+    <p class="eyebrow">Progress</p>
+    <h1>Where each part stands</h1>
+    <p class="lede">The model is built in parts, from the rain to the people who lose access to help. Each part shows how far it is built, what is left, the problem we are working on now, and how far it has been checked against real storms.</p>
+    <div class="sum" id="sum"></div>
+    <div class="key" id="key"></div>
+    <div class="tools"><span class="sp"></span><button class="btn" id="bAll" type="button">Expand all</button></div>
+  </section>
+  <div id="groups"></div>
+  <p class="note" id="note"></p>
+</main>
+<!--sf:start--><footer class="sf"><div class="sf-in"><div><b>Mass Flood Watch</b>Forecasting which roads flash floods will close, and who loses access to emergency services. PhD research by Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Advisors: Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</div><div><b>Site</b><ul><li><a href="./">Model</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="progress.html">Progress</a></li><li><a href="about.html">About</a></li></ul></div><div><b>More</b><ul><li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://github.com/Horus331/mass-flood-watch">Code and data</a></li><li><a href="mailto:mgeldokla@wpi.edu">Contact</a></li></ul></div><div class="sf-note">A research prototype, not an official warning service. For emergencies call 911; for official flood warnings see the National Weather Service.</div></div></footer><!--sf:end-->
 <script>
-fetch('progress.json?x=' + Date.now()).then(r => r.json()).then(P => {
-  document.getElementById('stages').innerHTML = '<table><thead><tr><th>Stage</th><th>What</th><th>Status</th><th>Notes</th></tr></thead><tbody>' +
-    P.stages.map(s => `<tr><td><b>${s.n}</b></td><td>${s.what}</td><td><span class="pill ${s.status === 'in progress' ? 'now' : s.status === 'done' ? 'ok' : ''}">${s.status}</span></td><td class="t">${s.note || ''}</td></tr>`).join('') + '</tbody></table>';
-  const u = P.updates[0]; document.getElementById('when').textContent = u.t + ' ET'; document.getElementById('latest').textContent = u.text;
-  document.getElementById('log').innerHTML = P.updates.slice(1, 12).map(v => `<div style="margin:0 0 12px"><div class="t">${v.t} ET</div><div class="upd">${v.text.replace(/</g, '&lt;')}</div></div>`).join('');
-});
-</script></main><script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-</body></html>
+(function () {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>';
+  var filter = null, D;
+  function ck(n) { var h = '<span class="ck" aria-hidden="true">'; for (var i = 0; i < 3; i++) h += '<i class="' + (n != null && i < n ? 'on' : '') + '"></i>'; return h + '</span>'; }
+  function render() {
+    var S = D.statuses, all = [].concat.apply([], D.groups.map(function (g) { return g.parts; }));
+    document.getElementById('sum').innerHTML = Object.keys(S).map(function (k) {
+      var n = all.filter(function (p) { return p.s === k; }).length;
+      return '<button type="button" class="st-' + k + '" data-k="' + k + '" aria-pressed="' + (filter === k) + '"><b>' + n + '</b><span><i class="dot"></i>' + esc(S[k]) + '</span></button>';
+    }).join('');
+    document.querySelectorAll('#sum button').forEach(function (b) { b.onclick = function () { filter = filter === b.dataset.k ? null : b.dataset.k; render(); }; });
+    document.getElementById('key').innerHTML = '<span><b style="font-weight:500;color:var(--s-ink2)">How far it has been checked:</b></span>' + D.checks.map(function (c, i) { return '<span>' + ck(i) + esc(c) + '</span>'; }).join('');
+    document.getElementById('groups').innerHTML = D.groups.map(function (g) {
+      var ps = g.parts.filter(function (p) { return !filter || p.s === filter; });
+      if (!ps.length) return '';
+      return '<section class="grp"><h2>' + esc(g.t) + '</h2><div class="list">' + ps.map(function (p) {
+        return '<details class="part st-' + p.s + '"><summary><span class="nm"><b>' + esc(p.t) + '</b><span>' + esc(p.d) + '</span></span>' +
+          '<span><span class="pill"><i class="dot"></i>' + esc(S[p.s]) + '</span></span>' +
+          '<span class="bar" title="How much of this part is built (our estimate)"><i><u style="width:' + p.pct + '%"></u></i><em>' + p.pct + '%</em></span>' +
+          '<span class="chk">' + (p.chk == null ? '<span>—</span>' : ck(p.chk) + esc(D.checks[p.chk])) + '</span>' + CHEV + '</summary>' +
+          '<div class="more"><div><h3>Done</h3><p>' + esc(p.done) + '</p></div><div><h3>Left to do</h3><p>' + esc(p.left) + '</p></div><div class="pb"><h3>Current problem</h3><p>' + esc(p.prob) + '</p></div></div></details>';
+      }).join('') + '</div></section>';
+    }).join('');
+    document.getElementById('note').textContent = 'Build percentages are our own estimate of how much of each part exists. Updated ' + new Date(D.updated + 'T12:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) + '.';
+  }
+  document.getElementById('bAll').onclick = function () {
+    var ds = document.querySelectorAll('details.part'), open = [].some.call(ds, function (d) { return !d.open; });
+    ds.forEach(function (d) { d.open = open; }); this.textContent = open ? 'Collapse all' : 'Expand all';
+  };
+  fetch('progress/parts.json').then(function (r) { return r.json(); }).then(function (j) { D = j; render(); });
+})();
+</script>
+</body>
+</html>

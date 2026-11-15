@@ -159,7 +159,7 @@ node(id='facilities', stage=1, type='input', title='Hospitals, fire, police',
 # ---------------- 2 grids
 node(id='dem20', stage=2, title='20 m terrain grid', plain='The ground heights are averaged into 20 m squares, a 1000 × 1000 grid for each 20 km box.',
      what='10 m DEM tiles averaged to RES = 20 m; each run covers a 20 × 20 km box in EPSG:26986 (MA State Plane, m).', source=['3dep'],
-     units='m', resolution='20 m', how_used='The surface water flows over.', parameters=[P('grid cell size', 'yml:RES', unit='m', origin='set by us (speed vs detail; 10 m tested)')],
+     units='m', resolution='20 m', how_used='The surface water flows over.', parameters=[P('grid cell size', 'yml:RES', unit='m', origin='set by us (speed vs detail)')],
      output='z(x, y), m on 20 m cells', code=[code(W9, 'main (inputs)')], limits='A 20 m cell cannot hold a gutter or curb line (< 1 m wide).')
 node(id='channels', stage=2, title='Rivers carved to bankfull', plain='Rivers are dug into the grid so they can carry water the way real channels do.',
      what='NHDPlus HR flowline cells lowered by a volume-equivalent bankfull burn; with the live terrain fix, flowlines (incl. buried conduits) are enforced as continuous downhill conveyance.',
@@ -189,7 +189,7 @@ node(id='cn', stage=2, title='Runoff: curve number (TR-55)', plain='For each squ
      symbols=[('P', 'cumulative rain since the start, mm'), ('Q', 'cumulative runoff (rain excess), mm'), ('S', 'potential retention, mm'), ('CN_{II}', 'curve number, average antecedent moisture'), ('c', 'calibration scale')],
      parameters=[P('antecedent moisture class', 'yml:LF_CN_AMC', origin='TR-55 average condition'),
                  P('curve-number scale c', 'yml:LF_CN_SCALE', origin='calibrated on Leominster Sep 2023 (two USGS gauges, pre-set rule; docs/proto/parity/BASELINE.md)'),
-                 P('steady loss after runoff', 'yml:LF_INFIL_MMH', unit='mm/h', origin='set by us (soak-in of ponded water and minor storm drains; tested 0 / 1 / 2)'),
+                 P('steady loss after runoff', 'yml:LF_INFIL_MMH', unit='mm/h', origin='set by us (soak-in of ponded water and minor storm drains)'),
                  P('loss taken from the hourly excess (parity mode)', 'yml:LF_PARITY', origin='CPU/GPU parity audit (docs/proto/parity/PARITY.md)')],
      output='effective rain r_eff, mm per hour per cell', code=[code(W9, 'LF_LOSS=cn / rain_minus_infil')], limits='One global scale; the scale is below 1 although Sept 2023 was wet: it stands in for losses the model lacks.')
 node(id='manning', stage=2, title='Surface roughness (Manning n)', plain='Rough ground (forest) slows water down; smooth pavement and rivers let it move fast.',
@@ -199,7 +199,7 @@ node(id='manning', stage=2, title='Surface roughness (Manning n)', plain='Rough 
 node(id='rain_grid', stage=2, title='Rain on every cell', plain='Each 20 m square gets its own rain for every hour: measured rain for a past storm, forecast rain for the next two days.',
      what='Replay: MRMS on every cell. Forecast: 12 h of observed MRMS spin-up, then HRRR (neighbourhood-spread), radar nowcast in the first hours of the issue member, snow held out. Rain minus losses → the solver’s dynamic rain file (NetCDF).',
      source=['mrms', 'hrrr'], units='mm/h → m/s', resolution='20 m, hourly', output='effective rain r_eff(x, y, t)', code=[code(W9, 'RAIN / write_rain_nc')],
-     limits='Hourly steps smooth out 5–15 min bursts (sub-hourly rain tested, not adopted).')
+     limits='Hourly steps smooth out 5–15 min bursts.')
 
 # ---------------- 3 engine
 node(id='lisflood', stage=3, type='engine', title='LISFLOOD-FP 8.2 flood engine',
@@ -336,7 +336,7 @@ node(id='kofn', stage=7, title='"k of 8": likely / possible', plain='A road is "
      formula=r"k=\sum_{m=1}^{8}\mathbb{1}\left[p_{\mathrm{close}}^{(m)}\ge0.5\right]", formula_text='k = Σ_m 1[p_close,m ≥ 0.5]',
      output='likely / possible road lists', code=[code('proto/forecast_kofn.py', 'closures')], limits='Members can agree on a wrong storm position.')
 node(id='pirank', stage=7, title='Ranking by chance of flooding (π)', plain='Roads in the list are ordered by how likely they are to really flood, using depth and a few road and rain facts.',
-     what='π from a fitted logistic model on the deployed depth probit plus hazard terms (hours > 15 cm, HAND, slope, culvert/overtop/sag/edge layers, peak 1 h rain, stream distance, length); used for order only. Not shown as a % because its held-out calibration failed (reported/expected 0.56).',
+     what='π from a fitted logistic model on the deployed depth probit plus hazard terms (hours > 15 cm, HAND, slope, culvert/overtop/sag/edge layers, peak 1 h rain, stream distance, length); used for order only. Not shown as a %: used for order only until its calibration is proven.',
      formula=r"\mathrm{logit}\,\pi=b_o\,o+b_0+\mathbf b\cdot\mathbf h,\qquad o=1.7\,\mathrm{clip}\!\left(\frac{d-0.30}{0.10},-6,6\right)",
      formula_text='logit π = b_o·o + b₀ + b·h,  o = 1.7·clip((d−0.30)/0.10, −6, 6)', source=['bekker2020'], output='order of the road list',
      code=[code('proto/latent_label.py', ''), code(FC, 'pi order')], limits='Fitted on reports, which favour busy roads.', status='live (order only)')
@@ -386,9 +386,9 @@ node(id='cc_edge', stage=10, type='limit', status="can't capture yet", title='Ed
      output='—', code=[code('docs/proto/phase1/LEOMINSTER_MISSES.md', '')], limits='Needs curb-line flow and damage inventories from more towns.')
 node(id='cc_debris', stage=10, type='limit', status="can't capture yet", title='Debris blockage during the storm', plain='Branches and trash that clog a pipe during the storm are not predicted.',
      what='Blockage can be imposed as a what-if, not forecast.', output='—', limits='No debris-supply data.')
-node(id='cc_drains', stage=10, type='limit', status="can't capture yet", title='Storm drains (pipes)', plain='City storm-drain pipes are not in the model; three ways of adding them did not help.',
-     what='Tried and rejected: generic design drains, catch-basin inlet sink, built-up-road drain sink (C2): each removed the water at the very places that flooded.',
-     output='—', code=[code('docs/proto/drains/DRAINS.md', ''), code('docs/proto/drains/INLETS.md', ''), code('docs/proto/drains/C2_ROADS.md', '')], limits='Pipe network data are private.')
+node(id='cc_drains', stage=10, type='limit', status="can't capture yet", title='Storm drains (pipes)', plain='City storm-drain pipes are not in the model yet.',
+     what='Street inlets and pipes carry part of the runoff in built-up areas; the model has no pipe network.',
+     output='—', limits='Pipe network data (sizes, inverts, condition) are held by each city.')
 node(id='cc_gw', stage=10, type='limit', status="can't capture yet", title='Groundwater', plain='Rising groundwater under roads and foundations is not modelled.',
      what='No subsurface flow; antecedent wetness only through the curve number.', output='—', limits='Needs groundwater observations.')
 

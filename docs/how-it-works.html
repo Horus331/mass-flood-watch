@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How It Works · Mass Flood Watch</title>
+<meta name="description" content="The data and processes behind the Mass Flood Watch road-flood model, shown on a 3D block of real terrain around the WPI campus in Worcester, Massachusetts.">
+<link rel="icon" href="wpi-logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="model-tree/lib/katex.min.css">
+<link rel="stylesheet" href="site/shell.css?v=1">
+<link rel="stylesheet" href="how-it-works/how.css?v=1">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<script type="importmap">{"imports":{"three":"./lib/three/three.module.min.js","three/addons/":"./lib/three/addons/"}}</script>
+</head>
+<body class="page">
+<!--sh:start--><header class="sh"><div class="sh-in"><a class="sh-brand" href="./"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></a><nav class="sh-nav" aria-label="Site"><a href="./">Model</a><a href="how-it-works.html" aria-current="page">How it works</a><a href="progress.html">Progress</a><a href="about.html">About</a></nav><span class="sh-grow"></span><span class="sh-tag">Research prototype · WPI</span><a class="sh-icon" href="https://github.com/Horus331/mass-flood-watch" title="Code and data on GitHub" aria-label="Code and data on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.5.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg></a></div></header><!--sh:end-->
+<main>
+  <section class="wrap hero">
+    <p class="eyebrow">How it works</p>
+    <h1>From rain to a closed road</h1>
+    <p class="lede">The model follows the water from the radar to the road. This block is the real ground around the WPI campus in Worcester, built from the same data the model reads. Drag to turn it, and select any label for its source, resolution and how the model uses it.</p>
+  </section>
+
+  <section class="stage-wrap" aria-label="3D model of the WPI area">
+    <div class="stage" id="stage">
+      <canvas id="gl" aria-hidden="true"></canvas>
+      <svg class="leaders" id="leaders" aria-hidden="true"></svg>
+      <div class="callouts" id="callouts"></div>
+      <div class="loading" id="loading">Loading the terrain…</div>
+    </div>
+    <div class="controls wrap">
+      <div class="ctl-group">
+        <span class="ctl-label" id="surfLabel">Ground surface</span>
+        <div class="chips" role="group" aria-labelledby="surfLabel" id="surfaces"></div>
+      </div>
+      <div class="ctl-group ctl-right">
+        <button class="btn" id="bSplit" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M12 3v4M12 17v4"/></svg><span>Close the ground</span></button>
+        <button class="btn" id="bRain" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M7 15l-1 3M12 15l-1 3M17 15l-1 3M6 11a4 4 0 1 1 1-7.9A5 5 0 0 1 17 6a3.5 3.5 0 0 1 0 7H7"/></svg><span>Pause rain</span></button>
+        <button class="btn" id="bReset" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></svg><span>Reset view</span></button>
+      </div>
+      <div class="legend" id="legend" aria-live="polite"></div>
+      <p class="fig-note" id="figNote"></p>
+    </div>
+  </section>
+
+  <section class="wrap sec" id="steps">
+    <h2>What happens after the water reaches the road</h2>
+    <p class="lede">The flood engine gives the water depth on every 20 m square of the area, every five minutes. These steps turn that into road closures and their consequences.</p>
+    <ol class="steps" id="chain"></ol>
+  </section>
+
+  <section class="wrap sec">
+    <h2>Every value is read from the model's code</h2>
+    <p class="lede">The sources, units and parameter values behind every label are taken from the model's code and checked automatically each time it changes. The full list is on one page: <a href="model-tree-print.html">the model in text</a>.</p>
+  </section>
+</main>
+<!--sf:start--><footer class="sf"><div class="sf-in"><div><b>Mass Flood Watch</b>Forecasting which roads flash floods will close, and who loses access to emergency services. PhD research by Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Advisors: Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</div><div><b>Site</b><ul><li><a href="./">Model</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="progress.html">Progress</a></li><li><a href="about.html">About</a></li></ul></div><div><b>More</b><ul><li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://github.com/Horus331/mass-flood-watch">Code and data</a></li><li><a href="mailto:mgeldokla@wpi.edu">Contact</a></li></ul></div><div class="sf-note">A research prototype, not an official warning service. For emergencies call 911; for official flood warnings see the National Weather Service.</div></div></footer><!--sf:end-->
+<aside class="panel" id="panel" aria-live="polite" aria-label="Details"></aside>
+<script src="model-tree/lib/katex.min.js"></script>
+<script type="module" src="how-it-works/scene3d.js?v=1"></script>
+</body>
+</html>
