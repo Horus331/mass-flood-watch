@@ -14,30 +14,46 @@ const S = 100, VE = 2.2, GAP = 34, THICK = 1.4, SOIL = 11;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ROAD_C = { closed: '#d93025', risk: '#f29900', wet: '#4285f4' };
 
-const CALL = [
-  { id: 'rain', side: 'l', k: 'Rain', t: 'Rain on the hill', s: 'NOAA MRMS radar + gauges · 1 km · hourly', at: 'sky', nodes: ['mrms', 'rain_grid'],
-    p: 'Radar rain falls on every square of the ground. On the storm of 19 Aug 2021 most of it fell in two hours.' },
-  { id: 'water', side: 'r', k: 'Model output', t: 'Where the water collects', s: 'LISFLOOD-FP 8.2 · peak depth · 20 m grid', at: 'water', nodes: ['lisflood', 'depth', 'velocity'],
-    p: 'The flood engine moves the rain across the ground and records the deepest water on every 20 m square. Blue shows where it reached at least 5 cm in the storm of 19 Aug 2021.' },
-  { id: 'flow', side: 'r', k: 'Model output', t: 'How the water runs downhill', s: 'Flow paths traced on the 1 m lidar', at: 'flow', nodes: ['breach'],
-    p: 'The moving dots follow the paths water takes downhill from the hill, along the streets and into Salisbury Pond, traced on the lidar ground surface. They show the direction of flow; the depths come from the flood engine.' },
-  { id: 'roads', side: 'r', k: 'Model output', t: 'Roads the model closed', s: 'Depth every 10 m · 30 cm closes a road', at: 'road', nodes: ['roadpts', 'segdepth', 'onset', 'pclose'],
-    p: 'Red roads had about 30 cm of standing water or more in the model run for this storm; orange roads were at risk. This is the same run shown on the map.' },
-  { id: 'wpi', side: 'r', k: 'The place', t: 'WPI campus', s: 'Worcester, Massachusetts', at: 'wpi', nodes: [],
-    p: 'The campus sits on a hill. Rain that falls on it and on the slopes around it runs down the streets toward Salisbury Pond and Institute Park.' },
-  { id: 'pond', side: 'r', k: 'The place', t: 'Salisbury Pond', s: 'USGS NHDPlus HR · streams carved into the terrain', at: 'pond', nodes: ['nhd', 'channels'],
-    p: 'Ponds and streams are part of the ground model. Water that reaches them is carried on downstream.' },
-  { id: 'dem', side: 'l', k: 'The place', t: 'Ground height', s: 'USGS 3DEP lidar · 1 m (shown) · 20 m in the model', at: 'peak', nodes: ['lidar', 'dem20', 'crest'],
-    p: 'Laser scans give the bare-ground height. Heights here are exaggerated ' + VE + '× so the slopes are easy to see.' },
-  { id: 'bld', side: 'l', k: 'The place', t: 'Buildings', s: '© OpenStreetMap contributors · for orientation', at: 'bld', nodes: [],
-    p: 'Buildings are drawn so the campus is easy to recognise. The flood engine works on the bare-ground surface; buildings and pavement enter through how fast water moves over each square (Manning roughness from land cover).' },
-  { id: 'soil', side: 'l', k: 'Below ground', t: 'Soils and runoff', s: 'USDA SSURGO + NLCD 2021 → curve number', at: 'soilTop', L: -1, nodes: ['ssurgo', 'nlcd', 'cn'],
-    p: 'Darker ground sheds more of the rain: pavement, roofs and tight soils. Lighter ground soaks more of it in. This is the curve number the model uses on every square.' },
-  { id: 'layers', side: 'l', k: 'Below ground', t: 'Soil layers', s: 'drawn to show the idea · not measured', at: 'soilWall', nodes: ['wi_amc', 'wi_frozen'],
-    p: 'Topsoil, subsoil, glacial till and bedrock. How wet or frozen the upper layers are changes how much rain they can take; the model can run dry, soaked and frozen ground as what-if cases.' },
-  { id: 'gw', side: 'l', k: 'Below ground', t: 'Groundwater', s: 'not in the model yet', at: 'gw', nodes: ['cc_gw'], lim: true,
-    p: 'Rising groundwater under roads and foundations is part of the cascade this research is building toward. It is not in the current model.' }
+// The labels around the block follow the old model-tree style: grouped input cards on the left, the engine and its result on the
+// right, the checks underneath. Each card points to where it is in the picture (at), and opens the full detail (nodes, tree.json).
+const IC = {
+  rain: '<path d="M7 15a4 4 0 1 1 .9-7.9A5 5 0 0 1 17.6 9 3.5 3.5 0 0 1 17 16H7z"/><path d="M9 19l-1 2M13 19l-1 2M17 19l-1 2"/>',
+  fc: '<path d="M7 15a4 4 0 1 1 .9-7.9A5 5 0 0 1 17.6 9 3.5 3.5 0 0 1 17 16H7z"/><path d="M12 18v3M10.5 19.5h3"/>',
+  terrain: '<path d="M3 19l6-9 4 5 3-4 5 8H3z"/>', soil: '<path d="M3 8h18M3 13h18M3 18h18"/><circle cx="7" cy="10.5" r=".6"/><circle cx="15" cy="15.5" r=".6"/>',
+  land: '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><path d="M13 13h7v7h-7z"/>',
+  drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>', stream: '<path d="M4 6c4 0 4 4 8 4s4-4 8-4M4 13c4 0 4 4 8 4s4-4 8-4"/>',
+  culvert: '<path d="M3 12h18"/><circle cx="12" cy="15" r="3"/><path d="M3 9h18"/>', road: '<path d="M8 3 5 21M16 3l3 18M12 5v3M12 11v3M12 17v3"/>',
+  people: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 6h4M18 4v4"/>', detour: '<path d="M4 18h6V8h8"/><path d="M15 5l3 3-3 3"/>',
+  gw: '<path d="M3 15c3 0 3-2 6-2s3 2 6 2 3-2 6-2M3 19c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/>', gauge: '<path d="M4 20V5M4 5l7 4-7 4"/>', report: '<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17v.1"/>',
+  list: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>'
+};
+const GROUPS = [
+  { side: 'l', id: 'g-rain', k: 'Rain', sub: 'how much water falls', cards: [
+    { id: 'obs', ic: 'rain', t: 'Radar rain (past storms)', s: 'NOAA MRMS: radar corrected with rain gauges, 1 km squares, every hour.', at: 'sky', nodes: ['mrms', 'rain_grid'] },
+    { id: 'fc', ic: 'fc', t: 'Forecast rain (next 48 h)', s: 'NOAA HRRR weather model: 3 km squares, the eight newest forecasts.', at: 'sky2', nodes: ['hrrr', 'phase', 'members'] } ] },
+  { side: 'l', id: 'g-ground', k: 'On the ground', sub: 'where water runs', cards: [
+    { id: 'dem', ic: 'terrain', t: 'Terrain', s: 'USGS 3DEP lidar (laser-scanned ground heights), used as 20 m squares.', at: 'peak', nodes: ['lidar', 'dem20', 'breach', 'crest'] },
+    { id: 'cover', ic: 'land', t: 'Land cover', s: 'NLCD 2021: how much is paved, which sets how much rain runs off and how fast.', at: 'roof', nodes: ['nlcd', 'manning'] },
+    { id: 'stream', ic: 'stream', t: 'Streams and ponds', s: 'USGS NHDPlus HR, carved into the terrain so they carry water downstream.', at: 'park', nodes: ['nhd', 'channels'] },
+    { id: 'culvert', ic: 'culvert', t: 'Culverts under roads', s: 'NAACC surveys; capacity by the FHWA HDS-5 method.', at: null, nodes: ['crossings', 'notch', 'culvert'] } ] },
+  { side: 'l', id: 'g-below', k: 'Below ground', sub: 'where water soaks in', cards: [
+    { id: 'soil', ic: 'soil', t: 'Soils', s: 'USDA SSURGO groups A (sandy, soaks in fast) to D (clay, slow).', at: 'soilWall', nodes: ['ssurgo', 'cn'] },
+    { id: 'wet', ic: 'drop', t: 'How wet the ground was', s: 'The normal setting; what-if runs try dry, soaked and frozen ground.', at: 'wetWall', nodes: ['wi_amc', 'wi_frozen'] },
+    { id: 'gw', ic: 'gw', t: 'Groundwater', s: 'Not in the model yet: the next step of the cascade.', at: 'gw', nodes: ['cc_gw'], lim: true } ] },
+  { side: 'r', id: 'g-engine', engine: true, k: 'Physics simulation', t: 'LISFLOOD-FP 8.2', s: 'Moves the rain water over every 20 m square of ground and records how deep and how fast it gets, every 5 minutes.',
+    bullets: ['<b>Physics:</b> 2-D shallow-water equations (the math of water spreading over land).', '<b>Same setting</b> for every storm.', '<b>Runs on</b> WPI’s Turing cluster and GitHub Actions.'], at: 'flow', nodes: ['lisflood', 'depth', 'velocity'] },
+  { side: 'r', id: 'g-result', result: true, k: 'The result for each road', t: 'Depth on every road segment', s: 'Read every 10 m along every road: when water arrives, how deep it gets and for how long.', at: 'road', nodes: ['roadpts', 'segdepth', 'onset', 'pclose'] },
+  { side: 'r', id: 'g-out', k: 'Knock-on effects', sub: '', out: true, cards: [
+    { id: 'access', ic: 'people', t: 'People cut off', s: 'Residents who can no longer reach a hospital, fire station or police station in time.', at: null, nodes: ['census', 'facilities', 'access'] },
+    { id: 'detour', ic: 'detour', t: 'Detours', s: 'Closed roads come out of the network; wet roads get slower; routes are found again.', at: null, nodes: ['graph', 'pregnolato', 'dijkstra'] } ] }
 ];
+const CHECKS = [
+  { ic: 'gauge', t: 'River gauges', s: 'USGS, every 15 min: does the river rise as much, and when?', nodes: ['gauges'] },
+  { ic: 'report', t: 'Storm reports', s: 'NWS Local Storm Reports, NOAA Storm Events, news and agency reports.', nodes: ['labels', 'matching'] },
+  { ic: 'list', t: 'City damage records', s: 'Public works lists of damaged roads and culverts.', nodes: ['labels'] },
+  { ic: 'list', t: 'Storms never used for tuning', s: 'Every run is scored against these, compared with random roads and simple alternatives.', nodes: ['split', 'metrics', 'baselines'] }
+];
+const CALL = [];   // flat list of everything that points into the picture (filled in buildCallouts)
 
 let EX = 0, EXT = 0, camAnim = null, lastK = 0, HMAX = 0, M, H, G, renderer, scene, camera, controls, slabs = [], particles = null, rain = null, playing = !reduced, wasNarrow = null, narrow = false;
 const anchors = {};
@@ -60,6 +76,7 @@ function terrainGeometry(step) {
 }
 
 const soilMat = new THREE.ShaderMaterial({
+  side: THREE.DoubleSide,
   uniforms: { meanTop: { value: 0 } },
   vertexShader: `attribute float aTop; attribute float aS; varying float vTop; varying float vY; varying float vS; varying vec3 vN;
     void main(){ vTop=aTop; vY=position.y; vS=aS; vN=normal; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
@@ -76,7 +93,7 @@ const soilMat = new THREE.ShaderMaterial({
       gl_FragColor=vec4(c*(0.84+0.16*abs(vN.x)),1.0);
     }`
 });
-const sideMat = (col) => new THREE.MeshStandardMaterial({ color: col, roughness: 1 });
+const sideMat = (col) => new THREE.MeshStandardMaterial({ color: col, roughness: 1, side: THREE.DoubleSide });
 
 function wall(fx0, fy0, fx1, fy1, depth) {      // vertical strip under an edge, from the surface down `depth` units
   const n = G, pos = new Float32Array((n + 1) * 6), top = new Float32Array((n + 1) * 2), s = new Float32Array((n + 1) * 2), idx = [];
@@ -126,6 +143,10 @@ async function aerialTexture(R) {   // the aerial photo with street and place na
     x.save(); x.translate(cx, cy); x.rotate(ang); x.font = '600 44px Roboto, Arial, sans-serif';
     x.strokeStyle = 'rgba(32,33,36,.85)'; x.lineWidth = 9; x.strokeText(short(nm).toUpperCase(), 0, 0); x.fillStyle = '#fff'; x.fillText(short(nm).toUpperCase(), 0, 0); x.restore();
   });
+  x.lineCap = 'round'; x.lineJoin = 'round';   // roads as the model rated them in the storm (same colours as the result card)
+  ['wet', 'risk', 'closed'].forEach((st) => { x.strokeStyle = st === 'wet' ? '#fbbc04' : ROAD_C[st]; x.globalAlpha = 0.9; x.lineWidth = st === 'closed' ? 16 : 12;
+    R.status.filter((r) => r.s === st).forEach((r) => { x.beginPath(); r.pts.forEach((p, i) => (i ? x.lineTo(p[0] * N, p[1] * N) : x.moveTo(p[0] * N, p[1] * N))); x.stroke(); }); });
+  x.globalAlpha = 1;
   const place = (f, t, size) => { if (!f) return; x.font = `700 ${size}px Roboto, Arial, sans-serif`; x.strokeStyle = 'rgba(32,33,36,.9)'; x.lineWidth = size / 4.5; x.strokeText(t, f[0] * N, f[1] * N); x.fillStyle = '#fff'; x.fillText(t, f[0] * N, f[1] * N); };
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
 }
@@ -193,20 +214,41 @@ function applyEx() {   // 0 = the campus as one block (aerial on lidar); 1 = the
   slabs[2].children.forEach((ch) => { if (ch.userData.slabPart) ch.visible = EX > 0.02; });
 }
 
-// ------------------------------------------------------------------------------------------------ callouts
+// ------------------------------------------------------------------------------------------------ callouts (tree-style cards)
 const NS = 'http://www.w3.org/2000/svg';
-let order = { l: [], r: [] };
+const svgI = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
+function link(el, c) {   // a card that points into the picture: its curved leader, end dot and number badge
+  c.el = el; el.onclick = (e) => { e.stopPropagation(); show(c); }; CALL.push(c);
+  const g = document.createElementNS(NS, 'g'); c.halo = document.createElementNS(NS, 'path'); c.halo.setAttribute('class', 'halo');
+  c.ln = document.createElementNS(NS, 'path'); if (c.lim) c.ln.setAttribute('class', 'lim'); c.dot = document.createElementNS(NS, 'circle'); c.dot.setAttribute('r', 4);
+  g.append(c.halo, c.ln, c.dot); $('cleaders').appendChild(g); c.g = g;
+  const bd = document.createElement('div'); bd.className = 'badge'; bd.textContent = CALL.length; bd.onclick = () => show(c); $('cstage').appendChild(bd); c.badge = bd;
+  const n = el.querySelector('.n'); if (n) n.textContent = CALL.length;
+}
 function buildCallouts() {
-  const box = $('ccallouts'), svg = $('cleaders');
-  CALL.forEach((c, i) => {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'co ' + c.side + (c.lim ? ' lim' : ''); b.dataset.id = c.id;
-    b.innerHTML = `<span class="n">${i + 1}</span><span class="k">${esc(c.k)}</span><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span>`;
-    b.onclick = () => show(c); box.appendChild(b); c.el = b;
-    const g = document.createElementNS(NS, 'g'); c.halo = document.createElementNS(NS, 'line'); c.halo.setAttribute('class', 'halo');
-    c.ln = document.createElementNS(NS, 'line'); if (c.lim) c.ln.setAttribute('class', 'lim'); c.dot = document.createElementNS(NS, 'circle'); c.dot.setAttribute('r', 4);
-    g.append(c.halo, c.ln, c.dot); svg.appendChild(g);
-    const bd = document.createElement('div'); bd.className = 'badge'; bd.textContent = i + 1; bd.onclick = () => show(c); $('cstage').appendChild(bd); c.badge = bd;
+  const L = document.createElement('div'), Rr = document.createElement('div'); L.className = 'tcol tl'; Rr.className = 'tcol tr';
+  GROUPS.forEach((g) => {
+    const col = g.side === 'l' ? L : Rr;
+    if (g.engine || g.result) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = g.engine ? 'tengine' : 'tresult';
+      b.innerHTML = `<span class="n"></span><span class="k">${esc(g.k)}</span><b>${esc(g.t)}</b><span class="s">${esc(g.s)}</span>` +
+        (g.bullets ? '<ul>' + g.bullets.map((x) => `<li>${x}</li>`).join('') + '</ul>' : '') +
+        (g.result ? `<span class="lg"><i style="background:${ROAD_C.closed}"></i><b>Closed</b> 30 cm or more</span><span class="lg"><i style="background:${ROAD_C.risk}"></i><b>At risk</b> 15 to 30 cm</span><span class="lg"><i style="background:#fbbc04"></i><b>Water on road</b> 5 to 15 cm</span>` : '');
+      col.appendChild(b); g.el = b; link(b, { id: g.id, k: g.k, t: g.t, p: g.s, at: g.at, nodes: g.nodes, side: g.side }); return;
+    }
+    const box = document.createElement('div'); box.className = 'tgroup' + (g.out ? ' out' : '') + (g.lim ? ' lim' : '');
+    box.innerHTML = `<div class="th"><span>${esc(g.k)}</span>${g.sub ? `<em>${esc(g.sub)}</em>` : ''}</div>`;
+    g.cards.forEach((c) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tcard' + (c.lim ? ' lim' : '');
+      b.innerHTML = `<span class="n"></span>${svgI(c.ic)}<span class="tx"><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span></span>`;
+      box.appendChild(b); link(b, Object.assign({ k: g.k, p: c.s, side: g.side, lim: g.lim || c.lim }, c));
+    });
+    col.appendChild(box); g.el = box;
   });
+  $('ccallouts').append(L, Rr);
+  const chk = $('cchecks'); if (chk) chk.innerHTML = '<div class="th"><span>Checked against what really happened</span><em>never fed into the model</em></div><div class="tchecks">' +
+    CHECKS.map((c, i) => `<button type="button" class="tcard" data-i="${i}">${svgI(c.ic)}<span class="tx"><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span></span></button>`).join('') + '</div>';
+  if (chk) chk.querySelectorAll('button').forEach((b) => { const c = CHECKS[+b.dataset.i]; b.onclick = () => window.MFW && window.MFW.openPanel('Checked against reality', c.t, c.s, c.nodes); });
 }
 function show(c) { mark(c.id); if (window.MFW) window.MFW.openPanel(c.k, c.t, c.p, c.nodes); }
 function mark(id) { CALL.forEach((c) => { const on = c.id === id; c.el.classList.toggle('on', on); c.el.classList.toggle('dim', !!id && !on); c.ln.classList.toggle('on', on); c.dot.classList.toggle('on', on); }); }
@@ -215,44 +257,50 @@ function screen(c) {
   const a = anchors[c.at]; if (!a) return null; const v = a.p.clone(); v.y += a.L * GAP * EX; v.project(camera); const R = renderer.domElement.getBoundingClientRect();
   return { x: (v.x + 1) / 2 * R.width, y: (1 - v.y) / 2 * R.height };
 }
-function resort() { ['l', 'r'].forEach((sd) => { order[sd] = CALL.filter((c) => c.side === sd).map((c) => ({ c, y: (screen(c) || { y: 0 }).y })).sort((a, b) => a.y - b.y).map((o) => o.c); }); }
-function layout() {
-  const R = renderer.domElement.getBoundingClientRect(), W = R.width, Hh = R.height;
-  if (narrow) { CALL.forEach((c) => { const p = screen(c); if (p) { c.badge.style.left = p.x + 'px'; c.badge.style.top = p.y + 'px'; } }); return; }
-  CALL.forEach((c) => { const hid = EX < 0.5 && !narrow; c.el.style.display = hid ? 'none' : ''; c.ln.parentNode.style.display = hid ? 'none' : ''; });
+function resort() {}
+function placeGroups(R) {   // each group sits level with the things it points to, so leader lines run across, not up and down
   ['l', 'r'].forEach((sd) => {
-    const list = order[sd].filter((c) => c.el.style.display !== 'none'), n = list.length, top = 22, gap = (Hh - top - 30) / n;
-    list.forEach((c, i) => {
-      const el = c.el, w = el.offsetWidth, h = el.offsetHeight, x = sd === 'l' ? 20 : W - 20 - w, y = top + i * gap + (gap - h) / 2;
-      el.style.left = x + 'px'; el.style.top = y + 'px'; const p = screen(c); if (!p) return;
-      const lx = sd === 'l' ? x + w + 6 : x - 6, ly = y + h / 2;
-      [c.ln, c.halo].forEach((l) => { l.setAttribute('x1', lx); l.setAttribute('y1', ly); l.setAttribute('x2', p.x); l.setAttribute('y2', p.y); });
-      c.dot.setAttribute('cx', p.x); c.dot.setAttribute('cy', p.y);
-    });
+    const gs = GROUPS.filter((g) => g.side === sd && g.el), H_ = R.height, pad = 14, gap = 12;
+    const want = gs.map((g) => { const ys = CALL.filter((c) => g.el.contains(c.el)).map((c) => screen(c)).filter(Boolean).map((p) => p.y);
+      const h = g.el.offsetHeight; return { g, h, y: ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length - h / 2 : null }; });
+    let prev = pad; want.forEach((w, i) => { if (w.y == null) w.y = prev; w.y = Math.max(prev, w.y); prev = w.y + w.h + gap; });
+    let over = prev - gap - (H_ - pad); for (let i = want.length - 1; i >= 0 && over > 0; i--) { const lim = i ? want[i - 1].y + want[i - 1].h + gap : pad, mv = Math.min(over, want[i].y - lim); want.slice(i).forEach((w) => { w.y -= mv; }); over -= mv; }
+    want.forEach((w) => { w.g.el.style.top = Math.round(w.y) + 'px'; });
+  });
+}
+function layout() {
+  const R = renderer.domElement.getBoundingClientRect();
+  if (!narrow) placeGroups(R);
+  if (narrow) { CALL.forEach((c) => { const p = screen(c); c.badge.style.display = p ? '' : 'none'; if (p) { c.badge.style.left = p.x + 'px'; c.badge.style.top = p.y + 'px'; } }); return; }
+  CALL.forEach((c) => {
+    const p = screen(c); c.g.style.display = p ? '' : 'none'; if (!p) return;
+    const r = c.el.getBoundingClientRect(), x0 = c.side === 'l' ? r.right - R.left + 2 : r.left - R.left - 2, y0 = r.top - R.top + Math.min(r.height / 2, 26);
+    const mx = (x0 + p.x) / 2, d = `M${x0},${y0} C${mx},${y0} ${mx},${p.y} ${p.x},${p.y}`;
+    c.ln.setAttribute('d', d); c.halo.setAttribute('d', d); c.dot.setAttribute('cx', p.x); c.dot.setAttribute('cy', p.y);
   });
 }
 
 function setAnchors(R, B) {
-  const P = M.places, at = (f, dy, lift = 0.3) => new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]) + dy + lift, toZ(f[1]));
+  const P = M.places, at = (f, lift = 0.3) => new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]) + lift, toZ(f[1])), A = (p, L = 0) => ({ p, L });
   let pk = [0.5, 0.5], best = -1; for (let i = 0; i < H.length; i++) if (H[i] > best) { best = H[i]; pk = [(i % (G + 1)) / G, Math.floor(i / (G + 1)) / G]; }
-  const closed = R.status.filter((r) => r.s === 'closed').sort((a, b) => b.pts.length - a.pts.length)[0] || R.status[0];
-  const cm = closed ? closed.pts[Math.floor(closed.pts.length / 2)] : [0.7, 0.6];
-  let big = null; if (B) B.buildings.forEach((b) => { if (!big || b.p.length > big.p.length) big = b; });
-  const bc = big ? [big.p.reduce((s, p) => s + p[0], 0) / big.p.length, big.p.reduce((s, p) => s + p[1], 0) / big.p.length] : P.wpi;
-  const A = (p, L) => ({ p, L });
+  const inBox = (f) => f[0] > 0.04 && f[0] < 0.96 && f[1] > 0.04 && f[1] < 0.96;
+  const st = R.status.filter((r) => r.pts.some((f) => inBox(f) && f[0] < 0.5)).sort((a, b) => ({ closed: 0, risk: 1, wet: 2 }[a.s] - { closed: 0, risk: 1, wet: 2 }[b.s]))[0];
+  const rin = st ? st.pts.filter((f) => inBox(f) && f[0] < 0.5) : [], rp = rin.length ? rin[Math.floor(rin.length / 2)] : [0.3, 0.6];
+  const fy = 0.0, wall = (fx, d) => new THREE.Vector3(toX(fx), hAt(fx, fy) - d, toZ(fy));   // the cut face at the front (north edge, through the park)
+  // seen from the north, east (fx -> 1) is on the left of the screen: left-column cards point east, right-column cards point west
   Object.assign(anchors, {
-    sky: A(new THREE.Vector3(-S * 0.25, HMAX + 16, -S * 0.15), 1), water: A(at(P.pond, 0), 1), flow: A(at(P.park_ave, 0), 1), road: A(at(cm, 0), 1),
-    wpi: A(at(P.kaven, 0, 2.5), 0), pond: A(at(P.institute_park, 0), 0), peak: A(at(pk, 0), 0), bld: A(at(bc, 0, 1.5), 0),
-    soilTop: A(at([0.3, 0.4], 0), -1), soilWall: A(new THREE.Vector3(toX(0.35), hAt(0.35, 1) - 1.6, toZ(1)), 0), gw: A(new THREE.Vector3(toX(0.7), hAt(0.7, 1) - 3.2, toZ(1)), 0)
+    sky: A(new THREE.Vector3(toX(0.8), HMAX + 14, toZ(0.45)), 1), sky2: A(new THREE.Vector3(toX(0.62), HMAX + 14, toZ(0.25)), 1),
+    peak: A(at(pk)), roof: A(at([Math.min(0.9, P.kaven[0] + 0.16), P.kaven[1] + 0.1], 1.2)), park: A(at([0.78, 0.05])), flow: A(at([0.3, 0.35])),
+    road: A(at(rp, 0.4)), soilWall: A(wall(0.9, 1.9)), wetWall: A(wall(0.78, 0.45)), gw: A(wall(0.66, 3.6))
   });
 }
 
 const VIEWS = { campus: null, layers: { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) } };
 function fitK() {   // pull the camera back when the space for the block (between the label columns) is narrow, so the whole stack fits
-  const st = $('cstage'), w = st.clientWidth - (narrow ? 0 : 560), h = st.clientHeight; return Math.max(1, (narrow ? 0.9 : 1.15) / Math.max(0.2, w / h));
+  const st = $("cstage"), w = st.clientWidth - (narrow ? 0 : 640), h = st.clientHeight; return Math.max(1, (narrow ? 1.25 : 1.46) / Math.max(0.2, w / h));
 }
 function viewOf() {
-  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); VIEWS.campus = { pos: t.clone().add(new THREE.Vector3(-8, 50, 100)), target: t.clone().add(new THREE.Vector3(0, 0, 9)) }; }
+  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); VIEWS.campus = { pos: new THREE.Vector3(0, 58, -132), target: new THREE.Vector3(0, -8, 8) }; }
   const h = EXT ? VIEWS.layers : VIEWS.campus, k = fitK() * (narrow ? 0.92 : 1); return { pos: h.pos.clone().sub(h.target).multiplyScalar(k).add(h.target), target: h.target.clone() }; }
 function home(animate) {
   const v = viewOf();
