@@ -27,31 +27,39 @@ const IC = {
   gw: '<path d="M3 15c3 0 3-2 6-2s3 2 6 2 3-2 6-2M3 19c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/>', gauge: '<path d="M4 20V5M4 5l7 4-7 4"/>', report: '<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17v.1"/>',
   list: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>'
 };
-const GROUPS = [
-  { side: 'l', id: 'g-rain', k: 'Rain', sub: 'how much water falls', cards: [
-    { id: 'obs', ic: 'rain', t: 'Radar rain (past storms)', s: 'NOAA MRMS: radar corrected with rain gauges, 1 km squares, every hour.', at: 'sky', nodes: ['mrms', 'rain_grid'] },
-    { id: 'fc', ic: 'fc', t: 'Forecast rain (next 48 h)', s: 'NOAA HRRR weather model: 3 km squares, the eight newest forecasts.', at: 'sky2', nodes: ['hrrr', 'phase', 'members'] } ] },
-  { side: 'l', id: 'g-ground', k: 'On the ground', sub: 'where water runs', cards: [
-    { id: 'dem', ic: 'terrain', t: 'Terrain', s: 'USGS 3DEP lidar (laser-scanned ground heights), used as 20 m squares.', at: 'peak', nodes: ['lidar', 'dem20', 'breach', 'crest'] },
-    { id: 'cover', ic: 'land', t: 'Land cover', s: 'NLCD 2021: how much is paved, which sets how much rain runs off and how fast.', at: 'roof', nodes: ['nlcd', 'manning'] },
-    { id: 'stream', ic: 'stream', t: 'Streams and ponds', s: 'USGS NHDPlus HR, carved into the terrain so they carry water downstream.', at: 'park', nodes: ['nhd', 'channels'] },
-    { id: 'culvert', ic: 'culvert', t: 'Culverts under roads', s: 'NAACC surveys; capacity by the FHWA HDS-5 method.', at: null, nodes: ['crossings', 'notch', 'culvert'] } ] },
-  { side: 'l', id: 'g-below', k: 'Below ground', sub: 'where water soaks in', cards: [
-    { id: 'soil', ic: 'soil', t: 'Soils', s: 'USDA SSURGO groups A (sandy, soaks in fast) to D (clay, slow).', at: 'soilWall', nodes: ['ssurgo', 'cn'] },
-    { id: 'wet', ic: 'drop', t: 'How wet the ground was', s: 'The normal setting; what-if runs try dry, soaked and frozen ground.', at: 'wetWall', nodes: ['wi_amc', 'wi_frozen'] },
-    { id: 'gw', ic: 'gw', t: 'Groundwater', s: 'Not in the model yet: the next step of the cascade.', at: 'gw', nodes: ['cc_gw'], lim: true } ] },
-  { side: 'r', id: 'g-engine', engine: true, k: 'Physics simulation', t: 'LISFLOOD-FP 8.2', s: 'Moves the rain water over every 20 m square of ground and records how deep and how fast it gets, every 5 minutes.',
-    bullets: ['<b>Physics:</b> 2-D shallow-water equations (the math of water spreading over land).', '<b>Same setting</b> for every storm.', '<b>Runs on</b> WPI’s Turing cluster and GitHub Actions.'], at: 'flow', nodes: ['lisflood', 'depth', 'velocity'] },
-  { side: 'r', id: 'g-result', result: true, k: 'The result for each road', t: 'Depth on every road segment', s: 'Read every 10 m along every road: when water arrives, how deep it gets and for how long.', at: 'road', nodes: ['roadpts', 'segdepth', 'onset', 'pclose'] },
-  { side: 'r', id: 'g-out', k: 'Knock-on effects', sub: '', out: true, cards: [
-    { id: 'access', ic: 'people', t: 'People cut off', s: 'Residents who can no longer reach a hospital, fire station or police station in time.', at: null, nodes: ['census', 'facilities', 'access'] },
-    { id: 'detour', ic: 'detour', t: 'Detours', s: 'Closed roads come out of the network; wet roads get slower; routes are found again.', at: null, nodes: ['graph', 'pregnolato', 'dijkstra'] } ] }
+// The story around the cross-section, read in order: what falls on it (top), what the ground does with it (left, pointing at the
+// cut face), what the model does and what comes out (right), and how it is checked (under the figure). Plain words first; the
+// source line says who made each piece and whether it is public. Pointers only go to things you can see for sure: the rain,
+// the ground surface and the layers on the cut face.
+const PUB = '<i class="chip-p">public data</i>', OSS = '<i class="chip-o">open source</i>', NOT = '<i class="chip-n">not in the model yet</i>';
+const STORY = [
+  { zone: 'top', n: 1, id: 'obs', ic: 'rain', t: 'Rain that fell', p: 'Weather radar measures how much rain falls on every square kilometre, every hour, checked against rain gauges on the ground.',
+    src: 'NOAA MRMS radar', chip: PUB, at: 'skyL', nodes: ['mrms', 'rain_grid'] },
+  { zone: 'top', n: 1, id: 'fc', ic: 'fc', t: 'Rain on the way', p: 'A weather model guesses the rain for the next two days. The model runs on its eight newest guesses to see how much they agree.',
+    src: 'NOAA HRRR forecast', chip: PUB, at: 'skyR', nodes: ['hrrr', 'phase', 'members'] },
+  { zone: 'left', n: 2, id: 'dem', ic: 'terrain', t: 'The shape of the ground', p: 'Lasers flown from planes measure the height of the ground to within centimetres. Water always runs from high to low.',
+    src: 'USGS 3DEP lidar, 1 m', chip: PUB, at: 'surf', nodes: ['lidar', 'dem20', 'breach', 'crest'] },
+  { zone: 'left', n: 2, id: 'cover', ic: 'land', t: 'Roofs, roads and grass', p: 'Roofs and pavement send rain straight off; grass and trees hold some back and slow the rest down.',
+    src: 'NLCD 2021 land cover', chip: PUB, at: 'surf2', nodes: ['nlcd', 'manning'] },
+  { zone: 'left', n: 2, id: 'soil', ic: 'soil', t: 'The soil', p: 'Sandy soil drinks rain fast, clay soil slowly. What the soil cannot drink runs off over the ground.',
+    src: 'USDA SSURGO soils, NRCS curve number', chip: PUB, at: 'soilBand', nodes: ['ssurgo', 'cn', 'wi_amc', 'wi_frozen'] },
+  { zone: 'left', n: 0, id: 'gw', ic: 'gw', t: 'Water already underground', p: 'Groundwater rising under roads and buildings is the next part of the chain this research will add.',
+    src: 'Groundwater', chip: NOT, at: 'gwLine', lim: true, nodes: ['cc_gw'] },
+  { zone: 'right', n: 3, id: 'engine', engine: true, t: 'LISFLOOD-FP 8.2', k: 'The flood model',
+    p: 'A free, open-source flood model from the University of Bristol, UK. It splits the ground into 20 m squares and, second by second, moves the water from each square to its lower neighbours, the way water really runs downhill. The moving blue dots show that.',
+    src: 'University of Bristol', chip: OSS, nodes: ['lisflood', 'depth', 'velocity'] },
+  { zone: 'right', n: 3, id: 'drain', ic: 'stream', t: 'Where the water can go', p: 'Streams and ponds carry water away. Where a stream passes under a road, a pipe (a culvert) lets it through until the pipe is full.',
+    src: 'USGS streams, NAACC culvert surveys', chip: PUB, nodes: ['nhd', 'channels', 'crossings', 'culvert'] },
+  { zone: 'right', n: 4, id: 'roads', result: true, t: 'Water on every road', p: 'Every 10 m along every road, the model reads how deep the water gets and for how long.',
+    src: 'MassDOT road inventory', chip: PUB, nodes: ['roadpts', 'segdepth', 'onset', 'pclose'] },
+  { zone: 'right', n: 5, id: 'access', ic: 'people', t: 'Who gets cut off', p: 'With the flooded roads closed, the model finds who can no longer reach a hospital, fire station or police station in time.',
+    src: 'US Census 2020, OpenStreetMap', chip: PUB, nodes: ['census', 'facilities', 'dijkstra', 'access'] }
 ];
 const CHECKS = [
-  { ic: 'gauge', t: 'River gauges', s: 'USGS, every 15 min: does the river rise as much, and when?', nodes: ['gauges'] },
-  { ic: 'report', t: 'Storm reports', s: 'NWS Local Storm Reports, NOAA Storm Events, news and agency reports.', nodes: ['labels', 'matching'] },
-  { ic: 'list', t: 'City damage records', s: 'Public works lists of damaged roads and culverts.', nodes: ['labels'] },
-  { ic: 'list', t: 'Storms never used for tuning', s: 'Every run is scored against these, compared with random roads and simple alternatives.', nodes: ['split', 'metrics', 'baselines'] }
+  { ic: 'gauge', t: 'River gauges', s: 'USGS, every 15 minutes: did the river rise as much as the model said, and when?', nodes: ['gauges'] },
+  { ic: 'report', t: 'Storm reports', s: 'National Weather Service and NOAA storm reports, news and agency reports of flooded roads.', nodes: ['labels', 'matching'] },
+  { ic: 'list', t: 'City damage records', s: 'Public works lists of the roads and culverts a storm damaged.', nodes: ['labels'] },
+  { ic: 'list', t: 'Storms kept aside', s: 'Most past storms were never used to set the model; they are kept to test it fairly.', nodes: ['split', 'metrics', 'baselines'] }
 ];
 const CALL = [];   // flat list of everything that points into the picture (filled in buildCallouts)
 
@@ -214,93 +222,81 @@ function applyEx() {   // 0 = the campus as one block (aerial on lidar); 1 = the
   slabs[2].children.forEach((ch) => { if (ch.userData.slabPart) ch.visible = EX > 0.02; });
 }
 
-// ------------------------------------------------------------------------------------------------ callouts (tree-style cards)
+// ------------------------------------------------------------------------------------------------ the story cards
 const NS = 'http://www.w3.org/2000/svg';
 const svgI = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
-function link(el, c) {   // a card that points into the picture: its curved leader, end dot and number badge
-  c.el = el; el.onclick = (e) => { e.stopPropagation(); show(c); }; CALL.push(c);
-  const g = document.createElementNS(NS, 'g'); c.halo = document.createElementNS(NS, 'path'); c.halo.setAttribute('class', 'halo');
-  c.ln = document.createElementNS(NS, 'path'); if (c.lim) c.ln.setAttribute('class', 'lim'); c.dot = document.createElementNS(NS, 'circle'); c.dot.setAttribute('r', 4);
-  g.append(c.halo, c.ln, c.dot); $('cleaders').appendChild(g); c.g = g;
-  const bd = document.createElement('div'); bd.className = 'badge'; bd.textContent = CALL.length; bd.onclick = () => show(c); $('cstage').appendChild(bd); c.badge = bd;
-  const n = el.querySelector('.n'); if (n) n.textContent = CALL.length;
+function card(c) {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.id = c.id;
+  if (c.engine) {
+    b.className = 'scard engine';
+    b.innerHTML = `<span class="step">${c.n}</span><span class="k">${esc(c.k)}</span><b>${esc(c.t)}</b><span class="p">${esc(c.p)}</span><span class="src">${esc(c.src)} ${c.chip}</span>`;
+  } else if (c.result) {
+    b.className = 'scard result';
+    b.innerHTML = `<span class="step">${c.n}</span><b>${esc(c.t)}</b><span class="p">${esc(c.p)}</span>` +
+      `<span class="lg"><i style="background:${ROAD_C.closed}"></i><b>Closed</b> 30 cm or more, about where a car stalls</span><span class="lg"><i style="background:${ROAD_C.risk}"></i><b>At risk</b> 15 to 30 cm</span><span class="lg"><i style="background:#fbbc04"></i><b>Wet</b> 5 to 15 cm</span>` +
+      `<span class="src">${esc(c.src)} ${c.chip}</span>`;
+  } else {
+    b.className = 'scard' + (c.lim ? ' lim' : '');
+    b.innerHTML = `${c.n ? `<span class="step">${c.n}</span>` : ''}<span class="hd">${svgI(c.ic)}<b>${esc(c.t)}</b></span><span class="p">${esc(c.p)}</span><span class="src">${esc(c.src)} ${c.chip}</span>`;
+  }
+  b.onclick = (e) => { e.stopPropagation(); show(c); }; c.el = b;
+  if (c.at) {
+    const g = document.createElementNS(NS, 'g'); c.halo = document.createElementNS(NS, 'path'); c.halo.setAttribute('class', 'halo');
+    c.ln = document.createElementNS(NS, 'path'); c.ln.setAttribute('class', 'arrow' + (c.lim ? ' lim' : '')); c.ln.setAttribute('marker-end', 'url(#cArrow)');
+    g.append(c.halo, c.ln); $('cleaders').appendChild(g); c.g = g;
+    const bd = document.createElement('div'); bd.className = 'badge'; bd.textContent = c.n || '·'; bd.onclick = () => show(c); $('cstage').appendChild(bd); c.badge = bd;
+  }
+  CALL.push(c); return b;
 }
 function buildCallouts() {
-  const L = document.createElement('div'), Rr = document.createElement('div'); L.className = 'tcol tl'; Rr.className = 'tcol tr';
-  GROUPS.forEach((g) => {
-    const col = g.side === 'l' ? L : Rr;
-    if (g.engine || g.result) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = g.engine ? 'tengine' : 'tresult';
-      b.innerHTML = `<span class="n"></span><span class="k">${esc(g.k)}</span><b>${esc(g.t)}</b><span class="s">${esc(g.s)}</span>` +
-        (g.bullets ? '<ul>' + g.bullets.map((x) => `<li>${x}</li>`).join('') + '</ul>' : '') +
-        (g.result ? `<span class="lg"><i style="background:${ROAD_C.closed}"></i><b>Closed</b> 30 cm or more</span><span class="lg"><i style="background:${ROAD_C.risk}"></i><b>At risk</b> 15 to 30 cm</span><span class="lg"><i style="background:#fbbc04"></i><b>Water on road</b> 5 to 15 cm</span>` : '');
-      col.appendChild(b); g.el = b; link(b, { id: g.id, k: g.k, t: g.t, p: g.s, at: g.at, nodes: g.nodes, side: g.side }); return;
-    }
-    const box = document.createElement('div'); box.className = 'tgroup' + (g.out ? ' out' : '') + (g.lim ? ' lim' : '');
-    box.innerHTML = `<div class="th"><span>${esc(g.k)}</span>${g.sub ? `<em>${esc(g.sub)}</em>` : ''}</div>`;
-    g.cards.forEach((c) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tcard' + (c.lim ? ' lim' : '');
-      b.innerHTML = `<span class="n"></span>${svgI(c.ic)}<span class="tx"><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span></span>`;
-      box.appendChild(b); link(b, Object.assign({ k: g.k, p: c.s, side: g.side, lim: g.lim || c.lim }, c));
-    });
-    col.appendChild(box); g.el = box;
-  });
-  $('ccallouts').append(L, Rr);
-  const chk = $('cchecks'); if (chk) chk.innerHTML = '<div class="th"><span>Checked against what really happened</span><em>never fed into the model</em></div><div class="tchecks">' +
+  $('cleaders').innerHTML = '<defs><marker id="cArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" fill="currentColor"/></marker></defs>';
+  const box = $('ccallouts');
+  const top = document.createElement('div'); top.className = 'szone top';
+  top.innerHTML = '<p class="zt"><b>1</b> What falls on it</p>';
+  const L = document.createElement('div'); L.className = 'szone left'; L.innerHTML = '<p class="zt"><b>2</b> What the ground does with it</p>';
+  const Rr = document.createElement('div'); Rr.className = 'szone right'; Rr.innerHTML = '<p class="zt"><b>3</b> What the model does, and what comes out</p>';
+  STORY.forEach((c) => ({ top, left: L, right: Rr }[c.zone]).appendChild(card(c)));
+  box.append(top, L, Rr);
+  const chk = $('cchecks'); if (chk) chk.innerHTML = '<div class="th"><span><b class="stepi">6</b> Checked against what really happened</span><em>never fed into the model, only used to check it afterwards</em></div><div class="tchecks">' +
     CHECKS.map((c, i) => `<button type="button" class="tcard" data-i="${i}">${svgI(c.ic)}<span class="tx"><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span></span></button>`).join('') + '</div>';
   if (chk) chk.querySelectorAll('button').forEach((b) => { const c = CHECKS[+b.dataset.i]; b.onclick = () => window.MFW && window.MFW.openPanel('Checked against reality', c.t, c.s, c.nodes); });
 }
-function show(c) { mark(c.id); if (window.MFW) window.MFW.openPanel(c.k, c.t, c.p, c.nodes); }
-function mark(id) { CALL.forEach((c) => { const on = c.id === id; c.el.classList.toggle('on', on); c.el.classList.toggle('dim', !!id && !on); c.ln.classList.toggle('on', on); c.dot.classList.toggle('on', on); }); }
+function show(c) { mark(c.id); if (window.MFW) window.MFW.openPanel(c.engine ? c.k : (c.zone === 'top' ? 'What falls on it' : c.zone === 'left' ? 'What the ground does' : 'What the model does'), c.t, c.p, c.nodes); }
+function mark(id) { CALL.forEach((c) => { const on = c.id === id; c.el.classList.toggle('on', on); c.el.classList.toggle('dim', !!id && !on); if (c.ln) c.ln.classList.toggle('on', on); }); }
 document.addEventListener('mfw-panel-close', () => mark(null));
 function screen(c) {
   const a = anchors[c.at]; if (!a) return null; const v = a.p.clone(); v.y += a.L * GAP * EX; v.project(camera); const R = renderer.domElement.getBoundingClientRect();
   return { x: (v.x + 1) / 2 * R.width, y: (1 - v.y) / 2 * R.height };
 }
 function resort() {}
-function placeGroups(R) {   // each group sits level with the things it points to, so leader lines run across, not up and down
-  ['l', 'r'].forEach((sd) => {
-    const gs = GROUPS.filter((g) => g.side === sd && g.el), H_ = R.height, pad = 14, gap = 12;
-    const want = gs.map((g) => { const ys = CALL.filter((c) => g.el.contains(c.el)).map((c) => screen(c)).filter(Boolean).map((p) => p.y);
-      const h = g.el.offsetHeight; return { g, h, y: ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length - h / 2 : null }; });
-    let prev = pad; want.forEach((w, i) => { if (w.y == null) w.y = prev; w.y = Math.max(prev, w.y); prev = w.y + w.h + gap; });
-    let over = prev - gap - (H_ - pad); for (let i = want.length - 1; i >= 0 && over > 0; i--) { const lim = i ? want[i - 1].y + want[i - 1].h + gap : pad, mv = Math.min(over, want[i].y - lim); want.slice(i).forEach((w) => { w.y -= mv; }); over -= mv; }
-    want.forEach((w) => { w.g.el.style.top = Math.round(w.y) + 'px'; });
-  });
-}
 function layout() {
   const R = renderer.domElement.getBoundingClientRect();
-  if (!narrow) placeGroups(R);
-  if (narrow) { CALL.forEach((c) => { const p = screen(c); c.badge.style.display = p ? '' : 'none'; if (p) { c.badge.style.left = p.x + 'px'; c.badge.style.top = p.y + 'px'; } }); return; }
+  if (narrow) { CALL.forEach((c) => { if (!c.badge) return; const p = screen(c); c.badge.style.display = p && EX < 0.5 ? '' : 'none'; if (p) { c.badge.style.left = p.x + 'px'; c.badge.style.top = p.y + 'px'; } }); return; }
   CALL.forEach((c) => {
-    const p = screen(c); c.g.style.display = p ? '' : 'none'; if (!p) return;
-    const r = c.el.getBoundingClientRect(), x0 = c.side === 'l' ? r.right - R.left + 2 : r.left - R.left - 2, y0 = r.top - R.top + Math.min(r.height / 2, 26);
-    const mx = (x0 + p.x) / 2, d = `M${x0},${y0} C${mx},${y0} ${mx},${p.y} ${p.x},${p.y}`;
-    c.ln.setAttribute('d', d); c.halo.setAttribute('d', d); c.dot.setAttribute('cx', p.x); c.dot.setAttribute('cy', p.y);
+    if (!c.ln) return; const p = screen(c); const show_ = p && EX < 0.5; c.g.style.display = show_ ? '' : 'none'; if (!show_) return;
+    const r = c.el.getBoundingClientRect(); let x0, y0, d;
+    if (c.zone === 'top') { x0 = r.left - R.left + r.width / 2; y0 = r.bottom - R.top + 2; d = `M${x0},${y0} C${x0},${(y0 + p.y) / 2} ${p.x},${(y0 + p.y) / 2} ${p.x},${p.y - 4}`; }
+    else { x0 = r.right - R.left + 2; y0 = r.top - R.top + r.height / 2; d = `M${x0},${y0} C${(x0 + p.x) / 2},${y0} ${(x0 + p.x) / 2},${p.y} ${p.x - 4},${p.y}`; }
+    c.ln.setAttribute('d', d); c.halo.setAttribute('d', d);
   });
 }
 
-function setAnchors(R, B) {
-  const P = M.places, at = (f, lift = 0.3) => new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]) + lift, toZ(f[1])), A = (p, L = 0) => ({ p, L });
-  let pk = [0.5, 0.5], best = -1; for (let i = 0; i < H.length; i++) if (H[i] > best) { best = H[i]; pk = [(i % (G + 1)) / G, Math.floor(i / (G + 1)) / G]; }
-  const inBox = (f) => f[0] > 0.04 && f[0] < 0.96 && f[1] > 0.04 && f[1] < 0.96;
-  const st = R.status.filter((r) => r.pts.some((f) => inBox(f) && f[0] < 0.5)).sort((a, b) => ({ closed: 0, risk: 1, wet: 2 }[a.s] - { closed: 0, risk: 1, wet: 2 }[b.s]))[0];
-  const rin = st ? st.pts.filter((f) => inBox(f) && f[0] < 0.5) : [], rp = rin.length ? rin[Math.floor(rin.length / 2)] : [0.3, 0.6];
-  const fy = 0.0, wall = (fx, d) => new THREE.Vector3(toX(fx), hAt(fx, fy) - d, toZ(fy));   // the cut face at the front (north edge, through the park)
-  // seen from the north, east (fx -> 1) is on the left of the screen: left-column cards point east, right-column cards point west
+function setAnchors() {
+  // seen from the north: the front face (fy = 0) is the cut through the park; its left end on screen is the east end (fx -> 1)
+  const A = (p, L = 0) => ({ p, L }), fy = 0, fx = 0.82, face = (d) => new THREE.Vector3(toX(fx), hAt(fx, fy) - d, toZ(fy) - 0.05);
+  const meanTop = H.reduce((a, b) => a + b, 0) / H.length, top = hAt(fx, fy), wt = (top - 2.6) * 0.4 + (meanTop - 3.6) * 0.6;
   Object.assign(anchors, {
-    sky: A(new THREE.Vector3(toX(0.8), HMAX + 14, toZ(0.45)), 1), sky2: A(new THREE.Vector3(toX(0.62), HMAX + 14, toZ(0.25)), 1),
-    peak: A(at(pk)), roof: A(at([Math.min(0.9, P.kaven[0] + 0.16), P.kaven[1] + 0.1], 1.2)), park: A(at([0.78, 0.05])), flow: A(at([0.3, 0.35])),
-    road: A(at(rp, 0.4)), soilWall: A(wall(0.9, 1.9)), wetWall: A(wall(0.78, 0.45)), gw: A(wall(0.66, 3.6))
+    skyL: A(new THREE.Vector3(toX(0.72), HMAX + 9, toZ(0.45)), 1), skyR: A(new THREE.Vector3(toX(0.3), HMAX + 9, toZ(0.45)), 1),
+    surf: A(face(-0.1)), surf2: A(new THREE.Vector3(toX(0.7), hAt(0.7, 0.05) + 0.6, toZ(0.05))), soilBand: A(face(1.4)), gwLine: A(face(top - wt))
   });
 }
 
 const VIEWS = { campus: null, layers: { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) } };
 function fitK() {   // pull the camera back when the space for the block (between the label columns) is narrow, so the whole stack fits
-  const st = $("cstage"), w = st.clientWidth - (narrow ? 0 : 640), h = st.clientHeight; return Math.max(1, (narrow ? 1.25 : 1.46) / Math.max(0.2, w / h));
+  const st = $("cstage"), w = st.clientWidth - (narrow ? 0 : 640), h = st.clientHeight; return Math.max(1, (narrow ? 1.25 : 1.42) / Math.max(0.2, w / h));
 }
 function viewOf() {
-  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); VIEWS.campus = { pos: new THREE.Vector3(0, 58, -132), target: new THREE.Vector3(0, -8, 8) }; }
+  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); VIEWS.campus = { pos: new THREE.Vector3(0, 48, -124), target: new THREE.Vector3(0, -9, 6) }; }
   const h = EXT ? VIEWS.layers : VIEWS.campus, k = fitK() * (narrow ? 0.92 : 1); return { pos: h.pos.clone().sub(h.target).multiplyScalar(k).add(h.target), target: h.target.clone() }; }
 function home(animate) {
   const v = viewOf();
@@ -332,7 +328,7 @@ async function init() {
   slab(tMod, THICK, sideMat(0xe8eef6), 0);
   slabs[2].children.forEach((ch) => { ch.userData.slabPart = true; });
   const acc8 = new Uint8Array(fa), acc = new Float32Array(acc8.length); for (let i = 0; i < acc8.length; i++) acc[i] = Math.pow(2, acc8[i] / 16);
-  buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(R, B); applyEx();
+  buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(); applyEx();
   controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
   controls.minDistance = 18; controls.maxDistance = 700; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
   buildCallouts(); addEventListener('resize', resize); resize(); home();
