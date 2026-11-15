@@ -2,756 +2,101 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>About Mass Flood Watch</title>
-<meta name="description" content="What Mass Flood Watch does, how it works, how well it matches real floods, the data behind it, and who is behind it. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>About · Mass Flood Watch</title>
+<meta name="description" content="Mass Flood Watch is PhD research at Worcester Polytechnic Institute on forecasting which roads flash floods will close and who loses access to emergency services.">
 <link rel="icon" href="wpi-logo.svg">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1F2328">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site/shell.css?v=1">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-@font-face{font-family:"Overpass";src:url(site/fonts/overpass-latin-wght.woff2) format("woff2");font-weight:100 900;font-display:swap}
-@view-transition{navigation:auto}
-@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
-/* palette "harbour mist", shared with the map */
-:root{--bg:#E6EDF0;--surface:#F4F7F9;--ink:#1B2A33;--muted:#55656F;--rule:#CBD5DA;--accent:#2C5F73;--accent-ink:#22506A;--plate:#244B5E;--closed:#c8102e;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121A20;--surface:#1B242C;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;--accent:#7FB6CB;--accent-ink:#9CC8D8;--closed:#ff5a6e;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#121A20;--surface:#1B242C;--ink:#E1E8EC;--muted:#93A3AE;--rule:#33414D;--accent:#7FB6CB;--accent-ink:#9CC8D8;--closed:#ff5a6e;color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Overpass",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
-a{color:var(--accent-ink)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-html{scroll-behavior:smooth;scroll-padding-top:76px}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-.bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:14px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
-.bar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:none;font-weight:650}
-.bar .plate{min-height:0;color:#fff;background:var(--plate);font-weight:800;font-size:14px;letter-spacing:.01em;line-height:1;padding:7px 10px 5px;border-radius:6px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),inset 0 0 0 3px var(--plate);view-transition-name:mfw-plate}
-.bar .back{margin-left:auto;color:#fff;background:var(--accent);border-radius:999px;padding:0 16px;min-height:40px}
-:root[data-theme="dark"] .bar .back{color:#10202A}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bar .back{color:#10202A}}
-@media (max-width:480px){.bar .proj{display:none}}
-.toc{display:flex;flex-wrap:wrap;gap:6px 8px;margin:14px 0 4px;padding:0;list-style:none}
-.toc a{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid var(--rule);border-radius:999px;background:var(--surface);text-decoration:none;color:var(--ink);font-size:14px;font-weight:600}
-.toc a:hover{border-color:var(--accent)}
-.key{display:grid;grid-template-columns:170px 1fr;gap:8px 16px;margin:10px 0 16px;font-size:15px;align-items:start}
-.key dt{font-weight:700;display:flex;align-items:center;gap:8px}
-.key dd{margin:0;color:var(--muted)}
-.key .sw{display:inline-block;width:22px;height:6px;border-radius:3px;flex:none}
-@media (max-width:560px){.key{grid-template-columns:1fr;gap:2px 0}.key dd{margin-bottom:8px}}
-main{max-width:760px;margin:0 auto;padding:8px 16px 64px}
-h1{font-size:30px;line-height:1.15;margin:28px 0 10px;letter-spacing:-.015em}
-h2{font-size:21px;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--rule)}
-h3{font-size:16px;margin:0 0 4px}
-p{margin:0 0 12px}
-.lede{font-size:18px}
-.muted,.src,.small{color:var(--muted)}
-.small,.src{font-size:13px}
-.who{display:flex;flex-direction:column;gap:2px;margin:14px 0 4px;font-size:15px}
-.who span{color:var(--muted)}
-.steps{counter-reset:s;list-style:none;padding:0;margin:0 0 12px;display:grid;gap:10px}
-.steps li{counter-increment:s;position:relative;padding:12px 14px 10px 50px;background:var(--surface);border:1px solid var(--rule);border-radius:12px}
-.steps li::before{content:counter(s);position:absolute;left:14px;top:12px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-weight:800;font-size:13px;display:grid;place-items:center}
-.steps p{margin:0;color:var(--muted);font-size:15px}
-.loop p{font-size:15px}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:12px 0}
-.fact{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 14px}
-.fact .v{display:block;font-size:28px;font-weight:800;letter-spacing:-.01em}
-.fact .v small{font-size:15px;color:var(--muted);font-weight:600}
-.fact p{font-size:14.5px;margin:4px 0 6px}
-.fact .src{display:block}
-.res{list-style:none;padding:0;margin:0;display:grid;gap:10px}
-.res li{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 14px}
-.res li p{margin:0 0 4px;font-size:15px}
-.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
-table{border-collapse:collapse;font-size:13.5px;min-width:720px}
-th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--rule)}
-tr.grp th{background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:12.5px}
-.limits{padding-left:18px}.limits li{margin:0 0 8px;font-size:15px}
-.rq{padding-left:20px}.rq li{margin:0 0 8px}
-.check{display:inline-block;font-size:12px;font-weight:800;color:#7a4b00;background:#fff1d6;border-radius:4px;padding:2px 7px 1px;margin-left:6px;vertical-align:2px}
-.datatable h3{display:none}
-.disc{margin:20px 0 0;padding:12px 14px;border:1px solid var(--rule);border-left:4px solid #E69F00;border-radius:10px;background:var(--surface);font-size:15px}
-.tag-dev{font-size:12px;font-weight:700;color:var(--muted)}
-footer{max-width:760px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font-size:13px}
-
-/* model tree diagram (#modelmap): one inline SVG, drawn by the script at the end of the page */
-:root{--ft-in:#E2EDF6;--ft-in-line:#8FB5D3;--ft-in-ic:#2171B5;--ft-grp:#EDF3F8;
-  --ft-core:#2C5F73;--ft-core-2:#1E4757;--ft-core-ink:#FFFFFF;
-  --ft-res:#FFF6E2;--ft-res-line:#E0B85C;
-  --ft-out:#FBEBDD;--ft-out-line:#E0AE85;--ft-out-ic:#B4530A;
-  --ft-chk:#EEF1F2;--ft-chk-line:#9AA4AA;--ft-chk-ic:#5F6368;--ft-wire-out:#D58A4E}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ft-in:#172A3A;--ft-in-line:#3B6788;--ft-in-ic:#86BCE6;--ft-grp:#141F28;
-  --ft-core:#2C6075;--ft-core-2:#1C4150;--ft-core-ink:#FFFFFF;--ft-res:#2C2716;--ft-res-line:#8A7330;
-  --ft-out:#2E2219;--ft-out-line:#7D5434;--ft-out-ic:#F0A35E;--ft-chk:#1F262B;--ft-chk-line:#5A6770;--ft-chk-ic:#AEB8BF;--ft-wire-out:#C27A42}}
-:root[data-theme="dark"]{--ft-in:#172A3A;--ft-in-line:#3B6788;--ft-in-ic:#86BCE6;--ft-grp:#141F28;
-  --ft-core:#2C6075;--ft-core-2:#1C4150;--ft-core-ink:#FFFFFF;--ft-res:#2C2716;--ft-res-line:#8A7330;
-  --ft-out:#2E2219;--ft-out-line:#7D5434;--ft-out-ic:#F0A35E;--ft-chk:#1F262B;--ft-chk-line:#5A6770;--ft-chk-ic:#AEB8BF;--ft-wire-out:#C27A42}
-.ft{position:relative;margin:14px 0 8px;width:min(1240px,calc(100vw - 32px));left:50%;transform:translateX(-50%)}
-.ft-view{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--rule);border-radius:14px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;outline:none}
-.ft-view:focus-visible{box-shadow:0 0 0 2px var(--accent)}
-.ft-view.ft-drag{cursor:grabbing}
-.ft-view.ft-zoomed{touch-action:none}
-.ft-view svg{display:block;width:100%;height:100%}
-.ft-tools{position:sticky;top:70px;z-index:3;display:flex;justify-content:flex-end;gap:6px;margin:0 0 8px;pointer-events:none}.ft-tools button{pointer-events:auto}
-.ft-tools button{font:inherit;font-size:14px;font-weight:700;min-width:40px;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.14)}
-.ft-tools button:hover{border-color:var(--accent)}
-.ft-tools .ft-z{font-size:20px;line-height:1;padding:0}
-.ft-tools .ft-close{display:none}
-.ft-hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:2}
-.ft-hint.on{opacity:.92}
-.ft-cap{font-size:13px;color:var(--muted);margin:8px 2px 0}
-.ft.ft-full{position:fixed;inset:0;width:auto;left:0;transform:none;margin:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-.ft-full .ft-tools{position:static;margin:0;padding:8px 10px;border-bottom:1px solid var(--rule)}
-.ft-full .ft-view{flex:1;min-height:0;height:auto !important;border:0;border-radius:0;touch-action:none}
-.ft-full .ft-cap{display:none}
-.ft-full .ft-tools .ft-close{display:inline-block;background:var(--accent);color:#fff;border-color:var(--accent)}
-.ft-full .ft-tools .ft-open{display:none}
-html.ft-lock,html.ft-lock body{overflow:hidden}
-.ft-svg text{font-family:"Overpass",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;white-space:pre}
-.ft-svg .t-h{fill:var(--ink);font-weight:800}
-.ft-svg .t-b{fill:var(--ink);font-weight:700}
-.ft-svg .t-m{fill:var(--muted)}
-.ft-svg .t-m .b{fill:var(--ink);font-weight:700}
-.ft-svg .t-k{fill:var(--muted);font-weight:800;letter-spacing:.08em}
-.ft-svg .t-w{fill:var(--ft-core-ink)}
-.ft-svg .t-w .b{font-weight:700}
-.ft-svg .n-in{fill:var(--ft-in);stroke:var(--ft-in-line)}
-.ft-svg .n-grp{fill:var(--ft-grp);stroke:var(--ft-in-line);stroke-width:1.2}
-.ft-svg .n-res{fill:var(--ft-res);stroke:var(--ft-res-line);stroke-width:1.5}
-.ft-svg .n-out{fill:var(--ft-out);stroke:var(--ft-out-line)}
-.ft-svg .n-chk{fill:var(--ft-chk);stroke:var(--ft-chk-line)}
-.ft-svg .n-chkp{fill:none;stroke:var(--ft-chk-line);stroke-width:1.5;stroke-dasharray:7 6}
-.ft-svg .ic-bg{fill:var(--surface)}
-.ft-svg .ic{fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.ft-svg .ic-in{stroke:var(--ft-in-ic)}.ft-svg .ic-out{stroke:var(--ft-out-ic)}.ft-svg .ic-chk{stroke:var(--ft-chk-ic)}.ft-svg .ic-w{stroke:#fff}
-.ft-svg .w-in{fill:none;stroke:var(--ft-in-line);stroke-width:2.2}
-.ft-svg .w-core{fill:none;stroke:var(--ft-core);stroke-width:5}
-.ft-svg .w-out{fill:none;stroke:var(--ft-wire-out);stroke-width:2.2}
-.ft-svg .w-chk{fill:none;stroke:var(--ft-chk-line);stroke-width:2;stroke-dasharray:7 6}
-.ft-svg .a-in{fill:var(--ft-in-line)}.ft-svg .a-core{fill:var(--ft-core)}.ft-svg .a-out{fill:var(--ft-wire-out)}.ft-svg .a-chk{fill:var(--ft-chk-line)}
-.ft-svg .num{fill:var(--accent)}.ft-svg .num-t{fill:var(--surface);font-weight:800}
-.ft-svg .lbl{fill:var(--surface);stroke:var(--ft-chk-line);stroke-width:1}
-@media (max-width:699px){.ft{width:100vw;margin-top:10px}.ft-view{border-left:0;border-right:0;border-radius:0}.ft-cap{margin:8px 16px 0}.ft-tools{padding:0 10px}}
+.hero{padding:48px 0 8px}
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:56px;align-items:start}
+.prose p{margin:0 0 16px;font-size:17px;line-height:1.7;color:var(--s-ink2)}
+.cascade{list-style:none;margin:24px 0 8px;padding:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cascade li{display:flex;align-items:center;gap:8px;font:500 15px/1.3 var(--s-font)}
+.cascade li span{padding:10px 14px;border-radius:10px;background:var(--s-accent-soft);color:var(--s-accent-ink)}
+.cascade li.lim span{background:var(--s-grey-soft);color:var(--s-mut)}
+.cascade li+li::before{content:"";width:18px;height:2px;background:var(--s-line)}
+.card{border:1px solid var(--s-line);border-radius:12px;padding:22px 22px 18px}
+.card+.card{margin-top:16px}
+.card h3{margin:0 0 10px}
+.card p{margin:0 0 8px;color:var(--s-ink2);font-size:15px}
+.people{list-style:none;margin:0;padding:0}
+.people li{padding:10px 0;border-top:1px solid var(--s-line2)}
+.people li:first-child{border-top:0;padding-top:0}
+.people b{display:block;font-weight:500}
+.people span{color:var(--s-mut);font-size:14px}
+.credits{display:grid;grid-template-columns:repeat(3,1fr);gap:0 32px;margin:20px 0 0;padding:0;list-style:none}
+.credits li{padding:12px 0;border-top:1px solid var(--s-line2);font-size:14.5px;line-height:1.5}
+.credits b{display:block;font-weight:500}
+.credits span{color:var(--s-mut)}
+@media (max-width:900px){.cols{grid-template-columns:1fr;gap:24px}.credits{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.credits{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
-<div class="bar"><a class="plate" href="./" title="Mass Flood Watch, the model">Mass Flood Watch</a><a class="proj" href="overview.html">Project page</a><a class="proj" href="status/">System status</a><a class="proj" href="model-tree.html">Model tree</a><a class="back" href="./">Open the model</a></div>
-<main>
-<p class="disc"><b>WPI research prototype, not an official MassDOT warning.</b> Confirm closures with MassDOT District 3 operations. Replays and what-if runs are past storms; only the Forecast mode looks ahead.</p>
-<h1>Which roads a flash flood will close, when, and why</h1>
-<p class="lede">Mass Flood Watch turns radar rainfall into a road-by-road picture of flash-flood closures for MassDOT Highway District 3 in central Massachusetts: where water reaches the road, when each segment closes and reopens, and who loses access to a hospital, fire station or police station while it is shut.</p>
-<div class="who"><b>Mohab Eldokla</b><span>PhD dissertation research, Department of Civil, Environmental and Architectural Engineering (CEAE), Worcester Polytechnic Institute</span><span>Advised by Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff</span></div>
+<body class="page">
+<!--sh:start--><header class="sh"><div class="sh-in"><a class="sh-brand" href="./"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></a><nav class="sh-nav" aria-label="Site"><a href="./">Model</a><a href="how-it-works.html">How it works</a><a href="progress.html">Progress</a><a href="about.html" aria-current="page">About</a></nav><span class="sh-grow"></span><span class="sh-tag">Research prototype · WPI</span><a class="sh-icon" href="https://github.com/Horus331/mass-flood-watch" title="Code and data on GitHub" aria-label="Code and data on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.5.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg></a></div></header><!--sh:end-->
+<main class="wrap">
+  <section class="hero">
+    <p class="eyebrow">About</p>
+    <h1>Which roads will a flash flood close?</h1>
+    <p class="lede">Mass Flood Watch is PhD research at Worcester Polytechnic Institute. It forecasts which road segments in central Massachusetts a flash flood is likely to close, and who would lose access to a hospital, fire station or police station as a result.</p>
+  </section>
 
-<ul class="toc" aria-label="On this page"><li><a href="#reading">Reading the map</a></li><li><a href="#storms">The storms</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#how">How it works</a></li><li><a href="#validation">How well it matches</a></li><li><a href="#data">Data</a></li><li><a href="#forecast-rain">Forecast</a></li><li><a href="#limits">Limitations</a></li></ul>
-
-<h2>What it does</h2>
-<p>For a storm that happened (a replay), a storm that is forecast (the live forecast, rerun every six hours from NOAA HRRR) or a storm with changed inputs (the what-if explorer), the app shows the water as the flood model moves it across the terrain, every road segment as it gets wet, risky and closed, the culverts it overtops, and the people cut off from emergency services. Every map is one physics run; nothing on it is drawn by hand.</p>
-
-<h2 id="reading">Reading the map</h2>
-<p>Everything on the map is model output or a measurement; nothing is drawn by hand. The timeline under the map plays the storm: drag anywhere on it, or use the arrow keys (Shift and an arrow moves an hour). Slow, Normal and Fast play 5, 15 and 45 minutes of storm per second.</p>
-<dl class="key">
-<dt><i class="sw" style="background:linear-gradient(90deg,#9ECAE1,#6BAED6,#2171B5,#08306B)"></i>Water depth</dt><dd>Modelled water on the ground, from 5 cm (pale) to 1 m and more (dark). 15 cm reaches a car floor; 30 cm can float a small car.</dd>
-<dt><i class="sw" style="background:#7f94a8"></i>Draining</dt><dd>Slate-grey water is going down: draining downstream or soaking in.</dd>
-<dt><i class="sw" style="background:linear-gradient(90deg,#d6d0ee,#7a6fb0,#3f007d)"></i>Rain</dt><dd>NOAA MRMS radar rain in mm per hour: light (0.5), moderate (2.5), heavy (10), very heavy (25), violent (50).</dd>
-<dt><i class="sw" style="background:#F2C14E"></i>Water on road</dt><dd>5 to 15 cm of modelled water on the road surface.</dd>
-<dt><i class="sw" style="background:#F0A202"></i>At risk</dt><dd>15 to 30 cm.</dd>
-<dt><i class="sw" style="background:#E8590C"></i>Closed</dt><dd>30 cm or more on the segment: the closure rule. A closed road reopens when the water drops below 26 cm, so a depth hovering at the threshold does not flicker.</dd>
-<dt><i class="sw" style="background:#C62828"></i>Impassable stretch</dt><dd>Red marks only the 40 m pieces where 30 cm or more covers the road itself, so one deep spot does not paint a whole kilometre red.</dd>
-<dt><i class="sw" style="background:repeating-linear-gradient(90deg,#E69F00 0 3px,transparent 3px 6px)"></i>Water at the edge</dt><dd>Water beside the road while the road surface (an embankment or a crowned road) stays above it.</dd>
-<dt><i class="sw" style="background:repeating-linear-gradient(90deg,#D55E00 0 4px,transparent 4px 6px)"></i>May close</dt><dd>A stream beside the road reaches road level; not counted in the chance of closing.</dd>
-<dt><i class="sw" style="border:2px solid currentColor;height:10px"></i>Coverage</dt><dd>The outline is MassDOT District 3, where the live forecast runs. Dashed boxes elsewhere were tested on past storms only; the shaded area outside is not modelled. On a replay, the dashed square is that run's own 20 × 20 km box.</dd>
-</dl>
-<p>The three numbers beside the map are the road segments closed and at risk at the moment shown on the timeline, and the time when the most roads are closed at once. Rain now and culverts overtopped are area values at the same moment. Click a road, on the map or in the list, for its depth through the storm, when it closes and reopens, its traffic (AADT) and the residents who lose access to a hospital, fire or police station if it closes. The guided tour (Tour) walks through the storm in eight scenes with the same numbers.</p>
-<p>The default basemap is the MassGIS 2023 statewide aerial imagery (15 cm, leaf-off, so roads under tree canopy are visible), with Esri World Imagery outside Massachusetts. Light, Terrain and Dark backgrounds are under Layers. Moving water (Layers, at street zoom) shows the direction and relative speed of the modelled current, not to time scale.</p>
-
-<h2 id="storms">The storms</h2>
-<ul class="limits">
-<li><b>Leominster, Sept 11, 2023</b>: the tuned case. A 20 × 20 km box at 20 m; the storm the model settings were checked against.</li>
-<li><b>Worcester, Aug 19, 2021</b>: a blind test. Same model settings, on a storm it was not tuned on.</li>
-<li><b>Eight more storms</b> (2018 to 2026, under More storms): held-out replays. Same settings, none chosen on them. Each entry gives the most rain in the box and the most in one hour.</li>
-<li><b>District 3, Sept 11, 2023</b>: one run over the whole district on WPI’s Turing GPU cluster, 17.6 million cells at 20 m (shown at 80 m).</li>
-</ul>
-
-<h2 id="scenarios">Scenarios</h2>
-<p>The Scenarios tab reruns the real Leominster 2023 storm with one input changed at a time: rain scaled to ½, ¾ or 1¼ of the radar storm; the ground before the storm dry (the driest soil class), normal (the calibrated setting), soaked (the wettest soil class) or frozen (nothing soaks in, an upper bound); and culverts clear or blocked (road embankments then hold water back like dams; bridges stay open). Each combination is a full LISFLOOD-FP run on WPI’s Turing GPU cluster, not an extrapolation. A combination marked with a dot is still queued, and the map keeps the last run that has landed. People cut off counts residents with no route to a hospital, fire or police station at the worst moment.</p>
-
-<h2 id="modelmap">The model and its data</h2>
-<p class="muted">How the whole model fits together, read from left to right (top to bottom on a phone): the data that goes in, the flood model, the result on every road, what people see, and what it is checked against. Drag to move, pinch or use + and − to zoom, or open it full screen. The full table is under <a href="#data">Data behind the model</a>.</p>
-<figure class="ft" id="ft">
-<div class="ft-tools"><button type="button" class="ft-z" id="ftOut" aria-label="Zoom out">−</button><button type="button" class="ft-z" id="ftIn" aria-label="Zoom in">+</button><button type="button" id="ftReset">Reset</button><button type="button" class="ft-open" id="ftFull">Full screen</button><button type="button" class="ft-close" id="ftClose">Close</button></div>
-<div class="ft-view" id="ftView" tabindex="0" aria-label="Diagram of how Mass Flood Watch works. Drag or use the arrow keys to move, plus and minus to zoom.">
-<svg class="ft-svg" id="ftSvg" xmlns="http://www.w3.org/2000/svg" role="group" aria-labelledby="ftTitle"><title id="ftTitle">How Mass Flood Watch works: inputs, the flood model, road results, outputs and checks</title><g id="ftCam"></g></svg>
-<div class="ft-hint" id="ftHint" aria-hidden="true"></div>
-</div>
-<figcaption class="ft-cap">Blue: data that goes in. Teal: the flood model. Yellow: the result on each road. Orange: what people see. Grey dashed: what every run is checked against.</figcaption>
-</figure>
-
-<h2 id="how">How it works</h2>
-<ol class="steps">
-          <li><h3>Rain</h3><p>NOAA MRMS radar-and-gauge rainfall, 1 km, every hour of the storm.</p></li>
-          <li><h3>Flood model</h3><p>LISFLOOD-FP 8.2 spreads the rain over USGS 3DEP lidar terrain at 20 m. Soils and land cover set how much soaks in. Validated runs use one converged solver setting for every storm.</p></li>
-          <li><h3>Water on every road</h3><p>Depth on each road segment every 5 to 30 minutes: when water arrives, how deep, and for how long.</p></li>
-          <li><h3>Closure rules</h3><p>30 cm of water stops an ordinary car, so the chance of closing rises steeply past 30 cm. A stream reaching road level marks a road that may close. Culverts are checked against FHWA HDS-5.</p></li>
-          <li><h3>Network impact</h3><p>Residents from the 2020 Census who lose a hospital within 30 min, a fire station within 8 min or police within 10 min; detour delay; risk class and repair cost.</p></li>
-        </ol>
-<div class="loop"><p>Every run is scored against what happened: USGS river gauges, NWS storm reports, NOAA Storm Events, and documented city and MassDOT closure and damage sites, each compared with random road points.</p></div>
-
-<h2 id="validation">How well it matches real floods</h2>
-<p class="muted">Honest numbers first: what the model does on storms it was never tuned on. The project's status page is the single source of truth for these figures (<a href="proto/STATUS.md">STATUS.md</a>).</p>
-<div class="facts" role="list">
-      <div class="fact" role="listitem">
-        <span class="v num">35<small> of 89</small></span>
-        <p>documented closure and damage sites caught in Leominster–Fitchburg while flagging 1.97% of road segments: 12.8 times better than flagging at random.</p>
-        <span class="src">Sept 11, 2023, the tuned storm. Sites matched within 30 m.</span>
+  <section class="sec cols">
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Most flood warnings describe an area: a county, a river, a zone on a map. Road crews and emergency managers need something narrower: which stretches of road will have water on them, when, and what that does to the rest of the network.</p>
+      <p>The research treats this as a cascade. Heavy rain becomes runoff, runoff becomes water on roads and behind culverts, flooded roads close, and closures cut people off from emergency services. A physics flood model driven by radar and forecast rain follows that chain one step at a time, and every step is checked against what really happened in past storms.</p>
+      <ol class="cascade" aria-label="The cascade the research follows">
+        <li><span>Heavy rain</span></li><li><span>Runoff and flooding</span></li><li><span>Water on roads and culverts</span></li><li><span>Road closures</span></li><li><span>Loss of access to help</span></li><li class="lim"><span>Groundwater and structures (next)</span></li>
+      </ol>
+      <p>The goal is a framework that connects the hazard, the mechanism and the infrastructure response to a probability of failure and an early warning, starting with roads and extending to culverts, embankments and foundations.</p>
+    </div>
+    <aside>
+      <div class="card">
+        <h3>People</h3>
+        <ul class="people">
+          <li><b>Mohab Eldokla</b><span>PhD student, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute</span></li>
+          <li><b>Prof. Mingjiang Tao</b><span>Advisor, Worcester Polytechnic Institute</span></li>
+          <li><b>Prof. Leonard Albano</b><span>Advisor, Worcester Polytechnic Institute</span></li>
+          <li><b>Prof. Lindsay Graff</b><span>Advisor, Worcester Polytechnic Institute</span></li>
+        </ul>
       </div>
-      <div class="fact" role="listitem">
-        <span class="v num">20<small> of 98</small></span>
-        <p>sites on 23 held-out storms fall in the model’s top 3% of road segments: 0.20 [0.10, 0.30] against 0.066 by chance (3.1 times). The fixed alert rule alone catches 9 of 98 (6.4 times chance).</p>
-        <span class="src">Storms never used for tuning, 2018–2026. 90% bootstrap interval. Second label round, 98 sites (the first round, 90 sites, gave 15 and 5).</span>
+      <div class="card">
+        <h3>Status</h3>
+        <p>A research prototype under active development. It is not an official warning service and is not affiliated with any state or federal agency.</p>
+        <p>For emergencies call 911. For official flood warnings, see the <a href="https://www.weather.gov/box/">National Weather Service, Boston/Norton</a>.</p>
       </div>
-      <div class="fact" role="listitem">
-        <span class="v num">0.46<small> m</small></span>
-        <p>mean error in river rise at USGS gauges, down from 0.82 m once every storm ran with the same converged solver settings. Gauges with no modelled rise: 9 of 16 down to 3 of 16.</p>
-        <span class="src">9 catalogue storms, 16 gauge-storm pairs.</span>
+      <div class="card">
+        <h3>Contact</h3>
+        <p><a href="mailto:mgeldokla@wpi.edu">mgeldokla@wpi.edu</a></p>
+        <p>Code and data: <a href="https://github.com/Horus331/mass-flood-watch">github.com/Horus331/mass-flood-watch</a></p>
       </div>
-      <div class="fact" role="listitem">
-        <span class="v num">9–10<small> h</small></span>
-        <p>of lead time from the live 8-member HRRR forecast ensemble. Out of sample, its 2-of-8 rule beat the single newest forecast in 7 of 14 storm-lead cases and never did worse.</p>
-        <span class="src">7 out-of-sample storms, each at a long and a short lead.</span>
-      </div>
-    
-<ul class="res">
-<li><h3>New districts, no retuning</h3><p>On 81 storms in MassDOT Districts 4, 5 and 6 (498 documented sites), run once with the frozen District 3 settings, the top 3% of road segments catch <b>21%</b> of the sites (104 of 498) against 8.6% by chance: a lift of <b>2.5</b>. The 30 cm alert rule rarely fires there (18 of 498).</p><span class="src"><a href="proto/transfer/TRANSFER.md">Transfer test</a></span></li>
-<li><h3>Against FEMA flood maps</h3><p>On the 23 held-out storms, FEMA's 100-year flood zones flag 7.0% of roads and catch 32 of 98 sites; the model's riskiest roads at the same share catch 36 of 98. The difference (−0.04, 90% CI −0.18 to +0.11) is not detectable, so a static map is a fair benchmark for where; the model adds when each road closes and a sharper alert rule (lift 6.4 against 2.2).</p><span class="src"><a href="proto/static/STATIC.md">Static flood maps vs the event model</a></span></li>
-<li><h3>Model plus FEMA map, tested and rejected</h3><p>Adding FEMA's flood zones to the alert rule (pre-registered, Districts 4–6, 81 storms) caught more sites than the rule alone but fewer than the model's own riskiest roads at the same share, so no hybrid layer is used.</p><span class="src"><a href="proto/static/HYBRID.md">Hybrid test</a></span></li>
-<li><h3>Fast learned stand-in for the flood model</h3><p>A neural network trained on 192 flood-model runs on the WPI Turing cluster, meant to answer what-if questions in seconds. Its first validation is weak (road-level agreement 0.34 at 30 cm, against a 0.70 bar set in advance), so it is not used anywhere on this site. <span class="tag-dev">In development</span></p><span class="src"><a href="proto/surrogate/SURROGATE.md">Surrogate plan</a></span></li>
-<li><h3>Street inlets, tested and rejected</h3><p>Catch basins taking water off the street, capped by grate capacity with leaf and debris clogging (FHWA HEC-22), pre-registered and run on the 23 held-out storms: the share of documented sites caught in the riskiest 3% of roads stayed at 0.194 with and without inlets, so they stay off. Drained water is not yet returned at the outfalls, which made the Leominster river rise worse.</p><span class="src"><a href="proto/drains/INLETS.md">Inlet test</a></span></li>
-<li><h3>Residents' flood reports, Leominster</h3><p>The MRPC / BSC Group crowdsource map has 70 road-related pins from residents. 27 of them are new sites, more than 150 m from any other report, and were never used to build the model: it catches <b>6</b> of them (22%) while flagging 2.2% of roads, about 5 times chance.</p><span class="src"><a href="proto/obs/CROWD.md">Crowdsource check</a></span></li>
-</ul>
+    </aside>
+  </section>
 
-<h2>The research</h2>
-<p>The dissertation builds a practical framework for cascading water hazards on infrastructure: heavy rain becomes flooding, flooding closes and damages roads and culverts, and those failures cut people off from help. The questions it asks:</p>
-<ol class="rq">
-<li>Can a physics flood model driven by radar rain say which road segments close, and when, well enough to beat chance on storms it was never tuned on?</li>
-<li>How do the consequences cascade through the network: culverts overtopped, detours, and residents cut off from hospitals, fire and police?</li>
-<li>Can forecast rain give useful hours of warning, and can machine learning (a learned closure model, a fast surrogate of the flood model) add skill or speed without hiding what the physics says?</li>
-<li>Which inputs matter most: rain, how wet the ground was, and whether culverts pass water (the what-if explorer)?</li>
-</ol>
-
-<h2 id="data">Data behind the model</h2>
-<p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p>
-<div class="datatable"><h3>Data behind the model</h3><p class="muted">Where each dataset comes from, what it measures and in what units, and how the model uses it.</p><div class="tablewrap"><table><thead><tr><th>Data</th><th>Source</th><th>What it describes</th><th>Units and resolution</th><th>How the model uses it</th></tr></thead><tbody>
-<tr class="grp"><th colspan="5">Model inputs</th></tr>
-<tr><td><b>Radar rainfall</b></td><td>NOAA MRMS MultiSensor QPE Pass2 (radar corrected with rain gauges); before Oct 2020 the GaugeCorr QPE from the Iowa State (IEM) archive</td><td>Rain that fell, per hour</td><td>mm per hour, 1 km grid, hourly</td><td>Fed into the flood model as rain on every 20 m cell; also gives each road its storm total, peak 1 h and 3 h rain</td></tr>
-<tr><td><b>Forecast rainfall</b></td><td>NOAA HRRR (High-Resolution Rapid Refresh)</td><td>Rain forecast for the next 48 h</td><td>mm per hour, 3 km grid, hourly; new run every 6 h</td><td>Drives the live forecast; the last 8 forecast runs form the ensemble (likely closed = closed in ≥ 2 of 8). Since 8 Nov 2026 a forecast run counts a road as closed only if the storm adds at least 30 cm of water above the level at rain onset, which drops water that was already beside the road (tested on 25 past storms: no reported site lost, about half the flagged roads)</td></tr>
-<tr><td><b>Ground elevation</b></td><td>USGS 3DEP elevation, 1/3 arc-second (≈ 10 m, lidar-based in Massachusetts)</td><td>Height of the ground surface</td><td>metres above sea level (NAVD88)</td><td>Averaged to the 20 m model grid that water flows over; the highest 10 m cell is kept as the road-surface height</td></tr>
-<tr><td><b>Streams</b></td><td>USGS NHDPlus HR flowlines</td><td>Where streams and rivers run</td><td>lines, with drainage area (km²)</td><td>Carved into the terrain so rivers carry water downstream</td></tr>
-<tr><td><b>Soils</b></td><td>USDA NRCS SSURGO, hydrologic soil group A–D</td><td>How fast the ground absorbs water</td><td>class A (sandy, fast) to D (clay, slow)</td><td>With land cover, sets the NRCS curve number: how much rain soaks in vs runs off</td></tr>
-<tr><td><b>Land cover</b></td><td>USGS NLCD 2021 land cover and imperviousness</td><td>What covers the ground; share that is paved</td><td>% paved per 30 m cell</td><td>Runoff (curve number) and surface roughness (Manning's n, 0.035–0.10 s/m<sup>1/3</sup>)</td></tr>
-<tr><td><b>Roads</b></td><td>MassDOT Road Inventory</td><td>Every road segment: class, town, traffic</td><td>segments; traffic in vehicles per day (AADT)</td><td>Water depth is read along each segment every half cell; traffic weights detour delay</td></tr>
-<tr><td><b>Stream crossings and culverts</b></td><td>USGS national stream crossings, MA Stream Crossings Project (NAACC surveys), MassDOT structures</td><td>Where roads cross streams; culvert size and type</td><td>location; dimensions in m</td><td>Culvert capacity (FHWA HDS-5, m³/s) compared with modelled flow: overtopping and damage risk</td></tr>
-<tr><td><b>Bridges</b></td><td>MassDOT bridge layer, FHWA National Bridge Inventory</td><td>Bridge decks over water</td><td>location, deck extent</td><td>Water under a bridge is not water on the road, so decks are skipped and their approaches are checked</td></tr>
-<tr><td><b>Population</b></td><td>2020 US Census blocks</td><td>Where people live</td><td>residents per block</td><td>People who lose timely access to emergency services when roads close</td></tr>
-<tr><td><b>Emergency facilities</b></td><td>OpenStreetMap (hospitals, fire, police)</td><td>Where help comes from</td><td>locations</td><td>Access standards: hospital within 30 min, fire within 8 min, police within 10 min</td></tr>
-<tr class="grp"><th colspan="5">Live conditions (Forecast tab, for context; not model inputs)</th></tr>
-<tr><td><b>Rain now and next 2 h</b></td><td>NOAA MRMS radar rain and rain rate</td><td>Rain in the last 1 and 3 h; where the current rain is heading</td><td>mm, 1 km grid, every 2 min to hourly</td><td>Shown hourly; the 2-hour extrapolation is experimental and archived for scoring</td></tr>
-<tr><td><b>Flash-flood guidance</b></td><td>NOAA MRMS FLASH</td><td>Rain compared with the amount that starts flash flooding; modelled unit streamflow</td><td>ratio; m³/s per km²</td><td>Towns at or over guidance are listed</td></tr>
-<tr><td><b>Stream flow at culverts</b></td><td>NOAA National Water Model, short range</td><td>Forecast flow on the stream reach at each mapped culvert</td><td>m³/s, hourly, 18 h ahead</td><td>Compared with each culvert's capacity (an upper bound: reach flow is larger than at the culvert)</td></tr>
-<tr><td><b>Rivers now</b></td><td>USGS Water Data API, NWS flood stages</td><td>River level now against the official flood stage</td><td>ft, every 15 min</td><td>Gauges nearest flood stage are listed</td></tr>
-<tr><td><b>Ground before the storm</b></td><td>MRMS 5-day rain (NRCS NEH-4 classes); NWS Worcester climate report (frost index); NOAA SNODAS snow; National Water Model topsoil saturation</td><td>Wet, dry or frozen ground; snow cover</td><td>mm; degree-days; cm; fraction</td><td>Shown as context: wet or frozen ground means the forecast is likely too low</td></tr>
-<tr><td><b>Flooding reports</b></td><td>MassDOT traffic events, SeeClickFix</td><td>Road flooding reported in the last 48 h</td><td>points</td><td>Archived to score the forecast later; not verified</td></tr>
-<tr class="grp"><th colspan="5">Checked against</th></tr>
-<tr><td><b>River gauges</b></td><td>USGS Water Data API</td><td>Observed river level and flow</td><td>m and m³/s, every 15 min</td><td>Modelled river rise and peak time compared with observed at every gauge in the area</td></tr>
-<tr><td><b>Storm reports</b></td><td>NWS Local Storm Reports, NOAA Storm Events database, news and agency reports</td><td>Roads reported flooded, closed or washed out</td><td>location and time of each report</td><td>Scoring: how many reported sites the model catches vs random road points</td></tr>
-<tr><td><b>City damage inventory and drains</b></td><td>City of Leominster DPW (Sept 2023), shared for this research</td><td>Complete list of damaged roads and culverts; storm-drain pipe network</td><td>points; pipe size in m</td><td>A complete city record to score against; drain capacity test</td></tr>
-<tr><td><b>Repeat flood sites</b></td><td>MassDOT District 3</td><td>Road spots that flood again and again</td><td>locations, no dates</td><td>Sanity check that the model finds known trouble spots</td></tr>
-</tbody></table></div>
-<p class="muted small">Model output: water depth (m) on every 20 m cell and road segment every 5–30 minutes, river flow (m³/s) at crossings and gauges, and each road's chance of closing (0–100 %).</p>
-
-<h2 id="forecast-rain">The week-ahead rain table</h2>
-<p>The Forecast tab shows the next 7 days the way a phone weather app does: one row per day, 12 columns of 2 hours each, the day's total and the chance of rain. The rain comes from NOAA's National Blend of Models, hourly at the 73 District 3 towns through Open-Meteo (open-meteo.com, CC BY 4.0). NOAA forecasts hour by hour for about the next 36 hours; after that its 3- and 6-hour totals are spread over the hours, so later days look smoother until they come closer.</p>
-<p>Each column is the rain in the wettest town in those 2 hours, so a local downpour is not averaged away. The dashed line on every column is the flood model's trigger: 25 mm in 6 hours in any town (8.3 mm in 2 hours). Columns below the line use a square-root scale so light rain stays visible; a column that reaches the line turns orange, and once that rain is within 48 hours the flood model runs on the road network. The total is the District 3 average; the chance of rain is NOAA's 12-hour probability of measurable rain (0.25 mm or more) for the day, at the most likely spot in District 3. This table is for orientation; road closures come only from the flood model.</p>
-<p>Week-ahead rain is uncertain, and road closures are modelled only within 48 hours of a storm (NOAA HRRR). “Ground before the next storm” is context: the forecast runs at normal (calibrated) ground, so wet or frozen ground means closures are likely under-forecast. “Right now” lists observations and short-range products, checked every hour: radar rain, a 2-hour radar extrapolation (experimental, not yet verified), flash-flood guidance, river gauges against flood stage, National Water Model flow at culverts, snow, and recent flooding reports.</p>
-
-<h2 id="limits">Limitations</h2>
-<ul class="limits">
-      <li><b>Light storms are under-predicted.</b> The runoff setting tuned on Leominster leaves summer thunderstorms too dry: the alert rule catches 1 of 58 sites on the 16 newer storms. Drains, 5-minute rain, connected-pavement runoff and (1 Nov) dropping the extra 2 mm/h soil loss on top of the curve number were each tested and none fixed it (the last: 2 of 58, not significant; <a href="proto/runoff/B0_V2.md">test</a>).</li>
-      <li><b>Spatial skill outside the development storms is at chance.</b> On held-out storms the model ranks roads better than chance but does not place the flooded area (FSS at 300 m: 0.019 against 0.234 on the development storms).</li>
-      <li><b>Labels follow who reported.</b> Outside Leominster, closure sites come from news, NWS and agency reports, which favour named main roads and towns that report. An unreported road is not proof it stayed open, so a flagged road with no report is not necessarily a false alarm, and storms with 2 to 7 sites carry wide uncertainty.</li>
-      <li><b>Model start-up.</b> Each run starts with streams partly full; in the first half hour that water drains through some crossings onto roads before any real rain falls. The map ignores road water until 5 mm of rain has fallen on the area, and then counts a road as closed only if its water is 30 cm or more and at least 15 cm above that start-up level.</li>
-      <li><b>Known artifacts.</b> In downtown Worcester (MLK Jr Blvd, Foster St) the model holds 1 to 4 m of water in low spots with no outlet: Mill Brook runs in a conduit under the city and the terrain shows the streets and buildings over it, so those roads rank too high. A few culvert crossings are cut far below the road where several crossings sit close together (Route 2 at I-190 in Leominster shows 8.5 m; it is not a bridge). A fix for both was built and tested on all 25 storms (1 Nov): it removes these depths (no road deeper than 2 m except one) without changing the skill scores, and was adopted with the advisors' approval on 5 Nov 2026: the live forecast uses it from that day, and since 7 Nov 2026 the storm replays on this site are rebuilt with it too (<a href="proto/terrain/TERRAIN.md">test</a>). Rivers and ponds are drawn on the map only where they rise at least 20 cm above their normal level during the storm, so a river out of its banks shows and a full lake does not. The live forecast also measures water on a road from the moment the rain begins, so low spots that are already full before a storm are not counted as closures. Before October 2020 the radar layer on the map shows radar-only rain, which reads 30 to 40% lower than the gauge-corrected rain the model was run with.</li>
-      <li><b>20 m grid.</b> Curbs, gutters and narrow ditches are smaller than one cell, so water on city streets is smoothed out.</li>
-      <li><b>River floods need basin-scale runs.</b> Large rivers drain land outside the model and peak after the 48-hour window (see the gauge table).</li>
-      <li><b>Forecast tested on few sites.</b> The ensemble’s out-of-sample test rests on 29 sites across 7 storms, so one site moves a storm’s recall by 0.2 to 0.5.</li>
+  <section class="sec">
+    <h2>Data and software</h2>
+    <p class="lede">Everything the model reads is public. Sources are credited here and linked from each part of <a href="how-it-works.html">How it works</a>.</p>
+    <ul class="credits">
+      <li><b>Rain</b><span>NOAA MRMS radar and gauges; NOAA HRRR forecasts</span></li>
+      <li><b>Ground height</b><span>USGS 3D Elevation Program (lidar)</span></li>
+      <li><b>Streams</b><span>USGS NHDPlus High Resolution</span></li>
+      <li><b>Soils</b><span>USDA NRCS SSURGO</span></li>
+      <li><b>Land cover</b><span>MRLC National Land Cover Database 2021</span></li>
+      <li><b>Culverts</b><span>North Atlantic Aquatic Connectivity Collaborative (NAACC); FHWA HDS-5</span></li>
+      <li><b>Roads</b><span>MassDOT Road Inventory (public data)</span></li>
+      <li><b>People and services</b><span>U.S. Census 2020; OpenStreetMap contributors</span></li>
+      <li><b>River gauges and imagery</b><span>USGS water data; USGS NAIP imagery</span></li>
+      <li><b>Flood engine</b><span>LISFLOOD-FP 8.2, University of Bristol</span></li>
+      <li><b>Map and 3D</b><span>MapLibre GL, three.js; basemap © OpenStreetMap contributors, OpenFreeMap, Esri</span></li>
+      <li><b>Computing</b><span>GitHub Actions; WPI Turing cluster</span></li>
     </ul>
-
-<h2>Contact</h2>
-<p>Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Email: <a href="mailto:mgeldokla@wpi.edu">mgeldokla@wpi.edu</a>. Code, data and every result: <a href="https://github.com/Horus331/mass-flood-watch">github.com/Horus331/mass-flood-watch</a>.</p>
-<p class="small">Dissertation research; not an official WPI or MassDOT product. Page version: 2026-11-01; model settings and runs: <a href="proto/STATUS.md">STATUS.md</a>.</p>
+  </section>
 </main>
-<footer>Flood model: LISFLOOD-FP 8.2, University of Bristol. Rain: NOAA MRMS and HRRR. Terrain and gauges: USGS. Roads: MassDOT. Basemap: © OpenStreetMap contributors, OpenFreeMap, Esri.</footer>
-<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
-<script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script>
-(function () { // the model tree (#modelmap): builds one SVG (left to right on wide screens, top to bottom on phones) and lets it pan and zoom
-  var fig = document.getElementById('ft'), view = document.getElementById('ftView'), svg = document.getElementById('ftSvg'), cam = document.getElementById('ftCam');
-  if (!fig || !svg) return;
-  var NS = 'http://www.w3.org/2000/svg';
-
-  var IC = {
-    radar: '<path d="M9 21a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 12a5 5 0 0 1-1 9.9z"/><path d="M12 24l-1.5 3M17 24l-1.5 3M22 24l-1.5 3"/>',
-    fcst: '<path d="M9 19a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 10a5 5 0 0 1-1 9.9z"/><path d="M8 25h16M20 22l4 3-4 3"/>',
-    terrain: '<path d="M3 25l8-12 5 7 4-5 9 10z"/><path d="M3 28h26"/>',
-    soil: '<path d="M4 9h24M4 15h24M4 21h24M4 27h24"/><path d="M8 12h2M18 18h2M12 24h2" stroke-width="3"/>',
-    land: '<rect x="4" y="4" width="11" height="11"/><rect x="17" y="4" width="11" height="11"/><rect x="4" y="17" width="11" height="11"/><rect x="17" y="17" width="11" height="11"/><path d="M6 6l7 7M19 19l7 7"/>',
-    drop: '<path d="M16 4c5 7 8 11 8 15a8 8 0 0 1-16 0c0-4 3-8 8-15z"/><path d="M4 28h24"/>',
-    stream: '<path d="M5 6c6 2 4 8 10 10s5 8 12 10"/><path d="M9 4c5 3 2 8 9 10"/>',
-    culvert: '<path d="M3 12h26M3 22h26"/><circle cx="16" cy="17" r="5"/><path d="M3 17h8M21 17h8"/>',
-    bridge: '<path d="M2 12h28"/><path d="M5 12v13M27 12v13M5 25c4-9 18-9 22 0"/>',
-    road: '<path d="M11 3L7 29M21 3l4 26"/><path d="M16 5v4M16 14v4M16 23v4"/>',
-    rain: '<path d="M9 17a6 6 0 1 1 1.2-11.9A8 8 0 0 1 25 8a5 5 0 0 1-1 9.9z"/><path d="M12 21l-1.5 4M17 21l-1.5 4M22 21l-1.5 4"/>',
-    ground: '<path d="M3 20l7-9 5 6 4-4 10 7"/><path d="M3 24h26M3 28h26"/>',
-    drain: '<path d="M4 8c6 0 6 6 12 6s6 6 12 6"/><path d="M24 16l4 4-4 4"/>',
-    play: '<circle cx="16" cy="16" r="12"/><path d="M13 11l8 5-8 5z"/>',
-    sliders: '<path d="M6 8h20M6 16h20M6 24h20"/><circle cx="12" cy="8" r="2.6"/><circle cx="21" cy="16" r="2.6"/><circle cx="10" cy="24" r="2.6"/>',
-    clock: '<circle cx="16" cy="16" r="12"/><path d="M16 8v8l6 4"/>',
-    knock: '<circle cx="8" cy="9" r="3"/><circle cx="24" cy="23" r="3"/><path d="M11 10c6 2 2 8 10 11" stroke-dasharray="3 3"/><path d="M13 22l-4 4M9 22l4 4"/>',
-    gauge: '<path d="M8 28V6l16 6-16 6"/><path d="M4 28h24"/>',
-    alert: '<path d="M16 3l13 24H3z"/><path d="M16 12v7M16 22v1" stroke-width="2.6"/>',
-    doc: '<rect x="6" y="4" width="20" height="25" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/>',
-    repeat: '<path d="M7 14a9 9 0 0 1 16-5l2 2"/><path d="M25 5v6h-6"/><path d="M25 18a9 9 0 0 1-16 5l-2-2"/><path d="M7 27v-6h6"/>',
-    pin: '<path d="M16 29s-9-9-9-16a9 9 0 0 1 18 0c0 7-9 16-9 16z"/><circle cx="16" cy="13" r="3"/>',
-    held: '<rect x="4" y="6" width="24" height="22" rx="2"/><path d="M4 12h24M10 3v6M22 3v6M11 20l4 4 7-8"/>',
-    model: '<path d="M3 13c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/><path d="M3 20c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/><path d="M3 27c4-3 6 3 10 0s6 3 10 0 4 3 6 1"/>'
-  };
-
-  var D = {
-    title: 'How Mass Flood Watch works',
-    sub: 'Data goes in, a physics flood model moves the rain water over the ground, and every road segment gets a depth. That depth drives the replays, scenarios and forecast, and every run is checked against what really happened.',
-    inputs: [
-      { g: 'Rain', s: 'how much water falls', icon: 'rain', items: [
-        { i: 'radar', t: 'Radar rain (past storms)', d: 'NOAA MRMS: radar corrected with rain gauges. 1 km squares, every hour.' },
-        { i: 'fcst', t: 'Forecast rain (next 48 h)', d: 'NOAA HRRR weather model: 3 km squares, a new forecast every 6 h.' }] },
-      { g: 'Ground', s: 'where water runs and soaks in', icon: 'ground', items: [
-        { i: 'terrain', t: 'Terrain', d: 'USGS 3DEP lidar (laser-scanned ground heights, about 10 m), averaged to the 20 m grid.' },
-        { i: 'soil', t: 'Soils', d: 'USDA SSURGO groups A (sandy, soaks in fast) to D (clay, slow).' },
-        { i: 'land', t: 'Land cover', d: 'USGS NLCD 2021, share paved. With soils it sets the curve number (how much rain runs off) and how rough the surface is.' },
-        { i: 'drop', t: 'How wet the ground was', d: 'The normal (calibrated) setting. Scenarios also try dry, soaked and frozen ground.' }] },
-      { g: 'Drainage', s: 'where water can get away', icon: 'drain', items: [
-        { i: 'stream', t: 'Streams and rivers', d: 'USGS NHDPlus HR, carved into the terrain so rivers carry water downstream.' },
-        { i: 'culvert', t: 'Culverts (pipes under roads)', d: 'NAACC surveys, USGS and MassDOT crossings. Capacity by the FHWA HDS-5 method.' },
-        { i: 'bridge', t: 'Bridges', d: 'MassDOT, FHWA National Bridge Inventory. Water under a deck is not water on the road.' }] },
-      { g: 'Roads', s: 'what gets checked', icon: 'road', items: [
-        { i: 'road', t: 'Road network', d: 'MassDOT Road Inventory: every segment, its town, class and traffic (AADT, vehicles per day).' }] }
-    ],
-    model: { k: 'PHYSICS SIMULATION', t: 'LISFLOOD-FP 8.2', d: 'Simulates where the rain water flows and how deep it gets, on every 20 m square of ground, every 5 minutes.',
-      pts: [['Physics:', '2-D shallow-water equations (the math of water spreading over land).'],
-            ['Same setting for every storm:', 'the one runoff setting was chosen on Leominster 2023, then frozen.'],
-            ['Runs on', 'WPI’s Turing GPU cluster and GitHub Actions.']] },
-    res: { k: 'THE RESULT FOR EACH ROAD', t: 'Depth on every road segment', d: 'Read along each segment every 5 min: when water arrives, how deep it gets, and for how long.',
-      tiers: [['Closed', '30 cm or more', 'Stops an ordinary car. Reopens below 26 cm.', '#E8590C'],
-              ['At risk', '15 to 30 cm', 'Reaches a car floor.', '#F0A202'],
-              ['Water on road', '5 to 15 cm', '', '#F2C14E']],
-      foot: 'The chance of closing rises steeply past 30 cm.' },
-    outputs: [
-      { i: 'play', t: 'Replay past storms', p: [['', 'Watch radar rain arrive, water rise and roads close.'], ['', 'Leominster 2023 (tuned), Worcester 2021 (blind test) and eight more storms.']] },
-      { i: 'sliders', t: 'What-if scenarios', p: [['', 'The real Leominster 2023 storm rerun with one change at a time: rain ×½, ×¾ or ×1¼; ground dry, normal, soaked or frozen; culverts clear or blocked.']] },
-      { i: 'clock', t: 'Live forecast (next 48 h)', p: [['Watch:', 'week-ahead rain by town (NOAA National Blend of Models).'], ['Trigger:', '25 mm in 6 h or 40 mm in 24 h in any town, within 48 h.'], ['Run:', 'the flood model on NOAA HRRR rain every 6 h, in up to four 20 × 20 km boxes on the heaviest rain. A road is flagged when at least 2 of the last 8 forecasts close it.']] },
-      { i: 'knock', t: 'Knock-on effects', p: [['Culverts overtopped:', 'modelled flow above culvert capacity.'], ['People cut off:', 'residents (2020 Census) who lose a hospital within 30 min, a fire station within 8 min or police within 10 min (OpenStreetMap).'], ['Detours:', 'extra delay, weighted by traffic.']] }
-    ],
-    checks: { t: 'Checked against what really happened', d: 'Every run is scored against these, compared with random road points.',
-      items: [
-        { i: 'gauge', t: 'River gauges', d: 'USGS, every 15 min: does the river rise as much, and when?' },
-        { i: 'alert', t: 'Storm reports', d: 'NWS Local Storm Reports, NOAA Storm Events, news and agency reports.' },
-        { i: 'doc', t: 'City DPW records', d: 'Leominster DPW list of damaged roads and culverts, Sept 2023.' },
-        { i: 'repeat', t: 'MassDOT repeat-flood sites', d: 'District 3 road spots that flood again and again.' },
-        { i: 'pin', t: 'Residents’ reports', d: 'MRPC / BSC Group crowdsource map, Leominster.' },
-        { i: 'held', t: 'Held-out storms', d: '23 storms never used for tuning: the riskiest 3% of roads catch 20 of 98 reported sites, 3.1 times chance.' }] }
-  };
-
-  // ---- text measuring and wrapping ----
-  var cx2d = document.createElement('canvas').getContext('2d');
-  function tw(s, size, wt) { cx2d.font = (wt || 400) + ' ' + size + 'px Overpass, sans-serif'; return cx2d.measureText(s).width; }
-  function wrap(runs, size, maxW, wt) { // runs: [[bold, text]] -> lines of [[bold, text]]
-    var lines = [], cur = [], w = 0;
-    runs.forEach(function (r) {
-      r[1].split(/\s+/).filter(Boolean).forEach(function (word) {
-        var b = !!r[0], ww = tw(word, size, b ? 700 : (wt || 400)), sp = cur.length ? tw(' ', size, wt || 400) : 0;
-        if (cur.length && w + sp + ww > maxW) { lines.push(cur); cur = []; w = 0; sp = 0; }
-        var last = cur[cur.length - 1];
-        if (last && last[0] === b) last[1] += ' ' + word; else cur.push([b, (cur.length ? ' ' : '') + word]);
-        w += sp + ww;
-      });
-    });
-    if (cur.length) lines.push(cur);
-    return lines;
-  }
-  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-  var out;
-  function put(s) { out.push(s); }
-  function lines(x, y, ls, size, lh, cls, anchor) { // y = top of first line box
-    ls.forEach(function (l, i) {
-      var by = y + i * lh + size * 0.98;
-      put('<text x="' + x + '" y="' + by.toFixed(1) + '" font-size="' + size + '" class="' + cls + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' +
-        l.map(function (r) { return r[0] ? '<tspan class="b">' + esc(r[1]) + '</tspan>' : esc(r[1]); }).join('') + '</text>');
-    });
-    return ls.length * lh;
-  }
-  function icon(x, y, name, kind, sz) {
-    sz = sz || 32;
-    var s = (sz - 8) / 32;
-    put('<rect x="' + x + '" y="' + y + '" width="' + sz + '" height="' + sz + '" rx="8" class="ic-bg"' + (kind === 'w' ? ' fill-opacity=".14" style="fill:#fff"' : '') + '/>');
-    put('<g class="ic ic-' + kind + '" transform="translate(' + (x + 4) + ' ' + (y + 4) + ') scale(' + s + ')">' + IC[name] + '</g>');
-  }
-
-  // a card: icon, bold title, muted description paragraphs. Returns its height (draw=false measures only)
-  var TS = 15.5, DS = 13.5, DLH = 18.5, TLH = 20;
-  function card(x, y, w, o, kind, draw) {
-    var pad = 12, ix = x + pad, tx = ix + 32 + 11, mw = x + w - pad - tx;
-    var tl = wrap([[1, o.t]], TS, mw, 700);
-    var paras = o.p || [['', o.d]];
-    var pl = paras.map(function (p) { return wrap(p[0] ? [[1, p[0]], [0, p[1]]] : [[0, p[1]]], DS, mw); });
-    var h = pad + tl.length * TLH + 3;
-    pl.forEach(function (l, i) { h += l.length * DLH + (i ? 5 : 0); });
-    h = Math.max(h + pad - 2, 56);
-    if (!draw) return h;
-    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="11" class="n-' + kind + '"/>');
-    icon(ix, y + pad, o.i, kind);
-    var cy = y + pad;
-    cy += lines(tx, cy, tl, TS, TLH, 't-b') + 3;
-    pl.forEach(function (l, i) { cy += (i ? 5 : 0); cy += lines(tx, cy, l, DS, DLH, 't-m'); });
-    return h;
-  }
-
-  // the input group: a soft panel with a heading and its cards
-  function group(x, y, w, g, draw) {
-    var pad = 10, hh = 46, h = hh, cw = w - 2 * pad;
-    g.items.forEach(function (it, i) { h += card(0, 0, cw, it, 'in', false) + (i ? 8 : 0); });
-    h += pad;
-    if (!draw) return h;
-    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="14" class="n-grp"/>');
-    icon(x + pad + 2, y + 9, g.icon, 'in', 28);
-    put('<text x="' + (x + pad + 40) + '" y="' + (y + 29) + '" font-size="15" class="t-k">' + g.g.toUpperCase() + '</text>');
-    put('<text x="' + (x + pad + 40 + tw(g.g.toUpperCase(), 15, 800) + g.g.length * 1.2 + 10) + '" y="' + (y + 29) + '" font-size="13.5" class="t-m">' + esc(g.s) + '</text>');
-    var cy = y + hh;
-    g.items.forEach(function (it, i) { cy += (i ? 8 : 0); cy += card(x + pad, cy, cw, it, 'in', true); });
-    return h;
-  }
-
-  function modelNode(x, y, w, draw) {
-    var pad = 20, mw = w - 2 * pad, m = D.model;
-    var dl = wrap([[0, m.d]], 16.5, mw);
-    var pls = m.pts.map(function (p) { return wrap([[1, p[0]], [0, p[1]]], 13.5, mw - 16); });
-    var h = pad + 18 + 34 + dl.length * 23 + 14;
-    pls.forEach(function (l) { h += l.length * 18.5 + 8; });
-    h += pad - 6;
-    if (!draw) return h;
-    put('<defs><linearGradient id="ftCoreG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ft-core)"/><stop offset="1" style="stop-color:var(--ft-core-2)"/></linearGradient></defs>');
-    put('<rect x="' + x + '" y="' + (y + 3) + '" width="' + w + '" height="' + h + '" rx="18" fill="#000" opacity=".10"/>');
-    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="18" fill="url(#ftCoreG)"/>');
-    icon(x + w - pad - 36, y + pad - 2, 'model', 'w', 36);
-    put('<text x="' + (x + pad) + '" y="' + (y + pad + 12) + '" font-size="12.5" class="t-w" font-weight="800" letter-spacing="1.2" opacity=".8">' + m.k + '</text>');
-    put('<text x="' + (x + pad) + '" y="' + (y + pad + 44) + '" font-size="26" class="t-w" font-weight="800">' + m.t + '</text>');
-    var cy = y + pad + 56;
-    cy += lines(x + pad, cy, dl, 16.5, 23, 't-w') + 12;
-    put('<path d="M' + (x + pad) + ' ' + (cy - 4) + 'H' + (x + w - pad) + '" stroke="#fff" stroke-opacity=".25"/>');
-    cy += 6;
-    pls.forEach(function (l) {
-      put('<circle cx="' + (x + pad + 4) + '" cy="' + (cy + 9) + '" r="3" fill="#fff" opacity=".7"/>');
-      cy += lines(x + pad + 16, cy, l, 13.5, 18.5, 't-w') + 8;
-    });
-    return h;
-  }
-
-  function resNode(x, y, w, draw) {
-    var pad = 16, mw = w - 2 * pad, r = D.res;
-    var tl = wrap([[1, r.t]], 17.5, mw), dl = wrap([[0, r.d]], 13.5, mw);
-    var tiers = r.tiers.map(function (t) { return { t: t, l: t[2] ? wrap([[0, t[2]]], 13, mw - 30) : [] }; });
-    var fl = wrap([[0, r.foot]], 13, mw);
-    var h = pad + 16 + tl.length * 23 + 4 + dl.length * 18.5 + 12;
-    tiers.forEach(function (t) { h += 22 + t.l.length * 17.5 + 10; });
-    h += fl.length * 17.5 + pad;
-    if (!draw) return h;
-    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" class="n-res"/>');
-    put('<text x="' + (x + pad) + '" y="' + (y + pad + 10) + '" font-size="12.5" class="t-k">' + r.k + '</text>');
-    var cy = y + pad + 18;
-    cy += lines(x + pad, cy, tl, 17.5, 23, 't-h') + 4;
-    cy += lines(x + pad, cy, dl, 13.5, 18.5, 't-m') + 12;
-    tiers.forEach(function (t) {
-      put('<rect x="' + (x + pad) + '" y="' + (cy + 2) + '" width="20" height="' + (18 + t.l.length * 17.5) + '" rx="5" fill="' + t.t[3] + '"/>');
-      put('<text x="' + (x + pad + 30) + '" y="' + (cy + 16) + '" font-size="15" class="t-b">' + esc(t.t[0]) + '<tspan class="t-m" font-weight="600" dx="8">' + esc(t.t[1]) + '</tspan></text>');
-      cy += 22;
-      cy += lines(x + pad + 30, cy, t.l, 13, 17.5, 't-m') + 10;
-    });
-    lines(x + pad, cy, fl, 13, 17.5, 't-m');
-    return h;
-  }
-
-  function checksPanel(x, y, w, cols, draw) {
-    var pad = 14, gap = 10, c = D.checks, cw = (w - 2 * pad - (cols - 1) * gap) / cols;
-    var hl = wrap([[1, c.t]], 16, w - 2 * pad - 40), dl = wrap([[0, c.d]], 13.5, w - 2 * pad);
-    var head = pad + hl.length * 21 + dl.length * 18.5 + 12;
-    var rows = [], hs = c.items.map(function (it) { return card(0, 0, cw, it, 'chk', false); });
-    for (var i = 0; i < hs.length; i += cols) rows.push(Math.max.apply(null, hs.slice(i, i + cols)));
-    var h = head + rows.reduce(function (a, b) { return a + b + gap; }, 0) - gap + pad;
-    if (!draw) return h;
-    put('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" class="n-chkp"/>');
-    var cy = y + pad;
-    cy += lines(x + pad, cy, hl, 16, 21, 't-h');
-    cy += lines(x + pad, cy, dl, 13.5, 18.5, 't-m') + 12;
-    c.items.forEach(function (it, i) {
-      var r = Math.floor(i / cols), col = i % cols, ry = cy;
-      for (var k = 0; k < r; k++) ry += rows[k] + gap;
-      // draw each card at its row height so rows line up
-      var save = out.length; card(x + pad + col * (cw + gap), ry, cw, it, 'chk', true);
-      out[save] = out[save].replace(/height="[\d.]+"/, 'height="' + rows[r] + '"');
-    });
-    return h;
-  }
-
-  function stepLabel(x, y, n, t) {
-    put('<circle cx="' + (x + 12) + '" cy="' + (y + 12) + '" r="12" class="num"/>');
-    put('<text x="' + (x + 12) + '" y="' + (y + 17) + '" font-size="14" text-anchor="middle" class="num-t">' + n + '</text>');
-    put('<text x="' + (x + 32) + '" y="' + (y + 17.5) + '" font-size="14" class="t-k">' + esc(t.toUpperCase()) + '</text>');
-  }
-  function arrow(x, y, dir, cls, s) { // tip at (x,y)
-    s = s || 9; var a = { r: [-1, 0], l: [1, 0], d: [0, -1], u: [0, 1] }[dir], px = -a[1], py = a[0];
-    put('<path class="' + cls + '" d="M' + x + ' ' + y + 'L' + (x + a[0] * s + px * s * 0.6) + ' ' + (y + a[1] * s + py * s * 0.6) + 'L' + (x + a[0] * s - px * s * 0.6) + ' ' + (y + a[1] * s - py * s * 0.6) + 'z"/>');
-  }
-  function pill(x, y, text, anchor) {
-    var w = tw(text, 13, 600) + 18, x0 = anchor === 'middle' ? x - w / 2 : x;
-    put('<rect x="' + x0 + '" y="' + (y - 13) + '" width="' + w + '" height="24" rx="12" class="lbl"/>');
-    put('<text x="' + (x0 + 9) + '" y="' + (y + 4) + '" font-size="13" font-weight="600" class="t-m">' + esc(text) + '</text>');
-  }
-  function header(x, y, w) {
-    put('<text x="' + x + '" y="' + (y + 26) + '" font-size="' + (w < 600 ? 23 : 28) + '" class="t-h">' + D.title + '</text>');
-    var sl = wrap([[0, D.sub]], 14.5, Math.min(w, 1000));
-    return 40 + lines(x, y + 38, sl, 14.5, 20.5, 't-m');
-  }
-
-  // ---- layout: left to right ----
-  function buildLR() {
-    var M = 36, W = 1700, gap1 = 104, gap2 = 92, gap3 = 92;
-    var inW = 380, mW = 300, rW = 320, oW = W - 2 * M - inW - mW - rW - gap1 - gap2 - gap3;
-    var inX = M, mX = inX + inW + gap1, rX = mX + mW + gap2, oX = rX + rW + gap3;
-    out = [];
-    var top = M + header(M, M, W - 2 * M) + 22;
-    var y0 = top + 40;
-    var gs = [], y = y0;
-    D.inputs.forEach(function (g) { var h = group(0, 0, inW, g, false); gs.push({ y: y, h: h }); y += h + 16; });
-    var inBot = y - 16;
-    var os = [], oy = y0;
-    D.outputs.forEach(function (o) { var h = card(0, 0, oW, o, 'out', false); os.push({ y: oy, h: h }); oy += h + 18; });
-    var outBot = oy - 18, mid = (y0 + outBot) / 2;
-    var mH = modelNode(0, 0, mW, false), rH = resNode(0, 0, rW, false);
-    var mY = Math.max(y0, mid - mH / 2), rY = Math.max(y0, mid - rH / 2);
-    var cY = Math.max(outBot, mY + mH, rY + rH) + 96, cX = mX, cW = oX + oW - mX;
-    var cH = checksPanel(0, 0, cW, 3, false);
-    var H = Math.max(inBot, cY + cH) + M;
-    // wires first so they sit under the boxes
-    var body = out; out = [];
-    gs.forEach(function (g, i) {
-      var sx = inX + inW, sy = g.y + Math.min(g.h / 2, 60), tx = mX, ty = mY + mH * (0.2 + 0.6 * i / (gs.length - 1)), mx = sx + gap1 * 0.55;
-      put('<path class="w-in" d="M' + sx + ' ' + sy + 'C' + mx + ' ' + sy + ' ' + (tx - gap1 * 0.5) + ' ' + ty + ' ' + (tx - 9) + ' ' + ty + '"/>');
-      arrow(tx, ty, 'r', 'a-in');
-      put('<circle cx="' + sx + '" cy="' + sy + '" r="4" class="a-in"/>');
-    });
-    var my = mY + mH / 2, ry = rY + rH / 2;
-    put('<path class="w-core" d="M' + (mX + mW) + ' ' + my + 'C' + (mX + mW + gap2 / 2) + ' ' + my + ' ' + (rX - gap2 / 2) + ' ' + ry + ' ' + (rX - 12) + ' ' + ry + '"/>');
-    arrow(rX, ry, 'r', 'a-core', 13);
-    os.forEach(function (o) {
-      var sy = ry, ty = o.y + 30, sx = rX + rW;
-      put('<path class="w-out" d="M' + sx + ' ' + sy + 'C' + (sx + gap3 * 0.55) + ' ' + sy + ' ' + (oX - gap3 * 0.5) + ' ' + ty + ' ' + (oX - 9) + ' ' + ty + '"/>');
-      arrow(oX, ty, 'r', 'a-out');
-    });
-    // checks: road results are scored against them; the gauges set the one runoff setting
-    var rx1 = rX + rW * 0.5;
-    put('<path class="w-chk" d="M' + rx1 + ' ' + (rY + rH) + 'V' + (cY - 10) + '"/>'); arrow(rx1, cY, 'd', 'a-chk');
-    var mx1 = mX + mW * 0.5;
-    put('<path class="w-chk" d="M' + mx1 + ' ' + cY + 'V' + (mY + mH + 10) + '"/>'); arrow(mx1, mY + mH, 'u', 'a-chk');
-    var lblY = (Math.max(rY + rH, mY + mH) + cY) / 2;
-    pill(rx1 + 10, lblY, 'scored against', 'start');
-    pill(mx1 - 10 - (tw('runoff setting chosen here', 13, 600) + 18), lblY, 'runoff setting chosen here', 'start');
-    var wires = out; out = body;
-    // column labels
-    stepLabel(inX, top, 1, 'What goes in'); stepLabel(mX, top, 2, 'The flood model'); stepLabel(rX, top, 3, 'Water on every road'); stepLabel(oX, top, 4, 'What people see');
-    gs.forEach(function (g, i) { group(inX, g.y, inW, D.inputs[i], true); });
-    modelNode(mX, mY, mW, true); resNode(rX, rY, rW, true);
-    os.forEach(function (o, i) { card(oX, o.y, oW, D.outputs[i], 'out', true); });
-    checksPanel(cX, cY, cW, 3, true);
-    return { W: W, H: H, svg: wires.join('') + out.join('') };
-  }
-
-  // ---- layout: top to bottom (phones) ----
-  function buildTB() {
-    var W = 384, L = 32, R = W - 26, w = R - L, tL = 14, tR = W - 11;
-    out = [];
-    var y = 14 + header(14, 14, W - 28) + 18;
-    var parts = [];
-    function label(n, t) { parts.push(['lab', y, n, t]); y += 36; }
-    label(1, 'What goes in');
-    var gs = [];
-    D.inputs.forEach(function (g) { var h = group(0, 0, w, g, false); gs.push({ y: y, h: h }); y += h + 14; });
-    y += 12; label(2, 'The flood model');
-    var mY = y, mH = modelNode(0, 0, w, false); y += mH + 40;
-    label(3, 'Water on every road');
-    var rY = y, rH = resNode(0, 0, w, false); y += rH + 30;
-    label(4, 'What people see');
-    var os = [];
-    D.outputs.forEach(function (o) { var h = card(0, 0, w, o, 'out', false); os.push({ y: y, h: h }); y += h + 12; });
-    y += 34;
-    var cY = y, cH = checksPanel(0, 0, W - 2 * 12, 1, false); y += cH + 28;
-    var H = y;
-    var body = out; out = [];
-    // input trunk on the left, into the model
-    var ty = mY + 34;
-    put('<path class="w-in" d="M' + tL + ' ' + (gs[0].y + 24) + 'V' + (ty - 12) + 'Q' + tL + ' ' + ty + ' ' + (tL + 12) + ' ' + ty + 'H' + (L - 9) + '"/>');
-    arrow(L, ty, 'r', 'a-in');
-    gs.forEach(function (g) { put('<path class="w-in" d="M' + tL + ' ' + (g.y + 24) + 'H' + L + '"/><circle cx="' + tL + '" cy="' + (g.y + 24) + '" r="4" class="a-in"/>'); });
-    var cx = L + w * 0.78;
-    put('<path class="w-core" d="M' + cx + ' ' + (mY + mH) + 'V' + (rY - 12) + '"/>'); arrow(cx, rY, 'd', 'a-core', 13);
-    // output trunk on the left
-    var sy = rY + rH - 26;
-    put('<path class="w-out" d="M' + L + ' ' + sy + 'H' + (tL + 12) + 'Q' + tL + ' ' + sy + ' ' + tL + ' ' + (sy + 12) + 'V' + (os[os.length - 1].y + 28) + '"/>');
-    os.forEach(function (o) { put('<path class="w-out" d="M' + tL + ' ' + (o.y + 28) + 'H' + (L - 9) + '"/>'); arrow(L, o.y + 28, 'r', 'a-out'); });
-    // checks: dashed line down the right edge from the road results
-    var ry0 = rY + 40;
-    put('<path class="w-chk" d="M' + R + ' ' + ry0 + 'H' + (tR - 10) + 'Q' + tR + ' ' + ry0 + ' ' + tR + ' ' + (ry0 + 10) + 'V' + (cY - 10) + '"/>');
-    arrow(tR, cY, 'd', 'a-chk');
-    var wires = out; out = body;
-    parts.forEach(function (p) { stepLabel(L, p[1], p[2], p[3]); });
-    gs.forEach(function (g, i) { group(L, g.y, w, D.inputs[i], true); });
-    modelNode(L, mY, w, true); resNode(L, rY, w, true);
-    os.forEach(function (o, i) { card(L, o.y, w, D.outputs[i], 'out', true); });
-    checksPanel(12, cY, W - 24, 1, true);
-    return { W: W, H: H, svg: wires.join('') + out.join('') };
-  }
-
-  // ---- viewer: pan and zoom ----
-  var Lay = null, mode = '', full = false, engaged = false;
-  var st = { k: 1, x: 0, y: 0 }, fit = { k: 1, x: 0, y: 0 };
-  var hint = document.getElementById('ftHint'), hintT = 0;
-  function showHint(s) { hint.textContent = s; hint.classList.add('on'); clearTimeout(hintT); hintT = setTimeout(function () { hint.classList.remove('on'); }, 1600); }
-  function build() {
-    var m = window.innerWidth < 700 ? 'tb' : 'lr';
-    Lay = m === 'tb' ? buildTB() : buildLR(); mode = m;
-    cam.innerHTML = Lay.svg;
-    size(); reset();
-  }
-  function size() {
-    var w = view.clientWidth;
-    if (!full) view.style.height = (mode === 'tb' ? Math.round(w * Lay.H / Lay.W) : Math.round(Math.min(w * Lay.H / Lay.W, window.innerHeight * 0.92))) + 'px';
-    svg.setAttribute('viewBox', '0 0 ' + view.clientWidth + ' ' + view.clientHeight);
-  }
-  function computeFit() {
-    var w = view.clientWidth, h = view.clientHeight, k = mode === 'tb' ? w / Lay.W : Math.min(w / Lay.W, h / Lay.H);
-    var pad = full && mode === 'lr' ? 0.97 : 1;
-    k *= pad;
-    fit = { k: k, x: (w - Lay.W * k) / 2, y: mode === 'tb' ? 0 : (h - Lay.H * k) / 2 };
-  }
-  function apply() {
-    cam.setAttribute('transform', 'translate(' + st.x.toFixed(2) + ' ' + st.y.toFixed(2) + ') scale(' + st.k.toFixed(5) + ')');
-    view.classList.toggle('ft-zoomed', st.k > fit.k * 1.02);
-  }
-  function clamp() {
-    var w = view.clientWidth, h = view.clientHeight, cw = Lay.W * st.k, ch = Lay.H * st.k, m = 60;
-    var lo = Math.min(w - cw - m, (w - cw) / 2), hi = Math.max(m, (w - cw) / 2);
-    st.x = Math.min(hi, Math.max(lo, st.x));
-    lo = Math.min(h - ch - m, (h - ch) / 2); hi = Math.max(m, (h - ch) / 2);
-    if (mode === 'tb' && ch > h) hi = Math.max(0, hi);
-    st.y = Math.min(hi, Math.max(lo, st.y));
-  }
-  function reset() { computeFit(); st = { k: fit.k, x: fit.x, y: fit.y }; apply(); }
-  function zoomAt(px, py, f) {
-    var nk = Math.min(Math.max(st.k * f, fit.k * 0.7), Math.max(fit.k * 8, 3));
-    st.x = px - (px - st.x) * nk / st.k; st.y = py - (py - st.y) * nk / st.k; st.k = nk; clamp(); apply();
-  }
-  function centre() { return [view.clientWidth / 2, view.clientHeight / 2]; }
-  function pos(e) { var r = view.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
-
-  view.addEventListener('wheel', function (e) {
-    if (!(full || engaged || e.ctrlKey || e.metaKey)) { showHint('Click the diagram, then scroll to zoom'); return; }
-    e.preventDefault();
-    var p = pos(e), dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-    zoomAt(p[0], p[1], Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0018)));
-  }, { passive: false });
-  var drag = null;
-  view.addEventListener('pointerdown', function (e) {
-    if (e.pointerType === 'touch' || e.button !== 0 || e.target.closest('button')) return;
-    engaged = true; drag = { x: e.clientX, y: e.clientY, sx: st.x, sy: st.y };
-    view.setPointerCapture(e.pointerId); view.classList.add('ft-drag');
-  });
-  view.addEventListener('pointermove', function (e) {
-    if (!drag) return;
-    st.x = drag.sx + e.clientX - drag.x; st.y = drag.sy + e.clientY - drag.y; clamp(); apply();
-  });
-  function endDrag() { drag = null; view.classList.remove('ft-drag'); }
-  view.addEventListener('pointerup', endDrag); view.addEventListener('pointercancel', endDrag);
-  view.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch' && !drag) engaged = false; });
-  view.addEventListener('dblclick', function (e) { if (e.target.closest('button')) return; var p = pos(e); zoomAt(p[0], p[1], e.shiftKey ? 1 / 1.6 : 1.6); });
-
-  // touch: two fingers pinch and pan; one finger pans once zoomed in or full screen, otherwise the page scrolls
-  var tt = null;
-  function tinfo(e) {
-    var r = view.getBoundingClientRect(), a = e.touches[0], b = e.touches[1];
-    if (!b) return { n: 1, x: a.clientX - r.left, y: a.clientY - r.top, d: 1 };
-    return { n: 2, x: (a.clientX + b.clientX) / 2 - r.left, y: (a.clientY + b.clientY) / 2 - r.top, d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1 };
-  }
-  function tstart(e) {
-    if (e.target.closest && e.target.closest('button')) { tt = null; return; }
-    var t = tinfo(e);
-    if (t.n === 2 || full || st.k > fit.k * 1.02) { if (e.cancelable) e.preventDefault(); tt = { t: t, k: st.k, x: st.x, y: st.y }; }
-    else tt = null;
-  }
-  view.addEventListener('touchstart', tstart, { passive: false });
-  view.addEventListener('touchmove', function (e) {
-    if (!tt) return;
-    if (e.cancelable) e.preventDefault();
-    var t = tinfo(e);
-    if (t.n !== tt.t.n) { tstart(e); return; }
-    var k = t.n === 2 ? Math.min(Math.max(tt.k * t.d / tt.t.d, fit.k * 0.7), Math.max(fit.k * 8, 3)) : tt.k;
-    st.k = k; st.x = t.x - (tt.t.x - tt.x) * k / tt.k; st.y = t.y - (tt.t.y - tt.y) * k / tt.k; clamp(); apply();
-  }, { passive: false });
-  view.addEventListener('touchend', function (e) { if (e.touches.length) tstart(e); else tt = null; });
-
-  view.addEventListener('keydown', function (e) {
-    var c = centre(), s = 60;
-    if (e.key === '+' || e.key === '=') zoomAt(c[0], c[1], 1.3);
-    else if (e.key === '-' || e.key === '_') zoomAt(c[0], c[1], 1 / 1.3);
-    else if (e.key === '0') reset();
-    else if (e.key === 'ArrowLeft') { st.x += s; clamp(); apply(); }
-    else if (e.key === 'ArrowRight') { st.x -= s; clamp(); apply(); }
-    else if (e.key === 'ArrowUp' && st.k > fit.k * 1.02) { st.y += s; clamp(); apply(); }
-    else if (e.key === 'ArrowDown' && st.k > fit.k * 1.02) { st.y -= s; clamp(); apply(); }
-    else return;
-    e.preventDefault();
-  });
-  document.getElementById('ftIn').addEventListener('click', function () { var c = centre(); zoomAt(c[0], mode === 'tb' && !full ? Math.min(c[1], window.innerHeight / 2 - view.getBoundingClientRect().top) : c[1], 1.4); });
-  document.getElementById('ftOut').addEventListener('click', function () { var c = centre(); zoomAt(c[0], c[1], 1 / 1.4); });
-  document.getElementById('ftReset').addEventListener('click', reset);
-  var openBtn = document.getElementById('ftFull'), closeBtn = document.getElementById('ftClose');
-  function setFull(on) {
-    full = on; fig.classList.toggle('ft-full', on); document.documentElement.classList.toggle('ft-lock', on);
-    if (on) { view.style.height = ''; }
-    size(); reset();
-    (on ? closeBtn : openBtn).focus({ preventScroll: true });
-    if (!on) fig.scrollIntoView({ block: 'nearest' });
-  }
-  openBtn.addEventListener('click', function () { setFull(true); });
-  closeBtn.addEventListener('click', function () { setFull(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && full) setFull(false); });
-
-  var lastW = 0;
-  window.addEventListener('resize', function () {
-    var m = window.innerWidth < 700 ? 'tb' : 'lr';
-    if (m !== mode) { build(); return; }
-    if (view.clientWidth === lastW && !full) return;
-    lastW = view.clientWidth; size(); reset();
-  });
-  build(); lastW = view.clientWidth;
-  if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('400 14px Overpass'), document.fonts.load('700 14px Overpass'), document.fonts.load('800 14px Overpass')]).then(function () { build(); lastW = view.clientWidth; });
-})();
-</script>
+<!--sf:start--><footer class="sf"><div class="sf-in"><div><b>Mass Flood Watch</b>Forecasting which roads flash floods will close, and who loses access to emergency services. PhD research by Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Advisors: Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</div><div><b>Site</b><ul><li><a href="./">Model</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="progress.html">Progress</a></li><li><a href="about.html">About</a></li></ul></div><div><b>More</b><ul><li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://github.com/Horus331/mass-flood-watch">Code and data</a></li><li><a href="mailto:mgeldokla@wpi.edu">Contact</a></li></ul></div><div class="sf-note">A research prototype, not an official warning service. For emergencies call 911; for official flood warnings see the National Weather Service.</div></div></footer><!--sf:end-->
 </body>
 </html>

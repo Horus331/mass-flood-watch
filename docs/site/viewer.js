@@ -3991,7 +3991,7 @@
     if (Sn && Sn.depth_cm) row('snow', 'Snow on the ground', Sn.depth_cm.district_max > 0 ? '<b>' + f1(Sn.depth_cm.district_mean) + ' cm</b> average, ' + f1(Sn.depth_cm.district_max) + ' cm deepest' : 'None', 'NOAA SNODAS, ' + esc(Sn.date || ''));
     var V = L.validation;
     if (V) row('validation', 'Flooding reports, 48 h', V.recent_48h && V.recent_48h.length ? '<b>' + V.recent_48h.length + '</b> (MassDOT events, SeeClickFix)' : 'None', 'Not verified; kept to score the forecast');
-    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Updated ' + esc(when(L.status.made)) + ' · <a href="about.html#data">sources</a></p>';
+    el.innerHTML = '<h3>Right now</h3><table class="nowt">' + rows.join('') + '</table><p class="muted">Updated ' + esc(when(L.status.made)) + ' · <a href="about-2026-11.html#data">sources</a></p>';
     el.hidden = false;
   }
   function groundRender(g) {
@@ -4081,7 +4081,7 @@
       ol.appendChild(li);
     }
     var key = document.createElement('li'); key.className = 'ero-key';
-    if (HAS2) { key.className = 'wk-key'; key.innerHTML = 'Bars and total: the wettest town in District 3 · <i class="trig"></i> 25 mm in 6 h · <i class="cumk"></i> rain in the last 24 h in the wettest town; it reaches the top of the strip at 40 mm, the other flood-model trigger · after about 36 h NOAA gives 6-hour totals, shared evenly across their bars · NOAA NBM via Open-Meteo · <a href="about.html#forecast-rain">how this works</a>'; ol.appendChild(key); }
+    if (HAS2) { key.className = 'wk-key'; key.innerHTML = 'Bars and total: the wettest town in District 3 · <i class="trig"></i> 25 mm in 6 h · <i class="cumk"></i> rain in the last 24 h in the wettest town; it reaches the top of the strip at 40 mm, the other flood-model trigger · after about 36 h NOAA gives 6-hour totals, shared evenly across their bars · NOAA NBM via Open-Meteo · <a href="about-2026-11.html#forecast-rain">how this works</a>'; ol.appendChild(key); }
     else if (!HAS2) key.innerHTML = ( days.some(function (x) { return x && x.rain && x.rain.bars; }) ? '<span>Each column is 2 hours of rain, District 3 average (darker columns are night). Hourly forecast for about the next 36 hours; after that NOAA gives 3- and 6-hour totals, shared evenly across their hours. A full column is ' + BAR_FULL.toFixed(1) + ' mm. NOAA National Blend of Models.</span>' : '<span>Each bar is 6 hours: fill = District 3 average rain, line = wettest town; a full bar is ' + SIX_FULL + ' mm. NOAA National Blend of Models.</span>') +
       '<span>WPC excessive rain risk:</span>' + ERO.slice(1).map(function (e) { return '<span><i class="ero ' + e + '"></i>' + ERO_L[e] + '</span>'; }).join('');
     ol.appendChild(key);

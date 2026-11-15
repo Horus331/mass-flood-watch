@@ -4,8 +4,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Mass Flood Watch · Road flood model, MassDOT District 3</title>
-<meta name="description" content="Replay of a modelled flash flood and the road segments it closes in MassDOT Highway District 3. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
+<title>Mass Flood Watch · Road flood model, central Massachusetts</title>
+<meta name="description" content="Replay of a modelled flash flood and the road segments it closes in central Massachusetts. PhD dissertation research by Mohab Eldokla, Worcester Polytechnic Institute.">
 <link rel="icon" href="wpi-logo.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1F2328">
@@ -16,17 +16,19 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <link href="site/viewer.css?v=1115a" rel="stylesheet">
+<link href="site/shell.css?v=1" rel="stylesheet">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t;var pl=new URLSearchParams(location.search).get('pal');if(pl)document.documentElement.dataset.pal=pl}catch(e){}
-if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');</script>
+if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');else document.documentElement.classList.add('has-sh');</script>
 </head>
 <body>
+<!--sh:start--><header class="sh"><div class="sh-in"><a class="sh-brand" href="./"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></a><nav class="sh-nav" aria-label="Site"><a href="./" aria-current="page">Model</a><a href="how-it-works.html">How it works</a><a href="progress.html">Progress</a><a href="about.html">About</a></nav><span class="sh-grow"></span><span class="sh-tag">Research prototype · WPI</span><a class="sh-icon" href="https://github.com/Horus331/mass-flood-watch" title="Code and data on GitHub" aria-label="Code and data on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.5.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg></a></div></header><!--sh:end-->
+<div class="app">
 <div id="map" aria-label="Map of modelled rain, flood depth and road closures"></div>
-<nav class="sitebar" aria-label="Site"><a href="model-tree.html" target="_blank" rel="noopener" title="Every input, step and formula of the model (opens in a new tab)"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="2"/><circle cx="16" cy="4.5" r="2"/><circle cx="16" cy="15.5" r="2"/><path d="M6 9.2 14 5.3M6 10.8l8 3.9"/></svg><span>Model tree</span></a><a href="about.html#how"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg><span>How it works</span></a><a href="overview.html"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12M4 8.5h12M4 12.5h8M4 16.5h6"/></svg><span>About the project</span></a><a href="status/"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 11h3l2-5 4 9 2-4h3"/></svg><span>Status</span></a></nav>
 
 <section class="card" id="card" aria-labelledby="runTitle">
   <div class="hd">
-    <a class="brand" href="./" title="Mass Flood Watch home"><span class="plate">Mass Flood Watch</span><span class="who">Road flood model, MassDOT District 3</span></a>
-    <p class="hlinks"><a id="tourLink" class="tour-btn" href="?run=leominster_sep2023&amp;tour=1" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Tour</a><a class="how" href="about.html#how" title="How it works"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg><span>How it works</span></a></p>
+    <a class="brand" href="./" title="Mass Flood Watch home"><span class="plate">Mass Flood Watch</span><span class="who">Road flood model, central Massachusetts</span></a>
+    <p class="hlinks"><a id="tourLink" class="tour-btn" href="?run=leominster_sep2023&amp;tour=1" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Tour</a><a class="how" href="how-it-works.html" title="How it works"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg><span>How it works</span></a></p>
   </div>
   <nav class="tabs" id="tabs" aria-label="Mode"><a data-tab="map" href="?run=leominster_sep2023"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/><path d="M12 8v4.5l3 2"/></svg><span>Replay</span></a><a data-tab="whatif" href="?run=whatif"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h9M18 7h1M5 17h3M12 17h7"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Scenarios</span></a><a data-tab="live" href="?run=forecast"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg><span>Forecast</span></a></nav>
   <div class="pick">
@@ -76,7 +78,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
   </section>
   <details class="rank" id="rank" open hidden><summary>Roads, most severe first</summary><div class="rank-act"><button type="button" id="csvBtn"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10M6 9.5l4 4 4-4M4 16.5h12"/></svg>CSV</button><select id="rankTown" aria-label="Show one town" hidden></select><select id="rankOwn" aria-label="Show one road owner" hidden></select><button type="button" id="culvBtn" aria-pressed="false" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 14h14M5 14a5 5 0 0 1 10 0"/></svg><span>Culverts</span></button><button type="button" id="printBtn"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8V3h8v5M6 14H4V8h12v6h-2M6 11h8v6H6z"/></svg>Print</button><button type="button" id="shareBtn2"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12.5V3M7 6l3-3 3 3M6.5 9H5v8h10V9h-1.5"/></svg>Share</button></div><ol id="rankList"></ol></details>
   <details class="evid" id="evid" hidden><summary>Checked against real reports</summary><div id="evidBody"></div></details>
-  <p class="caveat-foot">Model output for research, not an official MassDOT or NWS forecast.</p>
+  <p class="caveat-foot">Model output for research, not an official warning or forecast.</p>
 </section>
 
 <button type="button" class="side-toggle" id="sideToggle" aria-label="Hide the side panel" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
@@ -271,9 +273,10 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="site/viewer.js?v=1113b"></script>
+<script src="site/viewer.js?v=1115s"></script>
 <script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</div>
 </body>
 </html>
