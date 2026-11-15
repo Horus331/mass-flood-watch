@@ -898,6 +898,33 @@ def block_crossings(Z, rows_x, xx, yy, BOX, RES, kp, mode=1, burn=None):
     return Z, P, XG
 
 
+def small_third(rows_x, xx, yy, BOX):
+    """Ids of the smallest-capacity third of the sized culverts in the box (NAACC span x rise x barrels; bridges excluded)."""
+    x0, y0, x1, y1 = BOX; cap = []
+    for row, xq, yq in zip(rows_x, xx, yy):
+        if not (x0 <= xq < x1 and y0 <= yq < y1) or is_bridge(row): continue
+        if row.get('span_m') and row.get('rise_m'): cap.append((float(row['span_m']) * float(row['rise_m']) * float(row.get('n_barrels') or 1), row.get('id')))
+    cap.sort(); return {i for _, i in cap[:max(1, len(cap) // 3)]} if cap else set()
+
+
+def partial_block(Z, XG, rows_x, xx, yy, BOX, RES, frac, which='all', kp=2):
+    """LF_XINGS_PARTIAL=f (opt-in; parametric study): culvert openings partly blocked from the bottom (sediment / debris).  The model has no
+    culvert barrel: each crossing is a 3x3 notch cut to zcut through a road whose crest is zcrest (open_crossings).  Blocking a fraction f
+    of the opening raises the notch floor to zcut + f (zcrest - zcut): f = 1 is solid road fill.  Bridges (is_bridge) stay open.
+    which = 'all' (every culvert in the box) or 'small' (only the smallest-capacity third of the NAACC-sized culverts: small_third).
+    A (2 kp + 1)^2 block around each raised notch is protected from depression breaching, so no carved path stands in for the blocked
+    opening.  Returns (Z, protect mask, number raised)."""
+    ny, nx = Z.shape; Z = Z.copy(); P = np.zeros((ny, nx), bool); R = {r.get('id'): r for r in rows_x}
+    keep = small_third(rows_x, xx, yy, BOX) if which == 'small' else None; n = 0
+    for g in XG:
+        row = R.get(g['id'], {})
+        if is_bridge(row) or (keep is not None and g['id'] not in keep): continue
+        zc = g['zcut'] + frac * (g['zcrest'] - g['zcut'])
+        Z[g['r0']:g['r1'], g['c0']:g['c1']] = np.maximum(Z[g['r0']:g['r1'], g['c0']:g['c1']], zc); g['partial'] = round(frac, 2); g['zcut'] = round(float(zc), 2)
+        P[max(0, g['r'] - kp):g['r'] + kp + 1, max(0, g['c'] - kp):g['c'] + kp + 1] = True; n += 1
+    return Z, P, n
+
+
 def block_throughflow(Qx, Qy, r0, r1, c0, c1):
     """Flow through a block of cells rows r0..r1-1, cols c0..c1-1 from LISFLOOD-FP flux grids (m3/s per face; Qx (ny, nx+1), column c = face
     between cells c-1 and c, + eastwards; Qy (ny+1, nx), row r = face between rows r-1 and r, + southwards, rows north -> south).
@@ -1086,6 +1113,9 @@ def build_inputs(BOX, RES, S, TOK):
             kw = int(math.ceil(float(os.environ.get('LF_BREACH_M', '40')) / RES))
             NFIX = os.environ.get('LF_NOTCH_FIX', '0') == '1'     # opt-in: notches read the un-notched DEM and are joined to their outlet (open_crossings)
             Z, NOV, XG = open_crossings(Z, rows_x, xx, yy, BOX, RES, kw, SIZED, fix=NFIX); nb = len(XG); nsized = sum(1 for g in XG if g['n_eq'] is not None)
+            if os.environ.get('LF_XINGS_PARTIAL'):     # opt-in (parametric study, docs/proto/phase1/PARAMETRIC_PREREG.md): partly blocked culverts
+                Z, XPROT, npb = partial_block(Z, XG, rows_x, xx, yy, BOX, RES, float(os.environ['LF_XINGS_PARTIAL']), os.environ.get('LF_XINGS_SET', 'all'))
+                log(f"LF_XINGS_PARTIAL={os.environ['LF_XINGS_PARTIAL']} ({os.environ.get('LF_XINGS_SET', 'all')}): {npb} culvert notches raised; bridges stay open")
             log(f'crossings: {nb} road fills opened to the lowest ground within {kw * RES:.0f} m' + (f'; {nsized} sized to the NAACC culvert (LF_BREACH_SIZED)' if SIZED else '')
                 + (f"; LF_NOTCH_FIX=1: levels from the un-notched DEM, {sum(1 for g in XG if g.get('outlet_cells'))} notches joined to their outlet ({sum(g.get('outlet_cells', 0) for g in XG)} cells)" if NFIX else ''))
         except Exception as e:
@@ -1152,6 +1182,9 @@ def build_inputs(BOX, RES, S, TOK):
         # ---- end LF_CN_AMC=nwm ----
         if os.environ.get('LF_CN_FROZEN', '0') == '1':   # opt-in (what-if scenarios): frozen ground sheds rain like pavement (concrete frost): every land cell
             CNG = np.full_like(CNG, 98.0); amc = 'frozen'; log('LF_CN_FROZEN=1: frozen ground, every land cell at the paved CN 98 before the scale')
+        elif os.environ.get('LF_CN_FROZEN') == 'knisel':   # opt-in (parametric study): Knisel (1980, CREAMS) / SWAT frozen-soil rule, CN 95 where the
+            CNG = np.where(CNG <= 80.0, 95.0, 98.0).astype(np.float32); amc = 'frozen (Knisel)'   # unfrozen CN <= 80, else 98; before the scale like every CN
+            log('LF_CN_FROZEN=knisel: frozen ground, CN 95 where unfrozen CN <= 80, else 98, before the scale')
         if amc == 'I': CNG = 4.2 * CNG / (10.0 - 0.058 * CNG)                    # dry antecedent conditions (Chow et al. 1988); explicit LF_CN_AMC=I or auto
         if amc == 'III': CNG = 23.0 * CNG / (10.0 + 0.13 * CNG)                  # wet antecedent conditions (Chow et al. 1988)
         CNG = np.clip(CNG * float(os.environ.get('LF_CN_SCALE', '1')), 30, 98); CNG = np.where(water, 100.0, CNG).astype(np.float32)

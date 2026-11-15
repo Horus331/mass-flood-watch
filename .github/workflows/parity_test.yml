@@ -60,7 +60,7 @@ jobs:
           python proto/prototype.py --run-dir $OUTDIR --out $P --storm $S 2>&1 | tail -5
           SCORE_WINDOWS=$D/gauge_windows.npz python proto/score.py --run-dir $OUTDIR --storm $S --out $D/score.json | tail -5 || true
           python proto/validate_points.py --run-dir $OUTDIR --storm $S --out $D/points.json | tail -5 || true
-          cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $OUTDIR/meta.json $D/flood_meta.json
+          cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $P/cascade.json $D/ 2>/dev/null || true; cp $OUTDIR/meta.json $D/flood_meta.json
           python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
           python proto/parity_pack.py $OUTDIR $D
           # segments.geojson over ~3 MB is kept gzipped only
