@@ -340,6 +340,9 @@ def render_campus(a):
     base = np.stack([236 + 14 * hsN, 233 + 14 * hsN, 226 + 14 * hsN], -1)
     if a.flood and os.path.exists(f'{a.flood}/hmax_cm.npz'):
         Hf = np.load(f'{a.flood}/hmax_cm.npz')['hmax_cm'].astype(np.float32) / 100.0; fm = json.load(open(f'{a.flood}/flood_meta.json'))
+        if os.path.exists(f'{a.flood}/layers.npz'):   # water inside carved channels and buried conduits is not water on the ground: leave it out
+            mk_ = np.load(f'{a.flood}/layers.npz')['mask']
+            if mk_.shape == Hf.shape: Hf = np.where((mk_ & 6) > 0, 0.0, Hf)
         fx0, fy0, fx1, fy1 = fm['box']; fr = fm['res_m']
         c0, c1 = (x0 - fx0) / fr, (x1 - fx0) / fr; r0, r1 = (fy1 - y1) / fr, (fy1 - y0) / fr
         sub = Hf[int(np.floor(r0)):int(np.ceil(r1)) + 1, int(np.floor(c0)):int(np.ceil(c1)) + 1]
