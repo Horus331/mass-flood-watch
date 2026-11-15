@@ -23,7 +23,7 @@ const CALL = [
     p: 'The moving dots follow the paths water takes downhill from the hill, along the streets and into Salisbury Pond, traced on the lidar ground surface. They show the direction of flow; the depths come from the flood engine.' },
   { id: 'roads', side: 'r', k: 'Model output', t: 'Roads the model closed', s: 'Depth every 10 m · 30 cm closes a road', at: 'road', nodes: ['roadpts', 'segdepth', 'onset', 'pclose'],
     p: 'Red roads had about 30 cm of standing water or more in the model run for this storm; orange roads were at risk. This is the same run shown on the map.' },
-  { id: 'wpi', side: 'r', k: 'The place', t: 'WPI campus', s: 'Worcester, Massachusetts · 1.8 × 1.8 km', at: 'wpi', nodes: [],
+  { id: 'wpi', side: 'r', k: 'The place', t: 'WPI campus', s: 'Worcester, Massachusetts', at: 'wpi', nodes: [],
     p: 'The campus sits on a hill. Rain that falls on it and on the slopes around it runs down the streets toward Salisbury Pond and Institute Park.' },
   { id: 'pond', side: 'r', k: 'The place', t: 'Salisbury Pond', s: 'USGS NHDPlus HR · streams carved into the terrain', at: 'pond', nodes: ['nhd', 'channels'],
     p: 'Ponds and streams are part of the ground model. Water that reaches them is carried on downstream.' },
@@ -31,7 +31,7 @@ const CALL = [
     p: 'Laser scans give the bare-ground height. Heights here are exaggerated ' + VE + '× so the slopes are easy to see.' },
   { id: 'bld', side: 'l', k: 'The place', t: 'Buildings', s: '© OpenStreetMap contributors · for orientation', at: 'bld', nodes: [],
     p: 'Buildings are drawn so the campus is easy to recognise. The flood engine works on the bare-ground surface; buildings and pavement enter through how fast water moves over each square (Manning roughness from land cover).' },
-  { id: 'soil', side: 'l', k: 'Below ground', t: 'Soils and runoff', s: 'USDA SSURGO + NLCD 2021 → curve number', at: 'soilTop', nodes: ['ssurgo', 'nlcd', 'cn'],
+  { id: 'soil', side: 'l', k: 'Below ground', t: 'Soils and runoff', s: 'USDA SSURGO + NLCD 2021 → curve number', at: 'soilTop', L: -1, nodes: ['ssurgo', 'nlcd', 'cn'],
     p: 'Darker ground sheds more of the rain: pavement, roofs and tight soils. Lighter ground soaks more of it in. This is the curve number the model uses on every square.' },
   { id: 'layers', side: 'l', k: 'Below ground', t: 'Soil layers', s: 'drawn to show the idea · not measured', at: 'soilWall', nodes: ['wi_amc', 'wi_frozen'],
     p: 'Topsoil, subsoil, glacial till and bedrock. How wet or frozen the upper layers are changes how much rain they can take; the model can run dry, soaked and frozen ground as what-if cases.' },
@@ -39,7 +39,7 @@ const CALL = [
     p: 'Rising groundwater under roads and foundations is part of the cascade this research is building toward. It is not in the current model.' }
 ];
 
-let lastK = 0, HMAX = 0, M, H, G, renderer, scene, camera, controls, slabs = [], particles = null, rain = null, playing = !reduced, wasNarrow = null, narrow = false;
+let EX = 0, EXT = 0, camAnim = null, lastK = 0, HMAX = 0, M, H, G, renderer, scene, camera, controls, slabs = [], particles = null, rain = null, playing = !reduced, wasNarrow = null, narrow = false;
 const anchors = {};
 
 function hAt(fx, fy) {
@@ -110,18 +110,39 @@ async function modelTexture(R) {     // the model layer: water + flow lines imag
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
 }
 
+async function aerialTexture(R) {   // the aerial photo with street and place names written on it, like a planning map
+  const img = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = DIR + 'aerial.jpg'; });
+  const N = 4096, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d'); x.drawImage(img, 0, 0, N, N);
+  const want = ['Park Avenue', 'Institute Road', 'West Street', 'Salisbury Street', 'Boynton Street', 'Highland Street', 'Dean Street', 'Humboldt Avenue', 'Elbridge Street', 'Lancaster Street', 'Grove Street', 'Wachusett Street', 'Drury Lane', 'Schussler Road', 'Trowbridge Road', 'Einhorn Road', 'Massachusetts Avenue'];
+  const short = (n) => n.replace(' Avenue', ' Ave').replace(' Street', ' St').replace(' Road', ' Rd').replace(' Lane', ' Ln');
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+  want.forEach((nm) => {
+    const segs = R.all.filter((r) => r.n === nm); if (!segs.length) return;
+    let best = null, bl = 0; segs.forEach((r) => { let l = 0; for (let i = 1; i < r.pts.length; i++) l += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); if (l > bl) { bl = l; best = r; } });
+    if (!best || bl < 0.06) return;
+    const k = Math.floor(best.pts.length / 2), a = best.pts[Math.max(0, k - 1)], b = best.pts[Math.min(best.pts.length - 1, k + 1)];
+    const cx = (a[0] + b[0]) / 2 * N, cy = (a[1] + b[1]) / 2 * N; if (cx < 160 || cy < 160 || cx > N - 160 || cy > N - 160) return;
+    let ang = Math.atan2((b[1] - a[1]), (b[0] - a[0])); if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+    x.save(); x.translate(cx, cy); x.rotate(ang); x.font = '600 64px Roboto, Arial, sans-serif';
+    x.strokeStyle = 'rgba(32,33,36,.85)'; x.lineWidth = 12; x.strokeText(short(nm).toUpperCase(), 0, 0); x.fillStyle = '#fff'; x.fillText(short(nm).toUpperCase(), 0, 0); x.restore();
+  });
+  const place = (f, t, size) => { if (!f) return; x.font = `700 ${size}px Roboto, Arial, sans-serif`; x.strokeStyle = 'rgba(32,33,36,.9)'; x.lineWidth = size / 4.5; x.strokeText(t, f[0] * N, f[1] * N); x.fillStyle = '#fff'; x.fillText(t, f[0] * N, f[1] * N); };
+  place(M.places.wpi, 'WPI', 150); place(M.places.pond, 'Salisbury Pond', 84); place(M.places.field, 'Athletic field', 70);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
+}
+
 function buildings(B) {
   const geos = [], mpu = M.width_m / S;
   B.buildings.forEach((b) => {
     if (b.p.length < 4) return;
     const sh = new THREE.Shape(b.p.map((p) => new THREE.Vector2(toX(p[0]), -toZ(p[1]))));
     let base = Infinity; b.p.forEach((p) => { base = Math.min(base, hAt(p[0], p[1])); });
-    const hgt = Math.max(0.25, b.h * VE / mpu * 0.9);
+    const hgt = Math.max(0.2, b.h / mpu * 1.15);   // real height (slightly lifted), not exaggerated like the ground
     const g = new THREE.ExtrudeGeometry(sh, { depth: hgt + 0.3, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base - 0.3, 0);
     geos.push(g.toNonIndexed ? g.toNonIndexed() : g);
   });
   if (!geos.length) return null;
-  const m = new THREE.Mesh(mergeGeometries(geos, false), new THREE.MeshStandardMaterial({ color: 0xf1efe9, roughness: 0.85 }));
+  const m = new THREE.Mesh(mergeGeometries(geos, false), new THREE.MeshStandardMaterial({ color: 0xe9e4da, roughness: 0.9 }));
   return m;
 }
 
@@ -153,13 +174,17 @@ function buildParticles(dir, acc) {
   step(0); particles = { step, pts };
 }
 function buildRain() {
-  const N = narrow ? 700 : 1500, P = new Float32Array(N * 6), top = GAP + HMAX + 16, seeds = [];
+  const N = narrow ? 700 : 1500, P = new Float32Array(N * 6), seeds = [];
   let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < N; i++) { const fx = rnd(), fy = rnd(); seeds.push({ x: toX(fx), z: toZ(fy), g: GAP + hAt(fx, fy), o: rnd() }); }
+  for (let i = 0; i < N; i++) { const fx = rnd(), fy = rnd(); seeds.push({ x: toX(fx), z: toZ(fy), g: hAt(fx, fy), o: rnd() }); }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
   const ln = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5b8fd6, transparent: true, opacity: 0.45 })); scene.add(ln);
-  rain = { step(t) { seeds.forEach((d, i) => { const ph = (d.o + t * 0.00012) % 1, y = top - ph * (top - d.g); P.set([d.x, y, d.z, d.x - 0.2, Math.min(y + 1.4, top), d.z], i * 6); }); geo.attributes.position.needsUpdate = true; }, ln, top };
+  rain = { step(t) { const top = GAP * EX + HMAX + 16; seeds.forEach((d, i) => { const g = d.g + GAP * EX, ph = (d.o + t * 0.00012) % 1, y = top - ph * (top - g); P.set([d.x, y, d.z, d.x - 0.2, Math.min(y + 1.4, top), d.z], i * 6); }); geo.attributes.position.needsUpdate = true; }, ln };
   rain.step(0);
+}
+function applyEx() {   // 0 = the campus as one block (aerial on lidar); 1 = the three layers pulled apart
+  slabs[0].position.y = -GAP * EX; slabs[2].position.y = GAP * EX; slabs[0].visible = EX > 0.02;
+  slabs[2].children.forEach((ch) => { if (ch.userData.slabPart) ch.visible = EX > 0.02; });
 }
 
 // ------------------------------------------------------------------------------------------------ callouts
@@ -181,15 +206,16 @@ function show(c) { mark(c.id); if (window.MFW) window.MFW.openPanel(c.k, c.t, c.
 function mark(id) { CALL.forEach((c) => { const on = c.id === id; c.el.classList.toggle('on', on); c.el.classList.toggle('dim', !!id && !on); c.ln.classList.toggle('on', on); c.dot.classList.toggle('on', on); }); }
 document.addEventListener('mfw-panel-close', () => mark(null));
 function screen(c) {
-  const a = anchors[c.at]; if (!a) return null; const v = a.clone().project(camera), R = renderer.domElement.getBoundingClientRect();
+  const a = anchors[c.at]; if (!a) return null; const v = a.p.clone(); v.y += a.L * GAP * EX; v.project(camera); const R = renderer.domElement.getBoundingClientRect();
   return { x: (v.x + 1) / 2 * R.width, y: (1 - v.y) / 2 * R.height };
 }
 function resort() { ['l', 'r'].forEach((sd) => { order[sd] = CALL.filter((c) => c.side === sd).map((c) => ({ c, y: (screen(c) || { y: 0 }).y })).sort((a, b) => a.y - b.y).map((o) => o.c); }); }
 function layout() {
   const R = renderer.domElement.getBoundingClientRect(), W = R.width, Hh = R.height;
   if (narrow) { CALL.forEach((c) => { const p = screen(c); if (p) { c.badge.style.left = p.x + 'px'; c.badge.style.top = p.y + 'px'; } }); return; }
+  CALL.forEach((c) => { const hid = (anchors[c.at] || {}).L === -1 && EX < 0.5; c.el.style.display = hid ? 'none' : ''; c.ln.parentNode.style.display = hid ? 'none' : ''; });
   ['l', 'r'].forEach((sd) => {
-    const list = order[sd], n = list.length, top = 22, gap = (Hh - top - 30) / n;
+    const list = order[sd].filter((c) => c.el.style.display !== 'none'), n = list.length, top = 22, gap = (Hh - top - 30) / n;
     list.forEach((c, i) => {
       const el = c.el, w = el.offsetWidth, h = el.offsetHeight, x = sd === 'l' ? 20 : W - 20 - w, y = top + i * gap + (gap - h) / 2;
       el.style.left = x + 'px'; el.style.top = y + 'px'; const p = screen(c); if (!p) return;
@@ -207,18 +233,24 @@ function setAnchors(R, B) {
   const cm = closed ? closed.pts[Math.floor(closed.pts.length / 2)] : [0.7, 0.6];
   let big = null; if (B) B.buildings.forEach((b) => { if (!big || b.p.length > big.p.length) big = b; });
   const bc = big ? [big.p.reduce((s, p) => s + p[0], 0) / big.p.length, big.p.reduce((s, p) => s + p[1], 0) / big.p.length] : P.wpi;
+  const A = (p, L) => ({ p, L });
   Object.assign(anchors, {
-    sky: new THREE.Vector3(-S * 0.25, rain.top, -S * 0.15), water: at(P.pond, GAP), flow: at(P.park_ave, GAP), road: at(cm, GAP),
-    wpi: at(P.wpi, 0, 1.2), pond: at(P.institute_park, 0), peak: at(pk, 0), bld: at(bc, 0, 1.5),
-    soilTop: at([0.3, 0.4], -GAP), soilWall: new THREE.Vector3(toX(0.35), -GAP + hAt(0.35, 1) - 1.6, toZ(1)), gw: new THREE.Vector3(toX(0.7), -GAP + hAt(0.7, 1) - 3.2, toZ(1))
+    sky: A(new THREE.Vector3(-S * 0.25, HMAX + 16, -S * 0.15), 1), water: A(at(P.pond, 0), 1), flow: A(at(P.park_ave, 0), 1), road: A(at(cm, 0), 1),
+    wpi: A(at(P.wpi, 0, 1.2), 0), pond: A(at(P.institute_park, 0), 0), peak: A(at(pk, 0), 0), bld: A(at(bc, 0, 1.5), 0),
+    soilTop: A(at([0.3, 0.4], 0), -1), soilWall: A(new THREE.Vector3(toX(0.35), hAt(0.35, 1) - 1.6, toZ(1)), 0), gw: A(new THREE.Vector3(toX(0.7), hAt(0.7, 1) - 3.2, toZ(1)), 0)
   });
 }
 
-const HOME = { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) }, HOME_N = { pos: new THREE.Vector3(120, 95, 165), target: new THREE.Vector3(0, -2, 0) };
+const VIEWS = { campus: { pos: new THREE.Vector3(0, 66, 132), target: new THREE.Vector3(0, -4, -4) }, layers: { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) } };
 function fitK() {   // pull the camera back when the space for the block (between the label columns) is narrow, so the whole stack fits
   const st = $('cstage'), w = st.clientWidth - (narrow ? 0 : 560), h = st.clientHeight; return Math.max(1, (narrow ? 0.9 : 1.15) / Math.max(0.2, w / h));
 }
-function home() { const h = narrow ? HOME_N : HOME, k = fitK(); camera.position.copy(h.pos).sub(h.target).multiplyScalar(k).add(h.target); controls.target.copy(h.target); controls.update(); resort(); }
+function viewOf() { const h = EXT ? VIEWS.layers : VIEWS.campus, k = fitK() * (narrow ? 0.92 : 1); return { pos: h.pos.clone().sub(h.target).multiplyScalar(k).add(h.target), target: h.target.clone() }; }
+function home(animate) {
+  const v = viewOf();
+  if (animate && !reduced) { camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: v.pos, t1: v.target, k: 0 }; return; }
+  camera.position.copy(v.pos); controls.target.copy(v.target); controls.update(); resort();
+}
 function resize() {
   const st = $('cstage'), w = st.clientWidth, h = st.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
   narrow = w < 860; const co = $('ccallouts');
@@ -237,13 +269,14 @@ async function init() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
   scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(32, 1, 1, 2000);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b2a6, 1.7)); const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-70, 120, 50); scene.add(sun);
-  const [tRun, tAir, tMod] = await Promise.all([loadTex('runoff.jpg'), loadTex('aerial.jpg'), modelTexture(R)]);
+  const [tRun, tAir, tMod] = await Promise.all([loadTex('runoff.jpg'), aerialTexture(R), modelTexture(R)]);
   soilMat.uniforms.meanTop.value = H.reduce((a, b) => a + b, 0) / H.length;
-  slab(tRun, SOIL, soilMat, -GAP);
-  const mid = slab(tAir, THICK, sideMat(0xd9d5cc), 0); const bm = B && buildings(B); if (bm) mid.add(bm);
-  slab(tMod, THICK, sideMat(0xe8eef6), GAP);
+  slab(tRun, THICK, sideMat(0xd9d5cc), 0);
+  const mid = slab(tAir, SOIL, soilMat, 0); const bm = B && buildings(B); if (bm) mid.add(bm);
+  slab(tMod, THICK, sideMat(0xe8eef6), 0);
+  slabs[2].children.forEach((ch) => { ch.userData.slabPart = true; });
   const acc8 = new Uint8Array(fa), acc = new Float32Array(acc8.length); for (let i = 0; i < acc8.length; i++) acc[i] = Math.pow(2, acc8[i] / 16);
-  buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(R, B);
+  buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(R, B); applyEx();
   controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
   controls.minDistance = 60; controls.maxDistance = 700; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
   buildCallouts(); addEventListener('resize', resize); resize(); home();
@@ -253,11 +286,15 @@ async function init() {
     `<span class="t">Storm of 19 Aug 2021 · heights exaggerated ${VE}×</span>`;
   $('bFlow').onclick = () => { playing = !playing; $('bFlow').querySelector('span').textContent = playing ? 'Pause water' : 'Play water'; };
   if (!playing) $('bFlow').querySelector('span').textContent = 'Play water';
-  $('bCHome').onclick = home;
+  $('bCHome').onclick = () => home(true);
+  $('bLayers').onclick = () => { EXT = EXT ? 0 : 1; $('bLayers').querySelector('span').textContent = EXT ? 'Back to the campus' : 'Show the layers'; home(true); };
   $('cloading').classList.add('gone');
   let last = 0, lt = 0;
   renderer.setAnimationLoop((t) => {
     if (playing) { particles.step(Math.min(0.12, (t - lt) / 1000 * 2.2)); rain.step(t); }
+    if (Math.abs(EX - EXT) > 1e-3) { EX += (EXT - EX) * (reduced ? 1 : 0.07); applyEx(); } else if (EX !== EXT) { EX = EXT; applyEx(); }
+    if (camAnim) { camAnim.k = Math.min(1, camAnim.k + 0.035); const e = camAnim.k < 0.5 ? 2 * camAnim.k * camAnim.k : 1 - Math.pow(-2 * camAnim.k + 2, 2) / 2;
+      camera.position.lerpVectors(camAnim.p0, camAnim.p1, e); controls.target.lerpVectors(camAnim.t0, camAnim.t1, e); if (camAnim.k >= 1) { camAnim = null; resort(); } }
     lt = t; controls.update(); renderer.render(scene, camera);
     if (t - last > 30) { layout(); last = t; }
   });

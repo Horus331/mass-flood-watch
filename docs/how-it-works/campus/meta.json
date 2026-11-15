@@ -1,17 +1,23 @@
 {
  "box": [
-  173802.0,
-  890566.0,
-  175602.0,
-  892366.0
+  174052.0,
+  891116.0,
+  175252.0,
+  892316.0
  ],
- "width_m": 1800.0,
- "height_m": 1800.0,
+ "width_m": 1200.0,
+ "height_m": 1200.0,
  "storm": "19 Aug 2021",
  "layers": {
   "aerial": {
    "src": "https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage",
-   "px_m": 0.45
+   "px_m": 0.3
+  },
+  "water": {
+   "model": "LISFLOOD-FP 8.2, 20 m, deployed settings",
+   "res_m": 20.0,
+   "min_m": 0.05,
+   "run": "aug2021_site_layers_worcester_flood"
   },
   "runoff": {
    "lo": 40,
@@ -19,63 +25,68 @@
    "res_m": 10.0
   }
  },
- "grid": 450,
- "zmin": 137.8,
- "zmax": 223.47,
+ "grid": 480,
+ "zmin": 144.64,
+ "zmax": 208.26,
  "dem": {
   "src": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage",
-  "res_m": 2.0,
+  "res_m": 1.0,
   "shape": [
-   900,
-   900
+   1200,
+   1200
   ],
   "nan": 0
  },
  "flow": {
-  "grid": 450,
-  "cell_m": 4.0,
+  "grid": 600,
+  "cell_m": 2.0,
   "method": "D8 steepest descent on the lidar surface after priority-flood pit filling (Barnes et al. 2014)"
  },
  "roads_src": "docs/site/data/worcester_aug2021/roads.json",
+ "buildings": {
+  "n": 716,
+  "src": "OpenStreetMap",
+  "license": "\u00a9 OpenStreetMap contributors (ODbL)"
+ },
  "places": {
   "wpi": [
-   0.4165,
-   0.4168
+   0.4164,
+   0.5836
   ],
   "pond": [
-   0.5867,
-   0.2446
+   0.6717,
+   0.3253
   ],
   "field": [
-   0.288,
-   0.4472
+   0.2237,
+   0.6291
   ],
   "park_ave": [
-   0.1737,
-   0.3789
+   0.0523,
+   0.5267
   ],
   "institute_park": [
-   0.6688,
-   0.3313
+   0.7949,
+   0.4553
   ]
  },
  "rain_total_mm": [
-  54.6,
-  62.6
+  56.4,
+  61.9
  ],
  "rain_hourly_mean": [
-  0.6,
-  1.55,
-  2.79,
-  2.67,
-  23.81,
-  26.45,
+  0.63,
+  1.61,
+  2.9,
+  2.75,
+  23.42,
+  26.98,
   0.0,
   0.0,
   0.0,
   0.0,
   0.4,
-  0.47,
+  0.5,
   0.0,
   0.0,
   0.0,
