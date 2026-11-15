@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How It Works · Mass Flood Watch</title>
+<meta name="description" content="How the Mass Flood Watch road-flood model works, drawn as one landscape: rain, ground, soil, streams, culverts and roads, with the data behind each part.">
+<link rel="icon" href="../../docs/wpi-logo.svg">
+<link rel="stylesheet" href="../../docs/model-tree/lib/katex.min.css">
+<link rel="stylesheet" href="sitenav.css">
+<link rel="stylesheet" href="scene.css">
+<script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body data-tree="../../docs/model-tree/tree.json">
+<header class="sitenav">
+  <a class="sn-brand" href="./"><span class="sn-mark" aria-hidden="true"></span>Mass Flood Watch</a>
+  <nav aria-label="Site"><a href="./">Model</a><a href="how-it-works.html" aria-current="page">How it works</a><a href="progress.html">Progress</a><a href="about.html">About</a></nav>
+</header>
+<main class="hiw">
+  <section class="hero">
+    <p class="eyebrow">How it works</p>
+    <h1>From a raindrop to a closed road</h1>
+    <p class="lede">The model follows the water. Rain falls, the ground soaks up some of it, the rest runs downhill into streams and onto roads. Each label below is real data the model uses. <b>Tap a label</b> for its source, units and how it is used.</p>
+    <div class="tools"><button class="pill pill-on" id="bStory" type="button">Follow the rain, step by step</button></div>
+  </section>
+  <figure class="scene-wrap" id="sceneWrap">
+    <svg id="scene" viewBox="0 0 1600 900" role="img" aria-labelledby="sceneTitle">
+      <title id="sceneTitle">Cross-section of a central Massachusetts landscape: rain over a forested hill, a town with paved streets, a road crossing a stream on an embankment with a culvert under it, a hospital on the far hill, and soil layers and groundwater below the ground.</title>
+      <defs>
+        <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky-top)"/><stop offset="1" stop-color="var(--sky-bottom)"/></linearGradient>
+        <linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-1)"/><stop offset="1" stop-color="var(--water-2)"/></linearGradient>
+        <clipPath id="cGround"><path id="groundShape" d="M0 455 C110 360 200 318 290 318 C380 318 450 380 540 445 C590 480 630 494 680 494 L930 494 C960 494 975 512 995 518 L1062 518 L1088 478 L1228 478 L1254 524 C1300 532 1350 520 1400 470 C1450 420 1520 404 1600 402 L1600 900 L0 900Z"/></clipPath>
+        <marker id="mFlow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="var(--flow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+      </defs>
+      <rect width="1600" height="900" fill="url(#gSky)"/>
+      <!-- far hills -->
+      <path d="M0 400 C200 300 360 330 520 360 C700 300 900 330 1080 350 C1260 300 1420 320 1600 300 L1600 520 L0 520Z" fill="var(--far-hill)"/>
+      <!-- clouds -->
+      <g class="cloud-obs"><ellipse cx="260" cy="110" rx="120" ry="44" fill="var(--cloud)"/><ellipse cx="200" cy="96" rx="62" ry="46" fill="var(--cloud)"/><ellipse cx="300" cy="80" rx="70" ry="54" fill="var(--cloud)"/><rect x="140" y="110" width="240" height="44" rx="22" fill="var(--cloud)"/></g>
+      <g class="cloud-fc"><ellipse cx="1060" cy="104" rx="118" ry="42" fill="var(--cloud-fc)" stroke="var(--fc)" stroke-width="3" stroke-dasharray="10 8"/><ellipse cx="1010" cy="86" rx="56" ry="40" fill="var(--cloud-fc)"/><ellipse cx="1096" cy="74" rx="62" ry="46" fill="var(--cloud-fc)"/><rect x="950" y="100" width="220" height="40" rx="20" fill="var(--cloud-fc)"/></g>
+      <!-- rain: observed (solid) and forecast (dashed), snowflakes near the forecast cloud -->
+      <g id="rainObs" stroke="var(--rain)" stroke-width="3.2" stroke-linecap="round"></g>
+      <g id="rainFc" stroke="var(--fc)" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 7"></g>
+      <g id="flakes" fill="none" stroke="var(--fc)" stroke-width="2.2" stroke-linecap="round"></g>
+      <!-- radar on the left hill -->
+      <g transform="translate(300 318)"><rect x="-4" y="-46" width="8" height="46" fill="var(--steel)"/><circle cx="0" cy="-56" r="20" fill="var(--dome)" stroke="var(--steel)" stroke-width="3"/></g>
+      <!-- ground layers -->
+      <g clip-path="url(#cGround)">
+        <rect y="300" width="1600" height="600" fill="var(--topsoil)"/>
+        <path d="M0 455 C110 360 200 318 290 318 C380 318 450 380 540 445 C590 480 630 494 680 494 L930 494 C960 494 975 512 995 518 L1062 518 L1088 478 L1228 478 L1254 524 C1300 532 1350 520 1400 470 C1450 420 1520 404 1600 402 L1600 900 L0 900Z" transform="translate(0 92)" fill="var(--subsoil)"/>
+        <path d="M0 640 C200 600 380 610 560 650 C760 690 1000 690 1200 662 C1380 640 1500 620 1600 616 L1600 900 L0 900Z" fill="var(--rock)"/>
+        <path d="M0 700 C260 690 520 700 760 668 C960 642 1200 626 1600 652 L1600 900 L0 900Z" fill="var(--groundwater)"/>
+        <path d="M0 700 C260 690 520 700 760 668 C960 642 1200 626 1600 652" fill="none" stroke="var(--water-2)" stroke-width="2.5" stroke-dasharray="12 9"/>
+        <!-- pebbles in the subsoil -->
+        <g fill="var(--pebble)"><circle cx="160" cy="640" r="7"/><circle cx="420" cy="610" r="5"/><circle cx="720" cy="652" r="6"/><circle cx="980" cy="640" r="8"/><circle cx="1330" cy="606" r="6"/><circle cx="1500" cy="630" r="5"/></g>
+      </g>
+      <!-- grass line -->
+      <path d="M0 455 C110 360 200 318 290 318 C380 318 450 380 540 445 C590 480 630 494 680 494 L930 494 C960 494 975 512 995 518 L1062 518 L1088 478 L1228 478 L1254 524 C1300 532 1350 520 1400 470 C1450 420 1520 404 1600 402" fill="none" stroke="var(--grass)" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- forest -->
+      <g id="trees"></g>
+      <!-- town: paved street and houses -->
+      <rect x="660" y="489" width="290" height="10" rx="3" fill="var(--pavement)"/>
+      <path d="M676 494h260" stroke="#fff" stroke-width="2" stroke-dasharray="14 12"/>
+      <g id="houses"></g>
+      <!-- the low road with standing water and a car -->
+      <path d="M948 496 C968 498 978 512 995 518 L1062 518" fill="none" stroke="var(--pavement)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M972 510 C985 516 995 520 1010 520 L1058 520 L1058 507 L972 507Z" fill="url(#gWater)" opacity=".9"/>
+      <g transform="translate(1020 486)"><rect x="-26" y="2" width="52" height="16" rx="6" fill="var(--car)"/><path d="M-16 2l6-12h20l6 12z" fill="var(--car)"/><circle cx="-14" cy="19" r="6" fill="#2d3136"/><circle cx="14" cy="19" r="6" fill="#2d3136"/></g>
+      <g transform="translate(944 436)"><rect x="-2" y="0" width="4" height="56" fill="var(--steel)"/><rect x="-26" y="-22" width="52" height="24" rx="5" fill="var(--warn)"/><text x="0" y="-5" text-anchor="middle" class="sign">CLOSED</text></g>
+      <!-- embankment, road on top, culvert, stream -->
+      <path d="M1062 518 L1088 478 L1228 478 L1254 524Z" fill="var(--fill)"/>
+      <rect x="1082" y="470" width="152" height="10" rx="3" fill="var(--pavement)"/>
+      <circle cx="1158" cy="502" r="17" fill="#3c4148"/><circle cx="1158" cy="502" r="12" fill="url(#gWater)"/>
+      <path d="M1254 524 C1290 530 1320 530 1350 522" fill="none" stroke="var(--water-1)" stroke-width="9" stroke-linecap="round"/>
+      <path d="M1000 520 C1030 526 1050 524 1064 520" fill="none" stroke="var(--water-1)" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+      <!-- river gauge -->
+      <g transform="translate(1316 470)"><rect x="-2" y="0" width="4" height="56" fill="var(--steel)"/><rect x="-11" y="-16" width="22" height="18" rx="4" fill="var(--gauge)"/></g>
+      <!-- hospital and fire station on the right hill -->
+      <g transform="translate(1452 412)"><rect x="-38" y="-2" width="76" height="50" rx="6" fill="#fff" stroke="var(--steel)" stroke-width="2"/><path d="M-6 6h12v11h11v12H6v11H-6V29h-11V17h11z" fill="var(--warn)"/></g>
+      <g transform="translate(1546 392)"><rect x="-26" y="0" width="52" height="38" rx="5" fill="var(--fire-wall)" stroke="var(--steel)" stroke-width="2"/><rect x="-13" y="14" width="26" height="24" rx="3" fill="var(--fire-door)"/></g>
+      <!-- runoff: water running downhill -->
+      <g fill="none" stroke="var(--flow)" stroke-width="4" stroke-linecap="round" marker-end="url(#mFlow)">
+        <path d="M340 336 C380 352 410 380 440 404"/><path d="M470 420 C500 444 530 462 566 476"/><path d="M700 480 C770 480 840 480 910 484"/><path d="M1250 506 C1268 512 1282 514 1298 516"/><path d="M1392 470 C1370 492 1350 506 1330 512"/>
+      </g>
+      <g id="spots"></g>
+    </svg>
+    <div id="labels" class="labels"></div>
+  </figure>
+  <section class="after">
+    <h2>After the water reaches the road</h2>
+    <p class="sub">The picture stops at the road. These are the steps that follow, in order.</p>
+    <ol class="chain" id="chain"></ol>
+  </section>
+  <section class="after">
+    <h2>What the model can't see yet</h2>
+    <p class="sub">Named on purpose, so nobody reads more into the model than it does.</p>
+    <ul class="limits" id="limits"></ul>
+  </section>
+  <p class="foot">Every value behind these labels is read from the model's code and checked automatically (<a href="model-tree/CHECK.md">check</a>). Full detail on one page: <a href="model-tree-print.html">everything in text</a>.</p>
+</main>
+<aside id="panel" aria-live="polite"></aside>
+<script src="../../docs/model-tree/lib/katex.min.js"></script>
+<script src="scene.js"></script>
+</body>
+</html>
