@@ -382,7 +382,7 @@ def render_campus(a):
     rgb = ramp([(0, (245, 241, 230)), (0.35, (226, 200, 150)), (0.65, (196, 132, 82)), (0.85, (150, 78, 52)), (1, (92, 44, 40))], np.clip((cnN - 40) / 58, 0, 1)); rgb[wN] = (150, 184, 216)
     Image.fromarray(rgb).save(f'{a.out}/runoff.jpg', quality=88); meta['layers']['runoff'] = dict(lo=40, hi=98, res_m=info['res_m'])
     # places for labels
-    P = dict(wpi=(-71.8085, 42.2746), pond=(-71.8048, 42.2774), field=(-71.8113, 42.2741), park_ave=(-71.8138, 42.2752), institute_park=(-71.8030, 42.2760))
+    P = dict(kaven=(-71.80577, 42.27514), wpi=(-71.8085, 42.2746), pond=(-71.8048, 42.2774), field=(-71.8113, 42.2741), park_ave=(-71.8138, 42.2752), institute_park=(-71.8030, 42.2760))
     meta['places'] = {k: [round(float(v), 4) for v in frac(*tr.transform(*ll))] for k, ll in P.items()}
     meta['rain_total_mm'] = None
     L = np.load(f'{a.data}/layers.npz'); rt = L['rain_total'].astype(np.float32)
