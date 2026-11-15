@@ -247,11 +247,141 @@ def render(a):
     json.dump(meta, open(f'{a.out}/layers.json', 'w'), indent=1); print(json.dumps({k: v for k, v in meta.items() if k != 'south_profile'}, indent=1)[:3000])
 
 
+# ------------------------------------------------------------------------------------------------ campus close-up (layer stack)
+def fill_pits(z):
+    """Priority-flood depression filling (Barnes et al. 2014) with a tiny gradient, so every cell drains to the edge."""
+    import heapq
+    ny, nx = z.shape; f = z.astype(np.float64).copy(); done = np.zeros(z.shape, bool); h = []
+    for r in range(ny):
+        for c in (0, nx - 1): heapq.heappush(h, (f[r, c], r, c)); done[r, c] = True
+    for c in range(1, nx - 1):
+        for r in (0, ny - 1): heapq.heappush(h, (f[r, c], r, c)); done[r, c] = True
+    eps = 1e-4
+    while h:
+        v, r, c = heapq.heappop(h)
+        for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)):
+            rr, cc = r + dr, c + dc
+            if 0 <= rr < ny and 0 <= cc < nx and not done[rr, cc]:
+                done[rr, cc] = True
+                if f[rr, cc] <= v: f[rr, cc] = v + eps
+                heapq.heappush(h, (f[rr, cc], rr, cc))
+    return f
+
+
+def d8(f):
+    """D8 steepest-descent direction (0..7, 255 = edge/none) and flow accumulation (cells) on a filled surface."""
+    ny, nx = f.shape; D = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]; L = [1, 2 ** .5] * 4
+    best = np.zeros(f.shape); dirn = np.full(f.shape, 255, np.uint8)
+    P = np.pad(f, 1, mode='edge')
+    for k, (dr, dc) in enumerate(D):
+        nb = P[1 + dr:1 + dr + ny, 1 + dc:1 + dc + nx]; s = (f - nb) / L[k]
+        m = s > best; best[m] = s[m]; dirn[m] = k
+    order = np.argsort(-f, axis=None); acc = np.ones(f.size)
+    rr, cc = np.divmod(order, nx)
+    for i, r, c in zip(order, rr, cc):
+        k = dirn[r, c]
+        if k == 255: continue
+        r2, c2 = r + D[k][0], c + D[k][1]
+        if 0 <= r2 < ny and 0 <= c2 < nx: acc[r2 * nx + c2] += acc[i]
+    return dirn, acc.reshape(f.shape)
+
+
+def render_campus(a):
+    from PIL import Image
+    from pyproj import Transformer
+    from scipy.ndimage import zoom
+    os.makedirs(a.out, exist_ok=True)
+    info = json.load(open(f'{a.data}/layers.json')); x0, y0, x1, y1 = info['box']; W, Hm = x1 - x0, y1 - y0
+    tr = Transformer.from_crs(4326, 26986, always_xy=True)
+    frac = lambda X, Y: ((np.asarray(X) - x0) / W, (y1 - np.asarray(Y)) / Hm)
+    meta = dict(box=info['box'], width_m=W, height_m=Hm, storm='19 Aug 2021', layers={})
+    # aerial
+    im = Image.open(f'{a.data}/naip.jpg').convert('RGB'); N = min(a.size, im.size[0])
+    im.resize((N, N), Image.LANCZOS).save(f'{a.out}/aerial.jpg', quality=86); meta['layers']['aerial'] = dict(src=info.get('naip'), px_m=round(W / im.size[0], 2))
+    # fine terrain -> height grid + flow
+    Z = np.load(f'{a.data}/dem_fine.npz'); z = Z['z']; zres = float(Z['res_m'])
+    if np.isnan(z).any():
+        from scipy.ndimage import distance_transform_edt
+        idx = distance_transform_edt(np.isnan(z), return_distances=False, return_indices=True); z = z[tuple(idx)]
+    G = a.grid; zz = zoom(z, ((G + 1) / z.shape[0], (G + 1) / z.shape[1]), order=1)[:G + 1, :G + 1]
+    zmin, zmax = float(zz.min()), float(zz.max())
+    ((zz - zmin) / max(zmax - zmin, 1e-6) * 65535).round().astype('<u2').tofile(f'{a.out}/height.bin')
+    meta.update(grid=G, zmin=round(zmin, 2), zmax=round(zmax, 2), dem=info.get('dem_fine'))
+    F = a.flow_grid; zf = zoom(z, (F / z.shape[0], F / z.shape[1]), order=1)[:F, :F]
+    filled = fill_pits(zf); dirn, acc = d8(filled)
+    dirn.tofile(f'{a.out}/flowdir.bin'); np.clip(np.log2(acc) * 16, 0, 255).astype(np.uint8).tofile(f'{a.out}/flowacc.bin')
+    meta['flow'] = dict(grid=F, cell_m=round(W / F, 2), method='D8 steepest descent on the lidar surface after priority-flood pit filling (Barnes et al. 2014)')
+    # where water collects (flow lines) as an image for the top layer
+    lines_img = np.clip((np.log2(acc) - 6) / 8, 0, 1)
+    # peak water depth from the flood model (enclosing catalogue box)
+    paper = np.full((N, N, 3), 246, np.uint8)
+    hsN = np.asarray(Image.fromarray((hillshade(z, zres, zf=1.5) * 255).astype(np.uint8)).resize((N, N), Image.BILINEAR)).astype(np.float32) / 255
+    base = np.stack([236 + 14 * hsN, 233 + 14 * hsN, 226 + 14 * hsN], -1)
+    if a.flood and os.path.exists(f'{a.flood}/hmax_cm.npz'):
+        Hf = np.load(f'{a.flood}/hmax_cm.npz')['hmax_cm'].astype(np.float32) / 100.0; fm = json.load(open(f'{a.flood}/flood_meta.json'))
+        fx0, fy0, fx1, fy1 = fm['box']; fr = fm['res_m']
+        c0, c1 = (x0 - fx0) / fr, (x1 - fx0) / fr; r0, r1 = (fy1 - y1) / fr, (fy1 - y0) / fr
+        sub = Hf[int(np.floor(r0)):int(np.ceil(r1)) + 1, int(np.floor(c0)):int(np.ceil(c1)) + 1]
+        hN = np.asarray(Image.fromarray(sub).resize((N, N), Image.BILINEAR))
+        w = np.clip((hN - 0.05) / 0.8, 0, 1)
+        wet = hN >= 0.05
+        blue = ramp([(0, (190, 220, 246)), (0.5, (72, 140, 214)), (1, (20, 60, 150))], w).astype(np.float32)
+        base = np.where(wet[..., None], base * 0.25 + blue * 0.75, base)
+        meta['layers']['water'] = dict(model='LISFLOOD-FP 8.2, 20 m, deployed settings', res_m=fr, min_m=0.05, run=fm.get('run'))
+    fl = np.asarray(Image.fromarray((lines_img * 255).astype(np.uint8)).resize((N, N), Image.BILINEAR)).astype(np.float32)[..., None] / 255
+    base = base * (1 - 0.55 * fl) + np.array([58, 120, 190]) * 0.55 * fl
+    Image.fromarray(np.clip(base, 0, 255).astype(np.uint8)).save(f'{a.out}/model.jpg', quality=88)
+    # roads with the model's status for the storm (the live replay's roads, the same data the map shows)
+    R = json.load(open(a.roads)); roads = []
+    for ft in R['features']:
+        g = ft['geometry']; parts = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]; p = ft['properties']
+        for part in parts:
+            q = np.asarray(part)[:, :2]; fx, fy = frac(*tr.transform(q[:, 0], q[:, 1]))
+            if fx.max() < 0 or fx.min() > 1 or fy.max() < 0 or fy.min() > 1: continue
+            st = 'closed' if (p.get('p') or 0) >= 0.5 else ('risk' if p.get('m') else 'wet')
+            roads.append(dict(n=p.get('n', ''), s=st, pts=[[round(float(u), 4), round(float(v), 4)] for u, v in zip(fx, fy)]))
+    # all roads (grey) from the network, for the top layer
+    Gs = json.load(open(f'{ROOT}/docs/graph_segments.json')); allr = []
+    for i, g in enumerate(Gs['geo']):
+        for part in g:
+            pp = np.asarray(part, np.float64); lon = np.cumsum(pp[0::2]) / 1e5; lat = np.cumsum(pp[1::2]) / 1e5
+            if lon.size < 2 or abs(lon[0] + 71.81) > 0.04 or abs(lat[0] - 42.27) > 0.03: continue
+            fx, fy = frac(*tr.transform(lon, lat))
+            if fx.max() < 0 or fx.min() > 1 or fy.max() < 0 or fy.min() > 1: continue
+            allr.append(dict(n=Gs['props']['road'][i], c=Gs['props']['cls'][i], pts=[[round(float(u), 4), round(float(v), 4)] for u, v in zip(fx, fy)]))
+    meta['roads_src'] = os.path.relpath(a.roads, ROOT)
+    json.dump(dict(status=roads, all=allr), open(f'{a.out}/roads.json', 'w'), separators=(',', ':'))
+    # buildings
+    if os.path.exists(f'{a.data}/buildings.json'):
+        B = json.load(open(f'{a.data}/buildings.json')); out = []
+        for b in B['buildings']:
+            q = np.asarray(b['p']); fx, fy = frac(*tr.transform(q[:, 0], q[:, 1]))
+            if fx.max() < 0 or fx.min() > 1 or fy.max() < 0 or fy.min() > 1: continue
+            out.append(dict(h=b['h'], n=b.get('n', ''), p=[[round(float(u), 5), round(float(v), 5)] for u, v in zip(fx, fy)]))
+        json.dump(dict(license=B.get('license'), buildings=out), open(f'{a.out}/buildings.json', 'w'), separators=(',', ':'))
+        meta['buildings'] = dict(n=len(out), src='OpenStreetMap', license=B.get('license'))
+    # runoff potential (curve number, the model's 10 m input) for the bottom layer
+    Lr = np.load(f'{a.data}/layers.npz'); cn = Lr['cn'].astype(np.float32); mk = Lr['mask']
+    cnN = np.asarray(Image.fromarray(cn).resize((2048, 2048), Image.BILINEAR)); wN = np.asarray(Image.fromarray(((mk & 3) > 0).astype(np.uint8) * 255).resize((2048, 2048), Image.NEAREST)) > 127
+    rgb = ramp([(0, (245, 241, 230)), (0.35, (226, 200, 150)), (0.65, (196, 132, 82)), (0.85, (150, 78, 52)), (1, (92, 44, 40))], np.clip((cnN - 40) / 58, 0, 1)); rgb[wN] = (150, 184, 216)
+    Image.fromarray(rgb).save(f'{a.out}/runoff.jpg', quality=88); meta['layers']['runoff'] = dict(lo=40, hi=98, res_m=info['res_m'])
+    # places for labels
+    P = dict(wpi=(-71.8085, 42.2746), pond=(-71.8048, 42.2774), field=(-71.8113, 42.2741), park_ave=(-71.8138, 42.2752), institute_park=(-71.8030, 42.2760))
+    meta['places'] = {k: [round(float(v), 4) for v in frac(*tr.transform(*ll))] for k, ll in P.items()}
+    meta['rain_total_mm'] = None
+    L = np.load(f'{a.data}/layers.npz'); rt = L['rain_total'].astype(np.float32)
+    meta['rain_total_mm'] = [round(float(rt.min()), 1), round(float(rt.max()), 1)]; meta['rain_hourly_mean'] = [round(float(v), 2) for v in L['rain_hourly_mean']]
+    json.dump(meta, open(f'{a.out}/meta.json', 'w'), indent=1); print(json.dumps(meta, indent=1)[:2500])
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); sp = ap.add_subparsers(dest='cmd', required=True)
     f = sp.add_parser('fetch'); f.add_argument('--surr', required=True); f.add_argument('--out', default='drafts/layers/data'); f.add_argument('--px', type=int, default=2000)
     f.add_argument('--dem-res', type=float, default=0); f.add_argument('--buildings', action='store_true')
     r = sp.add_parser('render'); r.add_argument('--data', required=True); r.add_argument('--flood'); r.add_argument('--out', required=True); r.add_argument('--size', type=int, default=1400); r.add_argument('--grid', type=int, default=300)
+    c = sp.add_parser('campus'); c.add_argument('--data', required=True); c.add_argument('--flood'); c.add_argument('--roads', required=True); c.add_argument('--out', required=True)
+    c.add_argument('--size', type=int, default=4096); c.add_argument('--grid', type=int, default=450); c.add_argument('--flow-grid', type=int, default=450)
     a = ap.parse_args()
     if a.cmd == 'fetch': fetch(a)
+    elif a.cmd == 'campus': render_campus(a)
     else: render(a)
