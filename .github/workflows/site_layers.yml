@@ -13,6 +13,7 @@ on:
       solve: {description: 'run the flood solve too (true/false)', default: 'false'}
       px: {description: 'aerial image size in pixels', default: '2400'}
       extra: {description: 'extra fetch flags, e.g. --dem-res 2 --buildings', default: ''}
+      env: {description: 'extra model settings, e.g. LF_RAIN_SCALE=3', default: ''}
 permissions:
   contents: write
 jobs:
@@ -46,6 +47,7 @@ jobs:
           GIT_SHA: ${{ github.sha }}
           OMP_NUM_THREADS: '4'
         run: |
+          if [ -n "${{ inputs.env }}" ]; then export ${{ inputs.env }}; fi
           if [ "${{ inputs.solve }}" = "true" ]; then python sim/colab/w9_lisflood.py > w9.txt 2>&1 || true; tail -30 w9.txt; exit 0; fi
           python sim/colab/w9_lisflood.py > w9.txt 2>&1 &
           PID=$!
@@ -65,6 +67,7 @@ jobs:
           if [ "${{ inputs.solve }}" = "true" ] && [ -n "$OUTDIR" ]; then
             python proto/parity_pack.py $OUTDIR $D; cp $OUTDIR/meta.json $D/flood_meta.json || true
             python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)" || true
+            if [ -n "${{ inputs.env }}" ]; then export ${{ inputs.env }}; fi
             P=${{ runner.temp }}/proto; python proto/prototype.py --run-dir $OUTDIR --out $P --storm ${{ inputs.storm }} 2>&1 | tail -5 || true
             cp $P/summary.json $D/ 2>/dev/null || true; [ -f $P/segments.geojson ] && gzip -9c $P/segments.geojson > $D/segments.geojson.gz || true
           fi
