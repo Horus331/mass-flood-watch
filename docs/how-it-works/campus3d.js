@@ -39,7 +39,7 @@ const CALL = [
     p: 'Rising groundwater under roads and foundations is part of the cascade this research is building toward. It is not in the current model.' }
 ];
 
-let HMAX = 0, M, H, G, renderer, scene, camera, controls, slabs = [], particles = null, rain = null, playing = !reduced, wasNarrow = null, narrow = false;
+let lastK = 0, HMAX = 0, M, H, G, renderer, scene, camera, controls, slabs = [], particles = null, rain = null, playing = !reduced, wasNarrow = null, narrow = false;
 const anchors = {};
 
 function hAt(fx, fy) {
@@ -215,12 +215,15 @@ function setAnchors(R, B) {
 }
 
 const HOME = { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) }, HOME_N = { pos: new THREE.Vector3(120, 95, 165), target: new THREE.Vector3(0, -2, 0) };
-function home() { const h = narrow ? HOME_N : HOME; camera.position.copy(h.pos); controls.target.copy(h.target); controls.update(); resort(); }
+function fitK() {   // pull the camera back when the space for the block (between the label columns) is narrow, so the whole stack fits
+  const st = $('cstage'), w = st.clientWidth - (narrow ? 0 : 560), h = st.clientHeight; return Math.max(1, (narrow ? 0.9 : 1.15) / Math.max(0.2, w / h));
+}
+function home() { const h = narrow ? HOME_N : HOME, k = fitK(); camera.position.copy(h.pos).sub(h.target).multiplyScalar(k).add(h.target); controls.target.copy(h.target); controls.update(); resort(); }
 function resize() {
   const st = $('cstage'), w = st.clientWidth, h = st.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
   narrow = w < 860; const co = $('ccallouts');
   if (narrow && co.parentNode === st) st.after(co); else if (!narrow && co.parentNode !== st) st.insertBefore(co, $('cloading'));
-  camera.fov = narrow ? 46 : 32; camera.updateProjectionMatrix(); if (narrow !== wasNarrow) { wasNarrow = narrow; home(); } resort(); layout();
+  camera.fov = narrow ? 46 : 32; camera.updateProjectionMatrix(); if (narrow !== wasNarrow || Math.abs(fitK() - lastK) > 0.05) { wasNarrow = narrow; lastK = fitK(); home(); } resort(); layout();
 }
 
 async function init() {
@@ -242,7 +245,7 @@ async function init() {
   const acc8 = new Uint8Array(fa), acc = new Float32Array(acc8.length); for (let i = 0; i < acc8.length; i++) acc[i] = Math.pow(2, acc8[i] / 16);
   buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(R, B);
   controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
-  controls.minDistance = 60; controls.maxDistance = 380; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
+  controls.minDistance = 60; controls.maxDistance = 700; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
   buildCallouts(); addEventListener('resize', resize); resize(); home();
   const sum = R.status.reduce((o, r) => { o[r.s] = (o[r.s] || 0) + 1; return o; }, {});
   $('clegend').innerHTML = `<span><i class="sw" style="background:${ROAD_C.closed}"></i>Closed in the model run</span><span><i class="sw" style="background:${ROAD_C.risk}"></i>At risk</span>` +
