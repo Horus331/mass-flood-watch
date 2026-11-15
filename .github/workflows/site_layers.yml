@@ -12,6 +12,7 @@ on:
       hours: {description: 'hours', default: '18'}
       solve: {description: 'run the flood solve too (true/false)', default: 'false'}
       px: {description: 'aerial image size in pixels', default: '2400'}
+      extra: {description: 'extra fetch flags, e.g. --dem-res 2 --buildings', default: ''}
 permissions:
   contents: write
 jobs:
@@ -59,7 +60,7 @@ jobs:
       - name: land cover + aerial image (+ flood depth)
         run: |
           D=drafts/layers/${{ inputs.name }}
-          python proto/site_layers.py fetch --surr ${{ runner.temp }}/surr.npz --out $D --px ${{ inputs.px }}
+          python proto/site_layers.py fetch --surr ${{ runner.temp }}/surr.npz --out $D --px ${{ inputs.px }} ${{ inputs.extra }}
           OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out 2>/dev/null | head -1)
           if [ "${{ inputs.solve }}" = "true" ] && [ -n "$OUTDIR" ]; then
             python proto/parity_pack.py $OUTDIR $D; cp $OUTDIR/meta.json $D/flood_meta.json || true
