@@ -95,9 +95,38 @@ def fig4():
     NUM['fig4'] = dict(source='parity/calib/leo48_cn0*/score.json', cn=cn, mean_abs_rise_error_m=err, signed_by_gauge=[dict(g) for g in G])
 
 
+def fig1():
+    from matplotlib.patches import Rectangle
+    LOCKED = ('aug2015', 'aug2018', 'aug2020', 'jul2018', 'oct2016'); DEV = ('sep2023', 'aug2021')
+    G = json.load(open(f'{ROOT}/docs/graph_segments.json'))
+    fig, ax = plt.subplots(figsize=(7.2, 4.8), dpi=200)
+    for seg in G['geo']:
+        for part in seg:
+            a = np.array(part, float); xy = np.cumsum(a.reshape(-1, 2), axis=0) / 1e5
+            ax.plot(xy[:, 0], xy[:, 1], color='#cfcfcf', lw=0.25, zorder=1)
+    n = {'dev': 0, 'held': 0, 'd456': 0}
+    for e in json.load(open(f'{P}/obs/catalog_d456.json'))['events']:
+        x0, y0, x1, y1 = e['bbox_lonlat']; ax.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fc='none', ec='#8c6bb1', lw=0.6, alpha=0.7, zorder=2)); n['d456'] += 1
+    for e in json.load(open(f'{P}/obs/catalog.json'))['events']:
+        if e['id'] in LOCKED or e['id'] == 'sep2014': continue
+        k = 'dev' if e['id'] in DEV else 'held'; n[k] += 1
+        x0, y0, x1, y1 = e['bbox_lonlat']
+        ax.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fc='none', ec=C_MODEL if k == 'held' else C_CHANCE, lw=1.3 if k == 'dev' else 0.9, zorder=3))
+    ax.set_aspect(1 / np.cos(np.radians(42.3))); ax.set_xlim(-72.5, -69.75); ax.set_ylim(41.3, 42.95)
+    ax.set_xlabel('longitude'); ax.set_ylabel('latitude'); ax.spines[['top', 'right']].set_visible(False)
+    from matplotlib.lines import Line2D
+    ax.legend(handles=[Line2D([], [], color='#cfcfcf', lw=1.5, label='MassDOT District 3 road graph (52,698 segments)'),
+                       Line2D([], [], color=C_CHANCE, lw=1.3, label=f"development storms ({n['dev']})"),
+                       Line2D([], [], color=C_MODEL, lw=1, label=f"held-out District 3 storms ({n['held']})"),
+                       Line2D([], [], color='#8c6bb1', lw=0.8, label=f"Districts 4–6 transfer storms ({n['d456']})")],
+              frameon=False, fontsize=7.5, loc='lower left')
+    ax.set_title('Study area and storm boxes (20 × 20 km each; 5 locked storms not shown)', fontsize=9, loc='left')
+    fig.tight_layout(); fig.savefig(f'{OUT}/fig1_study_area.png'); plt.close(fig); NUM['fig1'] = n
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for f in (fig5, fig6, fig4):
+    for f in (fig1, fig5, fig6, fig4):
         try: f()
         except Exception as e: print(f.__name__, 'failed:', repr(e)[:300])
     subprocess.run([sys.executable, f'{ROOT}/proto/phase1_figure.py'], check=False)
