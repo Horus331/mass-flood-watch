@@ -17,7 +17,8 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.normpath(os.path.join(HERE, '..'))
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(ROOT, 'sim', 'colab'))
 OUT = os.path.join(ROOT, 'docs', 'proto', 'forecast')
-ENS_DIR = os.path.join(OUT, 'ensemble')
+ENS_DIR = os.path.join(OUT, os.environ.get('FENS_DIR', 'ensemble'))     # FENS_DIR=ensemble_parity: the parity rerun (ENSEMBLE_PARITY_PREREG.md)
+REPORT = os.path.join(OUT, os.environ.get('FENS_REPORT', 'ensemble.json'))
 
 # time-lagged ensembles: the cycles that were on the web at the time of the evaluated cycle, valid for the same storm window.
 # hourly cycles (18 h horizon) only back to the one whose horizon still covers the storm's main rain; the synoptic cycles (48 h) further back.
@@ -309,7 +310,7 @@ def cmd_report(a):
         if os.path.exists(os.path.join(d, 'summary.json')) and not re.search(r'_m\d{4}z_', os.path.basename(d)):
             rows['runs'][os.path.basename(d)] = metrics(d)
     rows['pooled'] = pooled(rows)
-    json.dump(rows, open(os.path.join(OUT, 'ensemble.json'), 'w'), indent=1)
+    json.dump(rows, open(REPORT, 'w'), indent=1)
     print(json.dumps(rows['pooled'], indent=1))
 
 
