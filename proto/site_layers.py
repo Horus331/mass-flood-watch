@@ -348,19 +348,30 @@ def render_campus(a):
         wet = hN >= 0.05
         blue = ramp([(0, (190, 220, 246)), (0.5, (72, 140, 214)), (1, (20, 60, 150))], w).astype(np.float32)
         base = np.where(wet[..., None], base * 0.25 + blue * 0.75, base)
-        meta['layers']['water'] = dict(model='LISFLOOD-FP 8.2, 20 m, deployed settings', res_m=fr, min_m=0.05, run=fm.get('run'))
+        meta['layers']['water'] = dict(model='LISFLOOD-FP 8.2, deployed settings', res_m=fr, min_m=0.05, run=fm.get('run'), env={k: v for k, v in (fm.get('env') or {}).items() if k.startswith('LF_RAIN')})
+        gx = (np.arange(G + 1) / G * (x1 - x0) + x0 - fx0) / fr; gy = (fy1 - (y1 - np.arange(G + 1) / G * (y1 - y0))) / fr
+        from scipy.ndimage import map_coordinates
+        Hc = map_coordinates(Hf, np.meshgrid(gy, gx, indexing='ij'), order=1, mode='nearest')
+        np.clip(np.round(Hc * 100), 0, 65535).astype('<u2').tofile(f'{a.out}/water.bin'); meta['water_grid'] = dict(grid=G, units='cm', max_cm=int(Hc.max() * 100))
     fl = np.asarray(Image.fromarray((lines_img * 255).astype(np.uint8)).resize((N, N), Image.BILINEAR)).astype(np.float32)[..., None] / 255
     base = base * (1 - 0.55 * fl) + np.array([58, 120, 190]) * 0.55 * fl
     Image.fromarray(np.clip(base, 0, 255).astype(np.uint8)).save(f'{a.out}/model.jpg', quality=88)
     # roads with the model's status for the storm (the live replay's roads, the same data the map shows)
-    R = json.load(open(a.roads)); roads = []
+    if a.roads.endswith('.gz'):
+        import gzip; R = json.load(gzip.open(a.roads))
+    else: R = json.load(open(a.roads))
+    roads = []
     for ft in R['features']:
-        g = ft['geometry']; parts = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]; p = ft['properties']
+        g = ft['geometry']; parts = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]; p = dict(ft['properties'])
+        if 'p_close' in p:   # a model run's segments.geojson: same rating as the map (closed p >= 0.5; at risk = may close; wet >= 5 cm)
+            dpt = p.get('peak_depth_m') or 0
+            if (p.get('p_close') or 0) < 0.5 and (p.get('p_may_close') or 0) < 0.5 and dpt < 0.05: continue
+            p = dict(n=p.get('road', ''), p=p.get('p_close') or 0, m=1 if (p.get('p_may_close') or 0) >= 0.5 else 0, d=dpt)
         for part in parts:
             q = np.asarray(part)[:, :2]; fx, fy = frac(*tr.transform(q[:, 0], q[:, 1]))
             if fx.max() < 0 or fx.min() > 1 or fy.max() < 0 or fy.min() > 1: continue
             st = 'closed' if (p.get('p') or 0) >= 0.5 else ('risk' if p.get('m') else 'wet')
-            roads.append(dict(n=p.get('n', ''), s=st, pts=[[round(float(u), 4), round(float(v), 4)] for u, v in zip(fx, fy)]))
+            roads.append(dict(n=p.get('n', ''), s=st, d=round(float(p.get('d') or 0), 2), pts=[[round(float(u), 4), round(float(v), 4)] for u, v in zip(fx, fy)]))
     # all roads (grey) from the network, for the top layer
     Gs = json.load(open(f'{ROOT}/docs/graph_segments.json')); allr = []
     for i, g in enumerate(Gs['geo']):
@@ -370,7 +381,7 @@ def render_campus(a):
             fx, fy = frac(*tr.transform(lon, lat))
             if fx.max() < 0 or fx.min() > 1 or fy.max() < 0 or fy.min() > 1: continue
             allr.append(dict(n=Gs['props']['road'][i], c=Gs['props']['cls'][i], pts=[[round(float(u), 4), round(float(v), 4)] for u, v in zip(fx, fy)]))
-    meta['roads_src'] = os.path.relpath(a.roads, ROOT)
+    meta['roads_src'] = os.path.relpath(a.roads, ROOT); meta['scenario'] = a.scenario
     json.dump(dict(status=roads, all=allr), open(f'{a.out}/roads.json', 'w'), separators=(',', ':'))
     # buildings
     if os.path.exists(f'{a.data}/buildings.json'):
@@ -401,7 +412,7 @@ if __name__ == '__main__':
     f.add_argument('--dem-res', type=float, default=0); f.add_argument('--buildings', action='store_true')
     r = sp.add_parser('render'); r.add_argument('--data', required=True); r.add_argument('--flood'); r.add_argument('--out', required=True); r.add_argument('--size', type=int, default=1400); r.add_argument('--grid', type=int, default=300)
     c = sp.add_parser('campus'); c.add_argument('--data', required=True); c.add_argument('--flood'); c.add_argument('--roads', required=True); c.add_argument('--out', required=True)
-    c.add_argument('--size', type=int, default=4096); c.add_argument('--crop', default=''); c.add_argument('--grid', type=int, default=450); c.add_argument('--flow-grid', type=int, default=450)
+    c.add_argument('--size', type=int, default=4096); c.add_argument('--crop', default=''); c.add_argument('--scenario', default=''); c.add_argument('--grid', type=int, default=450); c.add_argument('--flow-grid', type=int, default=450)
     a = ap.parse_args()
     if a.cmd == 'fetch': fetch(a)
     elif a.cmd == 'campus': render_campus(a)
