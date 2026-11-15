@@ -1,0 +1,51 @@
+name: Site figure layers (real input data for one box; no flood solve)
+# Builds the model's input pack for the Leominster catalogue box (LF_SURR_SAVE=1), stops the run before the flood solve,
+# then adds NLCD land cover and a NAIP aerial image (proto/site_layers.py). Output: drafts/layers/data/ (not published).
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  layers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn tifffile
+      - name: model input pack (stops before the solve)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          LF_WORK: ${{ runner.temp }}/lf
+          LF_NO_UPLOAD: '1'
+          BOX: '162000,908000,182000,928000'
+          RES: '20'
+          STORM: sep2023
+          HOURS: '36'
+          RUN_DIR: runs/site_layers
+          LF_LOSS: cn
+          LF_CN_SCALE: '0.88'
+          LF_PARITY: '1'
+          LF_INFIL_MMH: '2'
+          LF_SURR_SAVE: '1'
+          LF_SURR_RAIN_COARSEN: '5'
+          LF_SURR_OUT: ${{ runner.temp }}/surr.npz
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          python sim/colab/w9_lisflood.py > w9.txt 2>&1 &
+          PID=$!
+          for i in $(seq 1 480); do
+            if grep -q "LF_SURR_SAVE:" w9.txt; then sleep 5; break; fi
+            if ! kill -0 $PID 2>/dev/null; then break; fi
+            sleep 10
+          done
+          kill $PID 2>/dev/null || true
+          tail -40 w9.txt
+          test -f "$LF_SURR_OUT"
+      - name: land cover + aerial image
+        run: python proto/site_layers.py fetch --surr ${{ runner.temp }}/surr.npz --out drafts/layers/data
+      - name: commit
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add drafts/layers/data; git commit -qm "site figure layers (Leominster box)" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep 10; done
