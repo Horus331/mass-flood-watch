@@ -31,35 +31,45 @@ const IC = {
 // cut face), what the model does and what comes out (right), and how it is checked (under the figure). Plain words first; the
 // source line says who made each piece and whether it is public. Pointers only go to things you can see for sure: the rain,
 // the ground surface and the layers on the cut face.
-const PUB = '<i class="chip-p">public data</i>', OSS = '<i class="chip-o">open source</i>', NOT = '<i class="chip-n">not in the model yet</i>';
+const PUB = '<i class="chip-p">public data</i>', OSS = '<i class="chip-o">open source</i>';
+const ST = { in: '<i class="st-in">in the model</i>', dev: '<i class="st-dev">being built</i>', wait: '<i class="st-wait">waiting for data</i>', plan: '<i class="st-plan">planned</i>', chk: '<i class="st-in">in use</i>' };
 const STORY = [
-  { zone: 'top', n: 1, id: 'obs', ic: 'rain', t: 'Rain that fell', p: 'Weather radar measures how much rain falls on every square kilometre, every hour, checked against rain gauges on the ground.',
-    src: 'NOAA MRMS radar', chip: PUB, at: 'skyL', nodes: ['mrms', 'rain_grid'] },
-  { zone: 'top', n: 1, id: 'fc', ic: 'fc', t: 'Rain on the way', p: 'A weather model guesses the rain for the next two days. The model runs on its eight newest guesses to see how much they agree.',
-    src: 'NOAA HRRR forecast', chip: PUB, at: 'skyR', nodes: ['hrrr', 'phase', 'members'] },
-  { zone: 'left', n: 2, id: 'dem', ic: 'terrain', t: 'The shape of the ground', p: 'Lasers flown from planes measure the height of the ground to within centimetres. Water always runs from high to low.',
-    src: 'USGS 3DEP lidar, 1 m', chip: PUB, at: 'surf', nodes: ['lidar', 'dem20', 'breach', 'crest'] },
-  { zone: 'left', n: 2, id: 'cover', ic: 'land', t: 'Roofs, roads and grass', p: 'Roofs and pavement send rain straight off; grass and trees hold some back and slow the rest down.',
-    src: 'NLCD 2021 land cover', chip: PUB, at: 'surf2', nodes: ['nlcd', 'manning'] },
-  { zone: 'left', n: 2, id: 'soil', ic: 'soil', t: 'The soil', p: 'Sandy soil drinks rain fast, clay soil slowly. What the soil cannot drink runs off over the ground.',
-    src: 'USDA SSURGO soils, NRCS curve number', chip: PUB, at: 'soilBand', nodes: ['ssurgo', 'cn', 'wi_amc', 'wi_frozen'] },
-  { zone: 'left', n: 0, id: 'gw', ic: 'gw', t: 'Water already underground', p: 'Groundwater rising under roads and buildings is the next part of the chain this research will add.',
-    src: 'Groundwater', chip: NOT, at: 'gwLine', lim: true, nodes: ['cc_gw'] },
-  { zone: 'right', n: 3, id: 'engine', engine: true, t: 'LISFLOOD-FP 8.2', k: 'The flood model',
+  { zone: 'top', n: 1, id: 'obs', ic: 'rain', st: 'in', t: 'Rain that fell', p: 'Weather radar measures how much rain falls on every square kilometre, every hour, checked against rain gauges on the ground.',
+    tech: '1 km grid · hourly · spread evenly over each hour on the 20 m squares', src: 'NOAA MRMS radar', chip: PUB, at: 'skyL', nodes: ['mrms', 'rain_grid'] },
+  { zone: 'top', n: 1, id: 'fc', ic: 'fc', st: 'in', t: 'Rain on the way', p: 'A weather model guesses the rain for the next two days. The model runs on its eight newest guesses; the radar fills in the first hours.',
+    tech: '3 km · 48 h ahead · starts when 25 mm in 6 h or 40 mm in 24 h is forecast · air temperature splits rain from snow', src: 'NOAA HRRR forecast', chip: PUB, at: 'skyR', nodes: ['hrrr', 'gate', 'members', 'nbhd', 'spinup', 'phase'] },
+  { zone: 'left', n: 2, id: 'dem', ic: 'terrain', st: 'in', t: 'The shape of the ground', p: 'Lasers flown from planes measure the height of the ground. Water always runs from high to low.',
+    tech: 'lidar heights averaged to 20 m squares · road tops kept from 10 m · small pits drained, ponds kept', src: 'USGS 3DEP lidar', chip: PUB, at: 'surf', nodes: ['lidar', 'dem20', 'breach', 'crest'] },
+  { zone: 'left', n: 2, id: 'cover', ic: 'land', st: 'in', t: 'Roofs, roads and grass', p: 'Roofs and pavement send rain straight off; grass and trees hold some back and slow the rest down.',
+    tech: '30 m · share paved · surface roughness (Manning n) for every square', src: 'NLCD 2021 land cover', chip: PUB, at: 'surf2', nodes: ['nlcd', 'manning'] },
+  { zone: 'left', n: 2, id: 'soil', ic: 'soil', st: 'in', t: 'The soil', p: 'Sandy soil drinks rain fast, clay soil slowly. What the soil cannot drink runs off over the ground.',
+    tech: 'soil groups A to D + land cover → NRCS curve number · 2 mm/h soaks in from standing water', src: 'USDA SSURGO soils', chip: PUB, at: 'soilBand', nodes: ['ssurgo', 'cn'] },
+  { zone: 'left', n: 2, id: 'wet', ic: 'drop', st: 'dev', t: 'How wet the ground already is', p: 'Soaked or frozen ground cannot drink more. Today the model uses normal wetness; dry, soaked and frozen run as what-if cases.',
+    tech: 'next: a daily soil-moisture feed for live forecasts (NASA SPoRT-LIS, being collected)', src: 'NRCS moisture classes, NASA SPoRT-LIS', chip: PUB, at: 'wetBand', nodes: ['wi_amc', 'wi_frozen'] },
+  { zone: 'left', n: 0, id: 'gw', ic: 'gw', st: 'plan', t: 'Water already underground', p: 'Groundwater rising under roads and buildings is the next part of the chain this research will add.',
+    tech: 'next: USGS groundwater wells and the link to road and foundation damage', src: 'USGS groundwater wells', chip: PUB, at: 'gwLine', lim: true, nodes: ['cc_gw'] },
+  { zone: 'right', n: 3, id: 'engine', engine: true, st: 'in', t: 'LISFLOOD-FP 8.2', k: 'The flood model',
     p: 'A free, open-source flood model from the University of Bristol, UK. It splits the ground into 20 m squares and, second by second, moves the water from each square to its lower neighbours, the way water really runs downhill. The moving blue dots show that.',
-    src: 'University of Bristol', chip: OSS, nodes: ['lisflood', 'depth', 'velocity'] },
-  { zone: 'right', n: 3, id: 'drain', ic: 'stream', t: 'Where the water can go', p: 'Streams and ponds carry water away. Where a stream passes under a road, a pipe (a culvert) lets it through until the pipe is full.',
-    src: 'USGS streams, NAACC culvert surveys', chip: PUB, nodes: ['nhd', 'channels', 'crossings', 'culvert'] },
-  { zone: 'right', n: 4, id: 'roads', result: true, t: 'Water on every road', p: 'Every 10 m along every road, the model reads how deep the water gets and for how long.',
-    src: 'MassDOT road inventory', chip: PUB, nodes: ['roadpts', 'segdepth', 'onset', 'pclose'] },
-  { zone: 'right', n: 5, id: 'access', ic: 'people', t: 'Who gets cut off', p: 'With the flooded roads closed, the model finds who can no longer reach a hospital, fire station or police station in time.',
-    src: 'US Census 2020, OpenStreetMap', chip: PUB, nodes: ['census', 'facilities', 'dijkstra', 'access'] }
+    tech: '2-D shallow-water equations · time step 1 s or less · depth and speed saved every 5 min · runs on free GitHub computers and WPI’s Turing cluster', src: 'University of Bristol', chip: OSS, nodes: ['lisflood', 'depth', 'velocity'] },
+  { zone: 'right', n: 3, id: 'drain', ic: 'stream', st: 'in', t: 'Where the water can go', p: 'Streams and ponds carry water away. Where a stream passes under a road, a pipe (a culvert) lets it through until the pipe is full.',
+    tech: 'streams cut in to their normal depth · culvert size from field surveys · capacity by the FHWA HDS-5 method', src: 'USGS NHDPlus HR, NAACC culvert surveys', chip: PUB, nodes: ['nhd', 'channels', 'crossings', 'notch', 'culvert'] },
+  { zone: 'right', n: 0, id: 'pipes', ic: 'culvert', st: 'wait', t: 'Storm drains under the street', p: 'Street drains and pipes take away part of the water in town. Their locations are collected; the pipe sizes are held by each city.',
+    tech: 'next: pipe sizes and depths from city records', src: 'City stormwater records', chip: '', lim: true, nodes: ['cc_drains'] },
+  { zone: 'right', n: 4, id: 'roads', result: true, st: 'in', at: 'closed', t: 'Water on every road', p: 'Every 10 m along every road, the model reads how deep the water gets and for how long. Before a storm, a road closed in at least 2 of the 8 forecasts is listed as likely.',
+    tech: '52,698 road segments · only water the storm added counts · culvert overtopping and fast water checked too', src: 'MassDOT road inventory', chip: PUB, nodes: ['roadpts', 'segdepth', 'onset', 'pclose', 'kofn'] },
+  { zone: 'right', n: 5, id: 'access', ic: 'people', st: 'in', t: 'Who gets cut off', p: 'With the flooded roads closed, the model finds who can no longer reach a hospital, fire station or police station in time.',
+    tech: 'hospital 30 min · fire 8 min · police 10 min · wet roads slowed by depth (Pregnolato curve)', src: 'US Census 2020, OpenStreetMap', chip: PUB, nodes: ['census', 'facilities', 'pregnolato', 'dijkstra', 'access'] }
 ];
 const CHECKS = [
-  { ic: 'gauge', t: 'River gauges', s: 'USGS, every 15 minutes: did the river rise as much as the model said, and when?', nodes: ['gauges'] },
-  { ic: 'report', t: 'Storm reports', s: 'National Weather Service and NOAA storm reports, news and agency reports of flooded roads.', nodes: ['labels', 'matching'] },
-  { ic: 'list', t: 'City damage records', s: 'Public works lists of the roads and culverts a storm damaged.', nodes: ['labels'] },
-  { ic: 'list', t: 'Storms kept aside', s: 'Most past storms were never used to set the model; they are kept to test it fairly.', nodes: ['split', 'metrics', 'baselines'] }
+  { ic: 'gauge', st: 'chk', t: 'River gauges', s: 'USGS, every 15 minutes: did the river rise as much as the model said, and when?', nodes: ['gauges'] },
+  { ic: 'report', st: 'chk', t: 'Storm reports', s: 'National Weather Service storm reports and the NOAA Storm Events database.', nodes: ['labels', 'matching'] },
+  { ic: 'report', st: 'chk', t: 'News and agency reports', s: 'Road closures in local news, town and state posts, matched to road segments.', nodes: ['labels', 'matching'] },
+  { ic: 'list', st: 'chk', t: 'City damage records', s: 'Public works lists of the roads and culverts a storm damaged.', nodes: ['labels'] },
+  { ic: 'people', st: 'chk', t: 'Residents’ reports', s: '311-style reports of flooded streets from residents.', nodes: ['labels'] },
+  { ic: 'list', st: 'chk', t: 'Fair tests', s: 'Storms kept aside and never used to set the model; compared with flood zones, weather warnings and rain thresholds.', nodes: ['split', 'metrics', 'baselines'] },
+  { ic: 'list', st: 'wait', t: 'Damage inventories', s: 'State and FEMA lists of storm-damaged public roads.', nodes: ['labels'] },
+  { ic: 'road', st: 'wait', t: 'Waze road reports', s: 'Drivers’ live reports of flooded roads, requested through WPI.', nodes: ['labels'] },
+  { ic: 'report', st: 'wait', t: 'Traffic cameras', s: 'Pictures of wet and closed roads during storms; research access requested.', nodes: ['labels'] }
 ];
 const CALL = [];   // flat list of everything that points into the picture (filled in buildCallouts)
 
@@ -181,6 +191,24 @@ function buildings(B, roofTex) {   // walls extruded to the real height; roofs a
   return grp;
 }
 
+// the model's water: a surface over every square where the model put water, rising to its peak depth (how-it-works/campus/water.bin)
+let waterMat = null;
+function buildWater(wb) {
+  const W = new Uint16Array(wb), n = G + 1, mpu = M.width_m / S, pos = new Float32Array(n * n * 3), dep = new Float32Array(n * n), idx = [];
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    const k = r * n + c, d = W[k] / 100; dep[k] = d;
+    pos.set([toX(c / G), H[k] + (d > 0.03 ? Math.max(0.05, d * VE / mpu) + 0.03 : -0.3), toZ(r / G)], k * 3);
+  }
+  for (let r = 0; r < n - 1; r++) for (let c = 0; c < n - 1; c++) { const a = r * n + c, b = a + 1, d = a + n, e = d + 1; idx.push(a, d, b, b, d, e); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('depth', new THREE.BufferAttribute(dep, 1)); g.setIndex(idx);
+  waterMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { rise: { value: 1 } },
+    vertexShader: 'attribute float depth; varying float vD; void main(){ vD = depth; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float rise; varying float vD;
+      void main(){ float d = vD * rise; float a = smoothstep(0.04, 0.12, d) * 0.88; if (a < 0.02) discard;
+        vec3 c = mix(vec3(0.55, 0.78, 0.98), vec3(0.05, 0.25, 0.65), clamp(d / 0.8, 0.0, 1.0)); gl_FragColor = vec4(c, a); }` });
+  const m = new THREE.Mesh(g, waterMat); m.renderOrder = 2; slabs[1].add(m);
+}
+
 // flow particles on the model layer, moving cell to cell along the D8 directions (how-it-works/campus/flowdir.bin)
 function buildParticles(dir, acc) {
   const F = M.flow.grid, N = narrow ? 2200 : 5200, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), st = [];
@@ -229,15 +257,15 @@ function card(c) {
   const b = document.createElement('button'); b.type = 'button'; b.dataset.id = c.id;
   if (c.engine) {
     b.className = 'scard engine';
-    b.innerHTML = `<span class="step">${c.n}</span><span class="k">${esc(c.k)}</span><b>${esc(c.t)}</b><span class="p">${esc(c.p)}</span><span class="src">${esc(c.src)} ${c.chip}</span>`;
+    b.innerHTML = `<span class="step">${c.n}</span><span class="k">${esc(c.k)}</span><b>${esc(c.t)}</b><span class="p">${esc(c.p)}</span><span class="tech">${esc(c.tech)}</span><span class="src">${esc(c.src)} ${c.chip} ${ST[c.st] || ''}</span>`;
   } else if (c.result) {
     b.className = 'scard result';
     b.innerHTML = `<span class="step">${c.n}</span><b>${esc(c.t)}</b><span class="p">${esc(c.p)}</span>` +
       `<span class="lg"><i style="background:${ROAD_C.closed}"></i><b>Closed</b> 30 cm or more, about where a car stalls</span><span class="lg"><i style="background:${ROAD_C.risk}"></i><b>At risk</b> 15 to 30 cm</span><span class="lg"><i style="background:#fbbc04"></i><b>Wet</b> 5 to 15 cm</span>` +
-      `<span class="src">${esc(c.src)} ${c.chip}</span>`;
+      `<span class="tech">${esc(c.tech)}</span><span class="src">${esc(c.src)} ${c.chip} ${ST[c.st] || ''}</span>`;
   } else {
     b.className = 'scard' + (c.lim ? ' lim' : '');
-    b.innerHTML = `${c.n ? `<span class="step">${c.n}</span>` : ''}<span class="hd">${svgI(c.ic)}<b>${esc(c.t)}</b></span><span class="p">${esc(c.p)}</span><span class="src">${esc(c.src)} ${c.chip}</span>`;
+    b.innerHTML = `${c.n ? `<span class="step">${c.n}</span>` : ''}<span class="hd">${svgI(c.ic)}<b>${esc(c.t)}</b></span><span class="p">${esc(c.p)}</span><span class="tech">${esc(c.tech)}</span><span class="src">${esc(c.src)} ${c.chip} ${ST[c.st] || ''}</span>`;
   }
   b.onclick = (e) => { e.stopPropagation(); show(c); }; c.el = b;
   if (c.at) {
@@ -251,14 +279,15 @@ function card(c) {
 function buildCallouts() {
   $('cleaders').innerHTML = '<defs><marker id="cArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" fill="currentColor"/></marker></defs>';
   const box = $('ccallouts');
+  const key = document.createElement('div'); key.className = 'szone key'; key.innerHTML = '<div class="key-st">' + ST.in + ' ' + ST.dev + ' ' + ST.wait + ' ' + ST.plan + '</div>' + (M.scenario ? `<p class="scn"><b>Water shown:</b> ${esc(M.scenario)}. Real model run.</p>` : '');
   const top = document.createElement('div'); top.className = 'szone top';
   top.innerHTML = '<p class="zt"><b>1</b> What falls on it</p>';
   const L = document.createElement('div'); L.className = 'szone left'; L.innerHTML = '<p class="zt"><b>2</b> What the ground does with it</p>';
   const Rr = document.createElement('div'); Rr.className = 'szone right'; Rr.innerHTML = '<p class="zt"><b>3</b> What the model does, and what comes out</p>';
   STORY.forEach((c) => ({ top, left: L, right: Rr }[c.zone]).appendChild(card(c)));
-  box.append(top, L, Rr);
+  box.append(key, top, L, Rr);
   const chk = $('cchecks'); if (chk) chk.innerHTML = '<div class="th"><span><b class="stepi">6</b> Checked against what really happened</span><em>never fed into the model, only used to check it afterwards</em></div><div class="tchecks">' +
-    CHECKS.map((c, i) => `<button type="button" class="tcard" data-i="${i}">${svgI(c.ic)}<span class="tx"><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span></span></button>`).join('') + '</div>';
+    CHECKS.map((c, i) => `<button type="button" class="tcard${c.st === 'wait' ? ' lim' : ''}" data-i="${i}">${svgI(c.ic)}<span class="tx"><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span><span class="src">${ST[c.st]}</span></span></button>`).join('') + '</div>';
   if (chk) chk.querySelectorAll('button').forEach((b) => { const c = CHECKS[+b.dataset.i]; b.onclick = () => window.MFW && window.MFW.openPanel('Checked against reality', c.t, c.s, c.nodes); });
 }
 function show(c) { mark(c.id); if (window.MFW) window.MFW.openPanel(c.engine ? c.k : (c.zone === 'top' ? 'What falls on it' : c.zone === 'left' ? 'What the ground does' : 'What the model does'), c.t, c.p, c.nodes); }
@@ -276,18 +305,22 @@ function layout() {
     if (!c.ln) return; const p = screen(c); const show_ = p && EX < 0.5; c.g.style.display = show_ ? '' : 'none'; if (!show_) return;
     const r = c.el.getBoundingClientRect(); let x0, y0, d;
     if (c.zone === 'top') { x0 = r.left - R.left + r.width / 2; y0 = r.bottom - R.top + 2; d = `M${x0},${y0} C${x0},${(y0 + p.y) / 2} ${p.x},${(y0 + p.y) / 2} ${p.x},${p.y - 4}`; }
+    else if (c.zone === 'right') { x0 = r.left - R.left - 2; y0 = r.top - R.top + 30; d = `M${x0},${y0} C${(x0 + p.x) / 2},${y0} ${(x0 + p.x) / 2},${p.y} ${p.x + 4},${p.y}`; }
     else { x0 = r.right - R.left + 2; y0 = r.top - R.top + r.height / 2; d = `M${x0},${y0} C${(x0 + p.x) / 2},${y0} ${(x0 + p.x) / 2},${p.y} ${p.x - 4},${p.y}`; }
     c.ln.setAttribute('d', d); c.halo.setAttribute('d', d);
   });
 }
 
-function setAnchors() {
+function setAnchors(R) {
   // seen from the north: the front face (fy = 0) is the cut through the park; its left end on screen is the east end (fx -> 1)
   const A = (p, L = 0) => ({ p, L }), fy = 0, fx = 0.82, face = (d) => new THREE.Vector3(toX(fx), hAt(fx, fy) - d, toZ(fy) - 0.05);
   const meanTop = H.reduce((a, b) => a + b, 0) / H.length, top = hAt(fx, fy), wt = (top - 2.6) * 0.4 + (meanTop - 3.6) * 0.6;
   Object.assign(anchors, {
     skyL: A(new THREE.Vector3(toX(0.72), HMAX + 9, toZ(0.45)), 1), skyR: A(new THREE.Vector3(toX(0.3), HMAX + 9, toZ(0.45)), 1),
-    surf: A(face(-0.1)), surf2: A(new THREE.Vector3(toX(0.7), hAt(0.7, 0.05) + 0.6, toZ(0.05))), soilBand: A(face(1.4)), gwLine: A(face(top - wt))
+    closed: (() => { const cl = (R ? R.status : []).filter((r) => r.s === 'closed' || r.s === 'risk').map((r) => r.pts.filter((f) => f[0] > 0.05 && f[0] < 0.95 && f[1] > 0.02 && f[1] < 0.95)).filter((q) => q.length);
+      if (!cl.length) return null; cl.sort((a, b) => Math.min(...a.map((f) => f[1])) - Math.min(...b.map((f) => f[1]))); const q = cl[0][Math.floor(cl[0].length / 2)];
+      return A(new THREE.Vector3(toX(q[0]), hAt(q[0], q[1]) + 0.6, toZ(q[1]))); })(),
+    surf: A(face(-0.1)), surf2: A(new THREE.Vector3(toX(0.7), hAt(0.7, 0.05) + 0.6, toZ(0.05))), soilBand: A(face(1.4)), wetBand: A(new THREE.Vector3(toX(0.72), hAt(0.72, 0) - 0.4, toZ(0) - 0.05)), gwLine: A(face(top - wt))
   });
 }
 
@@ -296,7 +329,9 @@ function fitK() {   // pull the camera back when the space for the block (betwee
   const st = $("cstage"), w = st.clientWidth - (narrow ? 0 : 640), h = st.clientHeight; return Math.max(1, (narrow ? 1.25 : 1.42) / Math.max(0.2, w / h));
 }
 function viewOf() {
-  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); VIEWS.campus = { pos: new THREE.Vector3(0, 48, -124), target: new THREE.Vector3(0, -9, 6) }; }
+  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); const Pn = M.places.boy_n, Ps = M.places.boy_s, mid = [(Pn[0] + Ps[0]) / 2, (Pn[1] + Ps[1]) / 2];   // look straight down Boynton St from the park
+    const dx = toX(Ps[0]) - toX(Pn[0]), dz = toZ(Ps[1]) - toZ(Pn[1]), L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L, tg = new THREE.Vector3(toX(mid[0]), hAt(mid[0], mid[1]) - 4, toZ(mid[1]));
+    VIEWS.campus = { pos: tg.clone().add(new THREE.Vector3(-ux * 118, 50, -uz * 118)), target: tg }; }
   const h = EXT ? VIEWS.layers : VIEWS.campus, k = fitK() * (narrow ? 0.92 : 1); return { pos: h.pos.clone().sub(h.target).multiplyScalar(k).add(h.target), target: h.target.clone() }; }
 function home(animate) {
   const v = viewOf();
@@ -312,9 +347,9 @@ function resize() {
 
 async function init() {
   const st = $('cstage'); narrow = st.clientWidth < 860;
-  const [meta, hb, R, B, fd, fa] = await Promise.all([fetch(DIR + 'meta.json').then((r) => r.json()), fetch(DIR + 'height.bin').then((r) => r.arrayBuffer()),
+  const [meta, hb, R, B, fd, fa, wb] = await Promise.all([fetch(DIR + 'meta.json').then((r) => r.json()), fetch(DIR + 'height.bin').then((r) => r.arrayBuffer()),
     fetch(DIR + 'roads.json').then((r) => r.json()), fetch(DIR + 'buildings.json').then((r) => r.json()).catch(() => null),
-    fetch(DIR + 'flowdir.bin').then((r) => r.arrayBuffer()), fetch(DIR + 'flowacc.bin').then((r) => r.arrayBuffer())]);
+    fetch(DIR + 'flowdir.bin').then((r) => r.arrayBuffer()), fetch(DIR + 'flowacc.bin').then((r) => r.arrayBuffer()), fetch(DIR + 'water.bin').then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null)]);
   M = meta; G = M.grid; const u = new Uint16Array(hb), mpu = M.width_m / S; H = new Float32Array(u.length);
   for (let i = 0; i < u.length; i++) { H[i] = (u[i] / 65535 * (M.zmax - M.zmin)) * VE / mpu; if (H[i] > HMAX) HMAX = H[i]; }
   renderer = new THREE.WebGLRenderer({ canvas: $('cgl'), antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -328,7 +363,7 @@ async function init() {
   slab(tMod, THICK, sideMat(0xe8eef6), 0);
   slabs[2].children.forEach((ch) => { ch.userData.slabPart = true; });
   const acc8 = new Uint8Array(fa), acc = new Float32Array(acc8.length); for (let i = 0; i < acc8.length; i++) acc[i] = Math.pow(2, acc8[i] / 16);
-  buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(); applyEx();
+  buildRain(); buildParticles(new Uint8Array(fd), acc); if (wb && M.water_grid) buildWater(wb); setAnchors(R); applyEx();
   controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
   controls.minDistance = 18; controls.maxDistance = 700; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
   buildCallouts(); addEventListener('resize', resize); resize(); home();
@@ -343,7 +378,7 @@ async function init() {
   $('cloading').classList.add('gone');
   let last = 0, lt = 0;
   renderer.setAnimationLoop((t) => {
-    if (playing) { particles.step(Math.min(0.12, (t - lt) / 1000 * 2.2)); rain.step(t); }
+    if (playing) { particles.step(Math.min(0.12, (t - lt) / 1000 * 2.2)); rain.step(t); if (waterMat) waterMat.uniforms.rise.value = Math.min(1, ((t / 1000) % 14) / 8); }
     if (Math.abs(EX - EXT) > 1e-3) { EX += (EXT - EX) * (reduced ? 1 : 0.07); applyEx(); } else if (EX !== EXT) { EX = EXT; applyEx(); }
     if (camAnim) { camAnim.k = Math.min(1, camAnim.k + 0.035); const e = camAnim.k < 0.5 ? 2 * camAnim.k * camAnim.k : 1 - Math.pow(-2 * camAnim.k + 2, 2) / 2;
       camera.position.lerpVectors(camAnim.p0, camAnim.p1, e); controls.target.lerpVectors(camAnim.t0, camAnim.t1, e); if (camAnim.k >= 1) { camAnim = null; resort(); } }
