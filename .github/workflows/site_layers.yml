@@ -1,37 +1,51 @@
-name: Site figure layers (real input data for one box; no flood solve)
-# Builds the model's input pack for the Leominster catalogue box (LF_SURR_SAVE=1), stops the run before the flood solve,
-# then adds NLCD land cover and a NAIP aerial image (proto/site_layers.py). Output: drafts/layers/data/ (not published).
+name: Site figure layers (real input data for one box; optional flood solve)
+# Builds the model's input pack for one box (LF_SURR_SAVE=1) and adds NLCD land cover and a NAIP aerial image
+# (proto/site_layers.py). With solve=true the deployed flood model also runs and its peak depth is packed (proto/parity_pack.py).
+# Output: drafts/layers/<name>/ (not published).
 on:
   workflow_dispatch:
+    inputs:
+      name: {description: 'output folder name', default: 'wpi'}
+      box: {description: 'x0,y0,x1,y1 EPSG:26986', default: '171552,888616,177552,894616'}
+      res: {description: 'grid metres', default: '10'}
+      storm: {description: 'catalogue storm id', default: 'aug2021'}
+      hours: {description: 'hours', default: '18'}
+      solve: {description: 'run the flood solve too (true/false)', default: 'false'}
+      px: {description: 'aerial image size in pixels', default: '2400'}
 permissions:
   contents: write
 jobs:
   layers:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -q && sudo apt-get install -y -q cmake libnetcdf-dev netcdf-bin libnuma-dev
       - run: pip install -q numpy scipy pandas requests pygrib pyproj pillow huggingface_hub matplotlib netCDF4 shapely scikit-learn tifffile
-      - name: model input pack (stops before the solve)
+      - name: model inputs (and the flood solve if asked)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           LF_WORK: ${{ runner.temp }}/lf
           LF_NO_UPLOAD: '1'
-          BOX: '162000,908000,182000,928000'
-          RES: '20'
-          STORM: sep2023
-          HOURS: '36'
-          RUN_DIR: runs/site_layers
+          BOX: ${{ inputs.box }}
+          RES: ${{ inputs.res }}
+          STORM: ${{ inputs.storm }}
+          HOURS: ${{ inputs.hours }}
+          RUN_DIR: runs/site_layers_${{ inputs.name }}
           LF_LOSS: cn
           LF_CN_SCALE: '0.88'
           LF_PARITY: '1'
           LF_INFIL_MMH: '2'
+          LF_QOUT: '1'
+          LF_NOTCH_FIX: '1'
+          LF_CHAN_ENFORCE: '1'
           LF_SURR_SAVE: '1'
           LF_SURR_RAIN_COARSEN: '5'
           LF_SURR_OUT: ${{ runner.temp }}/surr.npz
           GIT_SHA: ${{ github.sha }}
+          OMP_NUM_THREADS: '4'
         run: |
+          if [ "${{ inputs.solve }}" = "true" ]; then python sim/colab/w9_lisflood.py > w9.txt 2>&1 || true; tail -30 w9.txt; exit 0; fi
           python sim/colab/w9_lisflood.py > w9.txt 2>&1 &
           PID=$!
           for i in $(seq 1 480); do
@@ -42,10 +56,16 @@ jobs:
           kill $PID 2>/dev/null || true
           tail -40 w9.txt
           test -f "$LF_SURR_OUT"
-      - name: land cover + aerial image
-        run: python proto/site_layers.py fetch --surr ${{ runner.temp }}/surr.npz --out drafts/layers/data
+      - name: land cover + aerial image (+ flood depth)
+        run: |
+          D=drafts/layers/${{ inputs.name }}
+          python proto/site_layers.py fetch --surr ${{ runner.temp }}/surr.npz --out $D --px ${{ inputs.px }}
+          OUTDIR=$(ls -d ${{ runner.temp }}/lf/run_*/out 2>/dev/null | head -1)
+          if [ "${{ inputs.solve }}" = "true" ] && [ -n "$OUTDIR" ]; then python proto/parity_pack.py $OUTDIR $D; cp $OUTDIR/meta.json $D/flood_meta.json || true; fi
+          tail -c 20000 w9.txt > $D/w9_tail.txt
+          ls -la $D
       - name: commit
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add drafts/layers/data; git commit -qm "site figure layers (Leominster box)" || exit 0
+          git add drafts/layers; git commit -qm "site figure layers: ${{ inputs.name }}" || exit 0
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep 10; done
