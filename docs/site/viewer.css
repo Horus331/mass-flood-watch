@@ -723,3 +723,17 @@ body.print-list #card>*:not(#rank){display:none!important}body.print-list .rank-
 .art-t{color:#B35806;font-style:italic}
 
 .pi-t{color:var(--ink,inherit)}.pi-t b{font-weight:650}
+
+/* site bar (15 Nov 2026): the site opens on the model; the other pages are one click away */
+.sitebar{position:absolute;z-index:6;top:12px;left:calc(var(--side-w) + 70px);display:flex;gap:6px;padding:5px;border-radius:999px;background:var(--surface);box-shadow:var(--shadow-1);border:1px solid var(--rule)}
+.sitebar a{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 13px;border-radius:999px;text-decoration:none;color:var(--ink-2);font-weight:650;font-size:13px;white-space:nowrap}
+.sitebar a:hover{background:var(--surface-2)}
+.sitebar a:first-child{background:var(--accent);color:var(--on-accent)}
+.sitebar a:first-child:hover{background:var(--accent-ink)}
+.sitebar svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.embed .sitebar,.place-on .sitebar,.story-on .sitebar{display:none}
+html.side-off .sitebar{left:60px}
+.sitebar{transition:left .38s var(--spring)}
+@media (max-width:1280px) and (min-width:721px){.sitebar a:not(:first-child) span{display:none}.sitebar a{padding:0 10px}}
+@media (max-width:720px){.sitebar{position:relative;top:auto;left:auto;right:auto;margin:8px;flex-wrap:wrap;justify-content:center;border-radius:14px}.sitebar a{flex:1 1 auto;justify-content:center}.sitebar a span{display:inline}}
+@media print{.sitebar{display:none}}

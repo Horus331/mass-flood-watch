@@ -1,0 +1,437 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Tree (printable) · Mass Flood Watch</title><link rel="icon" href="wpi-logo.svg"><link rel="stylesheet" href="model-tree/lib/katex.min.css"><style>:root{--bg:#fff;--ink:#1f2328;--muted:#5d6670;--line:#ddd}@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#14171b;--ink:#e8eaed;--muted:#a3abb4;--line:#33393f}}body{margin:0 auto;max-width:980px;padding:24px 16px 60px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif}h2{border-bottom:2px solid var(--line);padding-bottom:4px;margin-top:36px}section{break-inside:avoid;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0}h3{margin:0 0 4px}.st{font-size:12px;font-weight:400;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px}.plain{font-size:16px}.meta,.src,small{color:var(--muted)}table{border-collapse:collapse;width:100%}td{border-top:1px solid var(--line);padding:4px;vertical-align:top}.tex{overflow-x:auto}a{color:#1f5f99}</style></head><body><h1>Model tree (printable)</h1><p>The content of the <a href="model-tree.html">interactive model tree</a> as one page. Parameter values are read from the code (<code>proto/model_tree.py</code>, check: <a href="model-tree/CHECK.md">CHECK.md</a>).</p><h2>1. Inputs</h2>
+<section id='mrms'><h3>Observed rain (radar + gauges) <span class='st'>live</span></h3><p class='plain'>Radar plus rain gauges tell us how much rain fell on every 1 km square, every hour.</p><p>NOAA MRMS MultiSensor QPE 01H Pass2: radar precipitation bias-corrected with rain gauges. Before 14 Oct 2020 the gauge-corrected GaugeCorr QPE (IEM archive); RadarOnly only as a last resort, recorded per hour.</p>
+<p class='meta'>mm per hour · 0.01° (~1 km), hourly · Oct 2020 → today (GaugeCorr before)</p>
+<p><b>Out:</b> rain r(x, y, t), mm per hour on 20 m cells</p>
+<p><b>Goes to:</b> <a href='#rain_grid'>Rain on every cell</a> (observed rain, mm/h (1 km)); <a href='#spinup'>Radar spin-up + nowcast</a> (12 h observed rain)</p>
+<p><b>Cannot capture:</b> Radar under-reads in the heaviest convective cores and far from the radar; gauges are sparse.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.nssl.noaa.gov/projects/mrms/'>NOAA NSSL / NCEP, MRMS MultiSensor QPE 01H Pass2 (AWS noaa-mrms-pds)</a>; <a href='https://doi.org/10.1175/BAMS-D-14-00174.1'>Zhang J. et al. (2016) Multi-Radar Multi-Sensor (MRMS) quantitative precipitation estimation. BAMS 97(4)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> mrms_sources / mrms_sample</p>
+</section>
+<section id='hrrr'><h3>Forecast rain + 2 m temperature (HRRR) <span class='st'>live</span></h3><p class='plain'>A weather-forecast model says how much rain will fall in the next two days, every hour, on 3 km squares.</p><p>NOAA HRRR v4 hourly precipitation buckets (APCP) and 2 m air temperature; 48 h cycles at 00/06/12/18 UTC, 18 h cycles every hour.</p>
+<p class='meta'>mm per hour; °C · 3 km, hourly · live, each cycle</p>
+<p><b>Out:</b> forecast rain and temperature fields per forecast hour</p>
+<p><b>Goes to:</b> <a href='#nbhd'>Spreading the forecast (20 km / 90th percentile)</a> (forecast rain, mm/h (3 km)); <a href='#phase'>Rain or snow</a> (2 m temperature, °C); <a href='#gate'>Rain gate</a> (town 6 h / 24 h maxima)</p>
+<p><b>Cannot capture:</b> A 3 km forecast cannot place a thunderstorm to the street; storms are often displaced by tens of km.</p>
+<p class="src"><b>Sources:</b> <a href='https://rapidrefresh.noaa.gov/hrrr/'>NOAA GSL / NCEP, High-Resolution Rapid Refresh (HRRR) v4 (AWS noaa-hrrr-bdp-pds)</a>; <a href='https://doi.org/10.1175/WAF-D-21-0151.1'>Dowell D.C. et al. (2022) The High-Resolution Rapid Refresh (HRRR): an hourly updating convection-allowing forecast model. Part I. Weather and Forecasting 37(8)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/hrrr_rain.py'><code>sim/colab/hrrr_rain.py</code></a> hourly / nbhd; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/lf_phase.py'><code>sim/colab/lf_phase.py</code></a> tmp2m</p>
+</section>
+<section id='lidar'><h3>Ground height (lidar) <span class='st'>live</span></h3><p class='plain'>Laser scans from aircraft measured the height of the ground everywhere, so we know which way water runs.</p><p>USGS 3DEP lidar-derived bare-earth DEM at 10 m (tiles), quality level 2.</p>
+<p class='meta'>m (NAVD88) · 10 m · static</p>
+<p><b>Out:</b> terrain z (m) at 10 m</p>
+<p><b>Goes to:</b> <a href='#dem20'>20 m terrain grid</a> (z at 10 m); <a href='#crest'>Road-crest height</a> (highest 10 m cell)</p>
+<p><b>Cannot capture:</b> Bare earth hides pipes and culverts under roads; bridges and decks are removed.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.usgs.gov/3d-elevation-program'>USGS 3D Elevation Program (3DEP), 1/3 arc-second and lidar-derived 10 m DEM</a>; <a href='https://www.usgs.gov/ngp-standards-and-specifications/lidar-base-specification-online'>USGS Lidar Base Specification (quality level 2: RMSEz ≤ 10 cm)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> inputs (dem10)</p>
+</section>
+<section id='nhd'><h3>Streams (NHDPlus HR) <span class='st'>live</span></h3><p class='plain'>A national map of every stream and river tells us where water channels already exist.</p><p>USGS NHDPlus HR flowlines with drainage area; bankfull width and depth from regional curves.</p>
+<p class='meta'>m (width, depth); km² (drainage area) · flowlines rasterised to 30 m (channels30) · static</p>
+<p><b>Out:</b> channel mask, bankfull width / depth</p>
+<p><b>Goes to:</b> <a href='#channels'>Rivers carved to bankfull</a> (flowlines, bankfull width/depth); <a href='#manning'>Surface roughness (Manning n)</a> (channel mask)</p>
+<p><b>Cannot capture:</b> Small ditches and piped streams are missing or misplaced.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.usgs.gov/national-hydrography/nhdplus-high-resolution'>USGS NHDPlus High Resolution</a>; <a href='https://doi.org/10.1111/jawr.12282'>Bieger K., Rathjens H., Allen P.M., Arnold J.G. (2015) Development and evaluation of bankfull hydraulic geometry relationships for the physiographic regions of the United States. JAWRA 51(3)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> channels30 burn</p>
+</section>
+<section id='ssurgo'><h3>Soils (SSURGO) <span class='st'>live</span></h3><p class='plain'>Soil maps say how quickly the ground can soak up rain: sandy soil drinks fast, clay slowly.</p><p>USDA NRCS SSURGO hydrologic soil group A–D (and shallow water table → D).</p>
+<p class='meta'>class A–D · rasterised to 30 m · static</p>
+<p><b>Out:</b> hydrologic soil group per cell</p>
+<p><b>Goes to:</b> <a href='#cn'>Runoff: curve number (TR-55)</a> (soil group A–D)</p>
+<p><b>Cannot capture:</b> Map units are coarse; soil changes within a few metres are not resolved.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.nrcs.usda.gov/resources/data-and-reports/soil-survey-geographic-database-ssurgo'>USDA NRCS Soil Survey Geographic Database (SSURGO), hydrologic soil group</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> LF_LOSS=cn (hf_grid soils30)</p>
+</section>
+<section id='nlcd'><h3>Land cover + pavement (NLCD 2021) <span class='st'>live</span></h3><p class='plain'>Satellite maps say which ground is forest, grass or pavement; pavement makes almost all rain run off.</p><p>MRLC NLCD 2021 land-cover classes and fractional impervious surface.</p>
+<p class='meta'>class; % impervious · 30 m · 2021</p>
+<p><b>Out:</b> impervious fraction per cell</p>
+<p><b>Goes to:</b> <a href='#cn'>Runoff: curve number (TR-55)</a> (impervious %); <a href='#manning'>Surface roughness (Manning n)</a> (impervious %)</p>
+<p><b>Cannot capture:</b> 30 m pixels blur narrow streets and parking lots.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.mrlc.gov/'>MRLC National Land Cover Database 2021 (land cover + fractional impervious surface)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> manning_map</p>
+</section>
+<section id='roads'><h3>Roads (MassDOT Road Inventory) <span class='st'>live</span></h3><p class='plain'>The state road list gives every road piece, how big it is and how many cars use it per day.</p><p>MassDOT Road Inventory: District 3 road graph (segments, functional class, speed, AADT, connectivity).</p>
+<p class='meta'>segments; vehicles/day · segment geometry (metres) · current inventory</p>
+<p><b>Out:</b> road segments + graph links (docs/graph_segments.json)</p>
+<p><b>Goes to:</b> <a href='#roadpts'>Road sampled every 10 m</a> (segments); <a href='#graph'>Road network graph</a> (graph links, class, AADT)</p>
+<p><b>Cannot capture:</b> Some AADT values are defaults; private roads and driveways are not in the inventory.</p>
+<p class="src"><b>Sources:</b> <a href='https://geo-massdot.opendata.arcgis.com/'>MassDOT Road Inventory (segments, functional class, AADT) via the MassDOT open-data portal</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/infra/impacts.py'><code>sim/infra/impacts.py</code></a> road_points</p>
+</section>
+<section id='crossings'><h3>Culverts and stream crossings <span class='st'>live</span></h3><p class='plain'>A list of every place where a road crosses a stream, with the pipe size and condition where it was surveyed.</p><p>Road–stream crossings from the MA Stream Crossings Project / NAACC surveys (size, shape, condition, inlet blockage), USGS/TIGER road–stream intersections, MassDOT structures and the NBI (bridges).</p>
+<p class='meta'>m (span, rise); class · points · surveys 2010s–2025</p>
+<p><b>Out:</b> crossing list (docs/network/crossings_all.json)</p>
+<p><b>Goes to:</b> <a href='#notch'>Road–stream crossing notch (3 × 3 cells)</a> (crossing points); <a href='#culvert'>Culvert capacity (HDS-5)</a> (size, shape, blockage)</p>
+<p><b>Cannot capture:</b> Only part of the crossings have a surveyed size or condition.</p>
+<p class="src"><b>Sources:</b> <a href='https://naacc.org/'>North Atlantic Aquatic Connectivity Collaborative (NAACC) road-stream crossing surveys</a>; <a href='https://streamcontinuity.org/'>Massachusetts Stream Crossings / UMass Stream Continuity Project</a>; <a href='https://www.fhwa.dot.gov/bridge/nbi.cfm'>FHWA National Bridge Inventory</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> open_crossings / is_bridge</p>
+</section>
+<section id='census'><h3>People (2020 Census blocks) <span class='st'>live</span></h3><p class='plain'>The Census tells us how many people live on each block, so we can count who gets cut off.</p><p>2020 Census blocks, population at each block internal point.</p>
+<p class='meta'>persons · block · 2020</p>
+<p><b>Out:</b> population per segment</p>
+<p><b>Goes to:</b> <a href='#access'>Emergency access standards</a> (people per block)</p>
+<p><b>Cannot capture:</b> Night-time (home) population only.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html'>US Census Bureau, 2020 Census blocks (TIGER/Line + P1 population)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/census_blocks.py'><code>proto/census_blocks.py</code></a> </p>
+</section>
+<section id='facilities'><h3>Hospitals, fire, police <span class='st'>live</span></h3><p class='plain'>Where the hospitals, fire stations and police stations are, so we can check who can still reach them.</p><p>OpenStreetMap hospitals, fire stations, police (Overpass extract, Oct 2026).</p>
+<p class='meta'>points · points · Oct 2026 extract</p>
+<p><b>Out:</b> facility points (docs/network/facilities.json)</p>
+<p><b>Goes to:</b> <a href='#access'>Emergency access standards</a> (facility points)</p>
+<p><b>Cannot capture:</b> OSM completeness varies; no staffing or capacity data.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.openstreetmap.org/'>OpenStreetMap contributors (hospitals, fire and police stations, via Overpass)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/resilience.py'><code>proto/resilience.py</code></a> access</p>
+</section>
+<h2>2. Grids</h2>
+<section id='dem20'><h3>20 m terrain grid <span class='st'>live</span></h3><p class='plain'>The ground heights are averaged into 20 m squares, a 1000 × 1000 grid for each 20 km box.</p><p>10 m DEM tiles averaged to RES = 20 m; each run covers a 20 × 20 km box in EPSG:26986 (MA State Plane, m).</p>
+<p class='meta'>m · 20 m</p>
+<table><tr><td>grid cell size<br><small>set by us (speed vs detail; 10 m tested) · .github/workflows/forecast.yml env RES</small></td><td><b>20 m</b></td></tr></table>
+<p><b>Out:</b> z(x, y), m on 20 m cells</p>
+<p><b>Goes to:</b> <a href='#channels'>Rivers carved to bankfull</a> (z, 20 m)</p>
+<p><b>Cannot capture:</b> A 20 m cell cannot hold a gutter or curb line (&lt; 1 m wide).</p>
+<p class="src"><b>Sources:</b> <a href='https://www.usgs.gov/3d-elevation-program'>USGS 3D Elevation Program (3DEP), 1/3 arc-second and lidar-derived 10 m DEM</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> main (inputs)</p>
+</section>
+<section id='channels'><h3>Rivers carved to bankfull <span class='st'>live</span></h3><p class='plain'>Rivers are dug into the grid so they can carry water the way real channels do.</p><p>NHDPlus HR flowline cells lowered by a volume-equivalent bankfull burn; with the live terrain fix, flowlines (incl. buried conduits) are enforced as continuous downhill conveyance.</p>
+<p class='meta'>m</p>
+<table><tr><td>flowline enforcement (live terrain fix T2)<br><small>pre-registered terrain test, live 5 Nov 2026 · .github/workflows/forecast.yml env LF_CHAN_ENFORCE</small></td><td><b>1 </b></td></tr><tr><td>maximum enforcement cut<br><small>set by us (cap against DEM artefacts) · sim/colab/w9_lisflood.py default of LF_CHAN_ENFORCE_MAX</small></td><td><b>10 m</b></td></tr></table>
+<p><b>Out:</b> z with channels</p>
+<p><b>Goes to:</b> <a href='#notch'>Road–stream crossing notch (3 × 3 cells)</a> (z with channels)</p>
+<p><b>Cannot capture:</b> Bankfull geometry from regional curves, not surveyed.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.usgs.gov/national-hydrography/nhdplus-high-resolution'>USGS NHDPlus High Resolution</a>; <a href='https://doi.org/10.1111/jawr.12282'>Bieger K., Rathjens H., Allen P.M., Arnold J.G. (2015) Development and evaluation of bankfull hydraulic geometry relationships for the physiographic regions of the United States. JAWRA 51(3)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> enforce_channels</p>
+</section>
+<section id='notch'><h3>Road–stream crossing notch (3 × 3 cells) <span class='st'>live</span></h3><p class='plain'>Where a stream goes under a road, we cut a small gap in the road so the water can pass, like the real pipe.</p><p>At every mapped crossing a 3 × 3-cell notch is cut through the road fill to the lowest ground within 40 m; with the live fix, levels are read from the un-notched DEM and the notch is joined to its outlet.</p>
+<p class='meta'>m</p>
+<table><tr><td>search radius for the notch level<br><small>set by us (two cells each side) · sim/colab/w9_lisflood.py default of LF_BREACH_M</small></td><td><b>40 m</b></td></tr><tr><td>notch fix (live terrain fix T2)<br><small>pre-registered terrain test, live 5 Nov 2026 · .github/workflows/forecast.yml env LF_NOTCH_FIX</small></td><td><b>1 </b></td></tr></table>
+<p><b>Out:</b> z with crossings opened</p>
+<p><b>Goes to:</b> <a href='#breach'>Pit breaching (ponds kept)</a> (z with notches)</p>
+<p><b>Cannot capture:</b> A notch passes far more water than a small or blocked pipe; stream water in the notch can read as road depth (handled by the rain-onset rule).</p>
+<p class="src"><b>Sources:</b> <a href='https://naacc.org/'>North Atlantic Aquatic Connectivity Collaborative (NAACC) road-stream crossing surveys</a>; <a href='https://streamcontinuity.org/'>Massachusetts Stream Crossings / UMass Stream Continuity Project</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> open_crossings</p>
+</section>
+<section id='breach'><h3>Pit breaching (ponds kept) <span class='st'>live</span></h3><p class='plain'>Fake holes in the ground map are opened so water can drain; real ponds deeper than 4 m are kept.</p><p>Least-cost breaching of every closed depression to the box edge (Barnes et al. 2014 priority-flood with carving), 4-connected (the solver exchanges water across cell faces).</p>
+<p class='meta'>m</p>
+<table><tr><td>maximum cut<br><small>set by us (deeper basins are real ponds / quarries) · sim/colab/w9_lisflood.py default of LF_BREACH_MAX</small></td><td><b>4 m</b></td></tr><tr><td>4-connected carving<br><small>set by us (LISFLOOD-FP exchanges water across faces only) · sim/colab/w9_lisflood.py default of LF_BREACH_D4</small></td><td><b>1 </b></td></tr></table>
+<p><b>Out:</b> model DEM z (m)</p>
+<p><b>Goes to:</b> <a href='#lisflood'>LISFLOOD-FP 8.2 flood engine</a> (model DEM z, m)</p>
+<p><b>Cannot capture:</b> A carved one-cell path is a stand-in for an unknown pipe.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1016/j.cageo.2013.04.024'>Barnes R., Lehman C., Mulla D. (2014) Priority-flood: an optimal depression-filling and watershed-labeling algorithm for digital elevation models. Computers &amp; Geosciences 62</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> breach_depressions</p>
+</section>
+<section id='crest'><h3>Road-crest height <span class='st'>live</span></h3><p class='plain'>We remember the highest point of the ground in each square, which is usually the road top.</p><p>Highest 10 m lidar cell inside each 20 m cell (z_raw_max10), before any hydraulic edit; bridge decks read depth from their approaches.</p>
+<p class='meta'>m</p>
+<p><b>Out:</b> z_crest (m)</p>
+<p><b>Goes to:</b> <a href='#freeboard'>Freeboard (water beside the road)</a> (z_crest, m)</p>
+<p><b>Cannot capture:</b> Lidar RMSEz ≈ 0.10 m.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.usgs.gov/3d-elevation-program'>USGS 3D Elevation Program (3DEP), 1/3 arc-second and lidar-derived 10 m DEM</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> z_raw.npz; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> deck / approach rules</p>
+</section>
+<section id='cn'><h3>Runoff: curve number (TR-55) <span class='st'>live</span></h3><p class='plain'>For each square we work out how much of the rain runs off instead of soaking in.</p><p>NRCS curve number from hydrologic soil group × NLCD land cover/impervious share, AMC II, scaled and clipped; cumulative SCS-CN rain excess per cell; then a steady loss is taken out of each hour of excess.</p>
+<p class='meta'>mm · per cell, hourly</p>
+<div class='tex' data-tex='Q=\frac{(P-0.2S)^2}{P+0.8S}\;(P&gt;0.2S),\qquad S=\frac{25400}{CN_{\mathrm{eff}}}-254,\qquad CN_{\mathrm{eff}}=\mathrm{clip}(c\cdot CN_{II},30,98)'></div>
+<table><tr><td>antecedent moisture class<br><small>TR-55 average condition · .github/workflows/forecast.yml env LF_CN_AMC</small></td><td><b>II </b></td></tr><tr><td>curve-number scale c<br><small>calibrated on Leominster Sep 2023 (two USGS gauges, pre-set rule; docs/proto/parity/BASELINE.md) · .github/workflows/forecast.yml env LF_CN_SCALE</small></td><td><b>0.88 </b></td></tr><tr><td>steady loss after runoff<br><small>set by us (soak-in of ponded water and minor storm drains; tested 0 / 1 / 2) · .github/workflows/forecast.yml env LF_INFIL_MMH</small></td><td><b>2 mm/h</b></td></tr><tr><td>loss taken from the hourly excess (parity mode)<br><small>CPU/GPU parity audit (docs/proto/parity/PARITY.md) · .github/workflows/forecast.yml env LF_PARITY</small></td><td><b>1 </b></td></tr></table>
+<p><b>Out:</b> effective rain r_eff, mm per hour per cell</p>
+<p><b>Goes to:</b> <a href='#lisflood'>LISFLOOD-FP 8.2 flood engine</a> (effective rain r_eff, m/s)</p>
+<p><b>Cannot capture:</b> One global scale; the scale is below 1 although Sept 2023 was wet: it stands in for losses the model lacks.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.govinfo.gov/content/pkg/CZIC-gb980-u73-1986/html/CZIC-gb980-u73-1986.htm'>USDA SCS (1986) Urban Hydrology for Small Watersheds, Technical Release 55</a>; <a href='https://directives.nrcs.usda.gov//sites/default/files2/1712930634/Part%20630%20-%20Hydrology.pdf'>USDA NRCS National Engineering Handbook Part 630 Hydrology, Chapter 10 (2004): Estimation of direct runoff from storm rainfall</a>; <a href='https://www.nrcs.usda.gov/resources/data-and-reports/soil-survey-geographic-database-ssurgo'>USDA NRCS Soil Survey Geographic Database (SSURGO), hydrologic soil group</a>; <a href='https://www.mrlc.gov/'>MRLC National Land Cover Database 2021 (land cover + fractional impervious surface)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> LF_LOSS=cn / rain_minus_infil</p>
+</section>
+<section id='manning'><h3>Surface roughness (Manning n) <span class='st'>live</span></h3><p class='plain'>Rough ground (forest) slows water down; smooth pavement and rivers let it move fast.</p><p>Manning n per cell: channels and open water, dense pavement (&gt; 30 % impervious), everything else.</p>
+<p class='meta'>s m^-1/3</p>
+<table><tr><td>channel / water n<br><small>Chow 1959 · sim/colab/w9_lisflood.py default of LF_N_CHAN</small></td><td><b>0.035 </b></td></tr><tr><td>floodplain n<br><small>Chow 1959 flood plains (set by us within the table range) · sim/colab/w9_lisflood.py default of LF_N_FP</small></td><td><b>0.08 </b></td></tr></table>
+<p><b>Out:</b> n(x, y)</p>
+<p><b>Goes to:</b> <a href='#lisflood'>LISFLOOD-FP 8.2 flood engine</a> (roughness n)</p>
+<p><b>Cannot capture:</b> One value per class; not calibrated.</p>
+<p class="src"><b>Sources:</b> Chow V.T. (1959) Open-Channel Hydraulics. McGraw-Hill (Manning n tables; permissible velocities)</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> manning_map</p>
+</section>
+<section id='rain_grid'><h3>Rain on every cell <span class='st'>live</span></h3><p class='plain'>Each 20 m square gets its own rain for every hour: measured rain for a past storm, forecast rain for the next two days.</p><p>Replay: MRMS on every cell. Forecast: 12 h of observed MRMS spin-up, then HRRR (neighbourhood-spread), radar nowcast in the first hours of the issue member, snow held out. Rain minus losses → the solver’s dynamic rain file (NetCDF).</p>
+<p class='meta'>mm/h → m/s · 20 m, hourly</p>
+<p><b>Out:</b> effective rain r_eff(x, y, t)</p>
+<p><b>Goes to:</b> <a href='#cn'>Runoff: curve number (TR-55)</a> (rain P, mm)</p>
+<p><b>Cannot capture:</b> Hourly steps smooth out 5–15 min bursts (sub-hourly rain tested, not adopted).</p>
+<p class="src"><b>Sources:</b> <a href='https://www.nssl.noaa.gov/projects/mrms/'>NOAA NSSL / NCEP, MRMS MultiSensor QPE 01H Pass2 (AWS noaa-mrms-pds)</a>; <a href='https://rapidrefresh.noaa.gov/hrrr/'>NOAA GSL / NCEP, High-Resolution Rapid Refresh (HRRR) v4 (AWS noaa-hrrr-bdp-pds)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> RAIN / write_rain_nc</p>
+</section>
+<h2>3. Flood engine</h2>
+<section id='lisflood'><h3>LISFLOOD-FP 8.2 flood engine <span class='st'>live</span></h3><p class='plain'>The engine moves the water downhill across the 20 m squares, a tiny step at a time, and records how deep it gets everywhere.</p><p>LISFLOOD-FP 8.2 (University of Bristol), 2-D local-inertial (&quot;acceleration&quot;) solver: momentum on cell faces with Manning friction, mass continuity per cell, adaptive time step capped at 1 s; free (outflow) boundaries; CPU (OpenMP) build on GitHub Actions, CUDA build on WPI Turing (same results under the parity settings).</p>
+<p class='meta'>m, m³/s, s · 20 m; time step ≤ 1 s; snapshots every 5 min</p>
+<div class='tex' data-tex='\begin{gathered}q^{t+\Delta t}=\frac{q^{t}-g\,h_f\,\Delta t\,\partial(h+z)/\partial x}{1+g\,\Delta t\,n^{2}\,|q^{t}|\,/\,h_f^{7/3}}\\[6pt]\frac{h^{t+\Delta t}-h^{t}}{\Delta t}=\frac{\sum q_{\mathrm{in}}-\sum q_{\mathrm{out}}}{\Delta x}+r_{\mathrm{eff}}\\[6pt]\Delta t=\min\!\Big(\alpha\,\frac{\Delta x}{\sqrt{g\,h_{\max}}},\;\Delta t_{\max}\Big)\end{gathered}'></div>
+<table><tr><td>parity settings: time-step cap Δt_max = 1 s, soil loss taken from the rain<br><small>CPU/GPU parity audit: 1 s is converged (0.5 s gives the same result); docs/proto/parity/PARITY.md · .github/workflows/forecast.yml env LF_PARITY</small></td><td><b>1 </b></td></tr><tr><td>Courant number α<br><small>LISFLOOD-FP default (cfl 0.7), not changed · stated (not a code setting)</small></td><td><b>0.7 </b></td></tr><tr><td>default floodplain friction (fpfric)<br><small>overridden cell by cell by the Manning map · stated (not a code setting)</small></td><td><b>0.08 </b></td></tr><tr><td>snapshot interval<br><small>set by us (5-min depth frames) · .github/workflows/forecast.yml env LF_SAVEINT</small></td><td><b>300 s</b></td></tr></table>
+<p><b>Out:</b> water depth h(x, y, t) every 5 min; peak depth h_max; speeds; face flows</p>
+<p><b>Goes to:</b> <a href='#depth'>Water depth every 5 minutes</a> (h(x,y,t), m every 5 min); <a href='#velocity'>Water speed and flows</a> (face velocities, flows)</p>
+<p><b>Cannot capture:</b> No pipes, no infiltration of standing water, no sediment or debris.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1016/j.jhydrol.2010.03.027'>Bates P.D., Horritt M.S., Fewtrell T.J. (2010) A simple inertial formulation of the shallow water equations for efficient two-dimensional flood inundation modelling. J. Hydrology 387</a>; <a href='https://doi.org/10.1029/2011WR011570'>de Almeida G.A.M., Bates P., Freer J.E., Souvignet M. (2012) Improving the stability of a simple formulation of the shallow water equations for 2-D flood modeling. Water Resources Research 48</a>; <a href='https://doi.org/10.5194/gmd-14-3577-2021'>Shaw J. et al. (2021) LISFLOOD-FP 8.0: the new discontinuous Galerkin shallow-water solver for multi-core CPUs and GPUs. Geosci. Model Dev. 14</a>; <a href='https://doi.org/10.5281/zenodo.13121102'>LISFLOOD-FP 8.2 source code (Zenodo)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> write_par / run; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> get_lisflood</p>
+</section>
+<section id='depth'><h3>Water depth every 5 minutes <span class='st'>live</span></h3><p class='plain'>The engine’s main answer: how deep the water is on every square, every 5 minutes.</p><p>Depth snapshots (.wd), peak depth (.max) and the snapshot peak; stored as cm grids.</p>
+<p class='meta'>m · 20 m, 5 min</p>
+<p><b>Out:</b> h(x, y, t), m</p>
+<p><b>Goes to:</b> <a href='#roadpts'>Road sampled every 10 m</a> (h at road points); <a href='#freeboard'>Freeboard (water beside the road)</a> (water surface, m); <a href='#gauges'>River gauges</a> (modelled stage rise)</p>
+<p><b>Cannot capture:</b> A flash peak between snapshots is caught by h_max, not by the frames.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> frames / hmax</p>
+</section>
+<section id='velocity'><h3>Water speed and flows <span class='st'>live</span></h3><p class='plain'>How fast the water moves and how much flows through each road crossing.</p><p>Face velocities (.Vx/.Vy) → cell speed, peak depth × speed; face fluxes → flow through crossings.</p>
+<p class='meta'>m/s; m²/s; m³/s · 20 m, 5 min</p>
+<table><tr><td>velocity output<br><small>needed by the fast-water and washout checks · .github/workflows/forecast.yml env LF_VOUT</small></td><td><b>1 </b></td></tr></table>
+<p><b>Out:</b> V(x, y), d·V, Q at crossings</p>
+<p><b>Goes to:</b> <a href='#culvert'>Culvert capacity (HDS-5)</a> (flow at crossing Q, m³/s); <a href='#fastwater'>Depth × speed (vehicle stability)</a> (peak d·V, m²/s); <a href='#washout'>Embankment washout at crossings</a> (speed over the road, m/s); <a href='#edge'>Edge erosion along the road</a> (speed beside the road, m/s)</p>
+<p><b>Cannot capture:</b> Speeds on 20 m cells over steep verges can be numerical (capped at 5 m/s in the edge check).</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> velocity_peaks / cell_speed</p>
+</section>
+<h2>4. Water on each road</h2>
+<section id='roadpts'><h3>Road sampled every 10 m <span class='st'>live</span></h3><p class='plain'>We put a dot every 10 m along every road and read the water depth under each dot.</p><p>Road points densified every RES/2 = 10 m along each segment, mapped to the 20 m depth cell; cells lowered by hydraulic edits (notch, channel, breach) are waterway cells, not road.</p>
+<p class='meta'>m</p>
+<table><tr><td>edited-cell tolerance<br><small>set by us · proto/prototype.py EDIT_TOL_M</small></td><td><b>0.05 m</b></td></tr></table>
+<p><b>Out:</b> depth at each road point</p>
+<p><b>Goes to:</b> <a href='#segdepth'>Road depth d (second-highest point)</a> (depth per point, m)</p>
+<p><b>Cannot capture:</b> Lane-level position is not resolved inside a 20 m cell.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/infra/impacts.py'><code>sim/infra/impacts.py</code></a> road_points</p>
+</section>
+<section id='segdepth'><h3>Road depth d (second-highest point) <span class='st'>live</span></h3><p class='plain'>For each road piece we take the second-deepest dot, so one odd dot cannot close a road on its own.</p><p>Segment depth d = the second-highest depth over the segment’s road points (the highest when it has one point).</p>
+<div class='tex' data-tex='d=\mathrm{top}_2\{h(p)\,:\,p\in\text{road points of the segment}\}'></div>
+<p><b>Out:</b> d per segment, m</p>
+<p><b>Goes to:</b> <a href='#onset'>Only water the storm added</a> (d, m); <a href='#pregnolato'>Slower on wet roads (Pregnolato curve)</a> (depth 5–30 cm); <a href='#pirank'>Ranking by chance of flooding (π)</a> (depth, hours &gt; 15 cm)</p>
+<p><b>Cannot capture:</b> A short dip shorter than 20 m of road is not counted.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> seg_top2</p>
+</section>
+<section id='onset'><h3>Only water the storm added <span class='st'>live</span></h3><p class='plain'>Water that was already there before the rain (a stream in a culvert gap) is not counted as flooding.</p><p>Depth is measured above what stood on the road when the rain began (box-mean rain since start ≥ 1 mm); in forecasts a closure also needs a rise of ≥ 30 cm after onset (P1 rise rule).</p>
+<table><tr><td>rain-onset threshold<br><small>set by us · proto/prototype.py RC_RAIN_ONSET_MM</small></td><td><b>1.0 mm</b></td></tr><tr><td>rise needed after onset<br><small>pre-registered P1 rule, adopted 8 Nov 2026 · proto/forecast.py RISE_CM</small></td><td><b>30.0 cm</b></td></tr></table>
+<p><b>Out:</b> storm-added depth per segment</p>
+<p><b>Goes to:</b> <a href='#pclose'>Ponding → chance of closure</a> (storm-added d, m)</p>
+<p><b>Cannot capture:</b> A road already under water before the storm is not flagged even if it gets deeper by less than 30 cm.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> PROTO_RES_CONSISTENT; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/forecast.py'><code>proto/forecast.py</code></a> rises</p>
+</section>
+<h2>5. How the road fails</h2>
+<section id='pclose'><h3>Ponding → chance of closure <span class='st'>live</span></h3><p class='plain'>If the water on a road is about 30 cm deep (above a car’s door sill), the road is likely closed.</p><p>Closure probability from segment depth with a normal uncertainty; a segment is flagged closed when p ≥ 0.5 (i.e. d ≥ 30 cm).</p>
+<div class='tex' data-tex='p_{\mathrm{close}}=\Phi\!\left(\frac{d-d_0}{\sigma}\right)'></div>
+<table><tr><td>closure depth d₀<br><small>ordinary car stalls / floats around 0.3 m (Shand et al. 2011; Pregnolato et al. 2017: speed 0 at 300 mm) · proto/prototype.py FAIL_M</small></td><td><b>0.3 m</b></td></tr><tr><td>uncertainty σ<br><small>set by us (lidar + model depth error) · proto/prototype.py SIGMA_M</small></td><td><b>0.1 m</b></td></tr><tr><td>flag threshold<br><small>p ≥ 0.5 ⇔ d ≥ d₀ · proto/forecast.py CLOSE_P</small></td><td><b>0.5 </b></td></tr></table>
+<p><b>Out:</b> p_close per segment; closed segments</p>
+<p><b>Goes to:</b> <a href='#graph'>Road network graph</a> (closed segments → removed); <a href='#kofn'>&quot;k of 8&quot;: likely / possible</a> (p_close per member); <a href='#metrics'>Scores</a> (flags and ranking (replays))</p>
+<p><b>Cannot capture:</b> Depth only: a road can fail by erosion with little ponded water.</p>
+<p class="src"><b>Sources:</b> <a href='https://arr.ga.gov.au/'>Shand T.D. et al. (2011) Australian Rainfall and Runoff Project 10: Appropriate Safety Criteria for Vehicles. Stage 2 report P10/S2/020</a>; <a href='https://doi.org/10.1016/j.trd.2017.06.020'>Pregnolato M., Ford A., Wilkinson S.M., Dawson R.J. (2017) The impact of flooding on road transport: a depth-disruption function. Transportation Research Part D 55</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> main (p_close)</p>
+</section>
+<section id='culvert'><h3>Culvert capacity (HDS-5) <span class='st'>live (map layer, not in p_close)</span></h3><p class='plain'>For surveyed pipes we check whether the stream flow is bigger than the pipe can carry before water goes over the road.</p><p>FHWA HDS-5 inlet/outlet-control headwater for surveyed culverts (size, shape, inlet); capacity at road-crest headwater vs the modelled flow, flow uncertain by a lognormal factor; NAACC inlet blockage reduces capacity (Poor 25 %, Critical 50 %). Map layer; not part of p_close by default.</p>
+<div class='tex' data-tex='P_c=\Phi\!\left(\frac{\ln(Q/Q_{\mathrm{crest}})}{\sigma_{\ln Q}}\right),\qquad Q_{\mathrm{crest}}^{\mathrm{blocked}}=(1-B)\,Q_{\mathrm{crest}}'></div>
+<table><tr><td>flow uncertainty σ_lnQ<br><small>set by us (± ~35 % peak flow) · proto/prototype.py Q_SIGMA_LN</small></td><td><b>0.3 </b></td></tr><tr><td>blockage, NAACC &quot;Poor&quot;<br><small>ARR 2019 Book 6 ch. 6 design blockage range · proto/prototype.py BLOCKAGE[&#x27;Poor&#x27;]</small></td><td><b>0.25 </b></td></tr><tr><td>blockage, NAACC &quot;Critical&quot;<br><small>ARR 2019 Book 6 ch. 6 · proto/prototype.py BLOCKAGE[&#x27;Critical&#x27;]</small></td><td><b>0.5 </b></td></tr><tr><td>crossing → road distance<br><small>set by us · proto/prototype.py XING_SEG_M</small></td><td><b>30.0 m</b></td></tr></table>
+<p><b>Out:</b> P_culvert per crossing (map layer)</p>
+<p><b>Cannot capture:</b> Only surveyed culverts; debris during the storm is not predicted.</p>
+<p class="src"><b>Sources:</b> <a href='https://trid.trb.org/View/1144118'>Schall J.D. et al. (2012) Hydraulic Design of Highway Culverts, 3rd ed. FHWA-HIF-12-026 (HDS-5)</a>; <a href='https://arr.ga.gov.au/'>Ball J. et al. (eds) (2019) Australian Rainfall and Runoff: A Guide to Flood Estimation, Book 6 (blockage ch. 6; safety design criteria ch. 7)</a>; <a href='https://naacc.org/'>North Atlantic Aquatic Connectivity Collaborative (NAACC) road-stream crossing surveys</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> culvert_probability; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/infra/culvert.py'><code>sim/infra/culvert.py</code></a> </p>
+</section>
+<section id='freeboard'><h3>Freeboard (water beside the road) <span class='st'>candidate layer (opt-in, not in p_close)</span></h3><p class='plain'>If the water next to the road comes within 30 cm of the road top, the road edge is at risk.</p><p>Freeboard f = road crest − highest water surface within 30 m; design practice keeps 1 ft (0.30 m) of freeboard; σ combines lidar and model height errors.</p>
+<div class='tex' data-tex='P_{fb}=\Phi\!\left(\frac{m-f}{\sigma_{fb}}\right),\quad f=z_{\mathrm{crest}}-\max(z+h)_{30\,\mathrm{m}}'></div>
+<table><tr><td>design freeboard m<br><small>1 ft freeboard of DOT culvert/ditch criteria under HDS-5 · proto/prototype.py FB_MARGIN_M</small></td><td><b>0.3 m</b></td></tr><tr><td>σ_fb<br><small>√(0.10² + 0.10²): lidar RMSEz and model depth · proto/prototype.py FB_SIGMA_M</small></td><td><b>0.15 m</b></td></tr><tr><td>search radius<br><small>set by us (3 × 3 cells) · proto/prototype.py FB_RADIUS_M</small></td><td><b>30.0 m</b></td></tr></table>
+<p><b>Out:</b> P_freeboard per segment</p>
+<p><b>Cannot capture:</b> Uses peak water surface, not duration.</p>
+<p class="src"><b>Sources:</b> <a href='https://trid.trb.org/View/1144118'>Schall J.D. et al. (2012) Hydraulic Design of Highway Culverts, 3rd ed. FHWA-HIF-12-026 (HDS-5)</a>; <a href='https://www.usgs.gov/ngp-standards-and-specifications/lidar-base-specification-online'>USGS Lidar Base Specification (quality level 2: RMSEz ≤ 10 cm)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> p_freeboard</p>
+</section>
+<section id='fastwater'><h3>Depth × speed (vehicle stability) <span class='st'>candidate layer (opt-in, not in p_close)</span></h3><p class='plain'>Even shallow water can push a car off the road if it moves fast enough.</p><p>Peak depth × speed against the small-car stability limit of the ARR vehicle-safety criteria.</p>
+<div class='tex' data-tex='P_{dv}=\Phi\!\left(\frac{\ln(dV/0.30)}{0.35}\right)'></div>
+<table><tr><td>small-car limit d·V<br><small>Shand et al. 2011 / ARR 2019 Book 6 ch. 7 (H1/H2) · proto/prototype.py DV0_M2S</small></td><td><b>0.3 m²/s</b></td></tr><tr><td>σ (log)<br><small>half the log-range of the vehicle classes · proto/prototype.py DV_SIGMA_LN</small></td><td><b>0.35 </b></td></tr></table>
+<p><b>Out:</b> P_dv per segment</p>
+<p><b>Cannot capture:</b> Snapshot speeds every 5 min can miss short spikes.</p>
+<p class="src"><b>Sources:</b> <a href='https://arr.ga.gov.au/'>Shand T.D. et al. (2011) Australian Rainfall and Runoff Project 10: Appropriate Safety Criteria for Vehicles. Stage 2 report P10/S2/020</a>; <a href='https://arr.ga.gov.au/'>Ball J. et al. (eds) (2019) Australian Rainfall and Runoff: A Guide to Flood Estimation, Book 6 (blockage ch. 6; safety design criteria ch. 7)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> p_fastwater</p>
+</section>
+<section id='washout'><h3>Embankment washout at crossings <span class='st'>candidate layer (opt-in, not in p_close)</span></h3><p class='plain'>When water pours over a road at a stream crossing fast enough, it can wash the road fill away.</p><p>Overtopping speed on unedited road cells near a crossing vs the permissible velocity of grass on easily eroded soil.</p>
+<div class='tex' data-tex='P_{w}=\Phi\!\left(\frac{\ln(V/1.5)}{0.30}\right)'></div>
+<table><tr><td>permissible velocity<br><small>SCS TP-61 / Chow 1959 Table 7-6 · proto/prototype.py V_ERODE_MS</small></td><td><b>1.5 m/s</b></td></tr><tr><td>σ (log)<br><small>spans 1.2–2.1 m/s · proto/prototype.py V_SIGMA_LN</small></td><td><b>0.3 </b></td></tr><tr><td>minimum depth over the road<br><small>set by us · proto/prototype.py ERODE_MIN_H_M</small></td><td><b>0.1 m</b></td></tr></table>
+<p><b>Out:</b> P_washout per segment</p>
+<p><b>Cannot capture:</b> No soil or embankment data; one permissible velocity for all fills.</p>
+<p class="src"><b>Sources:</b> Chow V.T. (1959) Open-Channel Hydraulics. McGraw-Hill (Manning n tables; permissible velocities)</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> p_fastwater (washout term)</p>
+</section>
+<section id='edge'><h3>Edge erosion along the road <span class='st'>candidate layer (opt-in; adds +0 Leominster DPW sites)</span></h3><p class='plain'>Fast, shallow water running along a road can wash out the gravel shoulder even without a deep puddle.</p><p>Both a speed and a shear criterion must be exceeded beside the road (HEC-15 τ = γ h S vs gravel permissible shear), weighted by time above 1 m/s.</p>
+<div class='tex' data-tex='P_{\mathrm{edge}}=\min\big(\Phi(\tfrac{\ln(V/1.0)}{0.46}),\,\Phi(\tfrac{\ln(\gamma h S/11\,\mathrm{Pa})}{0.61})\big)\cdot\min(1,t_{V\ge1}/1\,\mathrm{h})'></div>
+<table><tr><td>permissible speed<br><small>Chow 1959 Tables 7-3 / 7-6 (gravel, loam, thin grass) · proto/prototype.py EDGE_V_MS</small></td><td><b>1.0 m/s</b></td></tr><tr><td>permissible shear<br><small>HEC-15 Table 2.3 (gravel) · proto/prototype.py EDGE_TAU_PA</small></td><td><b>11.0 Pa</b></td></tr><tr><td>reference duration<br><small>CIRIA R116 (Hewlett et al. 1987) duration curves · proto/prototype.py EDGE_T_REF_H</small></td><td><b>1.0 h</b></td></tr></table>
+<p><b>Out:</b> P_edge per segment</p>
+<p><b>Cannot capture:</b> A 20 m grid cannot hold the curb-line flow that causes most edge washouts.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.fhwa.dot.gov/engineering/hydraulics/pubs/05114/05114.pdf'>Kilgore R.T., Cotton G.K. (2005) Design of Roadside Channels with Flexible Linings. FHWA-IF-05-114 (HEC-15)</a>; Chow V.T. (1959) Open-Channel Hydraulics. McGraw-Hill (Manning n tables; permissible velocities)</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/prototype.py'><code>proto/prototype.py</code></a> edge washout layer</p>
+</section>
+<h2>6. Who loses access</h2>
+<section id='graph'><h3>Road network graph <span class='st'>live</span></h3><p class='plain'>All road pieces joined at junctions, so we can find routes like a GPS does.</p><p>District 3 MassDOT graph; free-flow travel time per segment by class; a closed segment is removed, a wet one slowed.</p>
+<p><b>Out:</b> graph with travel times</p>
+<p><b>Goes to:</b> <a href='#dijkstra'>Shortest routes and detours</a> (wet graph)</p>
+<p><b>Cannot capture:</b> Daily traffic only (flat profile); no traffic assignment.</p>
+<p class="src"><b>Sources:</b> <a href='https://geo-massdot.opendata.arcgis.com/'>MassDOT Road Inventory (segments, functional class, AADT) via the MassDOT open-data portal</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/resilience.py'><code>proto/resilience.py</code></a> graph; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/cascade.py'><code>proto/cascade.py</code></a> </p>
+</section>
+<section id='pregnolato'><h3>Slower on wet roads (Pregnolato curve) <span class='st'>live</span></h3><p class='plain'>Cars drive slower through water; at 30 cm they stop.</p><p>Speed reduction by depth (5–30 cm) from the depth–disruption function.</p>
+<div class='tex' data-tex='f(d)=\frac{0.0009\,d^{2}-0.5529\,d+86.94}{86.94}\quad(d\ \text{in mm})'></div>
+<table><tr><td>no effect below<br><small>Pregnolato et al. 2017 · proto/cascade.py SLOW_CM</small></td><td><b>5.0 cm</b></td></tr><tr><td>closed at<br><small>= closure depth · proto/cascade.py CLOSE_CM</small></td><td><b>30.0 cm</b></td></tr></table>
+<p><b>Out:</b> speed factor per segment and frame</p>
+<p><b>Goes to:</b> <a href='#graph'>Road network graph</a> (speed factor)</p>
+<p><b>Cannot capture:</b> Fitted on UK data.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1016/j.trd.2017.06.020'>Pregnolato M., Ford A., Wilkinson S.M., Dawson R.J. (2017) The impact of flooding on road transport: a depth-disruption function. Transportation Research Part D 55</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/cascade.py'><code>proto/cascade.py</code></a> cascade</p>
+</section>
+<section id='dijkstra'><h3>Shortest routes and detours <span class='st'>live</span></h3><p class='plain'>The computer finds the quickest way around closed roads, like a navigation app.</p><p>Dijkstra shortest paths on the wet graph (node-weighted by travel time); detours capped at 30 min; vehicle-hours from AADT.</p>
+<p><b>Out:</b> detour minutes, vehicle-hours of delay</p>
+<p><b>Goes to:</b> <a href='#access'>Emergency access standards</a> (travel times); <a href='#efficiency'>Network resilience (efficiency)</a> (all-pairs travel times)</p>
+<p><b>Cannot capture:</b> No congestion feedback (no equilibrium assignment).</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1007/BF01386390'>Dijkstra E.W. (1959) A note on two problems in connexion with graphs. Numerische Mathematik 1</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/cascade.py'><code>proto/cascade.py</code></a> cascade; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/resilience.py'><code>proto/resilience.py</code></a> closure_detours</p>
+</section>
+<section id='access'><h3>Emergency access standards <span class='st'>live</span></h3><p class='plain'>We count people who can no longer reach a hospital in 30 min, a fire station in 8 min or police in 10 min.</p><p>Residents within the standard of an open facility, now vs dry; isolated = no route to any open hospital, fire or police station.</p>
+<table><tr><td>hospital<br><small>Carr et al. 2009 (share within 30 min of an emergency department) · proto/resilience.py ACCESS_MIN[&#x27;hospital&#x27;]</small></td><td><b>30.0 min</b></td></tr><tr><td>fire station<br><small>NFPA 1710 (2020) §4.1.2.1.1: 480 s travel · proto/resilience.py ACCESS_MIN[&#x27;fire_station&#x27;]</small></td><td><b>8.0 min</b></td></tr><tr><td>police<br><small>set by us (no national standard; planning assumption) · proto/resilience.py ACCESS_MIN[&#x27;police&#x27;]</small></td><td><b>10.0 min</b></td></tr></table>
+<p><b>Out:</b> people losing access (per service), person-hours</p>
+<p><b>Cannot capture:</b> Night-time population; facilities from OSM.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1016/j.annemergmed.2009.01.025'>Carr B.G. et al. (2009) Access to emergency care in the United States. Annals of Emergency Medicine 54(2)</a>; <a href='https://www.nfpa.org/codes-and-standards/nfpa-1710-standard-development/1710'>NFPA 1710 (2020) Standard for the Organization and Deployment of Fire Suppression Operations… (§4.1.2.1.1: 480 s travel, full first alarm)</a>; <a href='https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html'>US Census Bureau, 2020 Census blocks (TIGER/Line + P1 population)</a>; <a href='https://www.openstreetmap.org/'>OpenStreetMap contributors (hospitals, fire and police stations, via Overpass)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/resilience.py'><code>proto/resilience.py</code></a> access; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/cascade.py'><code>proto/cascade.py</code></a> connectivity</p>
+</section>
+<section id='efficiency'><h3>Network resilience (efficiency) <span class='st'>live in replays (skipped in the forecast for speed)</span></h3><p class='plain'>One number for how well the whole road network still moves people during the storm.</p><p>Global efficiency of the network over time, as used for road-network resilience by Ganin et al. 2017.</p>
+<div class='tex' data-tex='E(t)=\frac{1}{N(N-1)}\sum_{i\neq j}\frac{1}{\tau_{ij}(t)},\qquad Q_{\mathrm{eff}}(t)=100\,\frac{E(t)}{E_{\mathrm{dry}}}'></div>
+<p><b>Out:</b> functionality curve Q(t), %</p>
+<p><b>Cannot capture:</b> All trips weighted equally.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1103/PhysRevLett.87.198701'>Latora V., Marchiori M. (2001) Efficient behavior of small-world networks. Physical Review Letters 87</a>; <a href='https://doi.org/10.1126/sciadv.1701079'>Ganin A.A. et al. (2017) Resilience and efficiency in transportation networks. Science Advances 3(12) e1701079</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/resilience.py'><code>proto/resilience.py</code></a> Q_eff</p>
+</section>
+<h2>7. Forecast</h2>
+<section id='gate'><h3>Rain gate <span class='st'>live</span></h3><p class='plain'>The flood model only runs for real when the forecast shows heavy rain somewhere in the district.</p><p>Any District 3 town with forecast 6 h maximum ≥ 25 mm or 24 h maximum ≥ 40 mm (HRRR); then up to 4 boxes of 20 × 20 km on the wettest towns. Below that, rain ≥ 8 mm still runs one box (&quot;water mode&quot;, never a warning).</p>
+<div class='tex' data-tex='\max_{6h}\ge G_6\;\lor\;\max_{24h}\ge G_{24}'></div>
+<table><tr><td>6 h threshold G₆<br><small>every catalogue closure storm must fire it (docs/proto/forecast/GATE.md) · proto/forecast.py default of GATE_6H_MM</small></td><td><b>25 mm</b></td></tr><tr><td>24 h threshold G₂₄<br><small>as above · proto/forecast.py default of GATE_24H_MM</small></td><td><b>40 mm</b></td></tr><tr><td>water-mode threshold<br><small>set by us · proto/forecast.py default of WATER_MM</small></td><td><b>8 mm</b></td></tr><tr><td>box size<br><small>set by us · proto/forecast.py BOX_KM</small></td><td><b>20 km</b></td></tr></table>
+<p><b>Out:</b> boxes to run</p>
+<p><b>Goes to:</b> <a href='#members'>8 time-lagged HRRR members</a> (boxes to run)</p>
+<p><b>Cannot capture:</b> HRRR intensity errors pass straight into the gate.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/forecast.py'><code>proto/forecast.py</code></a> evaluate</p>
+</section>
+<section id='nbhd'><h3>Spreading the forecast (20 km / 90th percentile) <span class='st'>live</span></h3><p class='plain'>Because forecasts often put the storm a little off, each spot takes the heavier rain forecast near it.</p><p>Each HRRR value replaced by the 90th percentile within 20 km, every hour (neighbourhood approach).</p>
+<table><tr><td>radius, percentile<br><small>best hindcast set-up (docs/proto/forecast/HINDCAST.md) · .github/workflows/forecast.yml env LF_HRRR_NBHD</small></td><td><b>20,90 km, %</b></td></tr></table>
+<p><b>Out:</b> spread forecast rain</p>
+<p><b>Goes to:</b> <a href='#rain_grid'>Rain on every cell</a> (spread forecast rain, mm/h)</p>
+<p><b>Cannot capture:</b> Adds rain volume (deliberate: catches displaced cores).</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1175/MWR-D-16-0400.1'>Schwartz C.S., Sobash R.A. (2017) Generating probabilistic forecasts from convection-allowing ensembles using neighborhood approaches: a review and recommendations. Monthly Weather Review 145</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/hrrr_rain.py'><code>sim/colab/hrrr_rain.py</code></a> nbhd</p>
+</section>
+<section id='spinup'><h3>Radar spin-up + nowcast <span class='st'>live</span></h3><p class='plain'>The forecast starts from the rain that has already fallen, and uses radar for the first hours.</p><p>12 h of observed MRMS before the cycle; for the issue member the first hours are observed / radar-advected nowcast, blended into HRRR.</p>
+<table><tr><td>spin-up<br><small>set by us (8 Nov 2026) · .github/workflows/forecast.yml env LF_SPINUP_H</small></td><td><b>12 h</b></td></tr></table>
+<p><b>Out:</b> rain series for the member</p>
+<p><b>Goes to:</b> <a href='#rain_grid'>Rain on every cell</a> (spin-up + nowcast hours)</p>
+<p><b>Cannot capture:</b> Nowcast skill fades after ~2 h.</p>
+<p class="src"><b>Sources:</b> <a href='https://www.nssl.noaa.gov/projects/mrms/'>NOAA NSSL / NCEP, MRMS MultiSensor QPE 01H Pass2 (AWS noaa-mrms-pds)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> LF_SPINUP_H / LF_NOWCAST; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/nowcast_hindcast.py'><code>proto/nowcast_hindcast.py</code></a> </p>
+</section>
+<section id='phase'><h3>Rain or snow <span class='st'>live</span></h3><p class='plain'>When it is cold, part of the precipitation falls as snow and does not run off right away.</p><p>Liquid fraction from HRRR 2 m temperature, linear between 0 and 2 °C; frozen part kept as snow (no melt within the run).</p>
+<div class='tex' data-tex='f_{\mathrm{liq}}=\mathrm{clip}\!\left(\frac{T-T_{lo}}{T_{hi}-T_{lo}},0,1\right)'></div>
+<table><tr><td>T_lo<br><small>set by us (common rain/snow transition) · sim/colab/lf_phase.py T_LO</small></td><td><b>0.0 °C</b></td></tr><tr><td>T_hi<br><small>set by us · sim/colab/lf_phase.py T_HI</small></td><td><b>2.0 °C</b></td></tr><tr><td>switch<br><small>artifact fix, live 13 Nov 2026 · .github/workflows/forecast.yml env LF_PHASE</small></td><td><b>1 </b></td></tr></table>
+<p><b>Out:</b> liquid rain</p>
+<p><b>Goes to:</b> <a href='#rain_grid'>Rain on every cell</a> (liquid share 0–1)</p>
+<p><b>Cannot capture:</b> No snowmelt; no rain-on-snow.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/lf_phase.py'><code>sim/colab/lf_phase.py</code></a> liquid_fraction</p>
+</section>
+<section id='members'><h3>8 time-lagged HRRR members <span class='st'>live</span></h3><p class='plain'>We run the flood model with the newest forecast and 7 slightly older ones, to see how much they agree.</p><p>Members T, T−6, T−12, T−18 h (48 h cycles) plus the hourly cycles before T; each is its own flood run per box; older members reused from cache.</p>
+<p><b>Out:</b> 8 flood runs per box</p>
+<p><b>Goes to:</b> <a href='#rain_grid'>Rain on every cell</a> (one rain series per member)</p>
+<p><b>Cannot capture:</b> Lagged members share the same model errors.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/forecast_kofn.py'><code>proto/forecast_kofn.py</code></a> members</p>
+</section>
+<section id='kofn'><h3>&quot;k of 8&quot;: likely / possible <span class='st'>live</span></h3><p class='plain'>A road is &quot;likely closed&quot; if at least 2 of the 8 runs close it, &quot;possible&quot; if 1 does.</p><p>k = number of members with p_close ≥ 0.5 on the segment; likely k ≥ 2, possible k = 1. Shown as &quot;k of 8&quot;, not as a percentage.</p>
+<div class='tex' data-tex='k=\sum_{m=1}^{8}\mathbb{1}\left[p_{\mathrm{close}}^{(m)}\ge0.5\right]'></div>
+<p><b>Out:</b> likely / possible road lists</p>
+<p><b>Goes to:</b> <a href='#pirank'>Ranking by chance of flooding (π)</a> (likely / possible list); <a href='#metrics'>Scores</a> (forecast lists (forward test))</p>
+<p><b>Cannot capture:</b> Members can agree on a wrong storm position.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/forecast_kofn.py'><code>proto/forecast_kofn.py</code></a> closures</p>
+</section>
+<section id='pirank'><h3>Ranking by chance of flooding (π) <span class='st'>live (order only)</span></h3><p class='plain'>Roads in the list are ordered by how likely they are to really flood, using depth and a few road and rain facts.</p><p>π from a fitted logistic model on the deployed depth probit plus hazard terms (hours &gt; 15 cm, HAND, slope, culvert/overtop/sag/edge layers, peak 1 h rain, stream distance, length); used for order only. Not shown as a % because its held-out calibration failed (reported/expected 0.56).</p>
+<div class='tex' data-tex='\mathrm{logit}\,\pi=b_o\,o+b_0+\mathbf b\cdot\mathbf h,\qquad o=1.7\,\mathrm{clip}\!\left(\frac{d-0.30}{0.10},-6,6\right)'></div>
+<p><b>Out:</b> order of the road list</p>
+<p><b>Cannot capture:</b> Fitted on reports, which favour busy roads.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1007/s10994-020-05877-5'>Bekker J., Davis J. (2020) Learning from positive and unlabeled data: a survey. Machine Learning 109</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/latent_label.py'><code>proto/latent_label.py</code></a> ; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/forecast.py'><code>proto/forecast.py</code></a> pi order</p>
+</section>
+<h2>8. Checked against reality</h2>
+<section id='labels'><h3>Flood reports (labels, never inputs) <span class='st'>live</span></h3><p class='plain'>Real reports of flooded roads are kept aside and used only to check the model, never to feed it.</p><p>NWS Local Storm Reports, NOAA Storm Events, MassDOT roadway events, news / WX1BOX, Leominster DPW damage points, (opt-in) SeeClickFix and crash records. Positive-unlabelled: a road with no report is not a dry road.</p>
+<p><b>Out:</b> labelled sites per storm</p>
+<p><b>Goes to:</b> <a href='#matching'>Matching reports to roads</a> (report points)</p>
+<p><b>Cannot capture:</b> Reports cluster on busy roads; most flooded roads are never reported.</p>
+<p class="src"><b>Sources:</b> <a href='https://mesonet.agron.iastate.edu/lsr/'>NWS Local Storm Reports (Iowa Environmental Mesonet archive)</a>; <a href='https://www.ncdc.noaa.gov/stormevents/'>NOAA NCEI Storm Events Database</a>; <a href='https://mass511.com/'>MassDOT / Mass511 traveler information (roadway events)</a>; City of Leominster DPW, Sept 2023 flash-flood damage points (shared with the project, Oct 2026); <a href='https://doi.org/10.1007/s10994-020-05877-5'>Bekker J., Davis J. (2020) Learning from positive and unlabeled data: a survey. Machine Learning 109</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/data/'><code>proto/data/</code></a> labels_*.csv</p>
+</section>
+<section id='matching'><h3>Matching reports to roads <span class='st'>live</span></h3><p class='plain'>A report counts for a road if it is within 30 m of it; reports close together count once.</p><p>Strict match within 30 m of a road point; labels clustered single-link within 150 m into sites; approximate locations carry a position uncertainty.</p>
+<table><tr><td>match distance<br><small>docs/proto/PROTOCOL.md · stated (not a code setting)</small></td><td><b>30 m</b></td></tr><tr><td>site clustering<br><small>docs/proto/PROTOCOL.md · stated (not a code setting)</small></td><td><b>150 m</b></td></tr></table>
+<p><b>Out:</b> sites</p>
+<p><b>Goes to:</b> <a href='#metrics'>Scores</a> (sites)</p>
+<p><b>Cannot capture:</b> Approximate coordinates (~500 m) limit what can be matched.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/score_v2.py'><code>proto/score_v2.py</code></a> </p>
+</section>
+<section id='metrics'><h3>Scores <span class='st'>live</span></h3><p class='plain'>We ask: of the real flooded places, how many were on the model’s short list, compared with picking roads at random?</p><p>Site recall at the closure rule and at fixed shares (top 1–10 % of segments); chance recall (exact hypergeometric) and lift; CSI; FSS at 100/300/1000 m; storm-clustered bootstrap CIs; paired tests with pre-registered adoption rules.</p>
+<div class='tex' data-tex='\mathrm{recall}@k\%=\frac{\#\,\text{sites hit in top }k\%}{\#\,\text{sites}},\quad \mathrm{lift}=\frac{\mathrm{recall}}{\mathrm{recall}_{\mathrm{chance}}},\quad \mathrm{CSI}=\frac{H}{H+M+F}'></div>
+<p><b>Out:</b> skill (reported elsewhere, not on this tree)</p>
+<p><b>Cannot capture:</b> Few sites per storm; wide intervals.</p>
+<p class="src"><b>Sources:</b> <a href='https://doi.org/10.1175/2007MWR2123.1'>Roberts N.M., Lean H.W. (2008) Scale-selective verification of rainfall accumulations from high-resolution forecasts of convective events. Monthly Weather Review 136</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/score_v2.py'><code>proto/score_v2.py</code></a> ; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/bench_v3.py'><code>proto/bench_v3.py</code></a> </p>
+</section>
+<section id='baselines'><h3>Six named baselines <span class='st'>live</span></h3><p class='plain'>The model must beat simple alternatives an office could use today.</p><p>NWS flash-flood warnings; FEMA 100-yr zone; MassDOT repeat flood points; radar rain threshold; terrain only (HAND); static hazard × vulnerability × consequence.</p>
+<p><b>Out:</b> benchmark (docs/proto/scoring/BENCHMARK_v3.md)</p>
+<p><b>Goes to:</b> <a href='#metrics'>Scores</a> (baseline rankings)</p>
+<p><b>Cannot capture:</b> Some baselines are undated (used for every storm).</p>
+<p class="src"><b>Sources:</b> <a href='https://mesonet.agron.iastate.edu/vtec/'>NWS flash-flood warnings (IEM VTEC archive)</a>; <a href='https://www.fema.gov/flood-maps/national-flood-hazard-layer'>FEMA National Flood Hazard Layer (100-year zone)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/bench_v3.py'><code>proto/bench_v3.py</code></a> </p>
+</section>
+<section id='split'><h3>Calibration vs test storms <span class='st'>live</span></h3><p class='plain'>One storm was used to set the model; all the others are tests it never saw.</p><p>Calibration: Leominster Sep 2023 (and Worcester Aug 2021 for design choices). Tests: 23 held-out District 3 storms, 81 District 4–6 storms (frozen settings), the live forward test from 3 Nov 2026. 5 locked storms never opened.</p>
+<p><b>Out:</b> which storms decide what</p>
+<p><b>Goes to:</b> <a href='#metrics'>Scores</a> (which storms)</p>
+<p><b>Cannot capture:</b> The test set is small in District 3.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/PROTOCOL_v3.md'><code>docs/proto/PROTOCOL_v3.md</code></a> </p>
+</section>
+<section id='gauges'><h3>River gauges <span class='st'>live</span></h3><p class='plain'>River-level gauges show whether the model’s rivers rise as much and as early as the real ones.</p><p>USGS 15-min stage; modelled rise at the nearest channel cell vs observed rise and peak time.</p>
+<p><b>Out:</b> rise and timing errors</p>
+<p><b>Cannot capture:</b> Few gauges per box; small streams ungauged.</p>
+<p class="src"><b>Sources:</b> <a href='https://waterdata.usgs.gov/'>USGS Water Data for the Nation (stream stage, 15-min)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/proto/score.py'><code>proto/score.py</code></a> </p>
+</section>
+<h2>9. What-if only</h2>
+<section id='wi_culvert'><h3>Culverts blocked 0–100 % <span class='st'>what-if only</span></h3><p class='plain'>What if the pipes under the roads were partly or fully clogged with debris?</p><p>Culvert notch floor raised by a fraction f of the opening (f = 1: solid fill); bridges stay open; optionally only the smallest third of surveyed culverts.</p>
+<div class='tex' data-tex='z_{\mathrm{notch}}&#x27;=z_{\mathrm{cut}}+f\,(z_{\mathrm{crest}}-z_{\mathrm{cut}})'></div>
+<p><b>Out:</b> flood with blocked culverts</p>
+<p><b>Goes to:</b> <a href='#notch'>Road–stream crossing notch (3 × 3 cells)</a> (raised notch floor)</p>
+<p><b>Cannot capture:</b> Geometric proxy for an inlet-area reduction.</p>
+<p class="src"><b>Sources:</b> <a href='https://arr.ga.gov.au/'>Ball J. et al. (eds) (2019) Australian Rainfall and Runoff: A Guide to Flood Estimation, Book 6 (blockage ch. 6; safety design criteria ch. 7)</a></p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> partial_block / block_crossings</p>
+</section>
+<section id='wi_amc'><h3>Dry / wet soil (AMC I / III) <span class='st'>what-if only</span></h3><p class='plain'>What if the ground was already soaked (or bone dry) before the storm?</p><p>Curve number converted to antecedent class I or III (Chow et al. 1988), calibration scale kept.</p>
+<div class='tex' data-tex='CN_I=\frac{4.2\,CN_{II}}{10-0.058\,CN_{II}},\qquad CN_{III}=\frac{23\,CN_{II}}{10+0.13\,CN_{II}}'></div>
+<p><b>Out:</b> flood with wetter / drier ground</p>
+<p><b>Goes to:</b> <a href='#cn'>Runoff: curve number (TR-55)</a> (CN_I / CN_III)</p>
+<p><b>Cannot capture:</b> One class for the whole box.</p>
+<p class="src"><b>Sources:</b> <a href='https://directives.nrcs.usda.gov//sites/default/files2/1712930634/Part%20630%20-%20Hydrology.pdf'>USDA NRCS National Engineering Handbook Part 630 Hydrology, Chapter 10 (2004): Estimation of direct runoff from storm rainfall</a>; Chow V.T., Maidment D.R., Mays L.W. (1988) Applied Hydrology. McGraw-Hill (antecedent-moisture CN conversions)</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> LF_CN_AMC</p>
+</section>
+<section id='wi_frozen'><h3>Frozen ground <span class='st'>what-if only</span></h3><p class='plain'>What if the same storm hit frozen ground in early spring, when water cannot soak in?</p><p>Knisel (CREAMS) rule: CN 95 where the unfrozen CN ≤ 80, else 98; no steady soak-in.</p>
+<p><b>Out:</b> flood on frozen ground</p>
+<p><b>Goes to:</b> <a href='#cn'>Runoff: curve number (TR-55)</a> (frozen CN)</p>
+<p><b>Cannot capture:</b> Real frost varies with snow cover and depth.</p>
+<p class="src"><b>Sources:</b> Knisel W.G. (ed.) (1980) CREAMS: A Field-Scale Model for Chemicals, Runoff and Erosion from Agricultural Management Systems. USDA Conservation Research Report 26 (frozen-soil curve number)</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> LF_CN_FROZEN</p>
+</section>
+<section id='wi_rain'><h3>More or less rain <span class='st'>what-if only</span></h3><p class='plain'>What if the same storm had been half as strong, or a quarter stronger?</p><p>Every hour of the observed radar rain multiplied (× 0.5 to × 1.25), same timing and place.</p>
+<p><b>Out:</b> flood under scaled rain</p>
+<p><b>Goes to:</b> <a href='#rain_grid'>Rain on every cell</a> (rain × factor)</p>
+<p><b>Cannot capture:</b> Scaling keeps the storm’s shape.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/sim/colab/w9_lisflood.py'><code>sim/colab/w9_lisflood.py</code></a> LF_RAIN_SCALE</p>
+</section>
+<h2>10. Can&#x27;t capture yet</h2>
+<section id='cc_edge'><h3>Edge erosion without ponding <span class='st'>can&#x27;t capture yet</span></h3><p class='plain'>Roads that wash out at the edge with almost no standing water are missed.</p><p>Most missed Leominster damage (Sep 2023) is edge washout with ~2 cm of modelled water, mostly along one street; curb-line flow is narrower than a 20 m cell.</p>
+<p><b>Out:</b> —</p>
+<p><b>Goes to:</b> <a href='#edge'>Edge erosion along the road</a> (missing mechanism)</p>
+<p><b>Cannot capture:</b> Needs curb-line flow and damage inventories from more towns.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/phase1/LEOMINSTER_MISSES.md'><code>docs/proto/phase1/LEOMINSTER_MISSES.md</code></a> </p>
+</section>
+<section id='cc_debris'><h3>Debris blockage during the storm <span class='st'>can&#x27;t capture yet</span></h3><p class='plain'>Branches and trash that clog a pipe during the storm are not predicted.</p><p>Blockage can be imposed as a what-if, not forecast.</p>
+<p><b>Out:</b> —</p>
+<p><b>Goes to:</b> <a href='#culvert'>Culvert capacity (HDS-5)</a> (not predicted)</p>
+<p><b>Cannot capture:</b> No debris-supply data.</p>
+</section>
+<section id='cc_drains'><h3>Storm drains (pipes) <span class='st'>can&#x27;t capture yet</span></h3><p class='plain'>City storm-drain pipes are not in the model; three ways of adding them did not help.</p><p>Tried and rejected: generic design drains, catch-basin inlet sink, built-up-road drain sink (C2): each removed the water at the very places that flooded.</p>
+<p><b>Out:</b> —</p>
+<p><b>Goes to:</b> <a href='#lisflood'>LISFLOOD-FP 8.2 flood engine</a> (no pipes)</p>
+<p><b>Cannot capture:</b> Pipe network data are private.</p>
+<p class="src"><b>Code:</b> <a href='https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/drains/DRAINS.md'><code>docs/proto/drains/DRAINS.md</code></a> ; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/drains/INLETS.md'><code>docs/proto/drains/INLETS.md</code></a> ; <a href='https://github.com/Horus331/mass-flood-watch/blob/main/docs/proto/drains/C2_ROADS.md'><code>docs/proto/drains/C2_ROADS.md</code></a> </p>
+</section>
+<section id='cc_gw'><h3>Groundwater <span class='st'>can&#x27;t capture yet</span></h3><p class='plain'>Rising groundwater under roads and foundations is not modelled.</p><p>No subsurface flow; antecedent wetness only through the curve number.</p>
+<p><b>Out:</b> —</p>
+<p><b>Goes to:</b> <a href='#cn'>Runoff: curve number (TR-55)</a> (no subsurface)</p>
+<p><b>Cannot capture:</b> Needs groundwater observations.</p>
+</section><script src="model-tree/lib/katex.min.js"></script><script>document.querySelectorAll(".tex").forEach(function(d){try{katex.render(d.dataset.tex,d,{displayMode:true,throwOnError:false})}catch(e){d.textContent=d.dataset.tex}})</script></body></html>

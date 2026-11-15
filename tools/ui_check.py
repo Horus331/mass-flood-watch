@@ -98,6 +98,8 @@ def main():
             await shot('viewer.html?run=leominster_sep2023', 'replay_leominster.png', wait=60000)
             await shot('viewer.html?run=whatif', 'scenarios.png')
             await shot('index.html', 'home.png')
+            await shot('overview.html', 'overview.png')
+            await shot('model-tree.html', 'model_tree.png')
             for i, s in enumerate(segs):
                 lon, lat = tr.transform(s['x'], s['y'])
                 await shot(f'viewer.html?run=forecast&c={lon:.5f},{lat:.5f}&z=16', f'fc_road{i + 1}.png')
