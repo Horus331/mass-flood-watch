@@ -43,6 +43,24 @@ Sources for each number: gauges 0.82 → 0.46 m and parity `parity/BASELINE.md` 
 `ml/EXPANDED.md` §3 (+11) and `cascade/CASCADE.md` §4.2 (+2 for T3, +13 for T2); 94 % `cascade/CASCADE.md` §2; ensemble
 `forecast/ENSEMBLE.md` §4 (long lead = 8–14 h, run at CN × 0.91; see §8).
 
+## 3b. Abstract v2 (15 Nov 2026, after cycles 1–2; forecast sentence waits for `forecast/ENSEMBLE_PARITY.md`)
+
+> Transportation agencies need to know which road segments will flood, but road-flood models are rarely tested against named
+> alternatives on unseen storms. We evaluate a physics-based screen for MassDOT Highway District 3,
+> central Massachusetts: LISFLOOD-FP local-inertial simulation at 20 m driven by hourly MRMS radar rain, with road depth turned into
+> a chance of closure and no parameter fitted to closures. All tests were pre-registered. On 81 storms in three other districts
+> (498 documented sites) the frozen model's top 3 % of segments contain 21 % of the sites, against 9 % for NWS flash-flood warnings,
+> 7 % for the FEMA 100-year zone, 10 % for terrain alone and 10 % for a static hazard × vulnerability × consequence score
+> (chance 9 %), all significant. Ranking by a chance-of-flooding score raises this to 25 % (CI of the gain +0.002 to
+> +0.086). On 23 held-out District 3 storms (98 sites) the model reaches 20 %, but a traffic-weighted static score is not worse, which we
+> trace to reports concentrating on busy roads. Adding traffic, a stream-crossing flag, or storm-drain sinks did not improve held-out
+> skill. A solver audit shows that GPU and CPU builds agree only with a ≤ 1 s time step, which also removes spurious gauge rises. A
+> complete municipal damage inventory shows the misses are mostly edge erosion along one steep street, with almost no modelled ponding.
+> The screen ranks roads usefully for inspection but cannot yet issue segment-level warnings; labels, not model complexity, limit it.
+
+Sources: `scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`, `scoring/HYBRID_v3.md`, `scoring/CROSSING_v3.md`, `drains/INLETS.md`,
+`drains/C2_ROADS.md`, `parity/PARITY.md`, `phase1/LEOMINSTER_MISSES.md`. (≈ 245 words.)
+
 ## 4. Contributions
 
 1. **A pre-registered, storm-held-out evaluation of a physics-prior road-closure screen.** The protocol was frozen before scoring
