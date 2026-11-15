@@ -20,7 +20,29 @@
   <section class="wrap hero">
     <p class="eyebrow">How it works</p>
     <h1>From rain to a closed road</h1>
-    <p class="lede">The model follows the water from the radar to the road. This block is the real ground around the WPI campus in Worcester, built from the same data the model reads. Drag to turn it, and select any label for its source, resolution and how the model uses it.</p>
+    <p class="lede">The model follows the water from the radar to the road. Below is the real ground around the WPI campus in Worcester, built from the same data the model reads, layer by layer. Drag to turn it, and select any label for its source, resolution and how the model uses it.</p>
+  </section>
+
+  <section class="stage-wrap" aria-label="3D layers of the WPI campus">
+    <div class="stage" id="cstage">
+      <canvas id="cgl" aria-hidden="true"></canvas>
+      <svg class="leaders" id="cleaders" aria-hidden="true"></svg>
+      <div class="callouts" id="ccallouts"></div>
+      <div class="loading" id="cloading">Loading the campus…</div>
+    </div>
+    <div class="controls wrap">
+      <div class="legend" id="clegend" aria-live="polite" style="grid-column:auto"></div>
+      <div class="ctl-group ctl-right">
+        <button class="btn" id="bFlow" type="button"><svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span>Pause water</span></button>
+        <button class="btn" id="bCHome" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></svg><span>Reset view</span></button>
+      </div>
+      <p class="fig-note">Three layers of the same real ground around WPI (1.8 × 1.8 km). Bottom: how much rain the ground sheds, cut open to show the soil layers (drawn to show the idea, not measured). Middle: the place, from USGS aerial imagery on 1 m lidar, with buildings from OpenStreetMap. Top: what the model computes for the storm of 19 Aug 2021: where water collected, how it runs downhill, and which roads it closed.</p>
+    </div>
+  </section>
+
+  <section class="wrap sec" style="padding-bottom:8px">
+    <h2>The wider area, cut open</h2>
+    <p class="lede">The same data over 6 × 6 km around the campus, with the radar rain grid above. Drag to turn it; switch what is shown on the ground.</p>
   </section>
 
   <section class="stage-wrap" aria-label="3D model of the WPI area">
@@ -59,6 +81,7 @@
 <!--sf:start--><footer class="sf"><div class="sf-in"><div><b>Mass Flood Watch</b>Forecasting which roads flash floods will close, and who loses access to emergency services. PhD research by Mohab Eldokla, Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute. Advisors: Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</div><div><b>Site</b><ul><li><a href="./">Model</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="progress.html">Progress</a></li><li><a href="about.html">About</a></li></ul></div><div><b>More</b><ul><li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://github.com/Horus331/mass-flood-watch">Code and data</a></li><li><a href="mailto:mgeldokla@wpi.edu">Contact</a></li></ul></div><div class="sf-note">A research prototype, not an official warning service. For emergencies call 911; for official flood warnings see the National Weather Service.</div></div></footer><!--sf:end-->
 <aside class="panel" id="panel" aria-live="polite" aria-label="Details"></aside>
 <script src="model-tree/lib/katex.min.js"></script>
-<script type="module" src="how-it-works/scene3d.js?v=1"></script>
+<script type="module" src="how-it-works/scene3d.js?v=2"></script>
+<script type="module" src="how-it-works/campus3d.js?v=1"></script>
 </body>
 </html>
