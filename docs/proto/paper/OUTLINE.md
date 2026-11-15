@@ -193,6 +193,19 @@ Sources for each number: gauges 0.82 → 0.46 m and parity `parity/BASELINE.md` 
 - Stream power ranks Leominster damage at ROC-AUC 0.78 against 0.68 for overtopping, but the interval includes 0 [−0.06, +0.19].
   PR-AUC 0.155 vs 0.094, interval [+0.005, +0.16]. One labelled storm. Not adopted.
 
+## 7b. Results added after this outline (cycles 1–2, 9–14 Nov; all pre-registered)
+- **Benchmark v3** (`scoring/BENCHMARK_v3.md`, `scoring/benchmark_v3.json`): top-3 % site recall on Districts 4–6, model 0.21 vs NWS
+  warnings 0.09, FEMA zone 0.07, HAND 0.10, static H×V×C 0.10, rain threshold 0.06 (chance 0.09); every difference significant. District 3
+  held-out: model 0.20, static H×V×C 0.32 (n.s.), MassDOT repeat points 0.14 (n.s.).
+- **π ranking adopted** (`scoring/PI_RANK_v3.md`): Districts 4–6 0.206 → 0.251, CI [+0.002, +0.086]; District 3 0.34.
+- **π not shown as a percentage** (`latent/PI_HELDOUT.md`): pooled reported / expected 0.56.
+- **Rejected:** model + traffic, model + crossing flag, catch-basin sink, storm-drain sink C2 (`scoring/HYBRID_v3.md`, `CROSSING_v3.md`,
+  `drains/INLETS.md`, `drains/C2_ROADS.md`).
+- **Leominster deep dive** (`phase1/LEOMINSTER_MISSES.md`): 21 / 54 DPW damage points hit; misses have ~2 cm modelled water and 25 of the 27
+  non-crossing misses are one street (Wachusett St).
+- **Forward test:** two live storms (5 and 13 Nov), no false closure; the 13 Nov radar replay agrees (`prospective/storm_2026-11-13_results.md`).
+- These change the abstract: lead with the benchmark against named methods, then π, then transfer.
+
 ## 8. Limitations to state in the paper
 
 - **Labels.** Reports, not inventories: a site absent from the reports is not a dry road (positive-unlabelled; R28). Most new rows are
@@ -220,7 +233,9 @@ Sources for each number: gauges 0.82 → 0.46 m and parity `parity/BASELINE.md` 
 3. **Rerun the forecast evaluation** (`ENSEMBLE.md` §4) at the deployed parity settings. Settle the District-wide spreading decision
    (`forecast/DISTRICT.md`).
 4. **Finish or drop T4** (B0 / C antecedent moisture) as a PROTOCOL v2 pre-registration. Either way, state it.
-5. **Figure scripts** (`proto/paper_figs.py`) for Figs. 1, 3–8, from the committed JSON only.
+5. **Figure scripts** (`proto/paper_figs.py`) for Figs. 1, 3–8, from the committed JSON only. *15 Nov: started; done: Fig. 4 (CN scale),
+   Fig. 5 (held-out recall curve), Fig. 6 redrawn as the benchmark v3 figure (model, π and six baselines, both test sets), Leominster
+   deep dive (`phase1/fig/`); numbers plotted in `paper/fig/figures.json`. Still to do: Figs. 1, 3, 7, 8.*
 6. **A frozen, citable snapshot**: tag the commit, Zenodo DOI, and the data licence for each label source (`DATA_IDEAS.md` Sources).
 7. **Literature gaps marked [ref needed].** Prior road-segment closure-skill studies, and DOT flood-closure practice. Only the R# list
    is currently cited. Add sources the owner has reviewed; do not cite from memory.
