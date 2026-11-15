@@ -80,7 +80,8 @@ function openPanel(kicker, title, plain, ids) {
   P.innerHTML = `<button class="x" type="button" aria-label="Close">✕</button><p class="k">${esc(kicker)}</p><h2>${esc(title)}</h2><p class="lead">${esc(plain)}</p>` + ids.filter((i) => TREE[i]).map((i) => nodeHtml(TREE[i])).join('');
   P.scrollTop = 0; document.body.classList.add('panel-open'); P.querySelector('.x').onclick = closePanel; P.querySelector('.x').focus({ preventScroll: true });
 }
-function closePanel() { document.body.classList.remove('panel-open'); mark(null); if (location.hash) history.replaceState(null, '', location.pathname); }
+function closePanel() { document.body.classList.remove('panel-open'); mark(null); document.dispatchEvent(new Event('mfw-panel-close')); if (location.hash) history.replaceState(null, '', location.pathname); }
+window.MFW = { openPanel, closePanel };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
 
 // ------------------------------------------------------------------------------------------------ scene
@@ -244,8 +245,9 @@ function buildCallouts() {
     b.innerHTML = `<span class="n">${i + 1}</span><span class="k">${esc(c.k)}</span><b>${esc(c.t)}</b><span class="s">${esc(c.s)}</span>`;
     b.onclick = () => show(c); box.appendChild(b); c.el = b;
     const g = document.createElementNS(NS, 'g'); g.dataset.id = c.id;
+    c.halo = document.createElementNS(NS, 'line'); c.halo.setAttribute('class', 'halo');
     c.ln = document.createElementNS(NS, 'line'); if (c.lim) c.ln.setAttribute('class', 'lim'); c.dot = document.createElementNS(NS, 'circle'); c.dot.setAttribute('r', 4);
-    g.append(c.ln, c.dot); svg.appendChild(g); c.g = g;
+    g.append(c.halo, c.ln, c.dot); svg.appendChild(g); c.g = g;
     const bd = document.createElement('div'); bd.className = 'badge'; bd.textContent = i + 1; bd.onclick = () => show(c); $('stage').appendChild(bd); c.badge = bd;
   });
 }
@@ -270,7 +272,7 @@ function layoutCallouts() {
       el.style.left = x + 'px'; el.style.top = y + 'px';
       const p = screen(c); if (!p) return;
       const lx = sd === 'l' ? x + w + 6 : x - 6, ly = y + h / 2;
-      c.ln.setAttribute('x1', lx); c.ln.setAttribute('y1', ly); c.ln.setAttribute('x2', p.x); c.ln.setAttribute('y2', p.y);
+      [c.ln, c.halo].forEach((l) => { l.setAttribute('x1', lx); l.setAttribute('y1', ly); l.setAttribute('x2', p.x); l.setAttribute('y2', p.y); });
       c.dot.setAttribute('cx', p.x); c.dot.setAttribute('cy', p.y);
     });
   });
@@ -283,10 +285,11 @@ function resize() {
   narrow = w < 860;
   const host = narrow ? $('stage').parentNode : $('stage'), co = $('callouts');
   if (narrow && co.parentNode === $('stage')) $('stage').after(co); else if (!narrow && co.parentNode !== $('stage')) $('stage').insertBefore(co, $('loading'));
-  camera.fov = narrow ? 50 : 34; camera.updateProjectionMatrix(); resort(); layoutCallouts();
+  camera.fov = narrow ? 44 : 34; camera.updateProjectionMatrix(); if (narrow !== wasNarrow) { wasNarrow = narrow; home(); } resort(); layoutCallouts();
 }
-const HOME = { pos: new THREE.Vector3(150, 105, 205), target: new THREE.Vector3(0, 4, 10) };
-function home() { camera.position.copy(HOME.pos); controls.target.copy(HOME.target); controls.update(); resort(); }
+const HOME = { pos: new THREE.Vector3(150, 105, 205), target: new THREE.Vector3(0, 4, 10) }, HOME_N = { pos: new THREE.Vector3(118, 118, 170), target: new THREE.Vector3(0, 2, 12) };
+let wasNarrow = null;
+function home() { const h = narrow ? HOME_N : HOME; camera.position.copy(h.pos); controls.target.copy(h.target); controls.update(); resort(); }
 
 async function init() {
   const [meta, hb, tree] = await Promise.all([fetch(DATA + 'layers.json').then((r) => r.json()), fetch(DATA + 'height.bin').then((r) => r.arrayBuffer()), fetch('model-tree/tree.json').then((r) => r.json()).catch(() => ({ nodes: [] }))]);
