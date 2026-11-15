@@ -123,27 +123,33 @@ async function aerialTexture(R) {   // the aerial photo with street and place na
     const k = Math.floor(best.pts.length / 2), a = best.pts[Math.max(0, k - 1)], b = best.pts[Math.min(best.pts.length - 1, k + 1)];
     const cx = (a[0] + b[0]) / 2 * N, cy = (a[1] + b[1]) / 2 * N; if (cx < 160 || cy < 160 || cx > N - 160 || cy > N - 160) return;
     let ang = Math.atan2((b[1] - a[1]), (b[0] - a[0])); if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
-    x.save(); x.translate(cx, cy); x.rotate(ang); x.font = '600 64px Roboto, Arial, sans-serif';
-    x.strokeStyle = 'rgba(32,33,36,.85)'; x.lineWidth = 12; x.strokeText(short(nm).toUpperCase(), 0, 0); x.fillStyle = '#fff'; x.fillText(short(nm).toUpperCase(), 0, 0); x.restore();
+    x.save(); x.translate(cx, cy); x.rotate(ang); x.font = '600 44px Roboto, Arial, sans-serif';
+    x.strokeStyle = 'rgba(32,33,36,.85)'; x.lineWidth = 9; x.strokeText(short(nm).toUpperCase(), 0, 0); x.fillStyle = '#fff'; x.fillText(short(nm).toUpperCase(), 0, 0); x.restore();
   });
   const place = (f, t, size) => { if (!f) return; x.font = `700 ${size}px Roboto, Arial, sans-serif`; x.strokeStyle = 'rgba(32,33,36,.9)'; x.lineWidth = size / 4.5; x.strokeText(t, f[0] * N, f[1] * N); x.fillStyle = '#fff'; x.fillText(t, f[0] * N, f[1] * N); };
-  place(M.places.wpi, 'WPI', 150); place(M.places.pond, 'Salisbury Pond', 84); place(M.places.field, 'Athletic field', 70);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
 }
 
-function buildings(B) {
-  const geos = [], mpu = M.width_m / S;
+function buildings(B, roofTex) {   // walls extruded to the real height; roofs are flat caps that show the aerial photo seen from above
+  const walls = [], roofs = [], mpu = M.width_m / S;
   B.buildings.forEach((b) => {
     if (b.p.length < 4) return;
     const sh = new THREE.Shape(b.p.map((p) => new THREE.Vector2(toX(p[0]), -toZ(p[1]))));
     let base = Infinity; b.p.forEach((p) => { base = Math.min(base, hAt(p[0], p[1])); });
-    const hgt = Math.max(0.2, b.h / mpu * 1.15);   // real height (slightly lifted), not exaggerated like the ground
-    const g = new THREE.ExtrudeGeometry(sh, { depth: hgt + 0.3, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, base - 0.3, 0);
-    geos.push(g.toNonIndexed ? g.toNonIndexed() : g);
+    const hgt = Math.max(0.2, b.h / mpu * 1.15);
+    const w = new THREE.ExtrudeGeometry(sh, { depth: hgt + 0.3, bevelEnabled: false }); w.rotateX(-Math.PI / 2); w.translate(0, base - 0.3, 0); walls.push(w.index ? w.toNonIndexed() : w);
+    const r = new THREE.ShapeGeometry(sh); r.rotateX(-Math.PI / 2); r.translate(0, base + hgt + 0.01, 0); roofs.push(r.index ? r.toNonIndexed() : r);
   });
-  if (!geos.length) return null;
-  const m = new THREE.Mesh(mergeGeometries(geos, false), new THREE.MeshStandardMaterial({ color: 0xe9e4da, roughness: 0.9 }));
-  return m;
+  if (!walls.length) return null;
+  const strip = (g) => { ['uv', 'normal'].forEach((k) => g.deleteAttribute(k)); return g; };
+  const W = mergeGeometries(walls.map(strip), false); W.computeVertexNormals();
+  const Rg = mergeGeometries(roofs.map(strip), false), pos = Rg.attributes.position, uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) { uv[i * 2] = pos.getX(i) / S + 0.5; uv[i * 2 + 1] = 0.5 - pos.getZ(i) / S; }
+  Rg.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); Rg.computeVertexNormals();
+  const grp = new THREE.Group();
+  grp.add(new THREE.Mesh(W, new THREE.MeshStandardMaterial({ color: 0xd9d4c9, roughness: 0.95 })));
+  grp.add(new THREE.Mesh(Rg, new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.9, side: THREE.DoubleSide })));
+  return grp;
 }
 
 // flow particles on the model layer, moving cell to cell along the D8 directions (how-it-works/campus/flowdir.bin)
@@ -156,7 +162,7 @@ function buildParticles(dir, acc) {
   function spawn(p) { for (let k = 0; k < 20; k++) { const r = Math.floor(rnd() * F), c = Math.floor(rnd() * F); if (dir[r * F + c] === 255) continue; if (rnd() < 0.25 + 0.75 * zN(r, c) / zmax) { p.r = r; p.c = c; p.t = rnd(); p.age = 0; return; } } p.r = Math.floor(rnd() * F); p.c = Math.floor(rnd() * F); p.t = 0; p.age = 0; }
   for (let i = 0; i < N; i++) { const p = {}; spawn(p); p.age = Math.floor(rnd() * 400); st.push(p); }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({ size: narrow ? 0.55 : 0.42, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false });
+  const mat = new THREE.PointsMaterial({ size: narrow ? 0.7 : 0.62, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false });
   const pts = new THREE.Points(geo, mat); slabs[2].add(pts);
   const cA = new THREE.Color('#9fd0ff'), cB = new THREE.Color('#0b57d0'), tmp = new THREE.Color();
   function step(dt) {
@@ -174,7 +180,7 @@ function buildParticles(dir, acc) {
   step(0); particles = { step, pts };
 }
 function buildRain() {
-  const N = narrow ? 700 : 1500, P = new Float32Array(N * 6), seeds = [];
+  const N = narrow ? 500 : 900, P = new Float32Array(N * 6), seeds = [];
   let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
   for (let i = 0; i < N; i++) { const fx = rnd(), fy = rnd(); seeds.push({ x: toX(fx), z: toZ(fy), g: hAt(fx, fy), o: rnd() }); }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
@@ -213,7 +219,7 @@ function resort() { ['l', 'r'].forEach((sd) => { order[sd] = CALL.filter((c) => 
 function layout() {
   const R = renderer.domElement.getBoundingClientRect(), W = R.width, Hh = R.height;
   if (narrow) { CALL.forEach((c) => { const p = screen(c); if (p) { c.badge.style.left = p.x + 'px'; c.badge.style.top = p.y + 'px'; } }); return; }
-  CALL.forEach((c) => { const hid = (anchors[c.at] || {}).L === -1 && EX < 0.5; c.el.style.display = hid ? 'none' : ''; c.ln.parentNode.style.display = hid ? 'none' : ''; });
+  CALL.forEach((c) => { const hid = EX < 0.5 && !narrow; c.el.style.display = hid ? 'none' : ''; c.ln.parentNode.style.display = hid ? 'none' : ''; });
   ['l', 'r'].forEach((sd) => {
     const list = order[sd].filter((c) => c.el.style.display !== 'none'), n = list.length, top = 22, gap = (Hh - top - 30) / n;
     list.forEach((c, i) => {
@@ -236,16 +242,18 @@ function setAnchors(R, B) {
   const A = (p, L) => ({ p, L });
   Object.assign(anchors, {
     sky: A(new THREE.Vector3(-S * 0.25, HMAX + 16, -S * 0.15), 1), water: A(at(P.pond, 0), 1), flow: A(at(P.park_ave, 0), 1), road: A(at(cm, 0), 1),
-    wpi: A(at(P.wpi, 0, 1.2), 0), pond: A(at(P.institute_park, 0), 0), peak: A(at(pk, 0), 0), bld: A(at(bc, 0, 1.5), 0),
+    wpi: A(at(P.kaven, 0, 2.5), 0), pond: A(at(P.institute_park, 0), 0), peak: A(at(pk, 0), 0), bld: A(at(bc, 0, 1.5), 0),
     soilTop: A(at([0.3, 0.4], 0), -1), soilWall: A(new THREE.Vector3(toX(0.35), hAt(0.35, 1) - 1.6, toZ(1)), 0), gw: A(new THREE.Vector3(toX(0.7), hAt(0.7, 1) - 3.2, toZ(1)), 0)
   });
 }
 
-const VIEWS = { campus: { pos: new THREE.Vector3(0, 66, 132), target: new THREE.Vector3(0, -4, -4) }, layers: { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) } };
+const VIEWS = { campus: null, layers: { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) } };
 function fitK() {   // pull the camera back when the space for the block (between the label columns) is narrow, so the whole stack fits
   const st = $('cstage'), w = st.clientWidth - (narrow ? 0 : 560), h = st.clientHeight; return Math.max(1, (narrow ? 0.9 : 1.15) / Math.max(0.2, w / h));
 }
-function viewOf() { const h = EXT ? VIEWS.layers : VIEWS.campus, k = fitK() * (narrow ? 0.92 : 1); return { pos: h.pos.clone().sub(h.target).multiplyScalar(k).add(h.target), target: h.target.clone() }; }
+function viewOf() {
+  if (!VIEWS.campus) { const f = M.places.kaven, t = new THREE.Vector3(toX(f[0]), hAt(f[0], f[1]), toZ(f[1])); VIEWS.campus = { pos: t.clone().add(new THREE.Vector3(-8, 50, 100)), target: t.clone().add(new THREE.Vector3(0, 0, 9)) }; }
+  const h = EXT ? VIEWS.layers : VIEWS.campus, k = fitK() * (narrow ? 0.92 : 1); return { pos: h.pos.clone().sub(h.target).multiplyScalar(k).add(h.target), target: h.target.clone() }; }
 function home(animate) {
   const v = viewOf();
   if (animate && !reduced) { camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: v.pos, t1: v.target, k: 0 }; return; }
@@ -272,13 +280,13 @@ async function init() {
   const [tRun, tAir, tMod] = await Promise.all([loadTex('runoff.jpg'), aerialTexture(R), modelTexture(R)]);
   soilMat.uniforms.meanTop.value = H.reduce((a, b) => a + b, 0) / H.length;
   slab(tRun, THICK, sideMat(0xd9d5cc), 0);
-  const mid = slab(tAir, SOIL, soilMat, 0); const bm = B && buildings(B); if (bm) mid.add(bm);
+  const mid = slab(tAir, SOIL, soilMat, 0); const bm = B && buildings(B, tAir); if (bm) mid.add(bm);
   slab(tMod, THICK, sideMat(0xe8eef6), 0);
   slabs[2].children.forEach((ch) => { ch.userData.slabPart = true; });
   const acc8 = new Uint8Array(fa), acc = new Float32Array(acc8.length); for (let i = 0; i < acc8.length; i++) acc[i] = Math.pow(2, acc8[i] / 16);
   buildRain(); buildParticles(new Uint8Array(fd), acc); setAnchors(R, B); applyEx();
   controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
-  controls.minDistance = 60; controls.maxDistance = 700; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
+  controls.minDistance = 18; controls.maxDistance = 700; controls.maxPolarAngle = Math.PI * 0.49; controls.addEventListener('end', resort);
   buildCallouts(); addEventListener('resize', resize); resize(); home();
   const sum = R.status.reduce((o, r) => { o[r.s] = (o[r.s] || 0) + 1; return o; }, {});
   $('clegend').innerHTML = `<span><i class="sw" style="background:${ROAD_C.closed}"></i>Closed in the model run</span><span><i class="sw" style="background:${ROAD_C.risk}"></i>At risk</span>` +
