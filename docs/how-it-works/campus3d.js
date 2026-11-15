@@ -214,7 +214,7 @@ function setAnchors(R, B) {
   });
 }
 
-const HOME = { pos: new THREE.Vector3(150, 70, 190), target: new THREE.Vector3(0, -1, 4) }, HOME_N = { pos: new THREE.Vector3(120, 95, 165), target: new THREE.Vector3(0, -2, 0) };
+const HOME = { pos: new THREE.Vector3(175, 82, 225), target: new THREE.Vector3(0, -4, 4) }, HOME_N = { pos: new THREE.Vector3(120, 95, 165), target: new THREE.Vector3(0, -2, 0) };
 function home() { const h = narrow ? HOME_N : HOME; camera.position.copy(h.pos); controls.target.copy(h.target); controls.update(); resort(); }
 function resize() {
   const st = $('cstage'), w = st.clientWidth, h = st.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
