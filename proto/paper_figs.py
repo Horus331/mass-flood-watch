@@ -124,9 +124,39 @@ def fig1():
     fig.tight_layout(); fig.savefig(f'{OUT}/fig1_study_area.png'); plt.close(fig); NUM['fig1'] = n
 
 
+def fig3():
+    import pandas as pd
+    t0 = pd.Timestamp('2023-09-11T16:00Z'); GJ = {g['site']: g for g in json.load(open(f'{P}/obs/gauges_sep2023.json'))['gauges']}
+    V = [('sep2023_rain', 'default step (≤ 10 s)', '#c0392b', '-'), ('sep2023_rain_dt1', 'step ≤ 1 s (LF_PARITY)', C_MODEL, '-'),
+         ('sep2023_rain_dt05', 'step ≤ 0.5 s', INK, ':')]
+    fig, axs = plt.subplots(1, 2, figsize=(9.4, 3.4), dpi=200); NUM['fig3'] = {}
+    for ax, site in zip(axs, ('01094400', '01094500')):
+        g = GJ[site]; st = [(pd.Timestamp(t).tz_convert('UTC'), v * 0.3048) for t, v in g['stage_ft']]
+        pre = np.median([v for t, v in st if t0 - pd.Timedelta(hours=12) <= t <= t0])
+        oh = [((t - t0).total_seconds() / 3600, v - pre) for t, v in st if t0 <= t <= t0 + pd.Timedelta(hours=36)]
+        ox, oy = [], []
+        for (a, b), (c, d) in zip(oh[:-1], oh[1:]):
+            ox.append(a); oy.append(b)
+            if c - a > 1.0: ox.append(np.nan); oy.append(np.nan)          # gauge record gap: leave it open
+        ox.append(oh[-1][0]); oy.append(oh[-1][1])
+        ax.plot(ox, oy, color='#999', lw=2.2, label='observed (USGS stage; gaps left open)'); NUM['fig3'][site] = {}
+        for v, lab, col, ls in V:
+            Z = np.load(f'{P}/parity/{v}/gauge_windows.npz'); D = Z[f'{site}_depth_cm'].astype(float) / 100; wm = Z[f'{site}_wm']; h = Z['hours']
+            c = D.shape[1] // 2; k = 3; sub = wm[c - k:c + k + 1, c - k:c + k + 1]
+            if sub.any():
+                rr, cc = np.nonzero(sub); j = np.argmin((rr - k) ** 2 + (cc - k) ** 2); r_, c_ = rr[j] + c - k, cc[j] + c - k
+            else: r_, c_ = np.unravel_index(np.argmax(D.max(0)[c - k:c + k + 1, c - k:c + k + 1]), (2 * k + 1, 2 * k + 1)); r_ += c - k; c_ += c - k
+            ms = D[:, r_, c_]; ax.plot(h, ms - ms[0], ls, color=col, lw=1.4, label=lab)
+            NUM['fig3'][site][v] = dict(rise_m=float(ms.max() - ms[0]), peak_h=float(h[int(np.argmax(ms))]))
+        ax.set_title(g['name'].title().replace(', Ma', ''), fontsize=9, loc='left'); ax.set_xlabel('hours after 16:00 UTC, 11 Sep 2023')
+        ax.set_ylabel('stage rise (m)'); ax.grid(color=GRID, lw=0.6); ax.spines[['top', 'right']].set_visible(False); ax.set_xlim(0, 36)
+    axs[0].legend(frameon=False, fontsize=7.5)
+    fig.tight_layout(); fig.savefig(f'{OUT}/fig3_timestep.png'); plt.close(fig)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for f in (fig1, fig5, fig6, fig4):
+    for f in (fig1, fig3, fig5, fig6, fig4):
         try: f()
         except Exception as e: print(f.__name__, 'failed:', repr(e)[:300])
     subprocess.run([sys.executable, f'{ROOT}/proto/phase1_figure.py'], check=False)
