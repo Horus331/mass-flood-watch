@@ -307,15 +307,20 @@ def render_campus(a):
     from pyproj import Transformer
     from scipy.ndimage import zoom
     os.makedirs(a.out, exist_ok=True)
-    info = json.load(open(f'{a.data}/layers.json')); x0, y0, x1, y1 = info['box']; W, Hm = x1 - x0, y1 - y0
+    info = json.load(open(f'{a.data}/layers.json')); X0, Y0, X1, Y1 = info['box']
+    cx, cy, cs = [float(v) for v in a.crop.split(',')] if a.crop else (0.0, 0.0, 1.0)   # square crop: west fraction, north fraction, size fraction
+    x0, x1 = X0 + cx * (X1 - X0), X0 + (cx + cs) * (X1 - X0); y1, y0 = Y1 - cy * (Y1 - Y0), Y1 - (cy + cs) * (Y1 - Y0)
+    W, Hm = x1 - x0, y1 - y0
+    def crop(arr):   # the same square out of any north-up grid of the full box
+        n, m = arr.shape[:2]; r0, c0 = int(round(cy * n)), int(round(cx * m)); k = int(round(cs * n)); return arr[r0:r0 + k, c0:c0 + k]
     tr = Transformer.from_crs(4326, 26986, always_xy=True)
     frac = lambda X, Y: ((np.asarray(X) - x0) / W, (y1 - np.asarray(Y)) / Hm)
-    meta = dict(box=info['box'], width_m=W, height_m=Hm, storm='19 Aug 2021', layers={})
+    meta = dict(box=[x0, y0, x1, y1], width_m=W, height_m=Hm, storm='19 Aug 2021', layers={})
     # aerial
-    im = Image.open(f'{a.data}/naip.jpg').convert('RGB'); N = min(a.size, im.size[0])
+    im = Image.open(f'{a.data}/naip.jpg').convert('RGB'); im = Image.fromarray(crop(np.asarray(im))); N = min(a.size, max(im.size[0], 2048))
     im.resize((N, N), Image.LANCZOS).save(f'{a.out}/aerial.jpg', quality=86); meta['layers']['aerial'] = dict(src=info.get('naip'), px_m=round(W / im.size[0], 2))
     # fine terrain -> height grid + flow
-    Z = np.load(f'{a.data}/dem_fine.npz'); z = Z['z']; zres = float(Z['res_m'])
+    Z = np.load(f'{a.data}/dem_fine.npz'); z = crop(Z['z']); zres = float(Z['res_m'])
     if np.isnan(z).any():
         from scipy.ndimage import distance_transform_edt
         idx = distance_transform_edt(np.isnan(z), return_distances=False, return_indices=True); z = z[tuple(idx)]
@@ -377,7 +382,7 @@ def render_campus(a):
         json.dump(dict(license=B.get('license'), buildings=out), open(f'{a.out}/buildings.json', 'w'), separators=(',', ':'))
         meta['buildings'] = dict(n=len(out), src='OpenStreetMap', license=B.get('license'))
     # runoff potential (curve number, the model's 10 m input) for the bottom layer
-    Lr = np.load(f'{a.data}/layers.npz'); cn = Lr['cn'].astype(np.float32); mk = Lr['mask']
+    Lr = np.load(f'{a.data}/layers.npz'); cn = crop(Lr['cn'].astype(np.float32)); mk = crop(Lr['mask'])
     cnN = np.asarray(Image.fromarray(cn).resize((2048, 2048), Image.BILINEAR)); wN = np.asarray(Image.fromarray(((mk & 3) > 0).astype(np.uint8) * 255).resize((2048, 2048), Image.NEAREST)) > 127
     rgb = ramp([(0, (245, 241, 230)), (0.35, (226, 200, 150)), (0.65, (196, 132, 82)), (0.85, (150, 78, 52)), (1, (92, 44, 40))], np.clip((cnN - 40) / 58, 0, 1)); rgb[wN] = (150, 184, 216)
     Image.fromarray(rgb).save(f'{a.out}/runoff.jpg', quality=88); meta['layers']['runoff'] = dict(lo=40, hi=98, res_m=info['res_m'])
@@ -396,7 +401,7 @@ if __name__ == '__main__':
     f.add_argument('--dem-res', type=float, default=0); f.add_argument('--buildings', action='store_true')
     r = sp.add_parser('render'); r.add_argument('--data', required=True); r.add_argument('--flood'); r.add_argument('--out', required=True); r.add_argument('--size', type=int, default=1400); r.add_argument('--grid', type=int, default=300)
     c = sp.add_parser('campus'); c.add_argument('--data', required=True); c.add_argument('--flood'); c.add_argument('--roads', required=True); c.add_argument('--out', required=True)
-    c.add_argument('--size', type=int, default=4096); c.add_argument('--grid', type=int, default=450); c.add_argument('--flow-grid', type=int, default=450)
+    c.add_argument('--size', type=int, default=4096); c.add_argument('--crop', default=''); c.add_argument('--grid', type=int, default=450); c.add_argument('--flow-grid', type=int, default=450)
     a = ap.parse_args()
     if a.cmd == 'fetch': fetch(a)
     elif a.cmd == 'campus': render_campus(a)
