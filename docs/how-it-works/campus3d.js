@@ -55,7 +55,7 @@ const STORY = [
     tech: 'streams cut in to their normal depth · culvert size from field surveys · capacity by the FHWA HDS-5 method', src: 'USGS NHDPlus HR, NAACC culvert surveys', chip: PUB, nodes: ['nhd', 'channels', 'crossings', 'notch', 'culvert'] },
   { zone: 'right', n: 0, id: 'pipes', ic: 'culvert', st: 'wait', t: 'Storm drains under the street', p: 'Street drains and pipes take away part of the water in town. Their locations are collected; the pipe sizes are held by each city.',
     tech: 'next: pipe sizes and depths from city records', src: 'City stormwater records', chip: '', lim: true, nodes: ['cc_drains'] },
-  { zone: 'right', n: 4, id: 'roads', result: true, st: 'in', at: 'closed', t: 'Water on every road', p: 'Every 10 m along every road, the model reads how deep the water gets and for how long. Before a storm, a road closed in at least 2 of the 8 forecasts is listed as likely.',
+  { zone: 'right', n: 4, id: 'roads', result: true, st: 'in', at: 'closed', t: 'Water on every road', p: 'Every 10 m along every road, the model reads how deep the water gets and for how long. A puddle in one low spot does not close a road: the water has to cover nearly all of it. Before a storm, a road closed in at least 2 of the 8 forecasts is listed as likely.',
     tech: '52,698 road segments · only water the storm added counts · culvert overtopping and fast water checked too', src: 'MassDOT road inventory', chip: PUB, nodes: ['roadpts', 'segdepth', 'onset', 'pclose', 'kofn'] },
   { zone: 'right', n: 5, id: 'access', ic: 'people', st: 'in', t: 'Who gets cut off', p: 'With the flooded roads closed, the model finds who can no longer reach a hospital, fire station or police station in time.',
     tech: 'hospital 30 min · fire 8 min · police 10 min · wet roads slowed by depth (Pregnolato curve)', src: 'US Census 2020, OpenStreetMap', chip: PUB, nodes: ['census', 'facilities', 'pregnolato', 'dijkstra', 'access'] }
@@ -338,8 +338,13 @@ function home(animate) {
   if (animate && !reduced) { camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: v.pos, t1: v.target, k: 0 }; return; }
   camera.position.copy(v.pos); controls.target.copy(v.target); controls.update(); resort();
 }
+function fitStage(st) {   // grow the figure so the label columns are never cut off at the bottom
+  const co = $('ccallouts'); if (st.clientWidth < 860 || co.parentNode !== st) { st.style.minHeight = ''; return; }
+  const t = st.getBoundingClientRect().top; let mb = 0; for (const el of co.querySelectorAll('*')) { const b = el.getBoundingClientRect(); if (b.height) mb = Math.max(mb, b.bottom - t); }
+  st.style.minHeight = Math.ceil(mb + 24) + 'px';
+}
 function resize() {
-  const st = $('cstage'), w = st.clientWidth, h = st.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
+  const st = $('cstage'); fitStage(st); const w = st.clientWidth, h = st.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
   narrow = w < 860; const co = $('ccallouts');
   if (narrow && co.parentNode === st) st.after(co); else if (!narrow && co.parentNode !== st) st.insertBefore(co, $('cloading'));
   camera.fov = narrow ? 46 : 32; camera.updateProjectionMatrix(); if (narrow !== wasNarrow || Math.abs(fitK() - lastK) > 0.05) { wasNarrow = narrow; lastK = fitK(); home(); } resort(); layout();
