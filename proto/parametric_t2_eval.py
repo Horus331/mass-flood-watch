@@ -75,7 +75,7 @@ def main():
     if 't2_c100' in G:
         F = PE.flagged(dict(seg=G['t2_c100']['seg'])); gone = sorted(FB - F)
         near = [s for s in gone if np.min(np.hypot(*(PE.seg_xy(O['seg'][s], tr)[:, None, :] - allX[None, :, :]).transpose(2, 0, 1))) <= 60]
-        pd = lambda R, ss: round(float(np.median([R['seg'][s]['properties'].get('peak_depth_m') or 0 for s in ss])), 2) if ss else None
+        pd = lambda R, ss: round(float(np.median([(R['seg'].get(s, {}).get('properties', {}).get('peak_depth_m') or 0) for s in ss])), 2) if ss else None
         out['notch_check'] = dict(base_closed=len(FB), c100_closed=len(F), no_longer_closed=len(gone), within_60m_of_crossing=len(near),
                                   median_peak_depth_base_m=pd(O, near), median_peak_depth_c100_m=pd(G['t2_c100'], near), pre_t2=dict(no_longer_closed=42, within_60m=39))
         out['readable_from_closures'] = bool(len(F) >= len(FB) and len(near) < len(gone) / 2) if gone else bool(len(F) >= len(FB))
