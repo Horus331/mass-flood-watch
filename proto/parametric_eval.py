@@ -7,13 +7,19 @@ Matching is geometric and the same in every run: the base catalogue run's matche
 import csv, glob, gzip, json, math, os
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); PH = f'{ROOT}/docs/proto/phase1'; RUNS = f'{PH}/parametric'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); PH = f'{ROOT}/docs/proto/phase1'
+SET = os.environ.get('PM_SET', 'pm')      # pm = the first study (pre-T2); t2 = PARAMETRIC_T2_PREREG.md (same runs on the T2 terrain)
+RUNS = f'{PH}/parametric' if SET == 'pm' else f'{PH}/parametric_t2'; OUTJ = f'{PH}/parametric.json' if SET == 'pm' else f'{PH}/parametric_t2.json'
 MATCH = f'{ROOT}/docs/proto/parity/catalog/sep2023_leominster_20m/matches_sep2023.json'
 ORDER = ['pm_base', 'pm_c20', 'pm_c50', 'pm_c100', 'pm_ct', 'pm_s1', 'pm_s3', 'pm_s2raw', 'pm_f', 'pm_cs']
 LABEL = {'pm_base': 'base (AMC II × 0.88, culverts open)', 'pm_c20': 'culverts 20 % blocked', 'pm_c50': 'culverts 50 % blocked',
          'pm_c100': 'culverts 100 % blocked', 'pm_ct': 'smallest third of culverts 100 % blocked', 'pm_s1': 'dry soil (AMC I)',
          'pm_s3': 'wet soil (AMC III)', 'pm_s2raw': 'calibration removed (AMC II × 1.00)', 'pm_f': 'frozen ground (Knisel CN 95/98, no soak-in)',
          'pm_cs': '50 % blocked + wet soil (AMC III)'}
+if SET == 't2':
+    LABEL = {k.replace('pm_', 't2_'): v + ' (T2 terrain)' for k, v in LABEL.items() if k in ('pm_base', 'pm_c20', 'pm_c50', 'pm_c100', 'pm_ct')}
+    ORDER = list(LABEL)
+BASE, C100, CT = f'{SET}_base', f'{SET}_c100', f'{SET}_ct'
 BOX = (162000, 908000, 182000, 928000)
 
 
@@ -56,11 +62,11 @@ def main():
     ham = [k for k in REP if 'hamilton' in (rep_rows.get(k.split(':')[1], {}).get('name', '') + rep_rows.get(k.split(':')[1], {}).get('road', '')).lower()]
     lab_xy = np.array([tr.transform(float(r['lon']), float(r['lat'])) for r in list(rep_rows.values()) + list(dpw_rows.values()) if r.get('lon')])
     runs = {i: load_run(f'{RUNS}/{i}') for i in ORDER if os.path.exists(f'{RUNS}/{i}/summary.json')}
-    if 'pm_base' not in runs: raise SystemExit('pm_base missing')
-    N = runs['pm_base']['S']['segments_in_box']; B = runs['pm_base']; FB = flagged(B)
+    if BASE not in runs: raise SystemExit(BASE + ' missing')
+    N = runs[BASE]['S']['segments_in_box']; B = runs[BASE]; FB = flagged(B)
     base_miss = [i for i, s in DPW.items() if not set(s) & FB]
     wach = [i for i in base_miss if dpw_rows[i]['road'] == 'wa']; xmiss = [i for i in base_miss if LM.get(i, {}).get('cls_amended') == 'culvert']
-    out = dict(made_by='proto/parametric_eval.py', prereg='docs/proto/phase1/PARAMETRIC_PREREG.md', segments_in_box=N,
+    out = dict(made_by='proto/parametric_eval.py', prereg='docs/proto/phase1/PARAMETRIC_PREREG.md' if SET == 'pm' else 'docs/proto/phase1/PARAMETRIC_T2_PREREG.md', segments_in_box=N,
                base_dpw_misses=len(base_miss), wachusett_misses=len(wach), crossing_misses=len(xmiss), hamilton_labels=ham, rows=[])
     for i, R in runs.items():
         F = flagged(R); k = len(F)
@@ -88,7 +94,7 @@ def main():
                    rain_max_total_mm=R['S'].get('rain_max_total_mm'), culverts_overtopped=R['S'].get('culverts_overtopped'))
         out['rows'].append(row)
     out['culvert_priority'] = priority(runs, tr, FB)
-    json.dump(out, open(f'{PH}/parametric.json', 'w'), indent=1)
+    json.dump(out, open(OUTJ, 'w'), indent=1)
     keys = ['id', 'flagged', 'reports_hit', 'dpw_hit', 'newly_closed', 'newly_closed_unreported', 'base_misses_now_hit', 'wachusett_now_hit',
             'crossing_misses_now_hit', 'median_depth_base_misses_cm', 'hamilton_reached', 'pop_lost_any']
     print(' | '.join(keys))
@@ -105,13 +111,13 @@ def priority(runs, tr, FB, near_m=300.0, pool_m=40.0):
     X = json.load(open(f'{ROOT}/docs/network/crossings_all.json')); C = X['columns']
     rows = [dict(zip(C, r)) for r in X['rows'] if r[C.index('lon')] is not None]
     x0, y0, x1, y1 = BOX; res = 20.0; out = {}
-    for rid in ('pm_c100', 'pm_ct'):
-        if rid not in runs or runs[rid]['H'] is None or runs['pm_base']['H'] is None: continue
+    for rid in (C100, CT):
+        if rid not in runs or runs[rid]['H'] is None or runs[BASE]['H'] is None: continue
         R = runs[rid]; F = flagged(R); new = F - FB
         newxy = {s: seg_xy(R['seg'][s], tr) for s in new}
-        HB = runs['pm_base']['H']['hmax_cm'].astype(float); HR = R['H']['hmax_cm'].astype(float)
+        HB = runs[BASE]['H']['hmax_cm'].astype(float); HR = R['H']['hmax_cm'].astype(float)
         xs, ys = tr.transform([r['lon'] for r in rows], [r['lat'] for r in rows])
-        keep = ns['small_third'](rows, xs, ys, BOX) if rid == 'pm_ct' else None
+        keep = ns['small_third'](rows, xs, ys, BOX) if rid == CT else None
         L = []
         for r, x, y in zip(rows, xs, ys):
             if not (x0 <= x < x1 and y0 <= y < y1) or ns['is_bridge'](r) or (keep is not None and r['id'] not in keep): continue
