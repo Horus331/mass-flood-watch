@@ -154,9 +154,32 @@ def fig3():
     fig.tight_layout(); fig.savefig(f'{OUT}/fig3_timestep.png'); plt.close(fig)
 
 
+def fig8():
+    """Forecast lead time: the four pre-registered ensemble rules, 7 out-of-sample storms, deployed (parity) physics
+    (forecast/ensemble_parity.json pooled; forecast/ENSEMBLE_PARITY.md §1-2)."""
+    E = json.load(open(f'{P}/forecast/ensemble_parity.json'))['pooled']
+    rules = [('single', 'single cycle'), ('any_of_4', 'any of 4'), ('two_of_4', '2 of 4'), ('two_of_8', '2 of 8 (live)')]
+    leads = [('oos_long', 'long lead (8–14 h)'), ('oos_short', 'short lead (2–8 h)')]
+    fig, axs = plt.subplots(1, 2, figsize=(9.8, 3.6), dpi=200, sharey=True); NUM['fig8'] = dict(source='forecast/ensemble_parity.json pooled')
+    for ax, (lk, lt) in zip(axs, leads):
+        R = E[lk]['rules']; x = np.arange(len(rules))
+        rec = [R[k]['recall'] for k, _ in rules]; fl = [100 * R[k]['mean_flagged_share'] for k, _ in rules]; mx = [100 * R[k]['max_flagged_share'] for k, _ in rules]
+        cols = [C_MODEL if k == 'two_of_8' else C_BASE for k, _ in rules]
+        ax.bar(x, rec, color=cols, width=0.6)
+        for xi, r, f, m, (k, _) in zip(x, rec, fl, mx, rules):
+            ax.text(xi, r + 0.01, f"{r:.2f}", ha='center', va='bottom', fontsize=8, color=INK)
+        ax.set_xticks(x); ax.set_xticklabels([f"{t}\n{f:.1f} % flagged\n(max {m:.1f} %)" for (_, t), f, m in zip(rules, fl, mx)], fontsize=7.5)
+        ax.set_ylim(0, 0.5); ax.grid(axis='y', color=GRID, lw=0.6); ax.spines[['top', 'right']].set_visible(False)
+        ax.set_title(f"{lt}: {R['single']['sites']} sites, {R['single']['storms']} storms", fontsize=9, loc='left')
+        NUM['fig8'][lk] = {k: dict(recall=R[k]['recall'], mean_flagged_pct=round(100 * R[k]['mean_flagged_share'], 2),
+                                   max_flagged_pct=round(100 * R[k]['max_flagged_share'], 2), lift=R[k]['lift']) for k, _ in rules}
+    axs[0].set_ylabel('share of documented sites caught')
+    fig.tight_layout(); fig.savefig(f'{OUT}/fig8_forecast_rules.png'); plt.close(fig)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for f in (fig1, fig3, fig5, fig6, fig4):
+    for f in (fig1, fig3, fig5, fig6, fig4, fig8):
         try: f()
         except Exception as e: print(f.__name__, 'failed:', repr(e)[:300])
     subprocess.run([sys.executable, f'{ROOT}/proto/phase1_figure.py'], check=False)
