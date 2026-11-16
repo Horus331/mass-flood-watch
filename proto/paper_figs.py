@@ -154,6 +154,54 @@ def fig3():
     fig.tight_layout(); fig.savefig(f'{OUT}/fig3_timestep.png'); plt.close(fig)
 
 
+def fig7():
+    """Sept 2023 District run: peak depth with closed segments, and the cascade over time (turing/d3_sep2023_p/, paper/data/d3_sep2023_cascade.json
+    written by `proto/cascade.py pack d3_sep2023`, then moved out of the site folder)."""
+    from pyproj import Transformer
+    D = f'{P}/turing/d3_sep2023_p'; meta = json.load(open(f'{D}/flood_meta.json')); S = json.load(open(f'{D}/summary.json'))
+    C = json.load(open(f'{P}/paper/data/d3_sep2023_cascade.json')); s = C['series']; t = np.array(C['t_h'])
+    h = np.load(f'{D}/hmax_cm.npz')['hmax_cm']; k = 5; ny, nx = h.shape
+    hm = h[:ny // k * k, :nx // k * k].reshape(ny // k, k, nx // k, k).max((1, 3)).astype(float) / 100
+    x0, y0, x1, y1 = meta['box']
+    fig = plt.figure(figsize=(10.4, 5.6), dpi=200); gs = fig.add_gridspec(4, 2, width_ratios=[1.0, 1.15], wspace=0.18, hspace=0.35)
+    ax = fig.add_subplot(gs[:, 0])
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    cm_ = ListedColormap(['#f4f4f4', '#c6dbef', '#6baed6', '#2171b5', '#08306b']); nm = BoundaryNorm([0, 0.1, 0.3, 0.6, 1.0, 1e3], cm_.N)
+    ax.imshow(hm, extent=(x0 / 1e3, x1 / 1e3, y0 / 1e3, y1 / 1e3), cmap=cm_, norm=nm, interpolation='nearest')
+    tr = Transformer.from_crs(4326, 26986, always_xy=True); nclosed = 0
+    for f in json.load(open(f'{D}/segments.geojson'))['features']:
+        if (f['properties'].get('p_close') or 0) < 0.5: continue
+        nclosed += 1
+        g = f['geometry']; parts = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]
+        for part in parts:
+            xs, ys = tr.transform(*zip(*part)); ax.plot(np.array(xs) / 1e3, np.array(ys) / 1e3, color=C_CHANCE, lw=1.6, solid_capstyle='round')
+    ax.set_xlabel('x (km, EPSG:26986)'); ax.set_ylabel('y (km)'); ax.spines[['top', 'right']].set_visible(False)
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+    ax.legend(handles=[Patch(color='#c6dbef', label='peak depth 0.1–0.3 m'), Patch(color='#6baed6', label='0.3–0.6 m'), Patch(color='#2171b5', label='0.6–1 m'),
+                       Patch(color='#08306b', label='> 1 m'), Line2D([], [], color=C_CHANCE, lw=1.6, label=f'road segment closed at some time (p ≥ 0.5): {nclosed}')],
+              frameon=True, framealpha=0.9, fontsize=7, loc='lower left')
+    ax.set_title(f"(a) District run, Sept 2023, 20 m ({meta['shape'][0] * meta['shape'][1] / 1e6:.1f} M cells)", fontsize=9, loc='left')
+    rain = np.array(S['rain_hourly_mean_mm'], float)
+    panels = [('rain (box mean, mm/h)', None), ('road segments closed', [('closed_n', C_CHANCE, 'closed')]),
+              ('vehicle-hours lost per hour', [('delay_vehh_per_h', C_MODEL, 'delay (detours + slowed traffic)')]),
+              ('residents', [('pop_lost_any', INK, 'losing a hospital, fire or police station in time'), ('pop_lost_dry_segment', MUTED, '… whose own road is dry'),
+                             ('pop_isolated', C_PI, 'cut off from every service')])]
+    NUM['fig7'] = dict(source='turing/d3_sep2023_p + paper/data/d3_sep2023_cascade.json', closed_segments_map=nclosed, peak=C['totals']['peak'])
+    for i, (yl, ser) in enumerate(panels):
+        a = fig.add_subplot(gs[i, 1])
+        if ser is None: a.bar(np.arange(len(rain)) + 0.5, rain, width=0.9, color='#9ecae1')
+        else:
+            for key, col, lab in ser: a.plot(t, s[key], color=col, lw=1.4, label=lab)
+            if len(ser) > 1: a.legend(frameon=False, fontsize=6.5, loc='upper right')
+        a.set_xlim(0, max(t.max(), len(rain))); a.grid(color=GRID, lw=0.5); a.spines[['top', 'right']].set_visible(False)
+        a.set_ylabel(yl, fontsize=7.5); a.tick_params(labelsize=7)
+        if i < 3: a.set_xticklabels([])
+        if i == 0: a.set_title('(b) what follows, hours after ' + C['storm_start'].replace('T', ' '), fontsize=9, loc='left')
+    a.set_xlabel('hours')
+    fig.savefig(f'{OUT}/fig7_district_cascade.png', bbox_inches='tight'); plt.close(fig)
+
+
 def fig8():
     """Forecast lead time: the four pre-registered ensemble rules, 7 out-of-sample storms, deployed (parity) physics
     (forecast/ensemble_parity.json pooled; forecast/ENSEMBLE_PARITY.md §1-2)."""
@@ -179,7 +227,7 @@ def fig8():
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for f in (fig1, fig3, fig5, fig6, fig4, fig8):
+    for f in (fig1, fig3, fig5, fig6, fig4, fig7, fig8):
         try: f()
         except Exception as e: print(f.__name__, 'failed:', repr(e)[:300])
     subprocess.run([sys.executable, f'{ROOT}/proto/phase1_figure.py'], check=False)

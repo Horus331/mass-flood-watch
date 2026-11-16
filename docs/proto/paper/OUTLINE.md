@@ -145,7 +145,7 @@ Sources: `scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`, `scoring/HYBRID_v3.
 | Fig. 4 | CN-scale calibration: rise error and flagged share against `LF_CN_SCALE` | `parity/calib/leo48_cn0{85..100}/score.json`; table in `parity/BASELINE.md` §1 | **to write** |
 | Fig. 5 | Held-out 23: site recall against flagged share (1–10 %), rule point, chance line, 90 % CI | `obs/round2/score_round2.json` | `proto/score_v2.py --catalog` (numbers); plot **to write** |
 | Fig. 6 | Transfer: recall and lift curves for Districts 4–6 vs District 3; per-district bars | `transfer/r1/score_d456.json`, `transfer/r1/transfer_summary.json` | `proto/score_v2.py --d456`; plot **to write** |
-| Fig. 7 | Sept 2023 District run: depth map with flagged segments; cascade time series (closed, delay, people losing coverage, dry-road share) | `turing/d3_sep2023_p/figure.png` (existing, `prototype.write_figure`), `docs/site/data/d3_sep2023/cascade.json` `series` | existing figure + `proto/cascade.py pack d3_sep2023`; plot **to write** |
+| Fig. 7 | Sept 2023 District run: depth map with flagged segments; cascade time series (closed, delay, people losing coverage, dry-road share) | `turing/d3_sep2023_p/` (hmax, segments), `paper/data/d3_sep2023_cascade.json` `series` | `proto/paper_figs.py fig7` (done 16 Nov; start-up check open) |
 | Fig. 8 | Forecast: recall and flagged share by rule (single, any-of-4, 2-of-4, 2-of-8) at long / short lead, 7 OOS storms | `forecast/ensemble_parity.json` (`pooled`) | `proto/paper_figs.py fig8` (done 16 Nov) |
 | Fig. 9 (SI) | District 3 vulnerability layer (High / Medium / Low) | `docs/proto/arcgis/d3_road_flood_vulnerability.geojson` | `proto/arcgis_export.py` |
 | Fig. 10 (SI) | Learned-model reliability and coefficient importance (LOSO) | `parity/catalog/ml/loso_reliability.png`, `loso_importance.png` | `proto/closure_loso.py` (existing figures) |
@@ -254,7 +254,7 @@ Sources: `scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`, `scoring/HYBRID_v3.
 4. **Finish or drop T4** (B0 / C antecedent moisture) as a PROTOCOL v2 pre-registration. Either way, state it.
 5. **Figure scripts** (`proto/paper_figs.py`) for Figs. 1, 3–8, from the committed JSON only. *15 Nov: started; done: Fig. 4 (CN scale),
    Fig. 5 (held-out recall curve), Fig. 6 redrawn as the benchmark v3 figure (model, π and six baselines, both test sets), Leominster
-   deep dive (`phase1/fig/`); numbers plotted in `paper/fig/figures.json`. Figs. 1, 3 done 15 Nov; Fig. 8 done 16 Nov (`fig8_forecast_rules.png`, parity rerun). Still to do: Fig. 7 (needs the cascade series of the District run packed: `proto/cascade.py pack d3_sep2023`).*
+   deep dive (`phase1/fig/`); numbers plotted in `paper/fig/figures.json`. Figs. 1, 3 done 15 Nov; Fig. 8 done 16 Nov (`fig8_forecast_rules.png`, parity rerun). Fig. 7 done 16 Nov (`fig7_district_cascade.png`; cascade series packed to `paper/data/d3_sep2023_cascade.json`, kept out of the site folder so the live map is unchanged). **Check before using Fig. 7:** 17 segments close and ~51,000 residents lose access at t = 0.5 h, before the rain (0.1 mm/h): a start-up effect of the District run (no spin-up), to be explained or trimmed.*
 6. **A frozen, citable snapshot**: tag the commit, Zenodo DOI, and the data licence for each label source (`DATA_IDEAS.md` Sources).
 7. **Literature gaps marked [ref needed].** Prior road-segment closure-skill studies, and DOT flood-closure practice. Only the R# list
    is currently cited. Add sources the owner has reviewed; do not cite from memory.
