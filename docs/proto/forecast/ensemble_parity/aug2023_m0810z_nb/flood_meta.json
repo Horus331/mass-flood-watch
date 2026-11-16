@@ -1,0 +1,95 @@
+{
+ "run": "aug2023_ens_aug2023_m0810z_nb",
+ "title": "Aug 8, 2023 flash floods, MetroWest \u00b7 NOAA HRRR forecast issued Aug 08 10z \u00b7 LISFLOOD-FP benchmark",
+ "box": [
+  193000.0,
+  879000.0,
+  213000.0,
+  899000.0
+ ],
+ "res_m": 20.0,
+ "shape": [
+  1000,
+  1000
+ ],
+ "t0": "2023-08-08T10:00Z",
+ "frame_min": 30,
+ "crs": "EPSG:26986",
+ "model": "LISFLOOD-FP 8.2",
+ "model_source": "https://doi.org/10.5281/zenodo.13121102",
+ "model_build": {
+  "cuda": false,
+  "exe": "lisflood",
+  "build_s": 106
+ },
+ "solver": "acceleration (local inertial, Bates et al. 2010) on CPU (OpenMP)",
+ "inputs": {
+  "dem": "HF data/dem10 averaged to RES",
+  "channels": "vol",
+  "manning": "0.035 water/channel, 0.10 dense urban, 0.08 other",
+  "rain": "NOAA HRRR forecast APCP 1-h buckets, cycle 2023-08-08T10:00Z, forecast hours 1-15 (bilinear from the 3 km Lambert grid), then dry -> TUFLOW NetCDF dynamicrainfile",
+  "phase": null,
+  "loss": "cn",
+  "boundary": "FREE on all edges",
+  "baseflow": true,
+  "inflows": "none",
+  "env": {
+   "LF_CN_AMC": "II",
+   "LF_CN_SCALE": "0.88",
+   "LF_HRRR_INIT": "2023-08-08T10Z",
+   "LF_HRRR_NBHD": "20,90",
+   "LF_INFIL_MMH": "2",
+   "LF_INFIL_MODE": "rain",
+   "LF_INIT_TSTEP": "1",
+   "LF_LOSS": "cn",
+   "LF_NO_UPLOAD": "1",
+   "LF_PARITY": "1",
+   "LF_QOUT": "1",
+   "LF_RAIN": "hrrr"
+  },
+  "drains": "none",
+  "infiltration": {
+   "mode": "rain",
+   "mmh": 2.0,
+   "excess_in_mean_mm": 8.47,
+   "excess_out_mean_mm": 4.77,
+   "kept_share": 0.563,
+   "applied_by": "rain excess, hourly, before the solver (both solvers)"
+  },
+  "initial_tstep_s": 1.0,
+  "t0_snapshot": "solver"
+ },
+ "rain_probe": {
+  "quadrants": {
+   "NW": 0.05369,
+   "NE": 0.00894,
+   "SW": 0.00894,
+   "SE": 0.00031
+  },
+  "flip_y": false,
+  "flip_x": false,
+  "scale": 1.0,
+  "probe_B_ratio": 1.0,
+  "convention": "forward"
+ },
+ "hmax_source": "max file",
+ "rain_total_max_mm": 72,
+ "rain_total_mean_mm": 50,
+ "rain_missing_hours": [],
+ "runtime_s": 610,
+ "total_s": 742,
+ "peak_wet_km2": 4.2,
+ "peak_snapshot_wet_km2": 1.6,
+ "mass_tail": [
+  "53700.000    1.0000     1.0000     53700      24746800.0000 2568545.1090  0.000       0.000      15.061           -0.0000      -0.0000 1906026.0959",
+  "54000.000    1.0000     1.0000     54000      24684400.0000 2564034.1483  0.000       0.000      15.003           -0.0000      -0.0000 1906026.0959"
+ ],
+ "git_sha": "9dfe0cc5",
+ "forecast": {
+  "source": "hrrr",
+  "issued": "2023-08-08T10:00Z",
+  "forecast_hours": 15,
+  "run_hours": 15,
+  "spinup_h": 0
+ }
+}

@@ -1,0 +1,50 @@
+14:07:48 w9 LISFLOOD-FP benchmark: aug2021_site_layers_wpi_campus box (173802.0, 890566.0, 175602.0, 892366.0) res 10.0 m, 18 h from 2021-08-19T09:00Z; GPU False, nvcc None
+14:07:49 downloading LISFLOOD-FP 8.2 from zenodo 13121102: LISFLOOD-FP-v8.2.zip (348 MB)
+14:09:05 source tree: /home/runner/work/_temp/lf/src/LISFLOOD-FP
+14:09:05 $ apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y cmake libnetcdf-dev netcdf-bin libnuma-dev > /dev/null
+14:09:05 E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+
+14:09:05 cmake files: ['config.default.cmake', 'CMakeLists.txt']
+14:09:05 build switches found: ['CMAKE_CUDA_ARCHITECTURES', 'CMAKE_CUDA_COMPILER', '_NETCDF']
+14:09:05 config.cmake from config.default.cmake
+14:09:05 patched sync() -> lfp_cuda_sync() in 4 CUDA source files
+14:09:05 patched infevap.cpp FPInfiltration: + per-cell infilfile sink (mfw-drains)
+14:09:05 config.cmake used:
+set(_NETCDF ON)
+add_compile_definitions(_NUMERIC_MODE=1)
+add_compile_definitions(_ONLY_RECT=1)
+add_compile_definitions(_PROFILE_MODE=0)
+add_compile_definitions(_DISABLE_WET_DRY=0)
+add_compile_definitions(_CALCULATE_Q_MODE=1)
+add_compile_definitions(_SGM_BY_BLOCKS=0)
+add_compile_definitions(_BALANCE_TYPE=0)
+
+14:09:05 $ cmake -S /home/runner/work/_temp/lf/src/LISFLOOD-FP -B /home/runner/work/_temp/lf/build_cpu -DCMAKE_BUILD_TYPE=Release -D_NETCDF=ON
+14:09:06 $ cmake --build /home/runner/work/_temp/lf/build_cpu -j 4
+14:09:41 $ ldd /home/runner/work/_temp/lf/build_cpu/lisflood
+14:09:41 built /home/runner/work/_temp/lf/build_cpu/lisflood (CUDA False) in 113s
+14:09:41 probe: {'quadrants': {'NW': 0.05369, 'NE': 0.00894, 'SW': 0.00894, 'SE': 0.00031}, 'flip_y': False, 'flip_x': False, 'scale': 1.0, 'probe_B_ratio': 1.0, 'convention': 'forward'}
+14:09:41 elevation: 1 tiles of 10 m
+14:09:42 edges (raw DEM at RES): N: nan 0, z 148.9..191.1, median 154.0, >1 m below inner 1 | S: nan 0, z 142.1..167.3, median 151.6, >1 m below inner 3 | W: nan 0, z 150.0..206.0, median 176.3, >1 m below inner 26 | E: nan 0, z 143.5..161.6, median 154.5, >1 m below inner 15
+14:09:42 row 0 (north edge) every 20th cell: 190.9 176.3 182.1 170.4 154.0 151.9 149.1 154.1 151.6
+14:09:42 row 1 every 20th cell: 188.8 176.3 181.8 170.6 154.0 151.8 149.1 154.0 151.5
+14:09:42 grid 180 x 180 = 0.03 M cells at 10 m; sea 0.0%
+14:09:42 NLCD impervious: 1/1 tiles, mean 47.1% paved
+14:09:44 channels: 891 cells burnt, mean 0.41 m (volume-equivalent)
+14:09:44 crossings: 24 road fills opened to the lowest ground within 40 m; LF_NOTCH_FIX=1: levels from the un-notched DEM, 18 notches joined to their outlet (69 cells)
+14:09:44 LF_CHAN_ENFORCE=1: 109 of 920 channel cells lowered (mean 0.86 m, max 2.89 m, cap 10.0 m), 0 corner steps closed
+14:09:44 depressions (4-connected): 867 cells carved (mean 0.35 m, max 3.39 m), 0 basins deeper than the cap kept, 0s
+14:09:45 LF_LOSS=cn: AMC II, mean CN 72.8 (HSG A-D + NLCD impervious)
+14:11:13 rain: max 63 mm, mean 59 mm over 18 h; missing []
+14:11:13 effective rain (CN) mean 16 mm of 59 mm (28%)
+14:11:13 MRMS products (hours): {'AWS MultiSensor_QPE_01H_Pass2': 18}
+14:11:13 edges (model DEM): N: nan 0, z 148.7..191.1, median 154.0, >1 m below inner 1 | S: nan 0, z 137.9..167.3, median 151.6, >1 m below inner 3 | W: nan 0, z 149.2..206.0, median 176.3, >1 m below inner 26 | E: nan 0, z 143.5..161.6, median 154.5, >1 m below inner 15
+14:11:13 model row 0 every 20th cell: 190.9 176.3 182.1 170.4 154.0 151.9 149.1 154.1 151.6
+14:11:13 edge flags: sea N/S/W/E 0/0/0/0, chan 3/6/0/6, water 0/0/0/0, rain total row 0 mean 16 mm vs box 16 mm
+14:11:13 LF_SURR_SAVE: {'path': '/home/runner/work/_temp/surr.npz', 'rain_shape': [18, 36, 36], 'mb': 0.4}
+14:11:13 Manning n: channel/water 0.035, land mean 0.093
+14:11:13 LF_INFIL_MODE=rain: 2 mm/h out of the hourly rain excess: mean 16.36 -> 12.46 mm (76% kept); solver infiltration off
+14:11:13 par: DEMfile dem.asc | resroot res | dirroot results | sim_time 64800 | initial_tstep 1 | massint 300 | saveint 1800 | fpfric 0.08 | acceleration | manningfile n.asc | dynamicrainfile rain.nc | bcifile run.bci | startfile start.wd | qoutput

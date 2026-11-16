@@ -63,6 +63,7 @@ jobs:
           cp $P/summary.json $P/REPORT.md $P/segments.geojson $D/ 2>/dev/null; cp $P/cascade.json $D/ 2>/dev/null || true; cp $OUTDIR/meta.json $D/flood_meta.json
           python -c "import json; m=json.load(open('$D/flood_meta.json')); m.pop('frames',None); json.dump(m,open('$D/flood_meta.json','w'),indent=1)"
           python proto/parity_pack.py $OUTDIR $D
+          if [ "${PM_KEEP_Z:-0}" = "1" ]; then python proto/crest_pack.py $OUTDIR $D || true; fi   # ground grids for the crest readout (PARAMETRIC_T2_PREREG.md)
           # segments.geojson over ~3 MB is kept gzipped only
           if [ -f $D/segments.geojson ] && [ $(stat -c %s $D/segments.geojson) -gt 3200000 ]; then gzip -9 $D/segments.geojson; fi
           # per-segment features for the learned closure model (as proto/turing/run_storm.slurm)
