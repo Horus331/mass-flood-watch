@@ -63,6 +63,7 @@ chained-notch pit at the I-190 interchange (segment 51395, `terrain/TERRAIN.md`)
 - For the parametric story: blockage matters locally (8 to 82 more segments near crossings, pools 0.6 to 2.3 m higher), but it does not
   explain the Leominster damage the model misses.
 - For the model: the deployed closure readout should not be used for culvert questions; the what-if explorer already uses the crest
-  readout (`whatif/BLOCKED_V3.md`). Whether the live closure rule should also read crest-relative near crossings is a separate question
-  and would need its own pre-registration (it changes how open-culvert notch water is counted everywhere).
+  readout (`whatif/BLOCKED_V3.md`). The live closure rule keeps the cell depth at crossings on purpose: that water is the proxy that finds
+  the documented culvert failures, and the crest-relative reading drops Leominster recall from 0.385 to 0.08 (`proto/prototype.py`,
+  `whatif/PREREG_BLOCKED_V3.md`). So the live rule stays; the two readouts answer different questions (open-culvert failure vs. blockage).
 - The 9 crossings above are the inspection candidates to send with the culvert-condition request.
