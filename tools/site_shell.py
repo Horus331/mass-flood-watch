@@ -22,7 +22,6 @@ def header(cur):
             f'<a class="sh-brand" href="./">{MARK}<span><b>Mass Flood</b> Watch</span></a>'
             f'<nav class="sh-nav" aria-label="Site">{nav}</nav><span class="sh-grow"></span>'
             '<span class="sh-tag">Research prototype · WPI</span>'
-            f'<a class="sh-icon" href="https://github.com/Horus331/mass-flood-watch" title="Code and data on GitHub" aria-label="Code and data on GitHub">{GH}</a>'
             '</div></header>')
 
 
@@ -40,7 +39,6 @@ FOOTER = ('<footer class="sf"><div class="sf-in">'
           '<li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://www.wpi.edu/academics/departments/civil-environmental-architectural-engineering">WPI Civil, Environmental &amp; Architectural Engineering</a></li></ul></div>'
           '<div class="sf-contact"><h4>Contact us</h4><ul>'
           f'<li><a href="mailto:mgeldokla@wpi.edu">{MAIL}mgeldokla@wpi.edu</a></li>'
-          f'<li><a href="https://github.com/Horus331/mass-flood-watch">{CODE}Code and data on GitHub</a></li>'
           f'<li style="display:flex;gap:8px">{PIN}<address>Department of Civil, Environmental and Architectural Engineering<br>Worcester Polytechnic Institute<br>100 Institute Road, Worcester, MA 01609</address></li>'
           '</ul></div>'
           '<div class="sf-bar"><span>&copy; 2026 Mohab Eldokla · Worcester Polytechnic Institute</span><span class="grow"></span>'
