@@ -1,35 +1,33 @@
 {
- "made": "2026-11-17T15:48Z",
+ "made": "2026-11-17T16:50Z",
  "made_by": "proto/sentinel.py",
  "doc": "docs/proto/live/SENTINEL.md",
  "state": "QUIET",
  "blind": false,
  "since": "2026-11-13T06:22Z",
  "raw_state": "QUIET",
- "last_condition": "2026-11-17T15:48Z",
+ "last_condition": "2026-11-17T16:50Z",
  "reasons": [
   "no warning, watch or heavy rain in District 3"
  ],
  "sources": {
   "nws": {
-   "last": "2026-11-17T15:48Z",
+   "last": "2026-11-17T16:50Z",
    "next": "real time (checked every run)",
    "alerts": []
   },
   "radar": {
-   "last": "2026-11-17T15:46Z",
-   "next": "2026-11-17T15:48Z",
-   "product": "MRMS RadarOnly QPE 1 h",
-   "max_1h_mm": 0.0
+   "error": "RuntimeError('no RadarOnly_QPE_01H_00.00 file on AWS in the last 30 min (s3://noaa-mrms-pds/CONUS/RadarOnly_QPE_01H_00.00/)')",
+   "last": "2026-11-17T15:46Z"
   },
   "hrrr": {
-   "last": "2026-11-17T14:00Z",
-   "next": "2026-11-17T15:50Z",
-   "cycle": "2026-11-17 14Z",
+   "last": "2026-11-17T15:00Z",
+   "next": "2026-11-17T16:50Z",
+   "cycle": "2026-11-17 15Z",
    "note": "newest cycle with 18 h out on AWS"
   },
   "forecast": {
-   "last": "2026-11-17T14:19Z",
+   "last": "2026-11-17T16:00Z",
    "issued": "2026-11-17T12:00Z",
    "next": "every 6 h (HRRR 00/06/12/18Z cycles, ~4 h later)",
    "state": "quiet",
@@ -41,25 +39,27 @@
    ]
   },
   "live_feeds": {
-   "last": "2026-11-17T15:44Z",
-   "next": "2026-11-17T16:44Z",
+   "last": "2026-11-17T16:40Z",
+   "next": "2026-11-17T17:40Z",
    "feeds": {
     "rain": "ok",
-    "nowcast": "ok",
-    "flash": "ok",
+    "nowcast": "failed",
+    "flash": "failed",
     "nwm": "ok",
     "snow": "ok",
     "validation": "ok"
    }
   },
   "usgs_gauges": {
-   "last": "2026-11-17T15:45Z",
-   "next": "2026-11-17T16:45Z",
+   "last": "2026-11-17T16:41Z",
+   "next": "2026-11-17T17:41Z",
    "gauges": 37,
    "note": "USGS updates every ~15 min; this site reads them hourly (live feeds)"
   }
  },
- "errors": {},
+ "errors": {
+  "radar": "RuntimeError('no RadarOnly_QPE_01H_00.00 file on AWS in the last 30 min (s3://noaa-mrms-pds/CONUS/RadarOnly_QPE_01H_00.00/)')"
+ },
  "rules": {
   "ACTIVE": "Flash Flood / Flood Warning in District 3, or radar 1 h rain >= 25 mm",
   "WATCH": "Flood Watch / Flash Flood Watch / Flood Advisory in District 3, radar 1 h rain >= 10 mm, or forecast rain over the model trigger",
