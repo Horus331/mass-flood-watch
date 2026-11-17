@@ -5,7 +5,30 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: sections 2–4 drafted (17 Nov 2026). Sections 1, 5–7 to follow.
+Status: sections 1–6 drafted (17 Nov 2026). Section 7, abstract update, tables and references to follow.
+
+---
+
+## 1. Introduction
+For a state department of transportation, the most frequent impact of a flash flood is a closed road. Crews close, barricade and
+reopen roads one segment at a time, and emergency services route around them one segment at a time; yet most flood guidance comes
+as areas: a warning polygon, a flood zone, an inundation map. Turning water depth into a road decision has a long literature on its own:
+depth thresholds at which vehicles stall or float (Smith et al. 2014, R19; Kramer et al. 2016, R21; Martínez-Gomariz et al. 2018, R20)
+and depth–speed functions for disruption (Pregnolato et al. 2017, R23). Data-driven models estimate road-flood likelihood from past
+reports (Safaei-Moghadam et al. 2023, R37), and machine-learning surrogates now emulate hydrodynamic models quickly (Bentivoglio et al.
+2025, R34; Asif et al. 2026, R33).
+
+What is missing is a test of road-segment skill that an agency could trust: many storms the model was not tuned on, documented
+reports rather than modelled truth, and metrics corrected for chance, because flagging more roads always catches more reports. Most
+evaluations use one or a few events, judge the flood extent rather than the road, or report skill without saying what random
+flagging of the same share would achieve.
+
+This paper evaluates a physics-only 2-D flood model as a road-closure screen in central Massachusetts under a protocol fixed before
+any candidate was scored. It asks four questions. (1) How well does the model rank road segments by flood risk on held-out storms,
+compared with chance and with what agencies use today? (2) Does that skill transfer, with every setting frozen, to districts it never
+saw? (3) How sensitive are the results to the numerical solver? (4) Do learned models or road-network context add to the physics?
+It then shows, for one storm, what the closures do to travel and to access to emergency services, and how much of the skill survives
+when the rain is a forecast.
 
 ---
 
@@ -225,3 +248,54 @@ No condition reaches the 25 missed damage points along Wachusett Street, which f
 Blocking culverts raises the pool behind them by a median 0.6, 1.6 and 2.3 m at 20, 50 and 100 % blockage, overtopping up to 24
 crossings; a list of nine crossings whose blockage closes roads is stable under the terrain correction.
 <!-- src: phase1/PARAMETRIC.md; phase1/PARAMETRIC_T2.md; phase1/LEOMINSTER_MISSES.md -->
+
+---
+
+## 5. Discussion
+
+### 5.1 Ranking works, the threshold does not
+The model ranks roads better than every named alternative an agency has today, in District 3 and, with all settings frozen, in three
+districts it never saw. Its fixed closure rule is far less useful: it flags well under 1 % of segments and catches 4–9 % of sites. The
+two results have one cause. The model under-predicts on all but the largest storms: the gauge-rise bias is negative on 8 of 9
+storms, and on the five light storms the rule hits none of the 20 documented sites, which peak in the model at 0.28–0.29 m, just under
+the 0.30 m threshold. Their order is right but their depths are low. A ranked list is robust to that; a threshold is not.
+<!-- src: parity/BASELINE.md §2–3; transfer/TRANSFER.md §2 -->
+
+### 5.2 Labels set the ceiling
+Documented sites are reports, not inventories. Most carry approximate coordinates, about 500 m of uncertainty, and are matched at
+30 m; many storms have two to five sites. Spatial skill at 300 m is therefore hard to separate from label placement, and an
+unreported flagged road cannot be called a false alarm. The one complete inventory, Leominster's damage list, shows the second
+constraint: most of what the model misses there failed by edge erosion or washout with little ponding, a mechanism a depth-based
+rule cannot see. Of 30 MassDOT repeat-flooding sites in the District, 3 have a segment closed within 150 m in the September 2023 run;
+these are mostly drainage-capacity problems at a scale the 20 m model does not resolve.
+<!-- src: transfer/TRANSFER.md §6; phase1/LEOMINSTER_MISSES.md; turing/d3_sep2023_t2/REPORT.md -->
+
+### 5.3 What an agency can use now
+The evidence supports two uses: a ranked watch list for a coming storm (the forecast's 2-of-8 list, ordered by π) and a standing
+vulnerability layer for planning inspections, including the crossings whose blockage would close roads. It does not support
+segment-level closure warnings.
+
+### 5.4 Consequences fall on dry roads
+In the September 2023 run, 99 % of the residents who lose timely access to emergency services live on roads that stay dry, and 98 %
+of the person-hours of lost access fall on them. A closure map alone understates the impact of a flash flood; the network position
+of a closed road matters as much as its depth.
+<!-- src: paper/data/d3_sep2023_t2_cascade.json totals.knock_on -->
+
+---
+
+## 6. Limitations
+- **Labels.** Reports are positive-only and incomplete (Bekker and Davis 2020, R28); approximate locations; few sites per storm.
+- **Under-prediction on light storms.** One curve-number scale, chosen on the calibration storm, under-predicts gauge rise on most
+  other storms. Tests of antecedent moisture are not finished.
+- **Processes not modelled:** storm drains, dams, sub-hourly rain, erosion and washout.
+- **Spatial placement.** The fractions skill score at 300 m is at or below chance: the model ranks roads but does not place floods to
+  within 300 m.
+- **Road network.** 25 % of District 3 traffic counts are defaults; the transfer road-source control shows that the network used
+  changes the lift.
+- **Consequences.** No traffic assignment (detours are added on single shortest paths), a flat daily traffic profile, capacities by road
+  class, facility locations from OpenStreetMap, night-time population, and no observed data to validate them against.
+- **Development storms.** The calibration storm and one Worcester storm were used for design choices and are reported apart from the
+  held-out set.
+- **Scoring code.** Matching of approximate-location reports was widened during the study (29 → 43 out-of-sample forecast sites); the
+  forecast results are given both as produced and on the 28 sites matched in both versions.
+<!-- src: OUTLINE.md §8; advisors/datasets.md D14; forecast/ENSEMBLE_PARITY.md §2–3 -->
