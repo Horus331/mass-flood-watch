@@ -8446,8 +8446,66 @@
     "elapsed": "01:47:28"
    },
    "finished": "2026-11-13T14:36:03Z"
+  },
+  "d3t2_sep2023_solve": {
+   "status": "submitted",
+   "slurm_id": "2530518",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "STORM": "sep2023",
+    "HOURS": "48",
+    "NAME": "d3_sep2023_t2",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_CASCADE": "1",
+    "LF_SAVEINT": "1800",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "08:00:00",
+    "mem": "160G"
+   },
+   "after": [],
+   "at": "2026-11-17T15:18:03Z",
+   "error": null
+  },
+  "d3t2_sep2023_post": {
+   "status": "submitted",
+   "slurm_id": "2530519",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "STORM": "sep2023",
+    "HOURS": "48",
+    "NAME": "d3_sep2023_t2",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_CASCADE": "1",
+    "LF_SAVEINT": "1800",
+    "STAGE": "post"
+   },
+   "sbatch": {
+    "partition": "short",
+    "time": "10:00:00",
+    "mem": "160G"
+   },
+   "after": [
+    "d3t2_sep2023_solve"
+   ],
+   "at": "2026-11-17T15:18:03Z",
+   "error": null
   }
  },
- "updated": "2026-11-13T14:36:03Z",
+ "updated": "2026-11-17T15:18:03Z",
  "paused": false
 }
