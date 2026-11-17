@@ -233,7 +233,7 @@ def res_consistent_depth(H, run_dir):
         info['start_h'] = h_start
         j = np.nonzero(hrs >= h_start - 1e-6)[0]
         if len(j) and os.environ.get('PROTO_RC_STARTUP', '1') == '1':      # PROTO_RC_STARTUP=0: keep start-up water (spike cap and k only)
-            h0 = DC[j[0]].astype(np.float32) / 100.0; info['start_snapshot_h'] = round(float(hrs[j[0]]), 2)
+            h0 = DC[j[0]].astype(np.float32) / 100.0; info['start_snapshot_h'] = round(float(hrs[j[0]]), 2); info['start_k'] = int(j[0])
     hp = os.path.join(run_dir, 'hsnap.npy')
     if os.path.exists(hp):
         a = np.nan_to_num(np.load(hp).astype(np.float32))
@@ -693,7 +693,11 @@ def run(run_dir, out, segments, crossings, reports, facilities, repeat_csv, top=
         DC = FRM['depth_cm']; frame_hours = [round(float(h), 2) for h in FRM['hours']]
         seg_t = np.zeros((len(DC), n), np.uint16)
         dzc = np.round(Q['dz'] * 100).astype(np.float32) if 'dz' in Q else 0.0
-        for k in range(len(DC)): seg_t[k] = np.round(seg_top2(n, Q['seg'], np.maximum(DC[k][Q['r'], Q['c']].astype(np.float32) - dzc, 0))).astype(np.uint16)
+        # PROTO_RES_CONSISTENT=1: the series reads the same storm-added water as the closure rule (depth above the start-up snapshot), so
+        # water already in channels and notches when the run starts is not drawn or counted as a closure (17 Nov 2026)
+        k0 = rc_info.get('start_k') if (RESC and rc_info) else None
+        base = DC[k0][Q['r'], Q['c']].astype(np.float32) if k0 is not None else 0.0
+        for k in range(len(DC)): seg_t[k] = np.round(seg_top2(n, Q['seg'], np.maximum(DC[k][Q['r'], Q['c']].astype(np.float32) - base - dzc, 0))).astype(np.uint16)
         os.makedirs(os.path.join(out, 'frames'), exist_ok=True)
         for k in (range(len(DC)) if os.environ.get('PROTO_FRAME_PNG', '1') == '1' else ()): depth_png(os.path.join(out, 'frames', f'f{k:03d}.png'), np.where(WM, 0, DC[k]).astype(np.float32) / 100.0 if WM is not None else DC[k].astype(np.float32) / 100.0)
 
