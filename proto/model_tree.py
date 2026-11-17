@@ -489,6 +489,17 @@ def resolve(ref):
     raise ValueError(ref)
 
 
+def public_copy(T):
+    """The site never links to the code (Mo, 17 Nov 2026): drop code links and any link into this repository."""
+    import re
+    def scrub(o):
+        if isinstance(o, dict): return {k: ([] if k == 'code' else scrub(v)) for k, v in o.items()}
+        if isinstance(o, list): return [scrub(x) for x in o if not (isinstance(x, dict) and 'github.com/Horus331' in json.dumps(x))]
+        if isinstance(o, str): return re.sub(r'https://github\.com/Horus331/mass-flood-watch\S*', '', o)
+        return o
+    return scrub(T)
+
+
 def build_tree():
     nodes = []
     for n in N:
@@ -509,7 +520,7 @@ def build_tree():
 
 
 def cmd_build():
-    os.makedirs(OUT, exist_ok=True); T = build_tree(); p = os.path.join(OUT, 'tree.json')
+    os.makedirs(OUT, exist_ok=True); T = public_copy(build_tree()); p = os.path.join(OUT, 'tree.json')
     json.dump(T, open(p, 'w'), indent=1, ensure_ascii=False); print('wrote', p, len(T['nodes']), 'nodes', len(T['edges']), 'edges')
 
 
