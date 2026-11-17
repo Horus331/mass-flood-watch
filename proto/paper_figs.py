@@ -158,8 +158,8 @@ def fig7():
     """Sept 2023 District run: peak depth with closed segments, and the cascade over time (turing/d3_sep2023_p/, paper/data/d3_sep2023_cascade.json
     written by `proto/cascade.py pack d3_sep2023`, then moved out of the site folder)."""
     from pyproj import Transformer
-    D = f'{P}/turing/d3_sep2023_p'; meta = json.load(open(f'{D}/flood_meta.json')); S = json.load(open(f'{D}/summary.json'))
-    C = json.load(open(f'{P}/paper/data/d3_sep2023_cascade.json')); s = C['series']; t = np.array(C['t_h'])
+    D = f'{P}/turing/d3_sep2023_t2'; meta = json.load(open(f'{D}/flood_meta.json')); S = json.load(open(f'{D}/summary.json'))
+    C = json.load(open(f'{P}/paper/data/d3_sep2023_t2_cascade.json')); s = C['series']; t = np.array(C['t_h'])
     h = np.load(f'{D}/hmax_cm.npz')['hmax_cm']; k = 5; ny, nx = h.shape
     hm = h[:ny // k * k, :nx // k * k].reshape(ny // k, k, nx // k, k).max((1, 3)).astype(float) / 100
     x0, y0, x1, y1 = meta['box']
@@ -187,7 +187,7 @@ def fig7():
               ('vehicle-hours lost per hour', [('delay_vehh_per_h', C_MODEL, 'delay (detours + slowed traffic)')]),
               ('residents', [('pop_lost_any', INK, 'losing a hospital, fire or police station in time'), ('pop_lost_dry_segment', MUTED, '… whose own road is dry'),
                              ('pop_isolated', C_PI, 'cut off from every service')])]
-    NUM['fig7'] = dict(source='turing/d3_sep2023_p + paper/data/d3_sep2023_cascade.json', closed_segments_map=nclosed, peak=C['totals']['peak'])
+    NUM['fig7'] = dict(source='turing/d3_sep2023_t2 + paper/data/d3_sep2023_t2_cascade.json (T2 terrain, deployed readout)', closed_segments_map=nclosed, peak=C['totals']['peak'])
     for i, (yl, ser) in enumerate(panels):
         a = fig.add_subplot(gs[i, 1])
         if ser is None: a.bar(np.arange(len(rain)) + 0.5, rain, width=0.9, color='#9ecae1')
