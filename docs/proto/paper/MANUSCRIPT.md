@@ -5,7 +5,7 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: sections 2–4 drafted (17 Nov 2026; 4.5 waits for the District rerun on the T2 terrain). Sections 1, 5–7 to follow.
+Status: sections 2–4 drafted (17 Nov 2026). Sections 1, 5–7 to follow.
 
 ---
 
@@ -197,8 +197,16 @@ roads were each rejected: none raised held-out recall, and the drain sinks remov
 <!-- src: ml/EXPANDED.md; cascade/CASCADE.md §4.2; scoring/HYBRID_v3.md; scoring/CROSSING_v3.md; drains/INLETS.md; drains/C2_ROADS.md -->
 
 ### 4.5 Consequences of the September 2023 storm
-*To be written from the District 3 rerun on the T2 terrain (running 17 Nov 2026). The earlier run on the pre-T2 terrain is not used:
-its costliest closures include terrain artefacts removed by T2.*
+Run over the whole District (78 × 90 km at 20 m, 17.6 million cells, 48 h) on the terrain and readout used in operation, the
+September 2023 storm closes 127 road segments at some time; 70 are closed at once at the peak, 8 hours after the start of the run
+(Fig. 7). Detours and slowed traffic cost about 7,400 vehicle-hours per hour at the peak and 120,000 vehicle-hours over the 48 hours.
+At the peak, 76,450 residents can no longer reach a hospital, fire station or police station within the response time (hospital 30
+min, fire 8 min, police 10 min): 45,700 lose the fire station, 38,600 the police and 26,500 the hospital, and 7,900 can reach none
+of them. Almost all of them, 75,700 or 99 %, live on roads that stay dry: they are cut off by closures elsewhere on the network, and
+98 % of the person-hours of lost access fall on people whose own road never floods. The access loss peaks 9 hours after the first
+closure and 1.5 hours after the closures themselves. Fourteen segments are still closed at the end of the run; the model has no storm
+drains, so water that ponds in closed low ground drains only by soak-in, and these long closures are an upper bound.
+<!-- src: turing/d3_sep2023_t2 (T2 terrain, PROTO_RES_CONSISTENT=1, start at rain onset; Turing 17 Nov 2026); paper/data/d3_sep2023_t2_cascade.json totals and series -->
 
 ### 4.6 Forecast lead time
 At the deployed physics, on the seven out-of-sample storms (43 sites), listing a segment when it closes in at least 2 of the 8 forecast
