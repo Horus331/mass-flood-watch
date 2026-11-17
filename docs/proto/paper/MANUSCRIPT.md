@@ -203,8 +203,8 @@ September 2023 storm closes 127 road segments at some time; 70 are closed at onc
 At the peak, 76,450 residents can no longer reach a hospital, fire station or police station within the response time (hospital 30
 min, fire 8 min, police 10 min): 45,700 lose the fire station, 38,600 the police and 26,500 the hospital, and 7,900 can reach none
 of them. Almost all of them, 75,700 or 99 %, live on roads that stay dry: they are cut off by closures elsewhere on the network, and
-98 % of the person-hours of lost access fall on people whose own road never floods. The access loss peaks 9 hours after the first
-closure and 1.5 hours after the closures themselves. Fourteen segments are still closed at the end of the run; the model has no storm
+98 % of the person-hours of lost access fall on people whose own road never floods. The access loss peaks 1.5 hours after the
+closures themselves. Fourteen segments are still closed at the end of the run; the model has no storm
 drains, so water that ponds in closed low ground drains only by soak-in, and these long closures are an upper bound.
 <!-- src: turing/d3_sep2023_t2 (T2 terrain, PROTO_RES_CONSISTENT=1, start at rain onset; Turing 17 Nov 2026); paper/data/d3_sep2023_t2_cascade.json totals and series -->
 
