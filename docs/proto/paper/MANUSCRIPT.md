@@ -5,7 +5,26 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: sections 1–6 drafted (17 Nov 2026). Section 7, abstract update, tables and references to follow.
+Status: abstract and sections 1–7 drafted, Tables 7–8 (17 Nov 2026). Tables 1–6, reference list and Fig. 2 to follow.
+
+---
+
+## Abstract
+Transportation agencies need to know which road segments will flood, but road-flood models are rarely tested against named
+alternatives on storms they were not tuned on. We evaluate a physics-based screen for MassDOT Highway District 3, central
+Massachusetts: LISFLOOD-FP local-inertial simulation at 20 m driven by hourly MRMS radar rain, with road depth turned into a chance
+of closure and no parameter fitted to closures. All tests were fixed in advance. On 81 storms in three other districts (498
+documented sites) the frozen model's top 3 % of segments contain 21 % of the sites, against 9 % for NWS flash-flood warnings, 7 % for
+the FEMA 100-year zone, 10 % for terrain alone and 10 % for a static hazard × vulnerability × consequence score (chance 9 %), all
+significant; ranking by a chance-of-flooding score raises this to 25 %. On 23 held-out District 3 storms (98 sites) the model reaches
+20 %, but a traffic-weighted static score is not worse, which we trace to reports concentrating on busy roads. Traffic, a
+stream-crossing flag and storm-drain sinks did not improve held-out skill. Driven by forecast rain, an eight-member time-lagged
+ensemble catches 33 % of sites 8–14 h ahead against 26 % for a single forecast. A solver audit shows that GPU and CPU builds agree only
+with a ≤ 1 s time step. For the September 2023 storm the closures leave about 76,000 residents without timely access to a hospital,
+fire or police station, 99 % of them on roads that stay dry. A complete municipal damage inventory shows the misses are mostly edge
+erosion with little modelled ponding. The screen ranks roads usefully for inspection but cannot yet issue segment-level warnings;
+labels, not model complexity, limit it.
+<!-- src: OUTLINE.md §3b (v2) + forecast/ENSEMBLE_PARITY.md §1 + paper/data/d3_sep2023_t2_cascade.json -->
 
 ---
 
@@ -299,3 +318,45 @@ of a closed road matters as much as its depth.
 - **Scoring code.** Matching of approximate-location reports was widened during the study (29 → 43 out-of-sample forecast sites); the
   forecast results are given both as produced and on the 28 sites matched in both versions.
 <!-- src: OUTLINE.md §8; advisors/datasets.md D14; forecast/ENSEMBLE_PARITY.md §2–3 -->
+
+---
+
+## 7. Conclusions and next steps
+A physics-only flood model, run at 20 m on radar rain and read along every road, ranks road segments by flood risk better than the
+alternatives an agency has today, and keeps that skill in districts it was never tuned on. It is a screen, not a warning: its fixed
+closure rule catches few sites, its spatial placement is coarse, and its errors are dominated by the labels it is judged against
+and by processes it does not represent, such as road-edge erosion and storm-drain capacity. The same model shows that the cost of a
+flash flood falls mostly on people whose own roads stay dry.
+
+Three steps would most improve the evidence: road-closure records with exact locations and times (agency operations logs or
+crowdsourced traffic reports) in place of approximate news and spotter reports; damage inventories from a second storm, to test an
+erosion term outside the calibration storm; and the one-time opening of the five locked storms once the model is frozen.
+
+---
+
+## Tables (drafts)
+
+**Table 7. Consequences of the September 2023 storm, District 3 (T2 terrain, operational readout).**
+
+| Quantity | Value |
+|---|---|
+| Road segments closed at some time / at the peak | 127 / 70 (at 8.0 h) |
+| Delay at the peak (vehicle-hours per hour) | 7,379 |
+| Delay over 48 h (vehicle-hours: detours / slowed traffic) | 119,739 (63,160 / 56,579) |
+| Residents losing timely access at the peak (any service) | 76,450 |
+| … to a hospital (30 min) / fire station (8 min) / police (10 min) | 26,518 / 45,686 / 38,617 |
+| Residents cut off from every service at the peak | 7,886 |
+| Of those losing access, living on roads that stay dry | 75,700 (99%) |
+| Share of lost-access person-hours on dry roads | 98% |
+<!-- src: paper/data/d3_sep2023_t2_cascade.json totals -->
+
+**Table 8. Forecast rules, seven out-of-sample storms, operational physics** (site recall / mean share of segments flagged).
+
+| Rule | Long lead (8–14 h) | Short lead (2–8 h) |
+|---|---|---|
+| Newest forecast only | 0.26 / 1.6 % | 0.14 / 1.0 % |
+| Any of 4 | 0.37 / 3.7 % | 0.33 / 2.7 % |
+| 2 of 4 | 0.28 / 2.0 % | 0.23 / 1.7 % |
+| 2 of 8 (operational) | 0.33 / 2.8 % | 0.30 / 1.9 % |
+
+43 sites. <!-- src: forecast/ensemble_parity.json pooled -->
