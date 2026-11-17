@@ -3828,7 +3828,7 @@
   }
 
   // ---------- the Live tab: the week ahead, storms coming, forecast health ----------
-  var REPO = 'https://github.com/Horus331/mass-flood-watch/blob/main/';
+  var REPO = '';
   var fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }), fmtMD = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
   var fmtHM = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   var fmtWd = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' });
@@ -4116,7 +4116,7 @@
       ({ ok: 'every source answered and the six-hourly update is on time.', partial: 'the rain forecast is in; the excessive-rain outlook or the alerts are missing.', stale: 'the last update is more than ' + ((H.h && H.h.stale_after_h) || 7) + ' hours old.', fail: 'the last update has no rain forecast; the previous outlook is shown.' }[H.st]) + '</p>' +
       ((H.h.problems || []).length ? '<p class="tw">' + H.h.problems.map(esc).join('<br>') + '</p>' : '') +
       '<table class="hs-t">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
-      '<p>' + (H.h.run_url ? '<a href="' + esc(H.h.run_url) + '" target="_blank" rel="noopener">The run that built it</a> · ' : '') + '<a href="' + REPO + 'docs/proto/forecast/HINDCAST.md" target="_blank" rel="noopener">How the forecast scores on past storms</a> · <a href="' + REPO + 'docs/proto/forecast/OUTLOOK.md" target="_blank" rel="noopener">How the week view works</a></p>';
+      '<p><a href="how-it-works.html">How the forecast works</a></p>';
   }
   $('hchip').addEventListener('click', function () { $('hsheet').hidden = !$('hsheet').hidden; });
   $('hsX').addEventListener('click', function () { $('hsheet').hidden = true; });
