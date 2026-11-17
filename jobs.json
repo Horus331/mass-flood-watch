@@ -5614,6 +5614,57 @@
     "partition": "short",
     "time": "01:30:00"
    }
+  },
+  {
+   "id": "d3t2_sep2023_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "STORM": "sep2023",
+    "HOURS": "48",
+    "NAME": "d3_sep2023_t2",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_CASCADE": "1",
+    "LF_SAVEINT": "1800",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "08:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "d3t2_sep2023_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "STORM": "sep2023",
+    "HOURS": "48",
+    "NAME": "d3_sep2023_t2",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_CASCADE": "1",
+    "LF_SAVEINT": "1800",
+    "STAGE": "post"
+   },
+   "after": [
+    "d3t2_sep2023_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "10:00:00",
+    "mem": "160G"
+   }
   }
  ],
  "cancel": [
