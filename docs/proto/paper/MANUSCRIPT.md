@@ -5,7 +5,7 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: sections 2 and 3 drafted (17 Nov 2026). Sections 1, 4–7 to follow.
+Status: sections 2–4 drafted (17 Nov 2026; 4.5 waits for the District rerun on the T2 terrain). Sections 1, 5–7 to follow.
 
 ---
 
@@ -139,9 +139,81 @@ et al. (2017, R23). Shortest-path detours give the added vehicle-hours, volume-t
 residents who lose emergency coverage in time.
 <!-- src: cascade/CASCADE.md §1; model-tree CHECK.md (response times) -->
 
+### 3.7b A chance-of-flooding score
+Besides the depth rule, segments can be ranked by π, the probability that a segment truly floods, from a latent-label model fitted on
+the 25 non-locked District 3 storms (139,938 segment-storms, 423 reported). It treats reports as an incomplete detection of true
+flooding and combines modelled depth with hazard terms such as peak 1-hour rain and segment length. The fit was frozen on 28 Oct 2026;
+it is tested only on Districts 4–6, which it never saw.
+<!-- src: latent/LATENT.md §1; scoring/PREREG_PI_RANK.md -->
+
 ### 3.8 Forecast mode
 For forecasts, a gate runs the flood model when any District 3 town has an HRRR forecast of at least 25 mm in 6 h or 40 mm in 24 h.
 Each cycle runs eight members: the four newest 48-hour HRRR runs (every 6 h) and the four newest hourly runs, each with its rain spread over a 20 km
 neighbourhood at the 90th percentile (Schwartz and Sobash 2017, R6), a 12 h MRMS spin-up, and radar nowcast rain in the first hours. A
 segment is listed as likely to close when it closes in at least 2 of the 8 members.
 <!-- src: forecast/GATE.md; forecast/ENSEMBLE.md; STATUS.md §1 -->
+
+---
+
+## 4. Results
+
+### 4.1 Solver parity and gauges
+Without the parity mode, the GPU and CPU builds disagreed sharply on the same storm: on the July 2023 Worcester storm the GPU flagged
+0.63 % of segments and the CPU 0.10 %, with little overlap (Jaccard 0.16). Of the 43 segments flagged on the GPU, 28 had a peak depth
+more than 0.10 m above every saved snapshot, a sign of single-step spikes; the CPU had none of 7. With the parity mode the two builds
+flag identical segments (Jaccard 1.0) with a mean depth difference of 0.000 m on two storms. Across nine catalogue storms, the mean
+per-storm gauge-rise error fell from 0.82 to 0.46 m, gauges with no modelled rise from 9 of 16 to 3 of 16, and the mean flagged share
+from 2.13 % to 1.07 %. The model under-predicts on light storms: the bias is negative on 8 of 9 storms (Elsa −1.32 m, Ida −1.00 m),
+and the rule hits none of the 20 sites of the light storms.
+<!-- src: parity/PARITY.md; parity/BASELINE.md §2–3 -->
+
+### 4.2 Held-out skill in District 3
+On the 23 held-out storms (98 sites), the depth rule flags 0.43 % of segments and catches 0.092 of sites [90 % CI 0.022, 0.167], a lift
+of 6.4 over chance. Ranking the top 3 % of segments catches 0.204 [0.104, 0.303] against 0.066 by chance (lift 3.1), and the top 10 %
+catches 0.44. Spatial skill is low: the 300 m fractions skill score at 3 % flagged is 0.023 [0.015, 0.034].
+Among named alternatives (Table 4), the model beats NWS flash-flood warnings (0.05), a radar-rain threshold (0.05) and terrain alone
+(0.08) significantly. A static hazard × vulnerability × consequence score that weights busy roads reaches 0.32, ahead of the model but
+not significantly; Section 5 traces this to reports concentrating on busy roads.
+<!-- src: transfer/TRANSFER.md §2 (District 3 column, round-2 labels); scoring/BENCHMARK_v3.md -->
+
+### 4.3 Transfer to Districts 4–6
+On 81 storms in three other districts (498 sites), with every setting frozen, the top 3 % of segments catch 0.210 of sites [0.167,
+0.254] against 0.086 by chance (lift 2.46 [1.96, 2.97]), the same recall as in District 3. The pre-registered verdict is that the model
+transfers. Here the model beats all named alternatives significantly: NWS warnings 0.09, the FEMA 1 % zone 0.07, terrain alone 0.10,
+the static score 0.10 and the rain threshold 0.06. Ranking by π instead of depth raises the top-3 % recall from 0.206 to 0.251 (95 %
+interval of the gain +0.002 to +0.086), and π was adopted to order the forecast's road list. The rule alone flags only 0.14 % of segments
+and catches 0.036 of sites, at a lift (6.7) similar to District 3's. The road network matters: scoring the same floods on OpenStreetMap
+roads alone loses 2 of 14 sites at 3 % and halves the lift. 26 of the 81 storms have no site in the top 3 %, and the 300 m fractions skill score (0.017) is below that of random flagging
+(0.023): the model ranks roads but does not place floods to within 300 m.
+<!-- src: transfer/TRANSFER.md §2; scoring/BENCHMARK_v3.md; scoring/PI_RANK_v3.md -->
+
+### 4.4 What did not help
+No learned or network-aware candidate passed the protocol (Table 6). The best, the rule plus a learned watch tier, caught 26 of 90
+sites at 3 % (0.289, lift 4.5) but missed the significance condition (one-sided P ≈ 0.014 against α/k = 0.01). Cascade features lifted
+one variant from 20 to 33 hits but with a lower bound of 0.000; against the same model without them, they added 2 sites (lower bound
+−0.076). Within storms, learned models ranked better (mean ROC-AUC 0.76 against 0.67 for the rule) without turning that into more
+sites at a fixed budget. Adding traffic to the model ranking, a crossing flag, a catch-basin sink and a storm-drain sink on built-up
+roads were each rejected: none raised held-out recall, and the drain sinks removed documented sites faster than they removed flags.
+<!-- src: ml/EXPANDED.md; cascade/CASCADE.md §4.2; scoring/HYBRID_v3.md; scoring/CROSSING_v3.md; drains/INLETS.md; drains/C2_ROADS.md -->
+
+### 4.5 Consequences of the September 2023 storm
+*To be written from the District 3 rerun on the T2 terrain (running 17 Nov 2026). The earlier run on the pre-T2 terrain is not used:
+its costliest closures include terrain artefacts removed by T2.*
+
+### 4.6 Forecast lead time
+At the deployed physics, on the seven out-of-sample storms (43 sites), listing a segment when it closes in at least 2 of the 8 forecast
+members catches 0.33 of sites at long lead (8–14 h) and 0.30 at short lead (2–8 h), against 0.26 and 0.14 for the newest forecast alone,
+while flagging 2.8 % and 1.9 % of segments. The check fixed in advance (recall at least the single cycle's, flags at most twice its share
+plus one point) passes at both leads, and also on a like-for-like rescoring of the 28 sites matched in both evaluations (Fig. 8).
+Two live storms in November 2026 test the forecast forward in time. On 12–13 November it correctly listed no closures. On 5–7
+November it listed 80 roads as likely closures and none was reported; the main error was the HRRR rain: on the observed radar rain
+the model closes 8 segments, none of them reported, and the forecast had been changed to a new version during the storm.
+<!-- src: forecast/ENSEMBLE_PARITY.md §1–3; prospective/storm_2026-11-13_results.md; model_colab 2026-11-15_Nov5-6_Storm_Slide.md -->
+
+### 4.7 Sensitivity on the calibration storm
+On the calibration storm, wet antecedent soil (condition III) adds about 50 closed segments but only 4 reports, and 41 of the new
+closures have no report nearby; frozen ground more than doubles the closures and adds one damage point; dry soil halves the closures.
+No condition reaches the 25 missed damage points along Wachusett Street, which failed by edge erosion with almost no modelled ponding.
+Blocking culverts raises the pool behind them by a median 0.6, 1.6 and 2.3 m at 20, 50 and 100 % blockage, overtopping up to 24
+crossings; a list of nine crossings whose blockage closes roads is stable under the terrain correction.
+<!-- src: phase1/PARAMETRIC.md; phase1/PARAMETRIC_T2.md; phase1/LEOMINSTER_MISSES.md -->
