@@ -43,10 +43,8 @@ FOOTER = ('<footer class="sf"><div class="sf-in">'
           f'<li><a href="https://github.com/Horus331/mass-flood-watch">{CODE}Code and data on GitHub</a></li>'
           f'<li style="display:flex;gap:8px">{PIN}<address>Department of Civil, Environmental and Architectural Engineering<br>Worcester Polytechnic Institute<br>100 Institute Road, Worcester, MA 01609</address></li>'
           '</ul></div>'
-          '<div class="sf-note">A research prototype, not an official warning service. For emergencies call 911; for official flood warnings see the '
-          '<a href="https://www.weather.gov/box/">National Weather Service, Boston / Norton</a>.</div>'
           '<div class="sf-bar"><span>&copy; 2026 Mohab Eldokla · Worcester Polytechnic Institute</span><span class="grow"></span>'
-          '<a href="data.html">Data credits</a><a href="about.html#use">Terms of use</a><a href="mailto:mgeldokla@wpi.edu">Contact</a></div>'
+          '<a href="data.html">Data credits</a><a href="mailto:mgeldokla@wpi.edu">Contact</a></div>'
           '</div></footer>')
 
 
