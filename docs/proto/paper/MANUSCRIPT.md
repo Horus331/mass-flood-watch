@@ -61,7 +61,8 @@ Leominster storm most damage was to local roads, culverts and road edges rather 
 <!-- src: cascade/CASCADE.md §1 (52,698 segments); cycles/LEOMINSTER_COUNTS.md; phase1/LEOMINSTER_MISSES.md. -->
 
 ### 2.2 Storms
-The storm catalogue holds 30 District 3 storms (25 run, 5 locked) with documented road impacts, 2015–2026 (`parity/catalog`). Their roles were fixed
+The storm catalogue holds 30 District 3 storms with documented road impacts and archived radar rain, 2015–2026 (Table 2): 25 run
+and 5 locked. Their roles were fixed
 before any candidate was scored (Section 3.4): one calibration storm (Leominster, 11–12 Sep 2023), development storms, a held-out
 decision set of 23 storms with 90 documented flood sites at the time of freezing (98 after label round 2), and five locked storms
 (aug2015, aug2018, aug2020, jul2018, oct2016) that are neither run nor read. A further 81 storms in MassDOT Districts 4–6 (498 sites)
@@ -71,7 +72,7 @@ were added for the transfer test and never entered any fit or selection.
 ### 2.3 Rain
 Hourly MRMS MultiSensor QPE Pass 2 (Zhang et al. 2016, R1) on its 1 km grid drives every replay; storms before October 2020, when
 Pass 2 is not archived, use the Iowa Environmental Mesonet gauge-corrected MRMS product. The hourly totals are applied uniformly within
-each hour on the 20 m model grid. Forecast mode (Section 3.7) uses NOAA HRRR 3 km hourly precipitation.
+each hour on the 20 m model grid. Forecast mode (Section 3.8) uses NOAA HRRR 3 km hourly precipitation.
 
 ### 2.4 Terrain, land and soils
 Ground elevation is the USGS 3DEP 10 m DEM averaged to 20 m, with road crests kept from the 10 m maximum. Stream channels come from
@@ -191,7 +192,7 @@ it is tested only on Districts 4–6, which it never saw.
 ### 3.8 Forecast mode
 For forecasts, a gate runs the flood model when any District 3 town has an HRRR forecast of at least 25 mm in 6 h or 40 mm in 24 h.
 Each cycle runs eight members: the four newest 48-hour HRRR runs (every 6 h) and the four newest hourly runs, each with its rain spread over a 20 km
-neighbourhood at the 90th percentile (Schwartz and Sobash 2017, R6), a 12 h MRMS spin-up, and radar nowcast rain in the first hours. A
+neighbourhood at the 90th percentile (Schwartz and Sobash 2017, R6), a 12 h MRMS spin-up; the newest member uses radar nowcast rain in its first hours. A
 segment is listed as likely to close when it closes in at least 2 of the 8 members.
 <!-- src: forecast/GATE.md; forecast/ENSEMBLE.md; STATUS.md §1 -->
 
@@ -276,8 +277,8 @@ crossings; a list of nine crossings whose blockage closes roads is stable under 
 The model ranks roads better than every named alternative an agency has today, in District 3 and, with all settings frozen, in three
 districts it never saw. Its fixed closure rule is far less useful: it flags well under 1 % of segments and catches 4–9 % of sites. The
 two results have one cause. The model under-predicts on all but the largest storms: the gauge-rise bias is negative on 8 of 9
-storms, and on the five light storms the rule hits none of the 20 documented sites, which peak in the model at 0.28–0.29 m, just under
-the 0.30 m threshold. Their order is right but their depths are low. A ranked list is robust to that; a threshold is not.
+storms, and on the five light storms the rule hits none of the 20 documented sites. Modelled depths are too low for a fixed
+threshold, while the order of the segments still carries information. A ranked list is robust to that; a threshold is not.
 <!-- src: parity/BASELINE.md §2–3; transfer/TRANSFER.md §2 -->
 
 ### 5.2 Labels set the ceiling
