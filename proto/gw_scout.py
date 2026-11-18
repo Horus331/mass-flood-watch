@@ -9,6 +9,18 @@ STORMS = {'aug2021': ('2021-08-14', '2021-09-10', '2021-08-19'), 'sep2023': ('20
 UA = {'User-Agent': 'mass-flood-watch research (WPI)'}
 
 
+def get(u):
+    import time
+    for i in range(5):
+        try:
+            r = requests.get(u, headers=UA, timeout=120)
+            if r.status_code < 500: return r
+        except requests.RequestException as e:
+            print('retry', i + 1, type(e).__name__)
+        time.sleep(5 * (i + 1))
+    return None
+
+
 def rdb(text):
     rows = [l.split('\t') for l in text.splitlines() if l and not l.startswith('#')]
     if not rows: return []
@@ -20,9 +32,9 @@ def sites():
     for dtype in ('iv', 'dv'):
         u = ('https://waterservices.usgs.gov/nwis/site/?format=rdb&bBox=%.2f,%.2f,%.2f,%.2f&parameterCd=72019&siteType=GW'
              '&hasDataTypeCd=%s&siteStatus=all&outputDataTypeCd=%s' % (*BBOX, dtype, dtype))
-        r = requests.get(u, headers=UA, timeout=120)
-        print(dtype, 'site query', r.status_code, len(r.text))
-        if r.status_code != 200: continue
+        r = get(u)
+        print(dtype, 'site query', r.status_code if r else None, len(r.text) if r else 0)
+        if not r or r.status_code != 200: continue
         for s in rdb(r.text):
             if s.get('parm_cd') not in (None, '', '72019'): continue
             d = out.setdefault(s['site_no'], dict(site=s['site_no'], name=s.get('station_nm'), lat=float(s['dec_lat_va']), lon=float(s['dec_long_va']), types={}))
@@ -32,8 +44,8 @@ def sites():
 
 def series(site, dtype, a, b):
     u = f'https://waterservices.usgs.gov/nwis/{dtype}/?format=json&sites={site}&parameterCd=72019&startDT={a}&endDT={b}&siteStatus=all'
-    r = requests.get(u, headers=UA, timeout=120)
-    if r.status_code != 200: return []
+    r = get(u)
+    if not r or r.status_code != 200: return []
     ts = r.json().get('value', {}).get('timeSeries', [])
     vals = []
     for t in ts:
