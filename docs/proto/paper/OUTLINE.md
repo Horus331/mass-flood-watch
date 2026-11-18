@@ -140,7 +140,7 @@ Sources: `scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`, `scoring/HYBRID_v3.
 | # | content | data | script |
 |---|---|---|---|
 | Fig. 1 | Study area: District 3 graph, 25 catalogue boxes, the District run box (128–206 km E, 856–946 km N, EPSG:26986), 81 District 4–6 boxes | `docs/graph_segments.json`, `obs/catalog.json`, `obs/catalog_d456.json`, `turing/d3_sep2023_p/flood_meta.json` | **to write** (`proto/paper_figs.py fig1`) |
-| Fig. 2 | Pipeline: rain → 2-D flood → road depth → p_close → scoring / cascade / forecast | `advisors/pipeline.html` | redraw from pipeline.html |
+| Fig. 2 | Pipeline: rain → 2-D flood → road depth → p_close → scoring / cascade / forecast | operational settings (`STATUS.md` §1) | `proto/paper_figs.py fig2` (done 17 Nov) |
 | Fig. 3 | Parity: Fitchburg and Leominster hydrographs, GPU default vs `LF_PARITY=1` vs CPU vs observed; depth-spike example (Hampton St) | `parity/<storm>_<variant>/gauge_windows.npz`, `parity/parity.json`, `turing/parity_sep2023_gpu_rain*/` | `proto/parity_compare.py` (numbers); plot **to write** |
 | Fig. 4 | CN-scale calibration: rise error and flagged share against `LF_CN_SCALE` | `parity/calib/leo48_cn0{85..100}/score.json`; table in `parity/BASELINE.md` §1 | **to write** |
 | Fig. 5 | Held-out 23: site recall against flagged share (1–10 %), rule point, chance line, 90 % CI | `obs/round2/score_round2.json` | `proto/score_v2.py --catalog` (numbers); plot **to write** |
