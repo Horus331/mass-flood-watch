@@ -60,6 +60,18 @@ Jul 2023 at long lead (0.4 → 0.2); everything else is equal. In-sample: Aug 20
    direction is consistent: the 0.88 scaling trades a little recall for fewer flags.
 3. **No change to the live forecast.** It already runs the parity physics with 2 of 8.
 
+## 4b. Uncertainty (added 18 Nov after the check; not a decision rule)
+Storm-level bootstrap, 2000 draws over the 7 out-of-sample storms (`proto/ensemble_ci.py` → `ensemble_ci.json`):
+
+| Lead | Single cycle | 2 of 8 | 2 of 8 minus single [95 %] | Flagged share, single → 2 of 8 | Lift, single → 2 of 8 |
+|---|---|---|---|---|---|
+| long (8–14 h) | 0.256 [0.08, 0.41] | 0.326 [0.14, 0.48] | +0.070 [+0.018, +0.135] | 1.6 % → 2.8 % | 6.1 → 5.5 |
+| short (2–8 h) | 0.140 [0.00, 0.34] | 0.302 [0.10, 0.46] | +0.163 [+0.025, +0.314] | 1.0 % → 1.9 % | 5.3 → 6.4 |
+
+The gain excludes zero at both leads, but with 7 storms the intervals on each recall are wide. At long lead the ensemble's extra sites
+come with proportionally more flagged roads (lift slightly lower); at short lead it finds sites the newest cycle misses (lift higher).
+Two storms (sep2022, aug2023b; 8 sites) have no hit under either rule.
+
 ## 5. Open
 - `paper/OUTLINE.md` item 3 can now cite section 1 (as produced) with section 3 as the like-for-like note.
 - The growth in matched label sites since October also affects any earlier recall quoted from that time; worth one consistency pass over
