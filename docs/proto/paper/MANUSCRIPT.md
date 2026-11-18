@@ -296,8 +296,12 @@ The model ranks roads better than every named alternative an agency has today in
 frozen, and better than all but a traffic-weighted static score in District 3. Its fixed closure rule is far less useful: it flags well under 1 % of segments and catches 4–9 % of sites. The
 two results have one cause. The model under-predicts on all but the largest storms: the gauge-rise bias is negative on 8 of 9
 storms, and on the five light storms the rule hits none of the 20 documented sites. Modelled depths are too low for a fixed
-threshold, while the order of the segments still carries information. A ranked list is robust to that; a threshold is not.
-<!-- src: parity/BASELINE.md §2–3; transfer/TRANSFER.md §2 -->
+threshold, while the order of the segments still carries information. A ranked list is robust to that; a threshold is not. Across
+all 25 non-locked storms the shortfall is systematic and largest on small storms: the median ratio of modelled to observed river
+rise is 0.15 on storms with a box 99th-percentile total below 60 mm and 0.56 above it, and the top-3 % recall is 0.06 and 0.33 on the
+same two groups (split chosen after inspection; rank correlation of recall with storm total 0.53). The model's skill is a large-storm
+skill.
+<!-- src: parity/BASELINE.md §2–3; transfer/TRANSFER.md §2; parity/BIAS_BY_STORM.md -->
 
 ### 5.2 Labels set the ceiling
 Documented sites are reports, not inventories. Most carry approximate coordinates, about 500 m of uncertainty, and are matched at
