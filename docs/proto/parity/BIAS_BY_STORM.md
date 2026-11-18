@@ -15,6 +15,8 @@ The 60 mm split was chosen after looking at the table and is for reading only; t
 storm, the ratios are noisy (four storms have a modelled rise of 0).
 
 **Reading.** The light-storm bias is systematic, not a few outliers, and it is where the model's skill is lost: on storms below ~60 mm the
-model barely raises the rivers and finds almost no reported sites. That fits the calibration (one curve-number scale chosen on the largest
-storm, Sept 2023) and points to rain excess on small storms (initial abstraction, antecedent wetness, urban runoff) as the next physics
-item. Any fix must go through the protocol (pre-registered, held-out); the soil-wetness test T4 C stays stopped as Mo asked.
+model barely raises the rivers and finds almost no reported sites. The cheap rain-excess fixes have already been tested and not adopted:
+removing the second loss (`runoff/B0_V2.md`: rise bias −0.35 → −0.24 m, but light-storm alert sites only 1 → 2 of 58) and antecedent-moisture
+variants (`runoff/AMC.md`; the NWM soil-wetness test T4 C stays stopped as Mo asked). The roadmap's estimate for a smaller initial-abstraction
+ratio (Ia = 0.05 S) is a few mm of extra runoff, about zero for flash misses (`ROADMAP_research.md` B). So this table documents the limit; it
+does not open a new test. The likely cause of the missed light-storm sites remains features smaller than a 20 m cell (sags, inlets, curbs).
