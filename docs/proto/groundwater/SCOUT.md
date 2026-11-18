@@ -67,3 +67,20 @@ Leominster (660), Framingham (586), Milford (570), Fitchburg and Charlton (494 e
 in a normal year, before any storm. Section 2 showed that shallow water tables rise a further 0.5–0.9 m within days of a large storm.
 That is the setting for the next link of the cascade (saturated subgrade, pavement and embankment weakening, culvert and foundation
 problems). Limits: SSURGO describes natural soils, not road fill or drained urban ground; the classes are coarse; wells are sparse.
+
+## 6. Do closures and damage sit on shallow water tables more often? (descriptive, in-sample)
+Same measure as §5 (a segment counts if any 10 m point on it has a seasonal high water table within 50 cm).
+
+| Set | Count | On a shallow water table | Baseline |
+|---|---|---|---|
+| Segments closed in the Sept 2023 District run (T2, p ≥ 0.5) | 134 | 89 (66 %) | all District segments: 47 % |
+| Leominster DPW damage points (Sept 2023), road within 30 m | 54 | 44 (81 %) | Leominster segments: 43 % |
+| … on Wachusett St | 32 points on 4 segments | 32 (all 4 segments) | |
+| … elsewhere | 22 points on 19 segments | 12 (55 %) | |
+
+**Reading, with caveats.** Both closures and damage sit on shallow water tables more often than roads in general. This is expected
+and not evidence of a groundwater mechanism: shallow water tables mark low ground and valley floors, where water also collects
+on the surface, and the damage points are clustered (the 32 Wachusett St points fall on 4 segments). Separating "low ground" from
+"wet subgrade" needs a design that holds terrain constant, for example comparing damaged and undamaged segments of the same height
+above the nearest drainage, and, for a mechanism, pavement or subgrade observations. It is a reason to look further (proposal A), not a
+finding.
