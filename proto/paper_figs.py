@@ -57,13 +57,16 @@ def fig6():
         v = [M[m]['site_recall_3pct'] if m in M else 0.0 for m in rows]; chance = M['M']['chance_3pct']
         cols = [C_PI if m == 'P' else C_MODEL if m == 'M' else C_BASE for m in rows]
         yy = np.arange(len(rows))[::-1]
-        ax.barh(yy, v, color=cols, height=0.62)
+        bars = ax.barh(yy, v, color=cols, height=0.62)
+        if sk.startswith('test1'):     # pi was fitted on the 25 District 3 storms: in-sample here, reported only (PI_RANK_v3)
+            bars[rows.index('P')].set_hatch('///'); bars[rows.index('P')].set_edgecolor('white'); bars[rows.index('P')].set_alpha(0.55)
         ax.axvline(chance, color=C_CHANCE, ls='--', lw=1.1); ax.text(chance, -0.75, f' chance {chance:.2f}', color=C_CHANCE, fontsize=7.5, va='center')
         for yi, m, vi in zip(yy, rows, v):
             if m not in M: ax.text(0.005, yi, 'not available (District 3 list only)', va='center', fontsize=7.5, color=MUTED); continue
             tag = ''
             if m not in ('M', 'P') and m in MB and 'recall_3pct' in MB[m]:
                 t = MB[m]['recall_3pct']; tag = ('  model better' if t['model_better'] else '  baseline better') if t['significant'] else '  n.s.'
+            if m == 'P' and sk.startswith('test1'): tag = '  in its fit, reported only'
             ax.text(vi + 0.005, yi, f'{vi:.2f}{tag}', va='center', fontsize=7.5, color=INK if m in ('M', 'P') else MUTED)
         ax.set_yticks(yy); ax.set_yticklabels([lab[m] for m in rows] if ax is axs[0] else []); ax.set_xlim(0, 0.42); ax.set_ylim(-1.1, len(rows) - 0.5)
         ax.set_title(f"{title}: {M['M']['sites']} sites", fontsize=9, loc='left'); ax.set_xlabel('share of sites caught in the top 3 % of segments')
@@ -171,7 +174,7 @@ def fig2():
     # engine
     box(24, 13.5, 23, 31.5, 'Rain excess and 2-D flood', ['NRCS curve number, AMC II × 0.88', '2 mm/h soak-in', '', 'LISFLOOD-FP 8.2', 'local-inertial, 20 m', 'rain on grid, Δt ≤ 1 s (parity)', '', 'notches at crossings,', 'continuous channels (T2)'], fc='#e8f0fe', ec='#8ab4f8')
     # road readout
-    box(52, 13.5, 25, 31.5, 'Road depth → closure chance', ['depth every 10 m along a segment', 'd = 2nd-highest point,', 'storm-added water only', '', 'P = Φ((d − 0.30 m) / 0.10 m)', '+ freeboard, HDS-5 culvert', 'and fast-water terms', '', 'closed if P ≥ 0.5'], fc='#e6f4ea', ec='#81c995')
+    box(52, 13.5, 25, 31.5, 'Road depth → closure chance', ['depth every 10 m along a segment', 'd = 2nd-highest point,', 'storm-added water only', '', 'P = Φ((d − 0.30 m) / 0.10 m)', 'closed if P ≥ 0.5', '', '(freeboard, culvert, fast-water', 'terms: separate layers)'], fc='#e6f4ea', ec='#81c995')
     # uses
     box(83, 33, 33, 12, 'Evaluation', ['site recall at 3 % vs chance and', 'named alternatives; held-out storms,', 'transfer to Districts 4–6'])
     box(83, 16.5, 33, 14.5, 'Consequences', ['closed segments removed, wet ones slowed', '(Pregnolato et al. 2017); detours,', 'delay, residents losing timely access', 'to hospital, fire, police (Census 2020)'])

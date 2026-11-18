@@ -349,6 +349,46 @@ erosion term outside the calibration storm; and the one-time opening of the five
 
 ---
 
+## Figure captions
+
+**Fig. 1.** Study area. MassDOT Highway District 3 road graph (grey, 52,698 segments) and the 20 × 20 km boxes of the storm catalogue:
+two development storms (red), 23 held-out District 3 storms (blue) and 81 transfer storms in Districts 4–6 (purple). The five locked
+storms are not shown.
+
+**Fig. 2.** Modelling chain. Radar rain (replays) or HRRR rain (forecasts) and the ground layers drive a rain-on-grid LISFLOOD-FP
+simulation; road depth along each segment gives the closure probability, which feeds the evaluation, the network consequences and the
+forecast list. In all reported results the closure probability is the depth term alone; freeboard, culvert-overtopping and fast-water
+terms are separate map layers.
+
+**Fig. 3.** Time-step check at the two USGS gauges in the calibration box (North Nashua River at Fitchburg and near Leominster),
+September 2023 storm: observed stage rise (grey; gaps left open) and modelled rise with the solver's default step (≤ 10 s, red), the
+parity step (≤ 1 s, blue) and a halved step (≤ 0.5 s, dotted). The 1 s and 0.5 s runs coincide; the default step produces spurious
+late rises.
+
+**Fig. 4.** Calibration of the curve-number scale on the September 2023 storm: mean absolute gauge-rise error (blue) and the signed
+error at each gauge (grey), against the scale applied to pervious curve numbers. 0.85 and 0.88 tie on error and timing; 0.88 was chosen by
+the tie-break fixed in advance. No closure label entered the choice.
+
+**Fig. 5.** Held-out skill in District 3 (23 storms, 98 documented sites): share of sites caught against the share of road segments
+flagged, ranking segments by modelled depth, with its 90 % storm-clustered bootstrap interval (band) and the chance line (random flagging
+of the same share). The diamond is the fixed 0.30 m rule, which flags 0.41 % of all segments pooled over the storms (0.43 % as the mean of
+the per-storm shares).
+
+**Fig. 6.** The model against named alternatives: share of documented sites caught in the top 3 % of segments, District 3 held-out
+storms (left) and Districts 4–6 (right). "Model better", "n.s.": 95 % paired bootstrap over storms of the depth-ranked model minus each
+alternative. The chance-of-flooding ranking π was fitted on the District 3 storms, so its District 3 value (hatched) is in-sample and
+reported only; Districts 4–6 are its out-of-sample test.
+
+**Fig. 7.** The September 2023 storm run over the whole District (20 m, 17.6 million cells, T2 terrain, operational readout). (a) Peak
+water depth and the road segments closed at some time (red; 135 drawn, one of them at 0.2999 m rounds to p = 0.500 in the map file;
+134 in the run summary). (b) Box-mean rain, segments closed, vehicle-hours lost per hour, and residents losing timely access to a
+hospital, fire station or police station (black), those of them whose own road stays dry (grey) and those cut off from every service
+(green). The calibration storm; consequences are not validated against observations.
+
+**Fig. 8.** Forecast rules on seven out-of-sample storms (43 sites) at long (8–14 h) and short (2–8 h) lead: share of sites caught and
+share of segments flagged (mean and maximum over storms) for the newest single forecast, any of the four 6-hourly members, two of those
+four, and two of all eight members (the operational rule, blue).
+
 ## Tables (drafts)
 
 **Table 1. Data sources.**
