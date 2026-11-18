@@ -20,8 +20,8 @@ significant; ranking by a chance-of-flooding score raises this to 25 %. On 23 he
 20 %, while a static score weighted by traffic reaches 32 % (difference not significant), which we trace to reports concentrating on busy roads. Traffic, a
 stream-crossing flag and storm-drain sinks did not improve held-out skill. Driven by forecast rain, an eight-member time-lagged
 ensemble catches 33 % of sites 8–14 h ahead against 26 % for a single forecast (gain +7 points, 95 % interval +2 to +14; seven storms). A solver audit shows that GPU and CPU builds agree only
-with a ≤ 1 s time step. For the September 2023 storm the closures leave about 76,000 residents without timely access to a hospital,
-fire or police station, 99 % of them on roads that stay dry. A complete municipal damage inventory shows the misses are mostly edge
+with a ≤ 1 s time step. In District-wide runs of two storms, the closures leave 76,000 and 356,000 residents without timely access to a hospital,
+fire or police station, 97–99 % of them on roads that stay dry. A complete municipal damage inventory shows the misses are mostly edge
 erosion with little modelled ponding. The screen ranks roads usefully for inspection but cannot yet issue segment-level warnings;
 labels, not model complexity, limit it.
 <!-- src: OUTLINE.md §3b (v2) + forecast/ENSEMBLE_PARITY.md §1, §4b + paper/data/d3_sep2023_t2_cascade.json -->
@@ -253,9 +253,17 @@ At the peak, 76,450 residents can no longer reach a hospital, fire station or po
 min, fire 8 min, police 10 min): 45,700 lose the fire station, 38,600 the police and 26,500 the hospital, and 7,900 can reach none
 of them. Almost all of them, 75,700 or 99 %, live on roads that stay dry: they are cut off by closures elsewhere on the network, and
 98 % of the person-hours of lost access fall on people whose own road never floods. The access loss peaks 1.5 hours after the
-closures themselves. Fourteen segments are still closed at the end of the run; the model has no storm
+closures themselves.
+
+The same run for a held-out storm, the remnants of Ida on 1–2 September 2021, was set up with a reading rule fixed beforehand (the
+dry-road finding holds if at least 80 % of the residents losing access live on dry roads). This storm is wider in the model: 372 segments
+close at some time and 252 at once at the peak, 14.5 hours into the run; delay peaks at about 35,700 vehicle-hours per hour (383,000 over
+48 hours); and 356,000 residents lose timely access at the peak, 27,000 of them to every service. Of those, 347,000 (97.5 %) live on
+roads that stay dry, and 97 % of the person-hours of lost access fall on them, so the finding holds. No segment is closed before the rain
+starts. The model under-predicts this storm's river rises (for example 0.72 m against 1.55 m on the Quinapoxet River), so these numbers
+are, if anything, low (Table 7). Fourteen segments are still closed at the end of the run; the model has no storm
 drains, so water that ponds in closed low ground drains only by soak-in, and these long closures are an upper bound.
-<!-- src: turing/d3_sep2023_t2 (T2 terrain, PROTO_RES_CONSISTENT=1, start at rain onset; Turing 17 Nov 2026); paper/data/d3_sep2023_t2_cascade.json totals and series -->
+<!-- src: turing/d3_sep2023_t2 (T2 terrain, PROTO_RES_CONSISTENT=1, start at rain onset; Turing 17 Nov 2026); paper/data/d3_sep2023_t2_cascade.json totals and series; turing/d3_sep2021_t2_PLAN.md, d3_sep2021_t2_RESULT.md, d3_sep2021_t2/cascade.json, score.json -->
 
 ### 4.6 Forecast lead time
 At the deployed physics, on the seven out-of-sample storms (43 sites), listing a segment when it closes in at least 2 of the 8 forecast
@@ -307,7 +315,8 @@ segment-level closure warnings.
 
 ### 5.4 Consequences fall on dry roads
 In the September 2023 run, 99 % of the residents who lose timely access to emergency services live on roads that stay dry, and 98 %
-of the person-hours of lost access fall on them. A closure map alone understates the impact of a flash flood; the network position
+of the person-hours of lost access fall on them; on the held-out September 2021 storm, with a reading rule fixed in advance, the shares
+are 97.5 % and 97 %. A closure map alone understates the impact of a flash flood; the network position
 of a closed road matters as much as its depth.
 <!-- src: paper/data/d3_sep2023_t2_cascade.json totals.knock_on -->
 
@@ -516,19 +525,20 @@ lower bound above 0 at α/k).
 (a)–(d) were scored on the 90 sites of the first label round, T1–T3 on the 98 sites after the second.
 <!-- src: ml/EXPANDED.md (90 sites: +11 sites = +0.122); cascade/CASCADE.md §4.2 -->
 
-**Table 7. Consequences of the September 2023 storm, District 3 (T2 terrain, operational readout).**
+**Table 7. Consequences of two storms, District 3 (T2 terrain, operational readout, 48 h).** September 2023 is the calibration storm;
+September 2021 (Ida remnants) is held out.
 
-| Quantity | Value |
-|---|---|
-| Road segments closed at some time / at the peak | 127 / 70 (at 8.0 h) |
-| Delay at the peak (vehicle-hours per hour) | 7,379 |
-| Delay over 48 h (vehicle-hours: detours / slowed traffic) | 119,739 (63,160 / 56,579) |
-| Residents losing timely access at the peak (any service) | 76,450 |
-| … to a hospital (30 min) / fire station (8 min) / police (10 min) | 26,518 / 45,686 / 38,617 |
-| Residents cut off from every service at the peak | 7,886 |
-| Of those losing access, living on roads that stay dry | 75,700 (99%) |
-| Share of lost-access person-hours on dry roads | 98% |
-<!-- src: paper/data/d3_sep2023_t2_cascade.json totals -->
+| Quantity | Sept 2023 | Sept 2021 |
+|---|---|---|
+| Road segments closed at some time / at the peak | 127 / 70 (at 8.0 h) | 372 / 252 (at 14.5 h) |
+| Delay at the peak (vehicle-hours per hour) | 7,379 | 35,708 |
+| Delay over 48 h (vehicle-hours: detours / slowed traffic) | 119,739 (63,160 / 56,579) | 383,477 (128,648 / 254,830) |
+| Residents losing timely access at the peak (any service) | 76,450 | 355,938 |
+| … to a hospital (30 min) / fire station (8 min) / police (10 min) | 26,518 / 45,686 / 38,617 | 69,971 / 233,689 / 221,041 |
+| Residents cut off from every service at the peak | 7,886 | 27,216 |
+| Of those losing access, living on roads that stay dry | 75,700 (99%) | 347,181 (97.5%) |
+| Share of lost-access person-hours on dry roads | 98% | 97% |
+<!-- src: paper/data/d3_sep2023_t2_cascade.json totals; turing/d3_sep2021_t2/cascade.json totals -->
 
 **Table 8. Forecast rules, seven out-of-sample storms, operational physics** (site recall / mean share of segments flagged).
 
