@@ -5,7 +5,7 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: abstract and sections 1–7 drafted, Tables 7–8 (17 Nov 2026). Tables 1–6, reference list and Fig. 2 to follow.
+Status: abstract, sections 1–7, Tables 3–8 and the reference list drafted (17–18 Nov 2026). Tables 1–2, Fig. 2, and the missing references (Schall et al. 2012 HDS-5) to follow.
 
 ---
 
@@ -336,6 +336,71 @@ erosion term outside the calibration storm; and the one-time opening of the five
 
 ## Tables (drafts)
 
+**Table 3. Old GPU runs against the parity baseline, nine catalogue storms** (sites caught / labelled, share flagged by the rule, lift,
+mean absolute gauge-rise error).
+
+| Storm | Sites | Flagged | Lift | Gauge rise error (m) |
+|---|---|---|---|---|
+| Jul 2021, Worcester | 1/5 → 0/5 | 1.22 → 0.19 % | 8.3 → 0.0 | 1.68 → 1.32 |
+| Aug 2021, Worcester | 5/12 → 3/12 | 2.24 → 1.11 % | 16.0 → 10.5 | 0.76 → 0.40 |
+| Sep 2021, Worcester | 2/5 → 2/6 | 4.07 → 2.41 % | 4.6 → 7.1 | 1.46 → 1.00 |
+| Sep 2022, Webster | 0/4 → 0/4 | 1.87 → 0.61 % | 0.0 → 0.0 | 0.14 → 0.14 |
+| Jul 2023, Worcester | 0/5 → 0/5 | 0.65 → 0.07 % | 0.0 → 0.0 | 0.24 → 0.18 |
+| Aug 2023, MetroWest | 1/4 → 1/5 | 3.58 → 1.62 % | 4.0 → 5.2 | 0.69 → 0.19 |
+| Aug 2023, Millbury | 0/2 → 0/2 | 0.51 → 0.11 % | 0.0 → 0.0 | 0.54 → 0.43 |
+| Sep 2023, Leominster (calibration) | 28/78 → 35/89 | 2.80 → 2.16 % | 8.9 → 11.7 | 0.93 → 0.23 |
+| Aug 2026, Leominster | 1/4 → 0/4 | 2.20 → 1.37 % | 6.6 → 0.0 | 0.90 → 0.29 |
+| **All nine** | 38/119 → 41/132 | mean 2.13 → 1.07 % | | per-storm mean 0.82 → 0.46 |
+
+Old runs matched labels without bridge decks, hence fewer labelled sites. <!-- src: parity/BASELINE.md §2 -->
+
+**Table 4. Site recall in the top 3 % of segments, by method** (District 3: 23 held-out storms, 98 sites; Districts 4–6: 81 storms,
+498 sites).
+
+| Method | District 3 | Districts 4–6 |
+|---|---|---|
+| Model (depth rule order) | 0.20 | **0.21** |
+| Model ranked by π | – | **0.25** |
+| NWS flash-flood warnings | 0.05 | 0.09 |
+| FEMA 1 % annual-chance zone | 0.12 | 0.07 |
+| MassDOT repeat-flood points | 0.14 | – |
+| Radar-rain threshold (tuned on calibration storm) | 0.05 | 0.06 |
+| Terrain only (height above nearest drainage) | 0.08 | 0.10 |
+| Static hazard × vulnerability × consequence | **0.32** | 0.10 |
+| Chance | 0.07 | 0.09 |
+
+District 3: the model beats warnings, rain threshold and terrain significantly; it is ahead of the FEMA zone and repeat points, and behind
+the static score, without significance either way. Districts 4–6: the model beats every alternative significantly.
+<!-- src: scoring/BENCHMARK_v3.md; scoring/PI_RANK_v3.md -->
+
+**Table 5. Transfer: Districts 4–6 against District 3** (90 % CI).
+
+| | Districts 4–6 (81 storms, 498 sites) | District 3 held-out (23 storms, 98 sites) |
+|---|---|---|
+| Rule: share flagged / site recall | 0.14 % / 0.036 [0.015, 0.058] | 0.43 % / 0.092 [0.022, 0.167] |
+| Rule: lift | 6.7 [3.2, 10.6] | 6.4 [2.2, 10.6] |
+| Top 3 %: site recall | 0.210 [0.167, 0.254] | 0.204 [0.104, 0.303] |
+| Top 3 %: chance / lift | 0.086 / 2.46 [1.96, 2.97] | 0.066 / 3.10 [1.57, 4.60] |
+| Top 3 %: FSS at 300 m | 0.017 (random 0.023) | 0.023 [0.015, 0.034] |
+| Top 1 / 2 / 5 / 10 %: recall | 0.10 / 0.16 / 0.28 / 0.40 | – / – / – / 0.44 |
+| Gauges: mean abs rise error / bias | 0.35 / −0.27 m (417 gauges) | 0.38 / −0.36 m (37 gauges) |
+<!-- src: transfer/TRANSFER.md §2 -->
+
+**Table 6. Learned and network candidates against the adoption rule** (held-out 23 storms; gain needs ≥ +0.04 at 3 % and a one-sided
+lower bound above 0 at α/k).
+
+| Candidate | Hits at 3 % (base → candidate) | Δ recall | Lower bound | Verdict |
+|---|---|---|---|---|
+| (a) Learned logistic, refitted per fold | 15 → 26 | +0.122 | 0.000 | rejected (significance) |
+| (b) Pairwise ranking correction | 15 → 22 | +0.078 | −0.039 | rejected (significance) |
+| (c) Storm-relative depth budget | 15 → 15 | 0.000 | 0.000 | rejected |
+| (d) Rule first, learned score fills the budget | 15 → 26 | +0.122 | 0.000 | rejected (significance) |
+| T1 Learned logistic + cascade features | 20 → 32 | +0.122 | −0.017 | rejected (significance) |
+| T2 Rule first + cascade-feature score | 20 → 33 | +0.133 | 0.000 | rejected (significance) |
+| T3 Cascade features against (a) | 30 → 32 | +0.020 | −0.076 | rejected (gain, significance) |
+(a)–(d) were scored on the 90 sites of the first label round, T1–T3 on the 98 sites after the second.
+<!-- src: ml/EXPANDED.md (90 sites: +11 sites = +0.122); cascade/CASCADE.md §4.2 -->
+
 **Table 7. Consequences of the September 2023 storm, District 3 (T2 terrain, operational readout).**
 
 | Quantity | Value |
@@ -360,3 +425,24 @@ erosion term outside the calibration storm; and the one-time opening of the five
 | 2 of 8 (operational) | 0.33 / 2.8 % | 0.30 / 1.9 % |
 
 43 sites. <!-- src: forecast/ensemble_parity.json pooled -->
+
+---
+
+## References (cited R numbers)
+
+- R1. Zhang, J. et al. (2016). Multi-Radar Multi-Sensor (MRMS) quantitative precipitation estimation: initial operating capabilities. *BAMS* 97, 621–638. https://doi.org/10.1175/BAMS-D-14-00174.1 ; product notes: https://vlab.noaa.gov/web/wdtd/-/multi-sensor-qpe
+- R6. Schwartz, C. S., Sobash, R. A. (2017). Generating probabilistic forecasts from convection-allowing ensembles using neighborhood approaches: a review and recommendations. *MWR* 145, 3397–3418. https://doi.org/10.1175/MWR-D-16-0400.1
+- R8. Hawkins, R. H., Jiang, R., Woodward, D. E., Hjelmfelt, A. T., Van Mullem, J. A. (2002). Runoff curve number method: examination of the initial abstraction ratio. https://uon.sdsu.edu/hawkins_initial_abstraction.pdf
+- R14. Bates, P. D., Horritt, M. S., Fewtrell, T. J. (2010). A simple inertial formulation of the shallow water equations for efficient two-dimensional flood inundation modelling. *J. Hydrol.* 387, 33–45. https://doi.org/10.1016/j.jhydrol.2010.03.027
+- R15. de Almeida, G. A. M., Bates, P., Freer, J. E., Souvignet, M. (2012). Improving the stability of a simple formulation of the shallow water equations for 2-D flood modeling. *WRR* 48, W05528. https://eprints.soton.ac.uk/356385/2/WRR_2012.pdf
+- R16. Shaw, J. et al. (2021). LISFLOOD-FP 8.0: the new discontinuous Galerkin shallow-water solver for multi-core CPUs and GPUs. *GMD* 14, 3577–3602. https://gmd.copernicus.org/articles/14/3577/2021/
+- R19. Smith, G. P., Davey, E. K., Cox, R. J. (2014). Flood hazard. WRL Technical Report 2014/07 (ARR Project 10 basis; includes Shand et al. 2011 vehicle criteria). https://knowledge.aidr.org.au/media/2334/wrl-flood-hazard-techinical-report-september-2014.pdf
+- R20. Martínez-Gomariz, E., Gómez, M., Russo, B., Djordjević, S. (2018). Stability criteria for flooded vehicles: a state-of-the-art review. *J. Flood Risk Manag.* 11, S817–S826. https://doi.org/10.1111/jfr3.12262 (open copy: https://zaguan.unizar.es/record/75630/files/texto_completo.pdf)
+- R21. Kramer, M., Terheiden, K., Wieprecht, S. (2016). Safety criteria for the trafficability of inundated roads in urban floodings. *IJDRR* 17, 77–84. https://doi.org/10.1016/j.ijdrr.2016.04.003
+- R23. Pregnolato, M., Ford, A., Wilkinson, S. M., Dawson, R. J. (2017). The impact of flooding on road transport: a depth-disruption function. *Transp. Res. D* 55, 67–81. https://doi.org/10.1016/j.trd.2017.06.020
+- R28. Bekker, J., Davis, J. (2020). Learning from positive and unlabeled data: a survey. *Machine Learning* 109, 719–760. https://doi.org/10.1007/s10994-020-05877-5
+- R32. Roberts, D. R. et al. (2017). Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. *Ecography* 40, 913–929. https://www.biometrie.uni-freiburg.de/mitarbeiter/dormann/roberts-et-al-2017-ecography.pdf
+- R33. Asif, M., Bentivoglio, R., Albano, R. (2026). CNN model for rapid prediction of urban flash flood water depth and velocity maps. *J. Hydrol.* 675, 135601. https://repository.tudelft.nl/record/uuid:8898c07c-8ea4-40f1-8da4-6ec2534bb52c
+- R34. Bentivoglio, R. et al. (2025). Multi-scale hydraulic graph neural networks for flood modelling (mSWE-GNN). *NHESS* 25, 335. https://nhess.copernicus.org/articles/25/335/2025/
+- R37. Safaei-Moghadam, A., Tarboton, D., Minsker, B. (2023). Estimating the likelihood of roadway pluvial flood based on crowdsourced traffic data and depression-based DEM analysis. *NHESS* 23, 1–19. https://nhess.copernicus.org/articles/23/1/2023/
+- R39. Roberts, N. M., Lean, H. W. (2008). Scale-selective verification of rainfall accumulations from high-resolution forecasts of convective events. *MWR* 136, 78–97. https://doi.org/10.1175/2007MWR2123.1
