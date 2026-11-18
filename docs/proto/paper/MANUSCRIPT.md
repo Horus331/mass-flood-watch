@@ -560,6 +560,20 @@ storms). <!-- src: forecast/ensemble_parity.json pooled; forecast/ensemble_ci.js
 
 ---
 
+## Data availability
+All model inputs are public (Table 1): USGS 3D Elevation Program elevation; NOAA MRMS radar rain (MultiSensor QPE Pass 2) and, before
+October 2020, the MRMS archive of the Iowa Environmental Mesonet; NOAA HRRR forecasts (NOAA Open Data Dissemination); NLCD 2021 land
+cover and imperviousness (USGS / MRLC); SSURGO soils (USDA NRCS); NHDPlus HR streams and USGS Water Data gauges; the FHWA National Bridge
+Inventory; MassDOT's road inventory (MassGIS); road–stream crossings from the Massachusetts Stream Crossings Project and NAACC culvert
+surveys; emergency facilities from OpenStreetMap; 2020 census blocks (U.S. Census Bureau); NWS warning polygons (Iowa Environmental
+Mesonet archive) and the FEMA National Flood Hazard Layer. Flood reports come from NWS Local Storm Reports, NOAA Storm Events, WX1BOX,
+SeeClickFix, news reports and MassDOT crash records; the matched site lists, segment scores and pre-registration documents will be released
+with the paper. The September 2023 damage inventory was shared by the City of Leominster Department of Public Works and is available
+from the City on request. [Code availability: DECISION C, Mo; see SUBMISSION_CHECKLIST.md.]
+<!-- src: Table 1; advisors/datasets.md D01–D23; paper/SUBMISSION_CHECKLIST.md C -->
+
+---
+
 ## References (cited R numbers)
 
 - R1. Zhang, J. et al. (2016). Multi-Radar Multi-Sensor (MRMS) quantitative precipitation estimation: initial operating capabilities. *BAMS* 97, 621–638. https://doi.org/10.1175/BAMS-D-14-00174.1 ; product notes: https://vlab.noaa.gov/web/wdtd/-/multi-sensor-qpe
