@@ -256,7 +256,9 @@ At the deployed physics, on the seven out-of-sample storms (43 sites), listing a
 members catches 0.33 of sites at long lead (8–14 h) and 0.30 at short lead (2–8 h), against 0.26 and 0.14 for the newest forecast alone,
 while flagging 2.8 % and 1.9 % of segments (1.6 % and 1.0 % for the single forecast). Over the seven storms the gain is +0.07 [95 % interval +0.02, +0.14] at long lead and
 +0.16 [+0.03, +0.31] at short lead (storm bootstrap); at long lead the extra sites come with proportionally more flags (lift 6.1 → 5.5), at
-short lead they do not (5.3 → 6.4). The check fixed in advance (recall at least the single cycle's, flags at most twice its share
+short lead they do not (5.3 → 6.4). Flagging any segment closed in one of the four 6-hourly members catches more sites here (0.37 and 0.33) but flags 3.7 % and 2.7 % of
+segments. The 2-of-8 rule was chosen in the first out-of-sample test (earlier physics, 29 sites), where it matched that rule's recall with fewer
+flags and a higher lift; the check reported here re-tests only the rule already chosen. The check fixed in advance (recall at least the single cycle's, flags at most twice its share
 plus one point) passes at both leads, and also on a like-for-like rescoring of the 28 sites matched in both evaluations (Fig. 8).
 Two live storms in November 2026 test the forecast forward in time. On 12–13 November it correctly listed no closures. On 5–7
 November it listed 80 roads as likely closures and none was reported; the main error was the HRRR rain: on the observed radar rain
