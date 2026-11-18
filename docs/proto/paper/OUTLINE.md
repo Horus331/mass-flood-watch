@@ -144,8 +144,8 @@ Sources: `scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`, `scoring/HYBRID_v3.
 | Fig. 3 | Parity: Fitchburg and Leominster hydrographs, GPU default vs `LF_PARITY=1` vs CPU vs observed; depth-spike example (Hampton St) | `parity/<storm>_<variant>/gauge_windows.npz`, `parity/parity.json`, `turing/parity_sep2023_gpu_rain*/` | `proto/parity_compare.py` (numbers); plot **to write** |
 | Fig. 4 | CN-scale calibration: rise error and flagged share against `LF_CN_SCALE` | `parity/calib/leo48_cn0{85..100}/score.json`; table in `parity/BASELINE.md` §1 | **to write** |
 | Fig. 5 | Held-out 23: site recall against flagged share (1–10 %), rule point, chance line, 90 % CI | `obs/round2/score_round2.json` | `proto/score_v2.py --catalog` (numbers); plot **to write** |
-| Fig. 6 | Transfer: recall and lift curves for Districts 4–6 vs District 3; per-district bars | `transfer/r1/score_d456.json`, `transfer/r1/transfer_summary.json` | `proto/score_v2.py --d456`; plot **to write** |
-| Fig. 7 | Sept 2023 District run: depth map with flagged segments; cascade time series (closed, delay, people losing coverage, dry-road share) | `turing/d3_sep2023_p/` (hmax, segments), `paper/data/d3_sep2023_cascade.json` `series` | `proto/paper_figs.py fig7` (done 16 Nov; start-up check open) |
+| Fig. 6 | Benchmark (as drawn, `fig6_benchmark.png`): top-3 % recall by method, District 3 held-out and Districts 4–6. *Originally planned:* transfer: recall and lift curves for Districts 4–6 vs District 3; per-district bars | `transfer/r1/score_d456.json`, `transfer/r1/transfer_summary.json` | `proto/score_v2.py --d456`; plot **to write** |
+| Fig. 7 | Sept 2023 District run: depth map with flagged segments; cascade time series (closed, delay, people losing coverage, dry-road share) | `turing/d3_sep2023_t2/` (hmax, segments), `paper/data/d3_sep2023_t2_cascade.json` `series` | `proto/paper_figs.py fig7` (redone 17 Nov on T2; start-up fixed) |
 | Fig. 8 | Forecast: recall and flagged share by rule (single, any-of-4, 2-of-4, 2-of-8) at long / short lead, 7 OOS storms | `forecast/ensemble_parity.json` (`pooled`) | `proto/paper_figs.py fig8` (done 16 Nov) |
 | Fig. 9 (SI) | District 3 vulnerability layer (High / Medium / Low) | `docs/proto/arcgis/d3_road_flood_vulnerability.geojson` | `proto/arcgis_export.py` |
 | Fig. 10 (SI) | Learned-model reliability and coefficient importance (LOSO) | `parity/catalog/ml/loso_reliability.png`, `loso_importance.png` | `proto/closure_loso.py` (existing figures) |
@@ -262,3 +262,6 @@ Sources: `scoring/BENCHMARK_v3.md`, `scoring/PI_RANK_v3.md`, `scoring/HYBRID_v3.
    transfer test or the parity audit leads the paper.
 9. Optional: a second damage-labelled storm (Vermont July 2023 or FEMA PA sites; `damage/DAMAGE.md`), only if the damage layer moves
    from the supplement into the paper.
+
+
+**18 Nov 2026 (manuscript self-review, `REVIEW_SELF.md`):** §3.2 corrected (closure probability = depth term only in all reported results); forecast ensemble intervals (`forecast/ensemble_ci.json`); within-town skill added to §4.3; interval levels stated; all figures and tables called out in order; Sept 2021 District consequence run queued (`turing/d3_sep2021_t2_PLAN.md`). The manuscript, not this outline, is now the reference for numbers.

@@ -27,7 +27,7 @@ Read of `MANUSCRIPT.md` as a reviewer for a hydrology / natural-hazards journal 
 | m4 | "Any of 4" has a higher recall than the operational "2 of 8" in Table 8. | **Fixed**: §4.6 says 2 of 8 was chosen in the first out-of-sample test (`ENSEMBLE.md` §4: same recall as any of 4, fewer flags, higher lift) and only re-tested here. |
 | m5 | "Tests of antecedent moisture are not finished" (Limitations). | **Fixed**: now "tested only as a sensitivity on the calibration storm". |
 | m6 | `<!-- src: -->` comments and `R#` references must become a journal reference list. | Open (before submission). |
-| m7 | Figure order: Fig 7 cited in §4.5 before Fig 6 appears in the text? | Open: check the figure call-out order on the final layout. |
+| m7 | Figures and tables called out in order? | **Fixed**: only Figs 7–8 and Tables 2, 4, 6 were cited; all 8 figures and 8 tables are now called out, first mentions in order (Fig 1, Table 1, Table 2, Fig 2–4, Table 3, Fig 5, Table 4, Fig 6, Tables 5–6, Fig 7, Table 7, Fig 8, Table 8). Fig 7's map legend says 135 closed vs 134 in the run summary: one segment at 0.2999 m rounds to p = 0.500 in the GeoJSON; harmless, note in the caption. |
 | m9 | §4.5 "127 closed" vs the run report's 134 (and groundwater SCOUT §6). | **Fixed**: 127 = half-hourly series used for the cascade; 134 = each segment's own peak depth. Both stated. |
 | m8 | 52,698 segments vs "about 49,000" in older documents. | Manuscript is consistent (52,698); older poster not published. |
 

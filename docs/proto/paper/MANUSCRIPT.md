@@ -57,7 +57,7 @@ when the rain is a forecast.
 The study covers MassDOT Highway District 3, central Massachusetts: Worcester County and neighbouring towns, a glaciated upland of
 till-mantled hills, steep small streams and dense mill-town centres. The District road graph has 52,698 segments (MassDOT Road Inventory,
 split at intersections). Flash floods here are short, convective or tropical-remnant storms on small, fast catchments; in the September 2023
-Leominster storm most damage was to local roads, culverts and road edges rather than to river floodplains.
+Leominster storm most damage was to local roads, culverts and road edges rather than to river floodplains. Fig. 1 shows the District, the storm boxes and the transfer districts; Table 1 lists the data.
 <!-- src: cascade/CASCADE.md §1 (52,698 segments); cycles/LEOMINSTER_COUNTS.md; phase1/LEOMINSTER_MISSES.md. -->
 
 ### 2.2 Storms
@@ -97,7 +97,7 @@ and the evaluation uses recall at a fixed share of flagged segments.
 ## 3. Methods
 
 ### 3.1 Flood simulation
-Water depth comes from LISFLOOD-FP 8.2 with its acceleration (local-inertial) solver (Bates et al. 2010, R14; de Almeida et al. 2012,
+Fig. 2 summarises the chain from rain to road closures and their consequences. Water depth comes from LISFLOOD-FP 8.2 with its acceleration (local-inertial) solver (Bates et al. 2010, R14; de Almeida et al. 2012,
 R15; Shaw et al. 2021, R16), run rain-on-grid at 20 m with free outflow on all edges. Rain excess is computed hourly before the solver
 from the NRCS curve-number method (Hawkins et al. 2002, R8) at antecedent condition II, with all curve numbers scaled by 0.88, and a
 constant 2 mm/h soak-in of standing water. Channels start at base flow. There are no storm drains, dams or inflows from outside the box.
@@ -105,13 +105,13 @@ constant 2 mm/h soak-in of standing water. Channels start at base flow. There ar
 **Solver parity.** The GPU build of LISFLOOD-FP ignores the infiltration keyword and caps each step at the initial time step, while the
 CPU build adapts the step. On rain-on-grid runs this made the two builds produce different floods and spurious gauge rises at start-up.
 All runs here use a parity mode (`LF_PARITY=1`): infiltration is removed from the rain before the solver, and the time step is capped
-at 1 s on both builds, which then agree cell for cell (Section 4.1).
+at 1 s on both builds, which then agree cell for cell (Section 4.1, Fig. 3).
 <!-- src: parity/PARITY.md; parity/BASELINE.md -->
 
 **Calibration.** The curve-number scale is the only calibrated parameter. It was chosen on the calibration storm by a rule fixed in
 advance: the value in {0.85, 0.88, …, 1.00} minimising the mean absolute gauge-rise error at the two USGS gauges in the box, with ties
 broken by peak timing and then by closeness to the previous value 0.91. 0.85 and 0.88 tied on error (0.22 m) and timing (0.4 h); 0.88
-was chosen. No closure label entered the choice; recall of the calibration storm's reports was flat (35 of 89) between 0.85 and 0.94.
+was chosen (Fig. 4). No closure label entered the choice; recall of the calibration storm's reports was flat (35 of 89) between 0.85 and 0.94.
 <!-- src: parity/BASELINE.md §1 -->
 
 **Terrain correction.** At road–stream crossings the 10 m DEM shows the road embankment as a dam. The model cuts a notch through the
@@ -204,7 +204,7 @@ segment is listed as likely to close when it closes in at least 2 of the 8 membe
 ## 4. Results
 
 ### 4.1 Solver parity and gauges
-Without the parity mode, the GPU and CPU builds disagreed sharply on the same storm: on the July 2023 Worcester storm the GPU flagged
+Without the parity mode (Table 3), the GPU and CPU builds disagreed sharply on the same storm: on the July 2023 Worcester storm the GPU flagged
 0.63 % of segments and the CPU 0.10 %, with little overlap (Jaccard 0.16). Of the 43 segments flagged on the GPU, 28 had a peak depth
 more than 0.10 m above every saved snapshot, a sign of single-step spikes; the CPU had none of 7. With the parity mode the two builds
 flag identical segments (Jaccard 1.0) with a mean depth difference of 0.000 m on two storms. Across nine catalogue storms, the mean
@@ -216,14 +216,14 @@ and the rule hits none of the 20 sites of the light storms.
 ### 4.2 Held-out skill in District 3
 On the 23 held-out storms (98 sites), the depth rule flags 0.43 % of segments and catches 0.092 of sites [90 % CI 0.022, 0.167], a lift
 of 6.4 over chance. Ranking the top 3 % of segments catches 0.204 [0.104, 0.303] against 0.066 by chance (lift 3.1), and the top 10 %
-catches 0.44. Spatial skill is low: the 300 m fractions skill score at 3 % flagged is 0.023 [0.015, 0.034].
-Among named alternatives (Table 4), the model beats NWS flash-flood warnings (0.05), a radar-rain threshold (0.05) and terrain alone
+catches 0.44 (Fig. 5). Spatial skill is low: the 300 m fractions skill score at 3 % flagged is 0.023 [0.015, 0.034].
+Among named alternatives (Table 4, Fig. 6), the model beats NWS flash-flood warnings (0.05), a radar-rain threshold (0.05) and terrain alone
 (0.08) significantly. A static hazard × vulnerability × consequence score that weights busy roads reaches 0.32, ahead of the model but
 not significantly; Section 5 traces this to reports concentrating on busy roads.
 <!-- src: transfer/TRANSFER.md §2 (District 3 column, round-2 labels); scoring/BENCHMARK_v3.md -->
 
 ### 4.3 Transfer to Districts 4–6
-On 81 storms in three other districts (498 sites), with every setting frozen, the top 3 % of segments catch 0.210 of sites [90 % CI 0.167,
+On 81 storms in three other districts (498 sites), with every setting frozen (Table 5), the top 3 % of segments catch 0.210 of sites [90 % CI 0.167,
 0.254] against 0.086 by chance (lift 2.46 [1.96, 2.97]), the same recall as in District 3. The pre-registered verdict is that the model
 transfers. Here the model beats all named alternatives significantly: NWS warnings 0.09, the FEMA 1 % zone 0.07, terrain alone 0.10,
 the static score 0.10 and the rain threshold 0.06. Ranking by π instead of depth raises the top-3 % recall from 0.206 to 0.251 (benchmark scoring, in which the depth ranking scores 0.206
@@ -248,7 +248,7 @@ roads were each rejected: none raised held-out recall, and the drain sinks remov
 Run over the whole District (78 × 90 km at 20 m, 17.6 million cells, 48 h) on the terrain and readout used in operation, the
 September 2023 storm (the calibration storm; the consequences are illustrative and have no observations to be checked against) closes 127 road segments at some time in the
 half-hourly output (134 when each segment is read at its own peak depth, which can fall between outputs); 70 are closed at once at the peak, 8 hours after the start of the run
-(Fig. 7). Detours and slowed traffic cost about 7,400 vehicle-hours per hour at the peak and 120,000 vehicle-hours over the 48 hours.
+(Fig. 7, Table 7). Detours and slowed traffic cost about 7,400 vehicle-hours per hour at the peak and 120,000 vehicle-hours over the 48 hours.
 At the peak, 76,450 residents can no longer reach a hospital, fire station or police station within the response time (hospital 30
 min, fire 8 min, police 10 min): 45,700 lose the fire station, 38,600 the police and 26,500 the hospital, and 7,900 can reach none
 of them. Almost all of them, 75,700 or 99 %, live on roads that stay dry: they are cut off by closures elsewhere on the network, and
@@ -265,7 +265,7 @@ while flagging 2.8 % and 1.9 % of segments (1.6 % and 1.0 % for the single forec
 short lead they do not (5.3 → 6.4). Flagging any segment closed in one of the four 6-hourly members catches more sites here (0.37 and 0.33) but flags 3.7 % and 2.7 % of
 segments. The 2-of-8 rule was chosen in the first out-of-sample test (earlier physics, 29 sites), where it matched that rule's recall with fewer
 flags and a higher lift; the check reported here re-tests only the rule already chosen. The check fixed in advance (recall at least the single cycle's, flags at most twice its share
-plus one point) passes at both leads, and also on a like-for-like rescoring of the 28 sites matched in both evaluations (Fig. 8).
+plus one point) passes at both leads, and also on a like-for-like rescoring of the 28 sites matched in both evaluations (Fig. 8, Table 8).
 Two live storms in November 2026 test the forecast forward in time. On 12–13 November it correctly listed no closures. On 5–7
 November it listed 80 roads as likely closures and none was reported; the main error was the HRRR rain: on the observed radar rain
 the model closes 8 segments, none of them reported, and the forecast had been changed to a new version during the storm.
