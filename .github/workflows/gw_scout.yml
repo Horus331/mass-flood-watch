@@ -1,5 +1,8 @@
 name: Groundwater scouting (USGS wells, District 3)
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      script: {description: 'proto script', default: 'gw_scout.py'}
 permissions:
   contents: write
 jobs:
@@ -8,8 +11,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q requests
-      - run: python proto/gw_scout.py
+      - run: pip install -q requests numpy pyproj huggingface_hub
+      - run: python proto/${{ inputs.script }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
       - run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add docs/proto/groundwater; git commit -qm "groundwater scouting data" || exit 0
