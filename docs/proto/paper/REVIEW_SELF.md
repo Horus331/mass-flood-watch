@@ -23,12 +23,12 @@ Read of `MANUSCRIPT.md` as a reviewer for a hydrology / natural-hazards journal 
 |---|---|---|
 | m1 | π gain quoted from 0.206 while the transfer recall is 0.210 (two scorings). | **Fixed**: §4.3 says which scoring gives 0.206. |
 | m2 | OSM control "loses 2 of 14 sites" did not say it was two District 3 storms. | **Fixed**, and noted that the Districts 4–6 lift is therefore likely conservative. |
-| m3 | Mixed 90 % (protocol, Table 5) and 95 % intervals (benchmark, π, ensemble). | **Open**: state the level in every table caption; keep 90 % for protocol metrics as pre-registered. |
+| m3 | Mixed 90 % (protocol, Table 5) and 95 % intervals (benchmark, π, ensemble). | **Fixed**: §3.4 states which metrics carry which level; every interval in the text is labelled. |
 | m4 | "Any of 4" has a higher recall than the operational "2 of 8" in Table 8. | **Fixed**: §4.6 says 2 of 8 was chosen in the first out-of-sample test (`ENSEMBLE.md` §4: same recall as any of 4, fewer flags, higher lift) and only re-tested here. |
 | m5 | "Tests of antecedent moisture are not finished" (Limitations). | **Fixed**: now "tested only as a sensitivity on the calibration storm". |
 | m6 | `<!-- src: -->` comments and `R#` references must become a journal reference list. | Open (before submission). |
 | m7 | Figure order: Fig 7 cited in §4.5 before Fig 6 appears in the text? | Open: check the figure call-out order on the final layout. |
 | m8 | 52,698 segments vs "about 49,000" in older documents. | Manuscript is consistent (52,698); older poster not published. |
 
-## Next (no model change; reporting only)
-1. m3 wording (interval levels in captions).
+## Next
+All review points that can be fixed from existing numbers are done. Remaining open: M4 (held-out District consequence run), M7 (locked storms, Mo), M8 (antecedent moisture; T4 C stopped), m6–m7 (submission formatting).

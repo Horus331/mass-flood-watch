@@ -155,7 +155,9 @@ enlarged the held-out pool). The unit is the site (Section 2.5). The primary met
 segments flagged, ranked by P and then by depth; secondary metrics are recall at 1, 2, 5 and 10 % and at the rule, segment recall, the
 fractions skill score on the road network at 100, 300 and 1000 m (Roberts and Lean 2008, R39) against its chance value, PR-AUC, and, in
 the one complete inventory (Leominster), the critical success index. Uncertainty comes from a two-stage cluster bootstrap (2000
-replicates; storms, then sites within storms), with paired resamples for comparisons.
+replicates; storms, then sites within storms), with paired resamples for comparisons. Protocol metrics carry 90 % two-sided intervals,
+as pre-registered; paired comparisons against baselines, the π ranking and the forecast rules carry 95 % intervals. Each interval is
+labelled with its level.
 
 Anything fitted to labels is fitted by leave-one-storm-out over the 25 non-locked storms, and held-out scores come only from fold
 predictions (Roberts et al. 2017, R32). A model change is adopted only if, on the held-out 23 storms, all of: the top-3 % site recall
@@ -221,7 +223,7 @@ not significantly; Section 5 traces this to reports concentrating on busy roads.
 <!-- src: transfer/TRANSFER.md §2 (District 3 column, round-2 labels); scoring/BENCHMARK_v3.md -->
 
 ### 4.3 Transfer to Districts 4–6
-On 81 storms in three other districts (498 sites), with every setting frozen, the top 3 % of segments catch 0.210 of sites [0.167,
+On 81 storms in three other districts (498 sites), with every setting frozen, the top 3 % of segments catch 0.210 of sites [90 % CI 0.167,
 0.254] against 0.086 by chance (lift 2.46 [1.96, 2.97]), the same recall as in District 3. The pre-registered verdict is that the model
 transfers. Here the model beats all named alternatives significantly: NWS warnings 0.09, the FEMA 1 % zone 0.07, terrain alone 0.10,
 the static score 0.10 and the rain threshold 0.06. Ranking by π instead of depth raises the top-3 % recall from 0.206 to 0.251 (benchmark scoring, in which the depth ranking scores 0.206
@@ -230,7 +232,7 @@ and catches 0.036 of sites, at a lift (6.7) similar to District 3's. The road ne
 the MassDOT graph loses 2 of 14 sites at 3 % and halves the lift, so the Districts 4–6 lift, scored on OpenStreetMap roads, is likely conservative. 26 of the 81 storms have no site in the top 3 %, and the 300 m fractions skill score (0.017) is below that of random flagging
 (0.023): the model ranks roads but does not place floods to within 300 m. The ranking skill is not only a matter of picking the
 right towns: restricted to the towns that reported flooding in each storm, the top 3 % of their segments still catch 0.195 of sites
-(lift 2.28 [1.81, 2.77]) in Districts 4–6 and 0.204 (lift 3.10 [1.67, 4.52]) in District 3.
+(lift 2.28, 90 % CI [1.81, 2.77]) in Districts 4–6 and 0.204 (lift 3.10 [1.67, 4.52]) in District 3.
 <!-- src: transfer/TRANSFER.md §2–3; scoring/BENCHMARK_v3.md; scoring/PI_RANK_v3.md; towns domain: transfer-d456 branch r1/score_d456.json and obs/round2/score_round2.json pools (90 % CI) -->
 
 ### 4.4 What did not help
