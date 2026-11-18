@@ -246,7 +246,8 @@ roads were each rejected: none raised held-out recall, and the drain sinks remov
 
 ### 4.5 Consequences of the September 2023 storm
 Run over the whole District (78 × 90 km at 20 m, 17.6 million cells, 48 h) on the terrain and readout used in operation, the
-September 2023 storm (the calibration storm; the consequences are illustrative and have no observations to be checked against) closes 127 road segments at some time; 70 are closed at once at the peak, 8 hours after the start of the run
+September 2023 storm (the calibration storm; the consequences are illustrative and have no observations to be checked against) closes 127 road segments at some time in the
+half-hourly output (134 when each segment is read at its own peak depth, which can fall between outputs); 70 are closed at once at the peak, 8 hours after the start of the run
 (Fig. 7). Detours and slowed traffic cost about 7,400 vehicle-hours per hour at the peak and 120,000 vehicle-hours over the 48 hours.
 At the peak, 76,450 residents can no longer reach a hospital, fire station or police station within the response time (hospital 30
 min, fire 8 min, police 10 min): 45,700 lose the fire station, 38,600 the police and 26,500 the hospital, and 7,900 can reach none
