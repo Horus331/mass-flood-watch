@@ -313,7 +313,9 @@ of a closed road matters as much as its depth.
 - **Under-prediction on light storms.** One curve-number scale, chosen on the calibration storm, under-predicts gauge rise on most
   other storms. Antecedent moisture is tested only as a sensitivity on the calibration storm.
 - **Closure rule constants.** The 0.30 m threshold and 0.10 m spread come from the vehicle-stability literature and an error estimate;
-  they were not fitted, and their sensitivity is not tested here.
+  they were not fitted. They do not affect any ranked result (top 1–10 %, PR-AUC, the forecast's π order aside): P rises monotonically
+  with depth and ties are broken by depth, so the ranking is the depth order for any threshold and spread. They do set the fixed rule's
+  flags (Sections 4.2–4.3), which are reported only as a secondary metric.
 - **Processes not modelled:** storm drains, dams, sub-hourly rain, erosion and washout.
 - **Spatial placement.** The fractions skill score at 300 m is at or below chance: the model ranks roads but does not place floods to
   within 300 m.
