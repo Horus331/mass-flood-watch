@@ -228,8 +228,10 @@ the static score 0.10 and the rain threshold 0.06. Ranking by π instead of dept
 rather than 0.210; 95 % interval of the gain +0.002 to +0.086), and π was adopted to order the forecast's road list. The rule alone flags only 0.14 % of segments
 and catches 0.036 of sites, at a lift (6.7) similar to District 3's. The road network matters: on two District 3 storms scored both ways, using OpenStreetMap roads instead of
 the MassDOT graph loses 2 of 14 sites at 3 % and halves the lift, so the Districts 4–6 lift, scored on OpenStreetMap roads, is likely conservative. 26 of the 81 storms have no site in the top 3 %, and the 300 m fractions skill score (0.017) is below that of random flagging
-(0.023): the model ranks roads but does not place floods to within 300 m.
-<!-- src: transfer/TRANSFER.md §2; scoring/BENCHMARK_v3.md; scoring/PI_RANK_v3.md -->
+(0.023): the model ranks roads but does not place floods to within 300 m. The ranking skill is not only a matter of picking the
+right towns: restricted to the towns that reported flooding in each storm, the top 3 % of their segments still catch 0.195 of sites
+(lift 2.28 [1.81, 2.77]) in Districts 4–6 and 0.204 (lift 3.10 [1.67, 4.52]) in District 3.
+<!-- src: transfer/TRANSFER.md §2–3; scoring/BENCHMARK_v3.md; scoring/PI_RANK_v3.md; towns domain: transfer-d456 branch r1/score_d456.json and obs/round2/score_round2.json pools (90 % CI) -->
 
 ### 4.4 What did not help
 No learned or network-aware candidate passed the protocol (Table 6). The rule plus a learned watch tier caught 26 of 90
