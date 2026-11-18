@@ -65,7 +65,9 @@ def response(vals, onset):
     post = [(t, v) for t, v in vals if dt.datetime.fromisoformat(t) >= t0]
     if not pre or not post: return None
     tmin, vmin = min(post, key=lambda x: x[1]); base = sum(pre) / len(pre)
-    return dict(pre_depth_m=round(base * 0.3048, 2), min_depth_m=round(vmin * 0.3048, 2), rise_m=round((base - vmin) * 0.3048, 2),
+    wk = [(t, v) for t, v in post if dt.datetime.fromisoformat(t) < t0 + dt.timedelta(days=7)]
+    t7, v7 = min(wk, key=lambda x: x[1]) if wk else (tmin, vmin)
+    return dict(rise7_m=round((base - v7) * 0.3048, 2), lag7_h=round((dt.datetime.fromisoformat(t7) - t0).total_seconds() / 3600, 1),pre_depth_m=round(base * 0.3048, 2), min_depth_m=round(vmin * 0.3048, 2), rise_m=round((base - vmin) * 0.3048, 2),
                 lag_days=round((dt.datetime.fromisoformat(tmin) - t0).total_seconds() / 86400, 1), n=len(vals))
 
 
@@ -79,8 +81,11 @@ def main():
                 if dtype not in s['types']: continue
                 ty = s['types'][dtype]
                 if (ty.get('begin') or '9999') > a or (ty.get('end') or '0000') < b: continue
-                r = response(series(s['site'], dtype, a, b), onset)
-                if r: s['storms'][k] = dict(r, data=dtype); break
+                v = series(s['site'], dtype, a, b); r = response(v, onset)
+                if r:
+                    hourly = {}
+                    for t, x in v: hourly.setdefault(t[:13], x)
+                    s['storms'][k] = dict(r, data=dtype, hourly_depth_ft=[[t, x] for t, x in sorted(hourly.items())]); break
     json.dump(dict(made=dt.datetime.utcnow().isoformat(timespec='minutes') + 'Z', bbox=BBOX, storms=STORMS, wells=S), open(f'{OUT}/scout.json', 'w'), indent=1)
     for s in S:
         if s['storms']: print(s['site'], s['name'], s['storms'])
