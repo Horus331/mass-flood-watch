@@ -1,4 +1,4 @@
-# Project status (updated 14 Nov 2026; sections 1 and 3 brought up to date, section 4 is the 25 Oct list): the single source of truth
+# Project status (updated 18 Nov 2026; sections 1 and 3 brought up to date, section 4 is the 25 Oct list): the single source of truth
 
 If another doc disagrees with this page about what is deployed or what a result means, this page wins. Paths are relative to `docs/proto/`.
 
@@ -79,6 +79,13 @@ If another doc disagrees with this page about what is deployed or what a result 
 | C1 rain/snow phase (`LF_PHASE=1`) | **adopted as an artifact fix** (13 Nov; no held-out storm below 2 °C) | `prospective/PHASE_LIVE.md` |
 | What-if blocked culverts v2 / v3 | v2 not adopted (notch artifact); **v3 adopted for the explorer** (12 / 12, 12 / 12) | `whatif/BLOCKED_V3.md` |
 | Forward test, storm of 12–13 Nov | **live record**: every cycle "no closures", nothing reported, radar replay 0; raw HRRR ~35 % low, box rain 1.8–3.5 × radar under 20,90 | `prospective/storm_2026-11-13_results.md` |
+| Leominster parametric study (wet / dry / frozen ground, culvert blockage 20 / 50 / 100 %, smallest third) on pre-T2 and T2 terrain | **diagnostic, nothing adopted**: no factor reaches the 33 DPW misses; blockage must be read with the crest readout (closure count mixes notch water); culvert priority list robust (8–9 of 10) | `phase1/PARAMETRIC.md`, `phase1/PARAMETRIC_T2.md` |
+| Forecast ensemble re-test at the deployed physics (124 runs, pre-registered) | **passed; live 2-of-8 rule unchanged**: out-of-sample 0.33 / 0.30 vs 0.26 / 0.14 single cycle (long / short lead); storm-bootstrap gain +0.07 [+0.02, +0.14] / +0.16 [+0.03, +0.31] | `forecast/ENSEMBLE_PARITY.md` (§4b), `forecast/ensemble_ci.json` |
+| Depth time series start-up subtraction (map animation, cascade) | **bug fixed 17 Nov** (`proto/prototype.py`, b78659d16): series now subtracts the start-up water like the scored rule; the 21 live replay packs still carry the old series until repacked (waits for Mo) | `turing/d3_sep2023_t2/` |
+| District 3 runs on T2 terrain with consequences (Sept 2023 calibration; Sept 2021 held-out, plan fixed first) | **reporting**: 127 / 372 segments closed at some time; 76,450 / 355,938 residents lose timely access at the peak, 99 % / 97.5 % of them on dry roads (rule ≥ 80 %: holds) | `turing/d3_sep2023_t2/`, `turing/d3_sep2021_t2_RESULT.md` |
+| Gauge-rise bias vs storm size (25 non-locked storms) | **descriptive**: bias negative on 22 of 24; modelled/observed rise 0.15 below 60 mm vs 0.56 above; top-3 % recall 0.06 vs 0.33: the skill is a large-storm skill | `parity/BIAS_BY_STORM.md` |
+| Closure probability composition | **checked 18 Nov**: in every reported run p_close = the depth term only; freeboard / culvert / fast-water terms are opt-in layers (switches off in every workflow) | `paper/REVIEW_SELF.md` M9 |
+| Groundwater scouting (wells, seasonal water table under roads, association with closures and damage) | **scouting, no model change**; proposals A / B / C wait for Mo; A has a draft pre-registration | `groundwater/SCOUT.md`, `groundwater/PREREG_A_DRAFT.md` |
 
 ## 4. Open items
 
