@@ -28,7 +28,8 @@ def main():
     out = dict(source='SSURGO via soils30 wtd (cm), road points every 10 m', n_segments=n, km_total=round(length.sum() / 1000, 1))
     for lim in (25, 50, 100):
         m = seg_min <= lim
-        out[f'within_{lim}cm'] = dict(segments=int(m.sum()), km=round(length[m].sum() / 1000, 1), share_segments=round(float(m.mean()), 3))
+        out[f'within_{lim}cm'] = dict(segments=int(m.sum()), km=round(length[m].sum() / 1000, 1), share_segments=round(float(m.mean()), 3),
+                                       road_km_on_it=round(float(np.nansum(w <= lim)) * 10 / 1000, 1), share_of_road_length=round(float(np.nansum(w <= lim)) / len(w), 3))
         if lim == 50:
             from collections import Counter
             out['towns_within_50cm'] = Counter(towns[i] for i in np.where(m)[0]).most_common(15)
