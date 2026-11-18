@@ -5,7 +5,7 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: abstract, sections 1–7, Tables 3–8 and the reference list drafted (17–18 Nov 2026). Tables 1–2, Fig. 2, and the missing references (Schall et al. 2012 HDS-5) to follow.
+Status: complete first draft (17 Nov 2026): abstract, sections 1–7, Figs 1–8, Tables 1–8, references. Next: full consistency read.
 
 ---
 
@@ -129,7 +129,7 @@ closure probability is
 where 0.30 m is about the depth at which a passenger car stalls or floats (Kramer et al. 2016, R21; Martínez-Gomariz et al. 2018,
 R20) and 0.10 m represents the combined error of lidar road height and modelled depth. A segment is "closed" when P ≥ 0.5, i.e. d ≥
 0.30 m. Three further terms can raise P: water beside the road within the design freeboard of its crest (0.30 m, after FHWA HDS-5
-practice; Schall et al. 2012 [ref needed]); culvert overtopping, from the HDS-5 headwater of the modelled peak flow at surveyed
+practice; Schall et al. 2012, R40); culvert overtopping, from the HDS-5 headwater of the modelled peak flow at surveyed
 culverts, with NAACC condition setting a blockage factor; and fast shallow water. Bridge decks are read from their approaches, so a
 river under a bridge does not close the deck. The terms are combined as independent failure modes, P = 1 − Π(1 − Pᵢ). No parameter of
 this rule was fitted to closure labels.
@@ -336,6 +336,66 @@ erosion term outside the calibration storm; and the one-time opening of the five
 
 ## Tables (drafts)
 
+**Table 1. Data sources.**
+
+| Data | Source | Use |
+|---|---|---|
+| Ground elevation, 1/3 arc-second (~10 m) | USGS 3D Elevation Program | terrain, road crests |
+| Hourly rain, MultiSensor QPE Pass 2 (1 km) | NOAA MRMS | replays from Oct 2020 |
+| Hourly gauge-corrected radar rain | Iowa Environmental Mesonet (MRMS archive) | replays before Oct 2020 |
+| Hourly forecast rain (3 km) | NOAA HRRR | forecast mode |
+| Land cover and imperviousness (NLCD 2021) | USGS / MRLC | curve number, Manning's n |
+| Soils (SSURGO) | USDA NRCS | hydrologic soil group, curve number |
+| Stream channels (NHDPlus HR) | USGS | channels, crossing notches |
+| Stream gauges (stage, discharge) | USGS Water Data | calibration, checks |
+| Road network (52,698 segments) | MassDOT road inventory | road readout, network |
+| Bridges | FHWA National Bridge Inventory | bridge-deck rule |
+| Road–stream crossings and culvert surveys | USGS, MA Stream Crossings Project, NAACC | culvert terms, notches |
+| Emergency facilities | OpenStreetMap | access analysis |
+| Population (2020 census blocks) | U.S. Census Bureau | access analysis |
+| Flood reports | NWS Local Storm Reports, NOAA Storm Events, news, WX1BOX, SeeClickFix, MassDOT crash records | labels |
+| Damage inventory, Sep 2023 | City of Leominster DPW | labels (calibration storm) |
+| Warning polygons; 1 % annual-chance zone | NWS (IEM archive); FEMA NFHL | named alternatives |
+<!-- src: advisors/datasets.md D01–D23 -->
+
+**Table 2. District 3 storm catalogue and roles** (fixed before scoring).
+
+| Storm | Area | Date | Hours | Rain | Role |
+|---|---|---|---|---|---|
+| sep2014 | Worcester | 2014-09-01 | 18 | none archived | not used (no radar rain) |
+| aug2015 | Natick | 2015-08-15 | 18 | IEM gauge-corrected | locked |
+| oct2016 | Worcester | 2016-10-21 | 18 | IEM gauge-corrected | locked |
+| may2018 | Shrewsbury | 2018-05-15 | 18 | IEM gauge-corrected | held-out (added) |
+| jul2018 | Worcester | 2018-07-17 | 18 | IEM gauge-corrected | locked |
+| aug2018 | Natick | 2018-08-08 | 18 | IEM gauge-corrected | locked |
+| aug2018b | Holden | 2018-08-11 | 22 | IEM gauge-corrected | held-out (added) |
+| sep2018 | Fitchburg | 2018-09-18 | 18 | IEM gauge-corrected | held-out (added) |
+| sep2018w | Shrewsbury | 2018-09-18 | 18 | IEM gauge-corrected | held-out (added) |
+| sep2018m | Milford | 2018-09-18 | 18 | IEM gauge-corrected | held-out (added) |
+| sep2018b | Gardner | 2018-09-26 | 18 | IEM gauge-corrected | held-out (added) |
+| jul2019 | Spencer | 2019-07-06 | 18 | IEM gauge-corrected | held-out (added) |
+| aug2019 | Oxford | 2019-08-07 | 18 | IEM gauge-corrected | held-out (added) |
+| sep2019 | Northbridge | 2019-09-02 | 18 | IEM gauge-corrected | held-out (added) |
+| jun2020 | Northbridge | 2020-06-28 | 18 | IEM gauge-corrected | held-out (added) |
+| jun2020b | Gardner | 2020-06-28 | 18 | IEM gauge-corrected | held-out (added) |
+| aug2020 | Worcester | 2020-08-23 | 18 | IEM gauge-corrected | locked |
+| aug2020b | Worcester | 2020-08-27 | 18 | IEM gauge-corrected | held-out (added) |
+| jul2021 | Worcester | 2021-07-09 | 18 | MRMS Pass 2 | held-out (OOS-7) |
+| jul2021b | Worcester | 2021-07-17 | 24 | MRMS Pass 2 | held-out (added) |
+| aug2021 | Worcester | 2021-08-19 | 18 | MRMS Pass 2 | development |
+| sep2021 | Worcester | 2021-09-01/02 | 24 | MRMS Pass 2 | held-out (OOS-7) |
+| sep2022 | Webster | 2022-09-05 | 18 | MRMS Pass 2 | held-out (OOS-7) |
+| jul2023b | Worcester | 2023-07-10 | 18 | MRMS Pass 2 | held-out (added) |
+| jul2023 | Worcester | 2023-07-14 | 18 | MRMS Pass 2 | held-out (OOS-7) |
+| jul2023c | Fitchburg | 2023-07-16 | 18 | MRMS Pass 2 | held-out (added) |
+| jul2023d | Hubbardston | 2023-07-21 | 18 | MRMS Pass 2 | held-out (added) |
+| aug2023 | Metrowest | 2023-08-08 | 18 | MRMS Pass 2 | held-out (OOS-7) |
+| aug2023b | Millbury | 2023-08-18 | 18 | MRMS Pass 2 | held-out (OOS-7) |
+| sep2023 | Leominster | 2023-09-11 | 36 | MRMS Pass 2 | development |
+| aug2026 | Leominster | 2026-08-03 | 18 | MRMS Pass 2 | held-out (OOS-7) |
+
+Districts 4–6: 81 further storms (498 sites), all held out (transfer test). <!-- src: obs/catalog.json; PROTOCOL.md v2 §2; transfer/TRANSFER.md -->
+
 **Table 3. Old GPU runs against the parity baseline, nine catalogue storms** (sites caught / labelled, share flagged by the rule, lift,
 mean absolute gauge-rise error).
 
@@ -446,3 +506,4 @@ lower bound above 0 at α/k).
 - R34. Bentivoglio, R. et al. (2025). Multi-scale hydraulic graph neural networks for flood modelling (mSWE-GNN). *NHESS* 25, 335. https://nhess.copernicus.org/articles/25/335/2025/
 - R37. Safaei-Moghadam, A., Tarboton, D., Minsker, B. (2023). Estimating the likelihood of roadway pluvial flood based on crowdsourced traffic data and depression-based DEM analysis. *NHESS* 23, 1–19. https://nhess.copernicus.org/articles/23/1/2023/
 - R39. Roberts, N. M., Lean, H. W. (2008). Scale-selective verification of rainfall accumulations from high-resolution forecasts of convective events. *MWR* 136, 78–97. https://doi.org/10.1175/2007MWR2123.1
+- R40. Schall, J. D. et al. (2012). *Hydraulic Design of Highway Culverts*, 3rd ed., HDS 5, FHWA-HIF-12-026. Federal Highway Administration. https://rosap.ntl.bts.gov/view/dot/41317
