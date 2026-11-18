@@ -129,12 +129,13 @@ closure probability is
 
 where 0.30 m is about the depth at which a passenger car stalls or floats (Kramer et al. 2016, R21; Martínez-Gomariz et al. 2018,
 R20) and 0.10 m represents the combined error of lidar road height and modelled depth. A segment is "closed" when P ≥ 0.5, i.e. d ≥
-0.30 m. Three further terms can raise P: water beside the road within the design freeboard of its crest (0.30 m, after FHWA HDS-5
-practice; Schall et al. 2012, R40); culvert overtopping, from the HDS-5 headwater of the modelled peak flow at surveyed
-culverts, with NAACC condition setting a blockage factor; and fast shallow water. Bridge decks are read from their approaches, so a
-river under a bridge does not close the deck. The terms are combined as independent failure modes, P = 1 − Π(1 − Pᵢ). No parameter of
-this rule was fitted to closure labels.
-<!-- src: STATUS.md §1; proto/prototype.py (constants and docstrings); recall/RECALL.md §4 -->
+0.30 m. Bridge decks are read from their approaches, so a river under a bridge does not close the deck. No parameter of this rule was
+fitted to closure labels. The model also computes three further terms, kept as separate map layers and not part of P in any result
+reported here: water beside the road within the design freeboard of its crest (0.30 m, after FHWA HDS-5 practice; Schall et al. 2012,
+R40); culvert overtopping, from the HDS-5 headwater of the modelled peak flow at surveyed culverts, with NAACC condition setting a
+blockage factor; and fast shallow water. Each would enter as an independent failure mode, P = 1 − Π(1 − Pᵢ), only after passing the
+adoption rule of Section 3.4.
+<!-- src: STATUS.md §1; proto/prototype.py (constants; --culvert-rule / --freeboard / --fastwater default off, no workflow sets them; p_close = p_depth in all 26 parity/catalog feature files); recall/RECALL.md §4 -->
 
 At crossings, the depth of an open culvert notch is read as depth on the road. This is deliberate: it is the model's proxy for culvert
 failure, and reading depth relative to the road crest instead lowers the calibration storm's recall from 0.385 to 0.08. For questions
