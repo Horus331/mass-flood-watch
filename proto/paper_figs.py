@@ -154,6 +154,35 @@ def fig3():
     fig.tight_layout(); fig.savefig(f'{OUT}/fig3_timestep.png'); plt.close(fig)
 
 
+def fig2():
+    """Pipeline: inputs -> 2-D flood -> road depth -> closure chance -> uses (schematic; text only, no data)."""
+    from matplotlib.patches import FancyBboxPatch
+    fig, ax = plt.subplots(figsize=(11, 4.6), dpi=200); ax.set_xlim(-2, 118); ax.set_ylim(-2, 48); ax.axis('off')
+    def box(x, y, w, h, title, lines, fc='#f4f6f8', ec='#c9d1d9', tc=INK):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle='round,pad=0.4,rounding_size=1.2', fc=fc, ec=ec, lw=0.9))
+        ax.text(x + w / 2, y + h - 2.2, title, ha='center', va='top', fontsize=8.2, fontweight='bold', color=tc)
+        ax.text(x + w / 2, y + h - 6.0, '\n'.join(lines), ha='center', va='top', fontsize=6.8, color=INK, linespacing=1.35)
+    def arrow(x0, y0, x1, y1):
+        ax.annotate('', xy=(x1, y1), xytext=(x0, y0), arrowprops=dict(arrowstyle='-|>', color=MUTED, lw=1.0, shrinkA=0, shrinkB=0))
+    # inputs
+    box(0, 30, 19, 15, 'Rain', ['MRMS radar QPE, 1 km, hourly', '(replays)', 'HRRR, 3 km, hourly', '(forecasts)'])
+    box(0, 13.5, 19, 15, 'Ground', ['3DEP DEM 10 m → 20 m', 'NHDPlus HR channels', 'NLCD land cover, SSURGO', '→ curve number, Manning n'])
+    box(0, 0, 19, 12.5, 'Crossings and roads', ['NBI, NAACC culverts', 'MassDOT road graph', '(52,698 segments)'])
+    # engine
+    box(24, 13.5, 23, 31.5, 'Rain excess and 2-D flood', ['NRCS curve number, AMC II × 0.88', '2 mm/h soak-in', '', 'LISFLOOD-FP 8.2', 'local-inertial, 20 m', 'rain on grid, Δt ≤ 1 s (parity)', '', 'notches at crossings,', 'continuous channels (T2)'], fc='#e8f0fe', ec='#8ab4f8')
+    # road readout
+    box(52, 13.5, 25, 31.5, 'Road depth → closure chance', ['depth every 10 m along a segment', 'd = 2nd-highest point,', 'storm-added water only', '', 'P = Φ((d − 0.30 m) / 0.10 m)', '+ freeboard, HDS-5 culvert', 'and fast-water terms', '', 'closed if P ≥ 0.5'], fc='#e6f4ea', ec='#81c995')
+    # uses
+    box(83, 33, 33, 12, 'Evaluation', ['site recall at 3 % vs chance and', 'named alternatives; held-out storms,', 'transfer to Districts 4–6'])
+    box(83, 16.5, 33, 14.5, 'Consequences', ['closed segments removed, wet ones slowed', '(Pregnolato et al. 2017); detours,', 'delay, residents losing timely access', 'to hospital, fire, police (Census 2020)'])
+    box(83, 0, 33, 14.5, 'Forecast', ['gate on HRRR rain; 8 time-lagged', 'members, 20 km / 90th-pct spreading,', '12 h radar spin-up; a road is listed', 'when it closes in ≥ 2 of 8'])
+    arrow(19.6, 37.5, 23.6, 37.5); arrow(19.6, 21, 23.6, 21); ax.plot([19.6, 64.5], [6, 6], color=MUTED, lw=1.0); arrow(64.5, 6, 64.5, 12.6); ax.plot([35.5, 35.5], [6, 12.6], color=MUTED, lw=1.0); arrow(35.5, 6.01, 35.5, 12.6)
+    arrow(47.6, 29, 51.6, 29)
+    for y in (39, 23.5, 7): arrow(77.6, 29, 82.6, y)
+    NUM['fig2'] = dict(source='schematic of the operational settings (STATUS.md §1)')
+    fig.savefig(f'{OUT}/fig2_pipeline.png', bbox_inches='tight'); plt.close(fig)
+
+
 def fig7():
     """Sept 2023 District run: peak depth with closed segments, and the cascade over time (turing/d3_sep2023_p/, paper/data/d3_sep2023_cascade.json
     written by `proto/cascade.py pack d3_sep2023`, then moved out of the site folder)."""
@@ -227,7 +256,7 @@ def fig8():
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for f in (fig1, fig3, fig5, fig6, fig4, fig7, fig8):
+    for f in (fig1, fig2, fig3, fig5, fig6, fig4, fig7, fig8):
         try: f()
         except Exception as e: print(f.__name__, 'failed:', repr(e)[:300])
     subprocess.run([sys.executable, f'{ROOT}/proto/phase1_figure.py'], check=False)
