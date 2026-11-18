@@ -23,8 +23,8 @@ ensemble catches 33 % of sites 8–14 h ahead against 26 % for a single forecast
 with a ≤ 1 s time step. In District-wide runs of two storms, the closures leave 76,000 and 356,000 residents without timely access to a hospital,
 fire or police station, 97–99 % of them on roads that stay dry. A complete municipal damage inventory shows the misses are mostly edge
 erosion with little modelled ponding. The screen ranks roads usefully for inspection but cannot yet issue segment-level warnings;
-labels, not model complexity, limit it.
-<!-- src: OUTLINE.md §3b (v2) + forecast/ENSEMBLE_PARITY.md §1, §4b + paper/data/d3_sep2023_t2_cascade.json -->
+its skill is concentrated in large storms, and labels, not model complexity, limit it.
+<!-- src: OUTLINE.md §3b (v2) + forecast/ENSEMBLE_PARITY.md §1, §4b + paper/data/d3_sep2023_t2_cascade.json + turing/d3_sep2021_t2_RESULT.md + parity/BIAS_BY_STORM.md -->
 
 ---
 
@@ -328,8 +328,9 @@ of a closed road matters as much as its depth.
 
 ## 6. Limitations
 - **Labels.** Reports are positive-only and incomplete (Bekker and Davis 2020, R28); approximate locations; few sites per storm.
-- **Under-prediction on light storms.** One curve-number scale, chosen on the calibration storm, under-predicts gauge rise on most
-  other storms. Antecedent moisture is tested only as a sensitivity on the calibration storm.
+- **Under-prediction on light storms.** One curve-number scale, chosen on the calibration storm, under-predicts gauge rise on 22 of 24
+  storms, most on storms below about 60 mm, where the model finds almost no reported sites (Section 5.1). Removing the extra soak-in
+  and adjusting for antecedent moisture were tested under the protocol and not adopted.
 - **Closure rule constants.** The 0.30 m threshold and 0.10 m spread come from the vehicle-stability literature and an error estimate;
   they were not fitted. They do not affect any ranked result (top 1–10 %, PR-AUC, the forecast's π order aside): P rises monotonically
   with depth and ties are broken by depth, so the ranking is the depth order for any threshold and spread. They do set the fixed rule's
@@ -339,21 +340,22 @@ of a closed road matters as much as its depth.
   within 300 m.
 - **Road network.** 25 % of District 3 traffic counts are defaults; the transfer road-source control shows that the network used
   changes the lift.
-- **Consequences.** No traffic assignment (detours are added on single shortest paths), a flat daily traffic profile, capacities by road
-  class, facility locations from OpenStreetMap, night-time population, and no observed data to validate them against.
+- **Consequences.** Two storms only, one of them the calibration storm; no traffic assignment (detours are added on single shortest
+  paths), a flat daily traffic profile, capacities by road class, facility locations from OpenStreetMap, night-time population, and no
+  observed data to validate them against.
 - **Development storms.** The calibration storm and one Worcester storm were used for design choices and are reported apart from the
   held-out set.
 - **Scoring code.** Matching of approximate-location reports was widened during the study (29 → 43 out-of-sample forecast sites); the
   forecast results are given both as produced and on the 28 sites matched in both versions.
-<!-- src: OUTLINE.md §8; advisors/datasets.md D14; forecast/ENSEMBLE_PARITY.md §2–3 -->
+<!-- src: OUTLINE.md §8; advisors/datasets.md D14; forecast/ENSEMBLE_PARITY.md §2–3; parity/BIAS_BY_STORM.md; runoff/B0_V2.md; runoff/AMC.md -->
 
 ---
 
 ## 7. Conclusions and next steps
 A physics-only flood model, run at 20 m on radar rain and read along every road, ranks road segments by flood risk better than the
 alternatives an agency has today, and keeps that skill in districts it was never tuned on. It is a screen, not a warning: its fixed
-closure rule catches few sites, its spatial placement is coarse, and its errors are dominated by the labels it is judged against
-and by processes it does not represent, such as road-edge erosion and storm-drain capacity. The same model shows that the cost of a
+closure rule catches few sites, its spatial placement is coarse, its skill is concentrated in large storms, and its errors are dominated by the labels it is judged against
+and by processes it does not represent, such as road-edge erosion and storm-drain capacity. The same model shows, on two storms, that the cost of a
 flash flood falls mostly on people whose own roads stay dry.
 
 Three steps would most improve the evidence: road-closure records with exact locations and times (agency operations logs or
