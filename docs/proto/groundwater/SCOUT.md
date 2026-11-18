@@ -47,3 +47,23 @@ Largest responses (7-day rise, pre-storm depth):
   model change (pre-registered, held-out storms). *Not started: the related soil-wetness test (T4 C) was stopped at Mo's request.*
 - **C. Show it on the site later** as a "Groundwater (wells)" layer, once A or B produces something worth showing (the How it works page
   already lists groundwater as planned).
+
+## 5. District 3 roads on a shallow water table (proposal A, scouting)
+Source: the model's own SSURGO grid (`soils30` `wtd`, 30 m), which gives the **seasonal high water table**: the shallowest depth to
+water at any time of a normal year, in classes (most values are ≤ 25 cm, 30–50 cm or deeper than 2 m). Road points every 10 m on all
+52,698 District 3 segments (about 20,900 km). Script `proto/gw_roads.py`, output `roads_wtd.json` (shallowest value per segment).
+
+| Seasonal high water table | Share of road length | Road length | Segments touching it anywhere |
+|---|---|---|---|
+| within 25 cm of the surface | 13 % | 2,730 km | 11,618 (22 %) |
+| within 50 cm | 36 % | 7,450 km | 24,532 (47 %) |
+| within 100 cm | 36 % | 7,460 km | 24,541 (47 %) |
+
+Towns with the most segments touching a water table within 50 cm: Worcester (1,988), Marlborough and Shrewsbury (675 each),
+Leominster (660), Framingham (586), Milford (570), Fitchburg and Charlton (494 each). Almost all are local roads (class 0: 23,043 of
+24,532). The median shallow segment is 9.6 km from the nearest continuous USGS well; 4,640 of them are within 5 km of one.
+
+**Reading.** A third of District 3's road length is built over ground where the water table comes within half a metre of the surface
+in a normal year, before any storm. Section 2 showed that shallow water tables rise a further 0.5–0.9 m within days of a large storm.
+That is the setting for the next link of the cascade (saturated subgrade, pavement and embankment weakening, culvert and foundation
+problems). Limits: SSURGO describes natural soils, not road fill or drained urban ground; the classes are coarse; wells are sparse.
