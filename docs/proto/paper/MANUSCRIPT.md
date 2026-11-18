@@ -261,7 +261,7 @@ close at some time and 252 at once at the peak, 14.5 hours into the run; delay p
 48 hours); and 356,000 residents lose timely access at the peak, 27,000 of them to every service. Of those, 347,000 (97.5 %) live on
 roads that stay dry, and 97 % of the person-hours of lost access fall on them, so the finding holds. No segment is closed before the rain
 starts. The model under-predicts this storm's river rises (for example 0.72 m against 1.55 m on the Quinapoxet River), so these numbers
-are, if anything, low (Table 7). Fourteen segments are still closed at the end of the run; the model has no storm
+are more likely too low than too high (Table 7). Fourteen segments are still closed at the end of the run; the model has no storm
 drains, so water that ponds in closed low ground drains only by soak-in, and these long closures are an upper bound.
 <!-- src: turing/d3_sep2023_t2 (T2 terrain, PROTO_RES_CONSISTENT=1, start at rain onset; Turing 17 Nov 2026); paper/data/d3_sep2023_t2_cascade.json totals and series; turing/d3_sep2021_t2_PLAN.md, d3_sep2021_t2_RESULT.md, d3_sep2021_t2/cascade.json, score.json -->
 
