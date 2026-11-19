@@ -3,6 +3,7 @@
 Draft: `MANUSCRIPT.md` (complete first draft, self-reviewed: `REVIEW_SELF.md`). Nothing has been sent to anyone.
 
 ## 1. Done
+- Data availability section (code statement waits for decision C).
 - Abstract, sections 1–7, Figs 1–8 with captions, Tables 1–8, reference list (R1–R40).
 - Number-by-number source check (every paragraph carries a `<!-- src: -->` pointer); hostile-reviewer pass with 10 major and 9 minor
   points, all fixable ones fixed from existing results.
@@ -10,11 +11,11 @@ Draft: `MANUSCRIPT.md` (complete first draft, self-reviewed: `REVIEW_SELF.md`). 
 - Uncertainty on every headline number, with the interval level stated.
 
 ## 2. Still to do (no decision needed; mechanical)
-1. Convert `R#` citations to the journal's reference style; check every DOI.
+1. Convert `R#` citations to the journal's reference style. *Draft list done (`REFERENCES.md`, 17 works, every DOI checked 18 Nov); the in-text conversion waits for the journal choice (A).*
 2. Remove the `<!-- src: -->` comments (keep a private copy with them).
 3. Figures at the journal's resolution and fonts (all are drawn by `proto/paper_figs.py`, 200 dpi now).
-4. Supplementary material: Fig 9 (vulnerability layer), per-storm tables (`obs/round2/score_round2.json`, `transfer/r1/score_d456.json`),
-   the pre-registration documents (PROTOCOL v1/v2, transfer, π, ensemble) with their commit dates.
+4. Supplementary material. *Index done (`SUPPLEMENT.md`) and per-storm tables as CSV (`supplement/`, 19 Nov). Left: original commit
+   hashes for documents fixed before 7 Nov (full clone); Fig. S1 (vulnerability layer) drawn or dropped.*
 5. Word version with track changes for the advisors (Mo's rule for advisor comments).
 6. Language edit; word count against the journal limit.
 
