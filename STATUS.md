@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-18T11:29:55Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-20T12:42:30Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -317,3 +317,16 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | d3t2_sep2023_post2 | run_storm | completed | 2532334 | 1 / 0 | 2026-11-17T18:50:20Z | 2026-11-17T19:50:39Z |  |
 | d3t2_sep2021_solve | run_storm | completed | 2535698 | 1 / 0 | 2026-11-18T09:59:16Z | 2026-11-18T10:29:28Z |  |
 | d3t2_sep2021_post | run_storm | completed | 2535699 | 1 / 0 | 2026-11-18T09:59:16Z | 2026-11-18T11:29:55Z |  |
+| repack_rc_leominster_sep2023 | pack_site | submitted | 2541474 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_worcester_aug2021 | pack_site | submitted | 2541475 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_aug2026_leominster | pack_site | submitted | 2541476 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_sep2021_worcester | pack_site | submitted | 2541477 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_sep2022_webster | pack_site | submitted | 2541478 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_aug2023_metrowest | pack_site | submitted | 2541479 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_jun2020_northbridge | pack_site | submitted | 2541480 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_jul2023_worcester | pack_site | submitted | 2541481 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_sep2018_fitchburg | pack_site | submitted | 2541482 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_sep2018m_milford | pack_site | submitted | 2541483 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_nov2026_bellingham | pack_site | submitted | 2541484 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_nov2026_franklin | pack_site | submitted | 2541485 |  /  | 2026-11-20T12:42:30Z |  |  |
+| repack_rc_nov2026_worcester | pack_site | submitted | 2541486 |  /  | 2026-11-20T12:42:30Z |  |  |
