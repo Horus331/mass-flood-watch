@@ -13,21 +13,16 @@ Department of Civil, Environmental and Architectural Engineering, Worcester Poly
 
 ---
 
-## Abstract
-Transportation agencies need to know which road segments will flood, but road-flood models are rarely tested against named
-alternatives on storms they were not tuned on. We evaluate a physics-based screen for MassDOT Highway District 3, central
-Massachusetts: LISFLOOD-FP local-inertial simulation at 20 m driven by hourly MRMS radar rain, with road depth turned into a chance
-of closure and no parameter fitted to closures. All tests were fixed in advance. On 81 storms in three other districts (498
-documented sites) the frozen model's top 3 % of segments contain 21 % of the sites, against 9 % for NWS flash-flood warnings, 7 % for
-the FEMA 100-year zone, 10 % for terrain alone and 10 % for a static hazard × vulnerability × consequence score (chance 9 %), all
-significant; ranking by a chance-of-flooding score raises this to 25 %. On 23 held-out District 3 storms (98 sites) the model reaches
-20 %, while a static score weighted by traffic reaches 32 % (difference not significant), which we trace to reports concentrating on busy roads. Traffic, a
-stream-crossing flag and storm-drain sinks did not improve held-out skill. Driven by forecast rain, an eight-member time-lagged
-ensemble catches 33 % of sites 8–14 h ahead against 26 % for a single forecast (gain +7 points, 95 % interval +2 to +14; seven storms). A solver audit shows that GPU and CPU builds agree only
-with a ≤ 1 s time step. In District-wide runs of two storms, the closures leave 76,000 and 356,000 residents without timely access to a hospital,
-fire or police station, 97–99 % of them on roads that stay dry. A complete municipal damage inventory shows the misses are mostly edge
-erosion with little modelled ponding. The screen ranks roads usefully for inspection but cannot yet issue segment-level warnings;
-its skill is concentrated in large storms, and labels, not model complexity, limit it.
+## Abstract (NHESS limit 200 words; the longer 18 Nov version is in git history)
+Road agencies need to know which segments will flood, yet road-flood models are rarely tested against named alternatives on storms
+they were not tuned on. We evaluate a physics-based screen for central Massachusetts: a 20 m LISFLOOD-FP simulation driven by radar rain,
+with road depth turned into a closure probability and nothing fitted to closures. All tests were fixed in advance. On 81 storms in three
+other districts (498 documented sites), the frozen model's top 3 % of segments hold 21 % of the sites, against 7–10 % for flash-flood
+warnings, the 100-year flood zone, terrain and a static risk score (chance 9 %). On 23 held-out storms in the development district it
+reaches 20 %, not significantly below a traffic-weighted static score. Driven by forecast rain, an eight-member time-lagged ensemble
+catches 33 % of sites 8–14 h ahead against 26 % for a single forecast. In district-wide runs of two storms, 97–99 % of the residents
+who lose timely access to emergency services live on roads that stay dry. Skill is concentrated in large storms, and most missed damage
+is edge erosion with little ponding. The screen ranks roads usefully for inspection but cannot yet issue segment-level warnings.
 <!-- src: OUTLINE.md §3b (v2) + forecast/ENSEMBLE_PARITY.md §1, §4b + paper/data/d3_sep2023_t2_cascade.json + turing/d3_sep2021_t2_RESULT.md + parity/BIAS_BY_STORM.md -->
 
 ---
