@@ -1,0 +1,21 @@
+name: Road-edge stream-power index (1 m lidar, Paper 2 RQ1)
+on:
+  workflow_dispatch:
+    inputs:
+      box: {description: 'x0,y0,x1,y1 EPSG:26986 (core area)', default: '171400,913700,183100,925000'}
+      town: {description: 'town filter on segments', default: 'LEOMINSTER'}
+      name: {description: 'output name', default: 'leominster'}
+permissions:
+  contents: write
+jobs:
+  spi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q numpy scipy requests pyproj tifffile pysheds affine
+      - run: python proto/edge_spi.py --box "${{ inputs.box }}" --town "${{ inputs.town }}" --segments docs/proto/phase1/parametric_t2/t2_base/segments.geojson --out docs/proto/paper2/edge_spi_${{ inputs.name }}.json --cache /tmp/dem
+      - run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/paper2/edge_spi_*.json; git commit -qm "edge SPI ${{ inputs.name }}" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep 10; done
