@@ -1,7 +1,7 @@
-# DRAFT: pre-registration for groundwater proposal A (not approved, not run)
+# Pre-registration: groundwater proposal A (frozen 20 Nov 2026, before any run)
 
-**Status: DRAFT, waiting for Mo's choice between proposals A / B / C (`SCOUT.md` §4).** Nothing below has been run. If Mo picks A, this
-file is frozen (renamed `PREREG_A.md`, committed) before any code runs on the labels. Written 18 Nov 2026.
+**Status: frozen.** Mo approved proposal A on 20 Nov 2026 (07:23 ET). Drafted 18 Nov; this commit freezes it before the script
+is written or any label is read for this test.
 
 ## Question
 Is a shallow seasonal water table associated with Sept 2023 road damage in Leominster **after holding the terrain constant**? §6 of
