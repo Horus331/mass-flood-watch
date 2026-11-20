@@ -11,6 +11,7 @@ Fig. 11 Leominster deep dive (re-uses proto/phase1_figure.py)
 import glob, json, os, subprocess, sys
 import numpy as np, matplotlib
 matplotlib.use('Agg'); import matplotlib.pyplot as plt
+plt.rcParams['savefig.dpi'] = 300   # NHESS: 300 dpi
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); P = f'{ROOT}/docs/proto'; OUT = f'{P}/paper/fig'
 INK, MUTED, GRID = '#222222', '#6b6b6b', '#e4e4e4'
