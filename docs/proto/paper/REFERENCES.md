@@ -19,6 +19,8 @@ section with their own citations, not here.
 6. Hawkins, R. H., Jiang, R., Woodward, D. E., Hjelmfelt, A. T., Van Mullem, J. A. (2002). Runoff curve number method: examination of
    the initial abstraction ratio. *Proceedings of the Second Federal Interagency Hydrologic Modeling Conference*, Las Vegas. —
    https://uon.sdsu.edu/hawkins_initial_abstraction.pdf [R8]
+6b. Ganin, A. A., Kitsak, M., Marchese, D., Keisler, J. M., Seager, T., Linkov, I. (2017). Resilience and efficiency in transportation
+   networks. *Science Advances* 3, e1701079. ✓ https://doi.org/10.1126/sciadv.1701079 (PubMed 29291243) [added 20 Nov; new R number needed]
 7. Kramer, M., Terheiden, K., Wieprecht, S. (2016). Safety criteria for the trafficability of inundated roads in urban floodings.
    *International Journal of Disaster Risk Reduction* 17, 77–84. ✓ https://doi.org/10.1016/j.ijdrr.2016.04.003 [R21]
 8. Martínez-Gomariz, E., Gómez, M., Russo, B., Djordjević, S. (2018). Stability criteria for flooded vehicles: a state-of-the-art
@@ -44,7 +46,4 @@ section with their own citations, not here.
 17. Zhang, J., et al. (2016). Multi-Radar Multi-Sensor (MRMS) quantitative precipitation estimation: initial operating capabilities.
     *Bulletin of the American Meteorological Society* 97, 621–638. ✓ https://doi.org/10.1175/BAMS-D-14-00174.1 [R1]
 
-**Open:**
-- All DOIs checked against publisher or repository records (18 Nov).
-- The consequence metrics (§3.6, §4.5) cite no source. Mo's agreed resilience framing is Ganin et al. (2017): network delay plus the share
-  of people losing access (PROJECT_LOG §4, 14 Nov). Suggest adding that citation to §3.6 once Mo confirms.
+**Open:** Ganin et al. 2017 added 20 Nov (Mo approved), DOI checked.

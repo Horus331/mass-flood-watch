@@ -56,3 +56,9 @@ keep it in the main text**: it is the held-out check of the dry-road finding, de
 The five locked storms are the cleanest final test (Conclusions mention them). Opening them is Mo's decision; once opened they cannot be
 locked again. **Recommendation:** open them only after the model and paper settings are frozen for submission, and report the result
 whatever it is.
+
+## 4. Decisions taken (Mo, 20 Nov 2026: "I approve all your recommendations")
+A NHESS (second choice J. Infrastructure Systems) · B authors as suggested, final order by the advisors · C code archived under embargo
+with a DOI, opened at acceptance; "on request" until then (Mo creates the archive account at submission; Claude does not create
+accounts) · derived data (sites, scores, pre-registrations) released with the paper · Ganin et al. 2017 cited for the consequence
+metrics · D Sept 2021 run stays in the main text · E locked storms opened only after the settings are frozen for submission.

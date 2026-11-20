@@ -5,7 +5,11 @@ central Massachusetts.* Structure and numbers follow `OUTLINE.md`; every number 
 trailing `<!-- src: -->` comment of its paragraph (comments are removed before submission). References are the `R#` list of
 `docs/proto/ROADMAP_research.md`; a missing reference is marked **[ref needed]**.
 
-Status: complete first draft (17 Nov 2026), consistency pass and self-review (18 Nov, `REVIEW_SELF.md`).
+Status: complete first draft (17 Nov 2026), consistency pass and self-review (18 Nov, `REVIEW_SELF.md`). Target journal: Natural Hazards and
+Earth System Sciences (Mo, 20 Nov).
+
+**Authors (draft order; the advisors set the final order):** Mohab Eldokla (corresponding), Mingjiang Tao, Leonard Albano, Lindsay Graff.
+Department of Civil, Environmental and Architectural Engineering, Worcester Polytechnic Institute, Worcester, MA, USA.
 
 ---
 
@@ -182,8 +186,9 @@ treated as unlabelled rather than negative (Bekker and Davis 2020, R28). All wer
 Closed segments are removed from the District graph, and wet but open segments are slowed with the depth–speed function of Pregnolato
 et al. (2017, R23). Shortest-path detours give the added vehicle-hours, volume-to-capacity ratios show overloaded corridors, and Census
 2020 block populations are assigned to the nearest hospital (30 min), fire station (8 min) and police station (10 min) to count
-residents who lose emergency coverage in time.
-<!-- src: cascade/CASCADE.md §1; model-tree CHECK.md (response times) -->
+residents who lose emergency coverage in time. Following Ganin et al. (2017), network performance is read as the added travel delay
+plus the share of people who lose access to essential services.
+<!-- src: cascade/CASCADE.md §1; model-tree CHECK.md (response times); PROJECT_LOG §4 (14 Nov, resilience framing) -->
 
 ### 3.7b A chance-of-flooding score
 Besides the depth rule, segments can be ranked by π, the probability that a segment truly floods, from a latent-label model fitted on
@@ -568,8 +573,14 @@ Inventory; MassDOT's road inventory (MassGIS); road–stream crossings from the 
 surveys; emergency facilities from OpenStreetMap; 2020 census blocks (U.S. Census Bureau); NWS warning polygons (Iowa Environmental
 Mesonet archive) and the FEMA National Flood Hazard Layer. Flood reports come from NWS Local Storm Reports, NOAA Storm Events, WX1BOX,
 SeeClickFix, news reports and MassDOT crash records; the matched site lists, segment scores and pre-registration documents can be released
-with the paper [Mo to confirm]. The September 2023 damage inventory was shared by the City of Leominster Department of Public Works and is available
-from the City on request. [Code availability: DECISION C, Mo; see SUBMISSION_CHECKLIST.md.]
+with the paper. The September 2023 damage inventory was shared by the City of Leominster Department of Public Works and is available
+from the City on request.
+
+**Code availability.** The model and evaluation code are archived with a DOI under an embargo that is lifted when the paper is
+accepted [archive DOI to be added at submission]; until then the code is available from the corresponding author on request.
+
+**Acknowledgements.** We thank the City of Leominster Department of Public Works for the September 2023 damage inventory, and MassDOT
+for road and asset data. [Funding statement to be added.]
 <!-- src: Table 1; advisors/datasets.md D01–D23; paper/SUBMISSION_CHECKLIST.md C -->
 
 ---
