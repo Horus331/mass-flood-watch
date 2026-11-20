@@ -20,7 +20,7 @@ journal pages): fits. **Abstract cut to 199 words (done 20 Nov).**
 ## Mechanics
 - 1-column PDF with page and line numbers; Copernicus LaTeX package or Word template; figures and tables placed near first mention.
 - References: alphabetical, author–year in text ("Smith et al., 2006"), abbreviated journal names, DOIs; convert `REFERENCES.md`.
-- Figures: 300 dpi (ours are 200 dpi: re-render with `proto/paper_figs.py` at dpi=300), ≥ 8 cm wide, legends inside figures, one font
+- Figures: 300 dpi (done 20 Nov: all 8 re-rendered at 300 dpi), ≥ 8 cm wide, legends inside figures, one font
   family, colour schemes safe for colour-vision deficiency (check the depth and category palettes), panel labels "(a)".
 - Tables: editable, horizontal rules only, no coloured cells.
 - Maps: credit OpenStreetMap / USGS sources in captions.
