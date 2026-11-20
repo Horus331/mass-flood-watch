@@ -575,7 +575,14 @@ from the City on request.
 accepted [archive DOI to be added at submission]; until then the code is available from the corresponding author on request.
 
 **Acknowledgements.** We thank the City of Leominster Department of Public Works for the September 2023 damage inventory, and MassDOT
-for road and asset data. [Funding statement to be added.]
+for road and asset data. AI assistance (Claude, Anthropic) was used to write analysis code and scripts and to draft text; the authors
+checked all results and take responsibility for the content [wording for Mo to confirm].
+
+**Author contributions.** [CRediT roles, to be set with the advisors.]
+
+**Competing interests.** The authors declare that they have no conflict of interest.
+
+**Financial support.** [To be added.]
 <!-- src: Table 1; advisors/datasets.md D01–D23; paper/SUBMISSION_CHECKLIST.md C -->
 
 ---
