@@ -56,9 +56,10 @@ def accumulate(Z, x0, y1):
     return acc, S
 
 
-def edge_points(xy):
-    """Points every STEP m along a polyline, offset by OFFS to both sides; returns (n, 2)."""
-    P = []
+def edge_points(xy, along=None, d0=0.0):
+    """Points every STEP m along a polyline, offset by OFFS to both sides; returns (n, 2). If `along` is a list, the distance of each
+    point along the road (from d0) is appended to it (v2 windows)."""
+    P = []; dd = d0
     for (ax, ay), (bx, by) in zip(xy, xy[1:]):
         L = math.hypot(bx - ax, by - ay)
         if L < 1e-6: continue
@@ -67,6 +68,8 @@ def edge_points(xy):
             px, py = ax + ux * t, ay + uy * t
             for o in OFFS:
                 P.append((px + nx_ * o, py + ny_ * o)); P.append((px - nx_ * o, py - ny_ * o))
+                if along is not None: along += [dd + t, dd + t]
+        dd += L
     return np.array(P) if P else np.zeros((0, 2))
 
 
@@ -83,8 +86,11 @@ def main():
         p = f['properties']
         if a.town and a.town.upper() not in (p.get('town') or '').upper(): continue
         c = f['geometry']['coordinates']; parts = [c] if f['geometry']['type'] == 'LineString' else c
-        pts = np.vstack([edge_points([tr.transform(*q[:2]) for q in part]) for part in parts])
-        segs[p['segment']] = dict(pts=pts, road=p.get('road'), length_m=p.get('length_m'))
+        al = []; chunks = []; d0 = 0.0
+        for part in parts:
+            xy = [tr.transform(*q[:2]) for q in part]; chunks.append(edge_points(xy, al, d0))
+            d0 += sum(math.hypot(b[0] - a_[0], b[1] - a_[1]) for a_, b in zip(xy, xy[1:]))
+        segs[p['segment']] = dict(pts=np.vstack(chunks), along=np.array(al), road=p.get('road'), length_m=p.get('length_m'))
     print(len(segs), 'segments', sum(len(s['pts']) for s in segs.values()), 'edge points', flush=True)
     vals = {k: [np.full(len(s['pts']), np.nan, np.float32), np.full(len(s['pts']), np.nan, np.float32)] for k, s in segs.items()}
     tiles = [(x, y) for y in np.arange(Y0, Y1, CORE) for x in np.arange(X0, X1, CORE)]; meta = []
@@ -113,7 +119,21 @@ def main():
         out[str(k)] = dict(road=s['road'], length_m=s['length_m'], points=int(ok.sum()), A_max_m2=round(float(np.nanmax(A)), 1),
                            spi_max=round(float(np.nanmax(spi)), 2), spi_p90=round(float(np.nanpercentile(spi[ok], 90)), 2),
                            edge_len_over_p95_m=round(float((spi[ok] > T).sum() * STEP / (2 * len(OFFS))), 1))
-    json.dump(dict(made_by='proto/edge_spi.py', spec='docs/proto/paper2/RQ1_INDEX_SPEC.md', box=[X0, Y0, X1, Y1], town=a.town,
+    # ---- v2 (docs/proto/paper2/PREREG_RQ1_V2_DRAFT.md): crossing points and channel cells dropped, fixed 50 m windows
+    from scipy.spatial import cKDTree
+    X = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs/network/crossings_all.json'))); C = X['columns']
+    xy = np.array([tr.transform(r[C.index('lon')], r[C.index('lat')]) for r in X['rows'] if r[C.index('lon')] is not None]); KT = cKDTree(xy)
+    win = {}
+    for k, s_ in segs.items():
+        A, S = vals[k]; spi = A * S; keep = ~np.isnan(spi) & (A <= 5e5) & (KT.query(s_['pts'])[0] > 30)
+        w = (s_['along'] // 50).astype(int); mx = {}
+        for wi, v in zip(w[keep], spi[keep]): mx[wi] = max(mx.get(wi, 0.0), float(v))
+        win[k] = mx
+    allw = [v for m in win.values() for v in m.values()]; T2 = float(np.percentile(allw, 95)) if allw else None
+    for k, m in win.items():
+        if str(k) in out and m:
+            out[str(k)].update(windows=len(m), spi_window_max=round(max(m.values()), 2), spi_window_share=round(sum(v > T2 for v in m.values()) / len(m), 3))
+    json.dump(dict(made_by='proto/edge_spi.py', spec='docs/proto/paper2/RQ1_INDEX_SPEC.md (+ v2 fields: PREREG_RQ1_V2_DRAFT.md)', v2_window_p95=round(T2, 2) if T2 else None, box=[X0, Y0, X1, Y1], town=a.town,
                    step_m=STEP, offsets_m=list(OFFS), spi_p95_all_points=round(T, 2), tiles=meta, segments=out), open(a.out, 'w'), indent=0)
     print('wrote', a.out, len(out), 'segments; p95 SPI', round(T, 2))
 
