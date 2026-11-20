@@ -31,3 +31,11 @@ survives the obvious confounds, but much of its raw AUC is length and crossings.
 A fair next version would (1) be pre-registered with length handled (SPI per segment as a rate, or matched on length) and crossing cells
 separated from curb-line cells, and (2) be tested on a second damage inventory (the MEMA / FEMA Public Assistance Category C request).
 Nothing changes in the live model.
+
+## Fragility view (added 20 Nov; in-sample, v1 only)
+`proto/paper2_fragility.py` → `fig/fragility_spi.png`, `fragility_spi.json`. Share of segments with recorded damage by v1 SPI band
+(Wilson 95 % intervals): bottom half 1 of 356 (0.3 %); 50–75th percentile 4 of 178 (2.2 %); 75–90th 4 of 106 (3.8 %); 90–95th
+**8 of 36 (22 %)**; top 5 % 4 of 36 (11 %). The rate rises about 80-fold from the bottom half to the 90–95th band, then **drops in the top
+5 %**, where the highest values are edge points sitting on streams at crossings (v1 post-hoc check). A single logistic curve in log SPI
+overshoots that top band, so it is not a usable fragility curve; it supports v2's design (crossing and channel cells removed). v2 is
+deliberately not plotted against the Leominster damage, so its out-of-sample test stays clean.
