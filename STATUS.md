@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-20T15:15:37Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-20T15:45:23Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -330,4 +330,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | repack_rc_nov2026_bellingham | pack_site | completed | 2541484 | 1 / 0 | 2026-11-20T12:42:30Z | 2026-11-20T15:15:37Z |  |
 | repack_rc_nov2026_franklin | pack_site | completed | 2541485 | 1 / 0 | 2026-11-20T12:42:30Z | 2026-11-20T15:15:37Z |  |
 | repack_rc_nov2026_worcester | pack_site | completed | 2541486 | 1 / 0 | 2026-11-20T12:42:30Z | 2026-11-20T15:15:37Z |  |
-| repack_rc_d3_sep2023 | pack_site | submitted | 2541730 |  /  | 2026-11-20T15:15:37Z |  |  |
+| repack_rc_d3_sep2023 | pack_site | completed | 2541730 | 1 / 0 | 2026-11-20T15:15:37Z | 2026-11-20T15:45:23Z |  |
+| repack_rc2_leominster_sep2023 | pack_site | submitted | 2541909 |  /  | 2026-11-20T15:45:23Z |  |  |
+| repack_rc2_worcester_aug2021 | pack_site | submitted | 2541910 |  /  | 2026-11-20T15:45:23Z |  |  |
+| repack_rc2_sep2021_worcester | pack_site | submitted | 2541911 |  /  | 2026-11-20T15:45:23Z |  |  |
