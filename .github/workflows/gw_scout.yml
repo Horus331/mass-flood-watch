@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q requests scipy numpy pyproj huggingface_hub tifffile
+      - run: pip install -q requests scipy numpy pyproj huggingface_hub tifffile pillow
       - run: python proto/${{ inputs.script }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
