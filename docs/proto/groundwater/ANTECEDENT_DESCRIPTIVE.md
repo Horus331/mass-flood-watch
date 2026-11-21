@@ -16,5 +16,5 @@ soil-wetness model test (T4 C) stays stopped.
 **Reading.** Pre-storm water-table wetness does not explain which storms the model under-predicts or misses; the storm-size effect
 (`parity/BIAS_BY_STORM.md`, rank correlation 0.41 with storm total) is much stronger. The weak negative link with the signed error is
 consistent with the model's fixed, drier-than-average soil setting (curve-number scale 0.88) missing some runoff on wet ground, but it is
-not strong enough to act on, and testing a wetness adjustment is proposal B / T4 C, which Mo has not asked for. For Paper 2 this
+not strong enough to act on, and testing a wetness adjustment is proposal B / T4 C, which Mo has not asked for. For the road-damage work this
 supports treating groundwater as a slow, subgrade link (A) rather than a same-storm runoff driver.

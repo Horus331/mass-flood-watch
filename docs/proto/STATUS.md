@@ -84,7 +84,7 @@ If another doc disagrees with this page about what is deployed or what a result 
 | Depth time series start-up subtraction (map animation, cascade) | **bug fixed 17 Nov** (`proto/prototype.py`, b78659d16): series now subtracts the start-up water like the scored rule; the 21 live replay packs still carry the old series until repacked (waits for Mo) | `turing/d3_sep2023_t2/` |
 | District 3 runs on T2 terrain with consequences (Sept 2023 calibration; Sept 2021 held-out, plan fixed first) | **reporting**: 127 / 372 segments closed at some time; 76,450 / 355,938 residents lose timely access at the peak, 99 % / 97.5 % of them on dry roads (rule ≥ 80 %: holds) | `turing/d3_sep2023_t2/`, `turing/d3_sep2021_t2_RESULT.md` |
 | Gauge-rise bias vs storm size (25 non-locked storms) | **descriptive**: bias negative on 22 of 24; modelled/observed rise 0.15 below 60 mm vs 0.56 above; top-3 % recall 0.06 vs 0.33: the skill is a large-storm skill | `parity/BIAS_BY_STORM.md` |
-| Closure probability composition | **checked 18 Nov**: in every reported run p_close = the depth term only; freeboard / culvert / fast-water terms are opt-in layers (switches off in every workflow) | `paper/REVIEW_SELF.md` M9 |
+| Closure probability composition | **checked 18 Nov**: in every reported run p_close = the depth term only; freeboard / culvert / fast-water terms are opt-in layers (switches off in every workflow) | internal review M9 |
 | Groundwater scouting (wells, seasonal water table under roads, association with closures and damage) | **scouting, no model change**; proposals A / B / C wait for Mo; A has a draft pre-registration | `groundwater/SCOUT.md`, `groundwater/PREREG_A_DRAFT.md` |
 
 ## 4. Open items

@@ -1,8 +1,8 @@
-"""Build docs/proto/paper/MANUSCRIPT_NHESS.md from MANUSCRIPT.md (master) and REFERENCES.md: src comments and R numbers removed,
+"""Build papers/paper1/MANUSCRIPT_NHESS.md from MANUSCRIPT.md (master) and REFERENCES.md: src comments and R numbers removed,
 author-year citations with a comma (NHESS style), alphabetical reference list. Run after every edit of the master.
     python proto/paper_nhess.py"""
 import os, re
-D = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs/proto/paper')
+D = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'papers/paper1')
 s = open(f'{D}/MANUSCRIPT.md').read()
 s = re.sub(r'\n?<!--.*?-->', '', s, flags=re.S)
 s = re.sub(r',\s*R\d+\b', '', s); s = re.sub(r'\s*\(R\d+\)', '', s)

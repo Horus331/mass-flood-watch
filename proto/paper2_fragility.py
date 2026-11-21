@@ -2,12 +2,12 @@
 In-sample and descriptive (Sept 2023 is the calibration storm); v1 only (v2 is kept unseen against damage for its out-of-sample test).
 Style after Anderson et al. (2017): binned empirical rates with Wilson 95 % intervals and a fitted curve (logistic in log SPI, which is the
 lognormal-type CDF shape used there).
-    python proto/paper2_fragility.py  ->  docs/proto/paper2/fig/fragility_spi.png, fragility_spi.json"""
+    python proto/paper2_fragility.py  ->  papers/paper2/fig/fragility_spi.png, fragility_spi.json"""
 import json, os, sys
 import numpy as np, pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE); sys.path.insert(0, HERE)
 import rq1_eval as R
-P = f'{ROOT}/docs/proto/paper2'
+P = f'{ROOT}/papers/paper2'
 
 
 def wilson(k, n, z=1.96):

@@ -64,7 +64,7 @@ model's is ~5.8 m (+2.8 m), the ratio 1.93 needs **n·Q/W about 3× too large** 
 
 | # | Idea | Why | Effort | Data | Test |
 |---|---|---|---|---|---|
-| C1 | **TabPFN coreset baseline** next to LightGBM in `sim/ml/baseline.py` | Huang et al. 2026 show a tabular foundation model matching XGBoost with ~1 % of rows and winning out of distribution; cheap comparison for Paper 1 | **S** | existing table | LOSO + HUC10 CSI/Brier exactly as GBM. |
+| C1 | **TabPFN coreset baseline** next to LightGBM in `sim/ml/baseline.py` | Huang et al. 2026 show a tabular foundation model matching XGBoost with ~1 % of rows and winning out of distribution; cheap comparison for the main evaluation | **S** | existing table | LOSO + HUC10 CSI/Brier exactly as GBM. |
 | C2 | **Multi-fidelity surrogate**: learn 30 m → 10 m correction (U-Net or latent diffusion conditioned on DEM, as Flood-LDM / FIMserv) | Statewide at 30 m cost with 10 m accuracy; complements B6 | **M** | paired 30/10 m runs on boxes | Held-out boxes: WSE vs marks, CSI of wet area vs the 10 m run. |
 | C3 | **Positive-unlabelled (PU) learning for road flooding** from weak labels: MassDOT reports + NFIP block groups + Storm Events + Groundsource + 311 | An unreported flooded road is not a negative; current metrics punish true but unreported floods (Google notes the same for its precision) | **M** | §4.1–4.4, §4.9 | Hit rate at fixed false-alarm budget; reliability on held-out storms; compare with current ranker AUC 0.93–0.94. |
 | C4 | **Heterogeneous stream–road GNN** (nodes: road segments, crossings, channel reaches; edges: downhill flow, road adjacency, crossing links), physics features from the engine, mass-plausibility check like Bentivoglio's ARME | Novel combination: surrogate for both hazard and consequence; crossings are the natural coupling nodes | **L** | engine corpus, §1.5 | LOSO; per-node CSI; ARME vs error correlation. |
@@ -96,11 +96,11 @@ model's is ~5.8 m (+2.8 m), the ratio 1.93 needs **n·Q/W about 3× too large** 
 
 ---
 
-## F. Publications (novelty)
+## F. Write-up ideas (novelty)
 
 1. **"A New England flash-flood hydraulic benchmark"** (ESSD-style, cf. Godet et al. 2025 for France): raw and corrected 10 m DEMs, crossing-breached DEM, MRMS/AORC rain, gauges with NAVD88 stage, STN + Vermont HWMs, crossings with inverts, road reports, NFIP block-group counts. Low risk, citable, useful to others. **M.**
 2. **"Culverts as digital dams"**: quantified effect of crossing-aware terrain (B2/B4) on statewide 2-D skill for HWMs, gauges and roads — directly motivated by the USGS lidar spec and the EGU26 Loughborough work. **M.**
-3. **Paper 1 as planned** (open GPU statewide engine + surrogate) gains a stronger story if A1–A4 explain the bias: "diagnosing steep-reach bias in local-inertial models with gauges and crossing inventories".
+3. **The main evaluation** (open GPU statewide engine + surrogate) gains a stronger story if A1–A4 explain the bias: "diagnosing steep-reach bias in local-inertial models with gauges and crossing inventories".
 4. **Weak-label road-flood warning** (C3) vs NWS FFW and Google's flash-flood product (E3).
 
 ## Lead notes, 19 Oct 2026 (from inspecting the South River 10 m run)

@@ -15,8 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q numpy scipy requests pyproj tifffile pysheds affine
-      - run: python proto/edge_spi.py --box "${{ inputs.box }}" --town "${{ inputs.town }}" --segments "${{ inputs.segments }}" --out docs/proto/paper2/edge_spi_${{ inputs.name }}.json --cache /tmp/dem
+      - run: python proto/edge_spi.py --box "${{ inputs.box }}" --town "${{ inputs.town }}" --segments "${{ inputs.segments }}" --out papers/paper2/edge_spi_${{ inputs.name }}.json --cache /tmp/dem
       - run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add docs/proto/paper2/edge_spi_*.json; git commit -qm "edge SPI ${{ inputs.name }}" || exit 0
+          git add papers/paper2/edge_spi_*.json; git commit -qm "edge SPI ${{ inputs.name }}" || exit 0
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep 10; done

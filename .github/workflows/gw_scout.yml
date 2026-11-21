@@ -17,5 +17,5 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
       - run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add docs/proto/groundwater docs/proto/paper2; git commit -qm "groundwater scouting data" || exit 0
+          git add docs/proto/groundwater papers/paper2; git commit -qm "groundwater scouting data" || exit 0
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep 10; done

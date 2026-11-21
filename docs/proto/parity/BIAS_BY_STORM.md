@@ -1,4 +1,4 @@
-# Gauge-rise bias against storm size (18 Nov 2026; descriptive, Paper 1 review M8)
+# Gauge-rise bias against storm size (18 Nov 2026; descriptive, internal review M8)
 
 All 25 non-locked District 3 catalogue storms, parity runs at the operational physics (`parity/catalog/*/score.json`); rain from each
 run's own features (99th percentile of segment storm totals in the box; maximum segment peak-hour rain); top-3 % site recall from

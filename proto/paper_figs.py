@@ -1,6 +1,6 @@
-"""Paper 1 figures from committed JSON only (docs/proto/paper/OUTLINE.md §6, item 5 of §9).
+"""Paper 1 figures from committed JSON only (papers/paper1/OUTLINE.md §6, item 5 of §9).
 
-    python proto/paper_figs.py            # writes docs/proto/paper/fig/*.png and fig/figures.json (the numbers plotted)
+    python proto/paper_figs.py            # writes papers/paper1/fig/*.png and fig/figures.json (the numbers plotted)
 
 Fig. 5  held-out District 3: site recall against flagged share, with 90 % CI and chance (obs/round2/score_round2.json, parity:heldout23)
 Fig. 6  benchmark v3: top-3 % site recall of the model, the π ranking and six baselines, District 3 held-out 23 and Districts 4-6 (81)
@@ -13,7 +13,7 @@ import numpy as np, matplotlib
 matplotlib.use('Agg'); import matplotlib.pyplot as plt
 plt.rcParams['savefig.dpi'] = 300   # NHESS: 300 dpi
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); P = f'{ROOT}/docs/proto'; OUT = f'{P}/paper/fig'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); P = f'{ROOT}/docs/proto'; OUT = f'{ROOT}/papers/paper1/fig'
 INK, MUTED, GRID = '#222222', '#6b6b6b', '#e4e4e4'
 C_MODEL, C_PI, C_BASE, C_CHANCE = '#1f5f99', '#0b8a6f', '#a9a9a9', '#c0392b'
 plt.rcParams.update({'font.size': 9, 'axes.edgecolor': '#999', 'axes.labelcolor': INK, 'xtick.color': MUTED, 'ytick.color': MUTED})
@@ -192,7 +192,7 @@ def fig7():
     written by `proto/cascade.py pack d3_sep2023`, then moved out of the site folder)."""
     from pyproj import Transformer
     D = f'{P}/turing/d3_sep2023_t2'; meta = json.load(open(f'{D}/flood_meta.json')); S = json.load(open(f'{D}/summary.json'))
-    C = json.load(open(f'{P}/paper/data/d3_sep2023_t2_cascade.json')); s = C['series']; t = np.array(C['t_h'])
+    C = json.load(open(f'{ROOT}/papers/paper1/data/d3_sep2023_t2_cascade.json')); s = C['series']; t = np.array(C['t_h'])
     h = np.load(f'{D}/hmax_cm.npz')['hmax_cm']; k = 5; ny, nx = h.shape
     hm = h[:ny // k * k, :nx // k * k].reshape(ny // k, k, nx // k, k).max((1, 3)).astype(float) / 100
     x0, y0, x1, y1 = meta['box']

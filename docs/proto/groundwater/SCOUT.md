@@ -39,7 +39,7 @@ Largest responses (7-day rise, pre-storm depth):
    interpolated from wells 10–30 km apart.
 
 ## 4. Proposals for Mo (none started)
-- **A. Groundwater as the next cascade link (Paper 2 / dissertation chapter).** Rain → water-table rise → wet subgrade under roads in
+- **A. Groundwater as the next cascade link (dissertation chapter).** Rain → water-table rise → wet subgrade under roads in
   the days after a storm. Data in hand: 23 wells, 15-minute series. Next step would be mapping where the water table is shallow under
   District 3 roads (USGS/MassGIS water-table depth, SSURGO "depth to water table") and which road segments sit on it. This is the
   geotechnical side of the framework (rain → flood → groundwater → soil → structure).

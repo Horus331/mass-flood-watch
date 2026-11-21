@@ -1,10 +1,10 @@
 """Public FEMA Public Assistance projects (OpenFEMA, no key) for Massachusetts, damage category C (roads and bridges), to see whether a
 second road-damage inventory exists in public data. Scouting only: no comparison with any model output.
-    python proto/fema_pa.py  ->  docs/proto/paper2/fema_pa_ma.json"""
+    python proto/fema_pa.py  ->  papers/paper2/fema_pa_ma.json"""
 import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gw_scout import get
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs/proto/paper2/fema_pa_ma.json')
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'papers/paper2/fema_pa_ma.json')
 B = 'https://www.fema.gov/api/open/v2/'
 
 

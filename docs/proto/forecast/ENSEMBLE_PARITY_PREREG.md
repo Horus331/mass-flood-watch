@@ -4,8 +4,8 @@ Committed before any run. Results go to `ENSEMBLE_PARITY.md` and `ensemble_parit
 
 ## Why
 The out-of-sample ensemble test (`ENSEMBLE.md` §4, the basis of the live "2 of 8" rule) was run at CN × 0.91 and the default time step,
-before the parity baseline (`parity/BASELINE.md`: `LF_PARITY=1`, CN × 0.88). The paper cannot quote it as the deployed model
-(`paper/OUTLINE.md` §8–9, item 3). This reruns it at the parity physics. Nothing else changes.
+before the parity baseline (`parity/BASELINE.md`: `LF_PARITY=1`, CN × 0.88). The evaluation cannot quote it as the deployed model
+(internal review, item 3). This reruns it at the parity physics. Nothing else changes.
 
 ## What is run
 Exactly the cases of `ENSEMBLE.md` (`python proto/forecast_ens.py matrix --which all`: the 4 development ensembles, the 7 out-of-sample

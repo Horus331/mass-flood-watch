@@ -19,11 +19,11 @@ identical to `d3_sep2023_t2`. Reporting only; no setting changed.
 | 5. Storm labels (Worcester catalogue list, 8 matched): hit by the rule / in the top 3 % | 5 / 5 (rule flags 0.82 % of segments) | — |
 
 **Reading (rule fixed in the plan):** the dry-road share is 97.5 % (≥ 80 %), so the claim that consequences fall mostly on people whose own
-road stays dry **holds on a second, held-out storm**. Both storms go in the paper.
+road stays dry **holds on a second, held-out storm**. Both storms are reported.
 
 **Caveats.** The Sept 2021 storm is less intense than Sept 2023 (heaviest hour in the run report 24.5 mm vs 102 mm) but closes 3× as many
 segments and cuts off 4.7× as many residents, so its rain fell over much more of the District's road network. As for Sept 2023: no storm drains (long
 closures are an upper bound), single shortest-path detours, flat daily traffic, night-time population, nothing to validate the
 consequences against. The model under-predicts this storm at the gauges (e.g. Quinapoxet River rise 0.72 m vs 1.55 m observed; Gates Brook
-0 vs 0.77 m), consistent with the paper's light-storm bias. Labels for this storm cover only the Worcester catalogue box (8 matched), so
+0 vs 0.77 m), consistent with the known light-storm bias. Labels for this storm cover only the Worcester catalogue box (8 matched), so
 item 5 is indicative only.

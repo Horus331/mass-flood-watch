@@ -1,9 +1,9 @@
-"""Paper 2, RQ1: road-edge stream-power index from 1 m lidar (definition fixed in docs/proto/paper2/RQ1_INDEX_SPEC.md).
+"""Paper 2, RQ1: road-edge stream-power index from 1 m lidar (definition fixed in papers/paper2/RQ1_INDEX_SPEC.md).
 
 No damage labels are read here. Output per segment: upslope area draining along each road edge and the stream-power index A*S.
 
     python proto/edge_spi.py --box 171400,913700,183100,925000 --segments docs/proto/phase1/parametric_t2/t2_base/segments.geojson \
-        --town LEOMINSTER --out docs/proto/paper2/edge_spi_leominster.json
+        --town LEOMINSTER --out papers/paper2/edge_spi_leominster.json
 
 Method (fixed): 1 m 3DEP bare earth (USGS image service, best available) in core tiles of 4 km with a 1 km buffer; pits filled,
 depressions and flats resolved (pysheds), D8 flow directions, flow accumulation in cells (= m2 at 1 m); local slope from the 3x3
@@ -134,7 +134,7 @@ def main():
         out[str(k)] = dict(road=s['road'], length_m=s['length_m'], points=int(ok.sum()), A_max_m2=round(float(np.nanmax(A)), 1),
                            spi_max=round(float(np.nanmax(spi)), 2), spi_p90=round(float(np.nanpercentile(spi[ok], 90)), 2),
                            edge_len_over_p95_m=round(float((spi[ok] > T).sum() * STEP / (2 * len(OFFS))), 1))
-    # ---- v2 (docs/proto/paper2/PREREG_RQ1_V2_DRAFT.md): crossing points and channel cells dropped, fixed 50 m windows
+    # ---- v2 (papers/paper2/PREREG_RQ1_V2_DRAFT.md): crossing points and channel cells dropped, fixed 50 m windows
     from scipy.spatial import cKDTree
     X = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs/network/crossings_all.json'))); C = X['columns']
     xy = np.array([tr.transform(r[C.index('lon')], r[C.index('lat')]) for r in X['rows'] if r[C.index('lon')] is not None]); KT = cKDTree(xy)
@@ -149,7 +149,7 @@ def main():
         if str(k) in out and m:
             out[str(k)].update(windows=len(m), spi_window_max=round(max(m.values()), 2), spi_window_share=round(sum(v > T2 for v in m.values()) / len(m), 3),
                                spi_window_share_fixed=round(sum(v > a.win_thr for v in m.values()) / len(m), 3))
-    json.dump(dict(made_by='proto/edge_spi.py', spec='docs/proto/paper2/RQ1_INDEX_SPEC.md (+ v2 fields: PREREG_RQ1_V2_DRAFT.md)', v2_window_p95=round(T2, 2) if T2 else None, v2_fixed_thr_m2=a.win_thr, box=[X0, Y0, X1, Y1], town=a.town,
+    json.dump(dict(made_by='proto/edge_spi.py', spec='papers/paper2/RQ1_INDEX_SPEC.md (+ v2 fields: PREREG_RQ1_V2_DRAFT.md)', v2_window_p95=round(T2, 2) if T2 else None, v2_fixed_thr_m2=a.win_thr, box=[X0, Y0, X1, Y1], town=a.town,
                    step_m=STEP, offsets_m=list(OFFS), spi_p95_all_points=round(T, 2), tiles=meta, segments=out), open(a.out, 'w'), indent=0)
     print('wrote', a.out, len(out), 'segments; p95 SPI', round(T, 2))
 

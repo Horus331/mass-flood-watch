@@ -14,7 +14,7 @@ leads and its mean flagged share is ≤ 2 × the single cycle's + 1 point.
 | long lead (43 sites) | 0.256 / 1.57 % | 0.326 / 2.75 % | 4.14 % | pass |
 | short lead (43 sites) | 0.140 / 1.02 % | 0.302 / 1.91 % | 3.04 % | pass |
 
-The live rule stays as it is. The paper can now quote the ensemble result at the deployed physics.
+The live rule stays as it is. The evaluation can now quote the ensemble result at the deployed physics.
 
 ## 2. Pooled tables as produced (`ensemble_parity.json`)
 
@@ -73,6 +73,6 @@ come with proportionally more flagged roads (lift slightly lower); at short lead
 Two storms (sep2022, aug2023b; 8 sites) have no hit under either rule.
 
 ## 5. Open
-- `paper/OUTLINE.md` item 3 can now cite section 1 (as produced) with section 3 as the like-for-like note.
+- Review item 3 can now cite section 1 (as produced) with section 3 as the like-for-like note.
 - The growth in matched label sites since October also affects any earlier recall quoted from that time; worth one consistency pass over
-  `ENSEMBLE.md`, `HINDCAST.md` and the paper numbers before submission.
+  `ENSEMBLE.md`, `HINDCAST.md` and the reported numbers.

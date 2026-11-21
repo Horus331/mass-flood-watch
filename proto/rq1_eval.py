@@ -1,6 +1,6 @@
-"""Paper 2 RQ1 evaluation, exactly as frozen in docs/proto/paper2/PREREG_RQ1.md.
+"""Paper 2 RQ1 evaluation, exactly as frozen in papers/paper2/PREREG_RQ1.md.
 
-    python proto/rq1_eval.py  ->  docs/proto/paper2/rq1_eval.json
+    python proto/rq1_eval.py  ->  papers/paper2/rq1_eval.json
 """
 import csv, json, math, os
 import numpy as np, pandas as pd
@@ -51,7 +51,7 @@ def main():
     from shapely.ops import transform as stx
     from shapely.strtree import STRtree
     tr = Transformer.from_crs(4326, 26986, always_xy=True).transform
-    E = json.load(open(f'{P}/paper2/edge_spi_leominster.json'))['segments']
+    E = json.load(open(f'{ROOT}/papers/paper2/edge_spi_leominster.json'))['segments']
     F = pd.read_csv(f'{RUN}/features_sep2023.csv', low_memory=False)
     F = F[F.segment.astype(str).isin(E.keys())].copy()
     for k in ('spi_max', 'spi_p90', 'edge_len_over_p95_m'): F[k] = [E[str(s)][k] for s in F.segment]
@@ -65,7 +65,7 @@ def main():
         if p['type'] == 'washout': wash.add(b)
     F['damaged'] = F.segment.isin(dmg).astype(int); F['washout'] = F.segment.isin(wash).astype(int)
     wach = F.road.astype(str).str.upper().str.contains('WACHUSETT')
-    out = dict(spec='docs/proto/paper2/PREREG_RQ1.md', segments=len(F), damaged=int(F.damaged.sum()), washout=int(F.washout.sum()),
+    out = dict(spec='papers/paper2/PREREG_RQ1.md', segments=len(F), damaged=int(F.damaged.sum()), washout=int(F.washout.sum()),
                main=block(F, 'damaged'), washout_only=block(F, 'washout'),
                sens_no_wachusett=block(F[~wach], 'damaged'), sens_spi_p90=block(F, 'damaged', 'spi_p90'),
                sens_edge_len=block(F, 'damaged', 'edge_len_over_p95_m'))
@@ -80,7 +80,7 @@ def main():
     elif m['auc'] >= 0.70 and inc.get('p', 1) < 0.05 and (wm['share'] or 0) >= 0.20: verdict = 'promising'
     else: verdict = 'weak'
     out['verdict'] = verdict
-    json.dump(out, open(f'{P}/paper2/rq1_eval.json', 'w'), indent=1); print(json.dumps(out, indent=1))
+    json.dump(out, open(f'{ROOT}/papers/paper2/rq1_eval.json', 'w'), indent=1); print(json.dumps(out, indent=1))
 
 
 if __name__ == '__main__':
