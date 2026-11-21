@@ -4,86 +4,176 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>How It Works · Mass Flood Watch</title>
-<meta name="description" content="The data and processes behind the Mass Flood Watch road-flood model, shown on a 3D block of real terrain around the WPI campus in Worcester, Massachusetts.">
+<meta name="description" content="How the Mass Flood Watch model turns radar rain into closed roads and lost emergency access, shown step by step on the real Leominster flash flood of 11 September 2023.">
 <link rel="icon" href="wpi-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="model-tree/lib/katex.min.css">
 <link rel="stylesheet" href="site/shell.css?v=3">
-<link rel="stylesheet" href="how-it-works/how.css?v=1">
+<link rel="stylesheet" href="how-it-works/how2.css?v=3">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
-<script type="importmap">{"imports":{"three":"./lib/three/three.module.min.js","three/addons/":"./lib/three/addons/"}}</script>
 </head>
 <body class="page">
-<!--sh:start--><header class="sh"><div class="sh-in"><a class="sh-brand" href="./"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></a><nav class="sh-nav" aria-label="Site"><a href="./">Model</a><a href="how-it-works.html" aria-current="page">How it works</a><a href="research.html">Research</a><a href="data.html">Data</a><a href="progress.html">Progress</a><a href="about.html">About</a></nav><span class="sh-grow"></span><span class="sh-tag">Research prototype · WPI</span></div></header><!--sh:end-->
-<main>
-  <section class="wrap hero">
+<!--sh:start--><header class="sh"><div class="sh-in"><a class="sh-brand" href="./"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></a><nav class="sh-nav" aria-label="Site"><a href="./">Map</a><a href="how-it-works.html" aria-current="page">How it works</a><a href="research.html">Research</a><a href="about.html">About</a></nav><span class="sh-grow"></span><span class="sh-tag">Research prototype · WPI</span></div></header><!--sh:end-->
+<main class="hw">
+  <section class="wrap hw-hero">
     <p class="eyebrow">How it works</p>
     <h1>From rain to a closed road</h1>
-    <p class="lede">The model follows the water from the radar to the road. Below is the real ground around the WPI campus in Worcester, built from the same data the model reads, layer by layer. Drag to turn it, and select any label for its source, resolution and how the model uses it.</p>
+    <p class="lede">One real storm, one moment: <b>Leominster, Monday 11 September 2023, 6:50 PM</b>, the worst hour of the flash flood. Every picture on this page is drawn from the model's own output for that moment.</p>
   </section>
 
-  <section class="stage-wrap" aria-label="3D layers of the WPI campus">
-    <div class="stage" id="cstage">
-      <canvas id="cgl" aria-hidden="true"></canvas>
-      <svg class="leaders" id="cleaders" aria-hidden="true"></svg>
-      <div class="callouts" id="ccallouts"></div>
-      <div class="loading" id="cloading">Loading the campus…</div>
+  <!-- ===== the chain ===== -->
+  <section class="wrap hw-sec" id="chain" aria-label="The six steps">
+    <ol class="chain">
+      <li><a href="#s-rain"><span class="cn">1</span><span class="ci ic-rain"></span><b>Rain</b><span>How much falls, where and when</span></a></li>
+      <li><a href="#s-ground"><span class="cn">2</span><span class="ci ic-ground"></span><b>Ground</b><span>Which way the water runs</span></a></li>
+      <li><a href="#s-water"><span class="cn">3</span><span class="ci ic-water"></span><b>Flood engine</b><span>Where the water goes, minute by minute</span></a></li>
+      <li><a href="#s-road"><span class="cn">4</span><span class="ci ic-road"></span><b>Water on each road</b><span>How deep it is on every street</span></a></li>
+      <li><a href="#s-closed"><span class="cn">5</span><span class="ci ic-closed"></span><b>Road closes?</b><span>Open, at risk or closed</span></a></li>
+      <li><a href="#s-access"><span class="cn">6</span><span class="ci ic-access"></span><b>Who loses access</b><span>Help that can no longer arrive in time</span></a></li>
+    </ol>
+  </section>
+
+  <!-- ===== the layered sketch ===== -->
+  <section class="hw-sec hw-stack-sec" id="sketch" aria-label="The model in five layers">
+    <div class="wrap"><h2>The model in five layers</h2>
+      <p class="lede">The same 6 × 5.4 km of central Leominster, five times. Each layer is what one step of the model produces, from the rain at the top to the people who lose quick access to help at the bottom.</p></div>
+    <div class="stackfig" id="stackfig">
+      <img src="how-it-works/sketch/stack.webp" alt="Five stacked map layers of central Leominster: radar rain, ground heights, water depth, road status and lost emergency access." id="stackimg">
+      <svg class="leaders" id="stackLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div id="stackLabels"></div>
     </div>
-    <div class="controls wrap">
-      <div class="tchk" id="cchecks"></div>
-      <div class="legend" id="clegend" aria-live="polite" style="grid-column:auto"></div>
-      <div class="ctl-group ctl-right">
-        <button class="btn fill" id="bLayers" type="button"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5"/></svg><span>Show the layers</span></button>
-        <button class="btn" id="bFlow" type="button"><svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span>Pause water</span></button>
-        <button class="btn" id="bCHome" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></svg><span>Reset view</span></button>
+  </section>
+
+  <!-- ===== step bar (sticky) ===== -->
+  <nav class="stepbar" id="stepbar" aria-label="Steps">
+    <a href="#s-rain" data-s="s-rain">1 Rain</a><a href="#s-ground" data-s="s-ground">2 Ground</a><a href="#s-water" data-s="s-water">3 Flood engine</a><a href="#s-road" data-s="s-road">4 Water on each road</a><a href="#s-closed" data-s="s-closed">5 Road closes?</a><a href="#s-access" data-s="s-access">6 Who loses access</a><a href="#s-check" data-s="s-check">Checked</a><a href="#s-tree" data-s="s-tree">Model tree</a>
+  </nav>
+
+  <!-- ===== steps ===== -->
+  <section class="step" id="s-rain">
+    <div class="sfig"><div class="mapfig" data-img="L_rain.jpg" data-alt="Radar rain over central Leominster at 6:48 PM"></div></div>
+    <div class="stxt">
+      <p class="snum">Step 1</p><h2>Rain</h2>
+      <p class="plain">Weather radar measures how hard it is raining on every square kilometre, every few minutes. The model spreads that rain evenly over the small 20 m squares it works with.</p>
+      <div class="nums">
+        <div><b data-k="rain.max_mmh"></b><span>mm per hour in the wettest radar square at 6:48 PM</span></div>
+        <div><b data-k="rain.so_far_mm"></b><span>mm had fallen on the model area by 6:50 PM</span></div>
       </div>
-      <p class="fig-note">Kaven Hall and the WPI campus seen from Institute Park, built from USGS aerial imagery (0.3 m) on 1 m lidar ground heights, with buildings from OpenStreetMap. The ground is cut open along the park to show the soil layers (drawn to show the idea, not measured). Blue dots: rain water running downhill along the real ground. Coloured streets: how the model rated them in the storm of 19 Aug 2021. <b>Show the layers</b> pulls apart what the model reads, the place, and what it computes.</p>
+      <div class="hourly" id="hourly" aria-label="Rain per hour"></div>
+      <div class="legend" id="lg-rain"></div>
+      <p class="src">Data: NOAA Multi-Radar Multi-Sensor (MRMS) radar rain, about 1 km squares, every 2 minutes. Before a storm, the national HRRR forecast takes its place.</p>
     </div>
   </section>
 
-  <section class="wrap sec" style="padding-bottom:8px">
-    <h2>The wider area, cut open</h2>
-    <p class="lede">The same data over 6 × 6 km around the campus, with the radar rain grid above. Drag to turn it; switch what is shown on the ground.</p>
-  </section>
-
-  <section class="stage-wrap" aria-label="3D model of the WPI area">
-    <div class="stage" id="stage">
-      <canvas id="gl" aria-hidden="true"></canvas>
-      <svg class="leaders" id="leaders" aria-hidden="true"></svg>
-      <div class="callouts" id="callouts"></div>
-      <div class="loading" id="loading">Loading the terrain…</div>
-    </div>
-    <div class="controls wrap">
-      <div class="ctl-group">
-        <span class="ctl-label" id="surfLabel">Ground surface</span>
-        <div class="chips" role="group" aria-labelledby="surfLabel" id="surfaces"></div>
+  <section class="step" id="s-ground">
+    <div class="sfig"><div class="mapfig" data-img="L_ground.jpg" data-alt="Ground heights of central Leominster with streets"></div></div>
+    <div class="stxt">
+      <p class="snum">Step 2</p><h2>Ground</h2>
+      <p class="plain">Lasers flown from planes measure the height of the ground. Water always runs downhill, so this map decides where every drop goes. Here, the hills to the west drain into the brooks that run through downtown.</p>
+      <div class="nums">
+        <div><b data-k="ground.high_m"></b><span>m above sea level on the highest ground (west)</span></div>
+        <div><b data-k="ground.low_m"></b><span>m at the lowest point, along the North Nashua River</span></div>
       </div>
-      <div class="ctl-group ctl-right">
-        <button class="btn" id="bSplit" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M12 3v4M12 17v4"/></svg><span>Close the ground</span></button>
-        <button class="btn" id="bRain" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M7 15l-1 3M12 15l-1 3M17 15l-1 3M6 11a4 4 0 1 1 1-7.9A5 5 0 0 1 17 6a3.5 3.5 0 0 1 0 7H7"/></svg><span>Pause rain</span></button>
-        <button class="btn" id="bReset" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></svg><span>Reset view</span></button>
-      </div>
-      <div class="legend" id="legend" aria-live="polite"></div>
-      <p class="fig-note" id="figNote"></p>
+      <p class="also">The model also knows what covers the ground (roofs and pavement send rain straight off, grass and woods soak some up), the soils, and every culvert where a stream passes under a road.</p>
+      <p class="src">Data: USGS 3DEP lidar, averaged to 20 m squares; land cover from NLCD 2021; soils from SSURGO; roads from MassDOT.</p>
     </div>
   </section>
 
-  <section class="wrap sec" id="steps">
-    <h2>What happens after the water reaches the road</h2>
-    <p class="lede">The flood engine gives the water depth on every 20 m square of the area, every five minutes. These steps turn that into road closures and their consequences.</p>
-    <ol class="steps" id="chain"></ol>
+  <section class="step" id="s-water">
+    <div class="sfig"><div class="mapfig" data-img="L_water.jpg" data-alt="Modelled water depth at 6:50 PM"></div></div>
+    <div class="stxt">
+      <p class="snum">Step 3</p><h2>Flood engine</h2>
+      <p class="plain">A free, open-source flood model from the University of Bristol (LISFLOOD-FP) moves the rain over the ground, second by second, from each 20 m square to its lower neighbours. It saves the water depth on every square every 5 minutes.</p>
+      <div class="nums">
+        <div><b data-k="water.wet_km2"></b><span>km² under 5 cm of water or more at 6:50 PM</span></div>
+        <div><b data-k="water.deep_km2"></b><span>km² under 30 cm or more</span></div>
+      </div>
+      <div class="legend" id="lg-depth"></div>
+      <p class="src">Engine: LISFLOOD-FP 8.2, two-dimensional shallow-water equations, time step of 1 second or less, run on free GitHub computers and WPI's Turing cluster.</p>
+    </div>
   </section>
 
-  <section class="wrap sec">
-    <h2>Every value is read from the model's code</h2>
-    <p class="lede">The sources, units and parameter values behind every label are taken from the model's code and checked automatically each time it changes. The full list is on one page: <a href="model-tree-print.html">the model in text</a>.</p>
+  <section class="step" id="s-road">
+    <div class="sfig"><div class="mapfig sq" data-img="z_road.png" data-alt="Close-up of Exchange Street with the 20 m depth squares and the dots every 10 m"></div></div>
+    <div class="stxt">
+      <p class="snum">Step 4</p><h2>Water on each road</h2>
+      <p class="plain">The model puts a dot every 10 m along every street and reads the water depth under each dot. For each piece of road it takes the <b>second-deepest dot</b>, so one odd dot cannot close a road on its own. Water that was already there before the rain (a stream in a culvert) does not count.</p>
+      <div class="nums">
+        <div><b data-k="closeup.dots"></b><span>dots along this piece of <span data-k="closeup.name"></span></span></div>
+        <div><b><span data-k="closeup.d"></span> cm</b><span>its depth at 6:50 PM, where the street crosses a brook</span></div>
+      </div>
+      <p class="also">Most of the street is dry (white dots). It closes because of the low stretch where the water from the brook crosses it.</p>
+      <p class="src">Each square is 20 m, the model's grid. Darker blue is deeper water.</p>
+    </div>
+  </section>
+
+  <section class="step" id="s-closed">
+    <div class="sfig"><div class="mapfig" data-img="L_roads.jpg" data-alt="Roads coloured open, wet, at risk or closed at 6:50 PM"></div></div>
+    <div class="stxt">
+      <p class="snum">Step 5</p><h2>Road closes?</h2>
+      <p class="plain">At about 30 cm, water reaches the door sill of a car and small cars can float. The model marks a road <b>closed</b> from 30 cm, <b>at risk</b> from 15 cm, and slower from 5 cm.</p>
+      <div class="car" aria-hidden="true">
+        <svg viewBox="0 0 360 120">
+          <rect x="0" y="80" width="300" height="27" fill="#1f6fb2" opacity=".22"/><line x1="0" y1="80" x2="300" y2="80" stroke="#1f6fb2" stroke-width="2"/>
+          <path d="M62 88h196v-22l-26-4-24-26h-86l-28 28-32 6z" fill="#fff" stroke="#3c4043" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="98" cy="92" r="15" fill="#3c4043"/><circle cx="222" cy="92" r="15" fill="#3c4043"/>
+          <line x1="280" y1="107" x2="280" y2="80" stroke="#c5221f" stroke-width="2"/><text x="288" y="98" font-size="13" fill="#c5221f" font-family="Roboto,sans-serif">30 cm</text>
+          <line x1="0" y1="107" x2="300" y2="107" stroke="#5f6368" stroke-width="2"/></svg>
+      </div>
+      <div class="nums">
+        <div><b data-k="roads.closed"></b><span>road pieces closed (<span data-k="roads.closed_km"></span> km)</span></div>
+        <div><b data-k="roads.risk"></b><span>at risk (<span data-k="roads.risk_km"></span> km)</span></div>
+      </div>
+      <div class="legend" id="lg-roads"></div>
+      <p class="src">Closure depth from vehicle-stability research (Kramer et al. 2016; Martínez-Gomariz et al. 2018) and the depth–speed curve of Pregnolato et al. (2017).</p>
+    </div>
+  </section>
+
+  <section class="step" id="s-access">
+    <div class="sfig"><div class="mapfig" data-img="L_access_fire_station.jpg" id="accfig" data-alt="Streets that lost emergency access at 6:50 PM"></div>
+      <div class="seg" role="group" aria-label="Service" id="accseg">
+        <button type="button" data-s="fire_station" aria-pressed="true">Fire · 8 min</button><button type="button" data-s="hospital" aria-pressed="false">Hospital · 30 min</button><button type="button" data-s="police" aria-pressed="false">Police · 10 min</button></div></div>
+    <div class="stxt">
+      <p class="snum">Step 6</p><h2>Who loses access</h2>
+      <p class="plain">All streets are joined into one network, like a navigation app. With the closed roads removed, the model finds the quickest route from every fire station, hospital and police station. Purple streets could be reached in time before the storm, but not at 6:50 PM.</p>
+      <div class="nums">
+        <div><b data-k="acc.km"></b><span>km of streets <span id="accwhat">a fire truck can no longer reach within 8 minutes</span></span></div>
+        <div><b data-k="roads.total_km"></b><span>km of streets in this area</span></div>
+      </div>
+      <div class="legend" id="lg-access"></div>
+      <p class="src">Response standards: fire 8 minutes (NFPA 1710), hospital 30 minutes, police 10 minutes. Stations from public facility lists; travel times by road class.</p>
+    </div>
+  </section>
+
+  <section class="step" id="s-check">
+    <div class="sfig"><div class="mapfig" data-img="L_check.jpg" data-alt="Closed roads and National Weather Service flood reports"></div></div>
+    <div class="stxt">
+      <p class="snum">Checked against reality</p><h2>What people reported</h2>
+      <p class="plain">Flood reports from that evening are never given to the model. They are only used afterwards, to check whether the roads it closed are the roads people saw flooded.</p>
+      <div class="nums one">
+        <div><b data-k="check.n"></b><span>flood reports from the National Weather Service and NOAA in this area</span></div>
+      </div>
+      <div class="legend" id="lg-check"></div>
+      <p class="src">Reports: NWS local storm reports and the NOAA Storm Events database. Tap a dot to read the report.</p>
+    </div>
+  </section>
+
+  <!-- ===== model tree ===== -->
+  <section class="hw-sec tree-sec" id="s-tree">
+    <div class="wrap"><h2>The whole model, part by part</h2>
+      <p class="lede">Every part of the model, in the order the water meets it. Press <b>Next</b> to walk through it one step at a time, or select any part to read what it does in plain words.</p></div>
+    <div class="tree-tools wrap">
+      <button class="btn fill" id="tNext" type="button">Start</button><button class="btn" id="tPrev" type="button">Back</button><button class="btn" id="tAll" type="button">Show everything</button>
+      <span class="tkey"><i class="k-main"></i>main path <i class="k-live"></i>in the model <i class="k-opt"></i>optional check</span>
+      <a class="tfull" href="model-tree.html">Full technical tree</a>
+    </div>
+    <div class="tree-wrap"><div class="tree" id="tree"><svg class="tlines" id="tlines" aria-hidden="true"></svg></div></div>
+    <div class="tree-bands wrap" id="tbands"></div>
   </section>
 </main>
-<!--sf:start--><footer class="sf"><div class="sf-in"><div><div class="sf-brand"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></div><p style="margin:0 0 12px">Which roads will a flash flood close, and who loses quick access to a hospital, fire station or police? A research project at Worcester Polytechnic Institute that turns radar rain into a road-by-road flood picture for central Massachusetts.</p><p style="margin:0">PhD research by Mohab Eldokla. Advisors: Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</p></div><div><h4>Explore</h4><ul><li><a href="./">The model map</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="research.html">Research</a></li><li><a href="data.html">Data sources</a></li><li><a href="progress.html">Progress</a></li></ul></div><div><h4>About</h4><ul><li><a href="about.html">About the project</a></li><li><a href="about.html#team">Team</a></li><li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://www.wpi.edu/academics/departments/civil-environmental-architectural-engineering">WPI Civil, Environmental &amp; Architectural Engineering</a></li></ul></div><div class="sf-contact"><h4>Contact us</h4><ul><li><a href="mailto:mgeldokla@wpi.edu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>mgeldokla@wpi.edu</a></li><li style="display:flex;gap:8px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><address>Department of Civil, Environmental and Architectural Engineering<br>Worcester Polytechnic Institute<br>100 Institute Road, Worcester, MA 01609</address></li></ul></div><div class="sf-bar"><span>&copy; 2026 Mohab Eldokla · Worcester Polytechnic Institute</span><span class="grow"></span><a href="data.html">Data credits</a><a href="mailto:mgeldokla@wpi.edu">Contact</a></div></div></footer><!--sf:end-->
-<aside class="panel" id="panel" aria-live="polite" aria-label="Details"></aside>
-<script src="model-tree/lib/katex.min.js"></script>
-<script type="module" src="how-it-works/scene3d.js?v=2"></script>
-<script type="module" src="how-it-works/campus3d.js?v=3"></script>
+<aside class="tcard" id="tcard" aria-live="polite" hidden></aside>
+
+<!--sf:start--><footer class="sf"><div class="sf-in"><div><div class="sf-brand"><svg class="sh-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4.6 6 8.5 10.6 8.5 15.2A8.5 8.5 0 0 1 7.5 18.2C7.5 13.6 11.4 9 16 3z" fill="#1a73e8"/><path d="M8.6 20.6c2.4 1.5 4.7 1.5 7 0s4.7-1.5 7.4 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span><b>Mass Flood</b> Watch</span></div><p style="margin:0 0 12px">Which roads will a flash flood close, and who loses quick access to a hospital, fire station or police? A research project at Worcester Polytechnic Institute that turns radar rain into a road-by-road flood picture for central Massachusetts.</p><p style="margin:0">PhD research by Mohab Eldokla. Advisors: Prof. Mingjiang Tao, Prof. Leonard Albano and Prof. Lindsay Graff.</p></div><div><h4>Explore</h4><ul><li><a href="./">The model map</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="how-it-works.html#s-tree">The model, part by part</a></li><li><a href="research.html">Research</a></li><li><a href="research.html#progress">Progress</a></li></ul></div><div><h4>About</h4><ul><li><a href="about.html">About the project</a></li><li><a href="about.html#team">Team</a></li><li><a href="about.html#data">Data sources</a></li><li><a href="model-tree-print.html">The model in text</a></li><li><a href="https://www.wpi.edu/academics/departments/civil-environmental-architectural-engineering">WPI Civil, Environmental &amp; Architectural Engineering</a></li></ul></div><div class="sf-contact"><h4>Contact us</h4><ul><li><a href="mailto:mgeldokla@wpi.edu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>mgeldokla@wpi.edu</a></li><li style="display:flex;gap:8px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><address>Department of Civil, Environmental and Architectural Engineering<br>Worcester Polytechnic Institute<br>100 Institute Road, Worcester, MA 01609</address></li></ul></div><div class="sf-bar"><span>&copy; 2026 Mohab Eldokla · Worcester Polytechnic Institute</span><span class="grow"></span><a href="about.html#data">Data credits</a><a href="mailto:mgeldokla@wpi.edu">Contact</a></div></div></footer><!--sf:end-->
+<script src="how-it-works/how2.js?v=3"></script>
 </body>
 </html>
