@@ -341,7 +341,8 @@
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, hasR ? CR.tex : CA.tex); gl.uniform1i(locC.uR, 2);
       gl.uniform3fv(locC.uMa, CA.m); gl.uniform3fv(locC.uMb, CB.m); gl.uniform3fv(locC.uMr, hasR ? CR.m : CA.m);
       gl.uniform1f(locC.uT, fb === fa ? 0 : t - fa); gl.uniform1f(locC.uDtH, hasR ? back * meta.frame_min / 60 : 0);
-      gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol); gl.uniform2f(locC.uSz, CA.tex._w || 1, CA.tex._h || 1);
+      gl.uniform4fv(locC.uC, ramp); gl.uniform4fv(locC.uDrn, drnCol); var fastC = mapMoving || playing;   // smooth 16-tap shorelines only when the picture is still; plain linear sampling while panning, zooming or playing (3 x fewer texture reads)
+      gl.uniform2f(locC.uSz, fastC ? 1 : (CA.tex._w || 1), fastC ? 1 : (CA.tex._h || 1));
       gl.bindBuffer(gl.ARRAY_BUFFER, b);
       gl.enableVertexAttribArray(locC.aPos); gl.vertexAttribPointer(locC.aPos, 2, gl.FLOAT, false, 16, 0);
       gl.enableVertexAttribArray(locC.aUv); gl.vertexAttribPointer(locC.aUv, 2, gl.FLOAT, false, 16, 8);
@@ -450,9 +451,9 @@
           }
           if (blobC.length) {   // the window: sheets of the frames drawn now, 15 min back, and three sheets ahead for playback
             var keep = {}, now_ = performance.now();
-            KEEP_C = full ? 2 : 8;   // tiled, at tile zoom: the overview only stands in for tiles still decoding
+            KEEP_C = full ? 2 : 14;   // tiled, at tile zoom: the overview only stands in for tiles still decoding; else about 56 MB of decoded sheets
             (full ? [Math.floor(fa / 3), Math.floor(fb / 3)] :
-              [Math.floor(Math.max(0, fa - back) / 3), Math.floor(fa / 3), Math.floor(fb / 3), Math.floor(fb / 3) + 1, Math.floor(fb / 3) + 2, Math.floor(fb / 3) + 3])
+              [Math.floor(Math.max(0, fa - back) / 3), Math.floor(fa / 3), Math.floor(fb / 3), Math.floor(fb / 3) + 1, Math.floor(fb / 3) + 2, Math.floor(fb / 3) + 3, Math.floor(fb / 3) + 4, Math.floor(fb / 3) + 5, Math.floor(fb / 3) + 6])
               .forEach(function (si) { if (si < blobC.length) { keep[si] = 1; wantC(si); if (texC[si]) useC[si] = now_; } });
             evictC(keep);
           }
@@ -492,6 +493,10 @@
       add: function (i, img) { queue.push({ i: i, img: img }); },
       addC: function (i, img) { queueC.push({ i: i, img: img }); },
       addCBlob: function (i, b) { blobC[i] = b; if (map) map.triggerRepaint(); },
+      readyAt: function (f) {   // is frame f decoded on the GPU (continuous depth, single box)? true when there is nothing to wait for
+        if (!blobC.length || (meta.depthc && meta.depthc.tiles)) return true;
+        var si = Math.floor(Math.max(0, Math.min(f, nf - 1)) / 3); if (!texC[si]) { wantC(si); if (map) map.triggerRepaint(); return false; } return true;
+      },
       setCCount: function (n_) { blobC.length = n_; },
       stat: function () {   // GPU memory held by the depth layer (debug / screenshot checks)
         var tb = 0; Object.keys(tTex).forEach(function (k) { tb += tTex[k].bytes; });
@@ -1825,7 +1830,7 @@
       });
       var go = function () {
         if (map.getSource('d3streets')) return;
-        map.addSource('d3streets', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: 0.4, buffer: 32 });
+        map.addSource('d3streets', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: 0, buffer: 64 });
         var before = ['edge', 'halo', 'known', 'reports', 'lb-place'].filter(function (id) { return map.getLayer(id); })[0];
         var C = ['get', 'c'];
         map.addLayer({ id: 'd3st', type: 'line', source: 'd3streets', layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': C },
@@ -2163,19 +2168,20 @@
 
   function loadData() {
     var CS = !WION && meta.depthc ? meta.depthc.sheets : null;
-    total = (CS ? Math.min(4, CS.length) : meta.sheets.length) + 2;
+    total = (CS ? CS.length : meta.sheets.length) + 3;   // the whole storm is downloaded before it plays (Mo, 21 Nov 2026): no frame is ever fetched mid-replay
     var jobs = WION ? wiLoadJobs() : CS ? [] : meta.sheets.map(function (s, i) {
       return getBitmap(dbase() + s).then(function (img) { depth.add(i, img); progress(); if (styleOk) map.triggerRepaint(); });
     });
-    if (CS) {   // continuous depth: compressed sheets fetched 4 at a time in time order; decoded on the GPU only near the replay time
+    if (CS) {   // continuous depth: every compressed sheet fetched before the replay opens (6 at a time, in time order); decoded on the GPU near the replay time
       depth.setCCount(CS.length);
       var nextC = 0, firstC = [];
       var pump = function () {
         if (nextC >= CS.length) return Promise.resolve();
         var i = nextC++;
-        return getBlob(dbase() + CS[i]).then(function (b) { depth.addCBlob(i, b); if (i < 4) progress(); }, function () { if (i < 4) progress(); }).then(pump);
+        return getBlob(dbase() + CS[i]).then(function (b) { depth.addCBlob(i, b); progress('Loading the whole storm… ' + (done + 1) + ' of ' + total); }, function () { progress(); }).then(pump);
       };
-      for (var k = 0; k < 4; k++) firstC.push(pump());
+      for (var k = 0; k < 6; k++) firstC.push(pump());
+      jobs.push(Promise.all(firstC));
     }
     if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) { IMP = p; IMPSEG = {}; p.seg.forEach(function (sid) { IMPSEG[sid] = 1; }); } return null; }).catch(function () { return null; })]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
@@ -2212,17 +2218,17 @@
     }
     function addNet(fc) {
       if (map.getSource('mnet')) { map.getSource('mnet').setData(fc); return; }
-      map.addSource('mnet', { type: 'geojson', data: fc, tolerance: 0.6 });
-      map.addLayer({ id: 'mnet', type: 'line', source: 'mnet', minzoom: 8.5, layout: { 'line-join': 'round', 'line-cap': 'round' },
+      map.addSource('mnet', { type: 'geojson', data: fc, tolerance: 0, buffer: 64 });   // tolerance 0: every bend kept at every zoom
+      map.addLayer({ id: 'mnet', type: 'line', source: 'mnet', layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: { 'line-color': (basemap() === 'dark' || basemap() === 'night') ? '#5d646c' : basemap() === 'satellite' ? 'rgba(255,255,255,.3)' : basemap() === 'map' ? '#34404A' : '#a7afb6',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'c'], 0, 0.35, 0.8], 12, ['match', ['get', 'c'], 0, 0.8, 1.6], 14, ['match', ['get', 'c'], 0, 1.2, 2.2]],
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 0.9, 13.5, 0.9, 14.5, 0.25] } }, map.getLayer('bmv-path') ? 'bmv-path' : map.getLayer('net-case') ? 'net-case' : undefined);   // under the map's own streets
+          'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 8, ['match', ['get', 'c'], 0, 0.3, 0.7], 11, ['match', ['get', 'c'], 0, 0.7, 1.4], 14, ['match', ['get', 'c'], 0, 1.4, 2.6], 17, ['match', ['get', 'c'], 0, 4, 7]],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, ['match', ['get', 'c'], 0, 0.28, 0.7], 10.5, ['match', ['get', 'c'], 0, 0.55, 0.9], 12.5, 0.95, 15, 0.95, 16.5, 0.6] } }, map.getLayer('bmv-path') ? 'bmv-path' : map.getLayer('net-case') ? 'net-case' : undefined);   // under the map's own streets
     }
     // the run's own network first (its segments' length and traffic for the road panel), then, without holding up the page, the whole
     // District 3 network (every MassDOT segment) so the street pattern shows from district zoom in every replay
     var netBig = false;
     jobs.push(getJson(base + 'network.json').then(function (N) { var fc = netFeats(N); whenStyle(function () { if (!netBig) addNet(fc); }); }).catch(function () { }));
-    setTimeout(function () { getJson(D3NET).then(function (D) { var fc = netFeats(D); netBig = true; whenStyle(function () { addNet(fc); }); }).catch(function () { }); }, 1500);
+    jobs.push(getJson(D3NET).then(function (D) { var fc = netFeats(D); netBig = true; whenStyle(function () { addNet(fc); }); progress(); }).catch(function () { progress(); }));
     if (!WHATIF && runKey === 'leominster_sep2023') jobs.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
       return getBitmap(WI + ix.terrain.sheet).then(function (im) { flowLayer.setChannels(im); });
     }).catch(function () {}));
@@ -2282,7 +2288,7 @@
       var p = f.properties;
       if (p.d || p.iv || p.e || WION) { var sg = { id: f.id, d: p.d || (WION ? [] : null), iv: p.iv || [], e: p.e || null, v: -1, f: f }; segs.push(sg); segById[f.id] = sg; }
     });
-    map.addSource('roads', { type: 'geojson', data: g, tolerance: 0.2 });
+    map.addSource('roads', { type: 'geojson', data: g, tolerance: 0, buffer: 64 });
     var RS = 'roads';
     if (PCS) { // road state drawn per ~40 m piece, only where the map shows water on the piece (pieces.json)
       map.addSource('pieces', { type: 'geojson', data: { type: 'FeatureCollection', features: PCS.seg.map(function (sid, i) { return { type: 'Feature', id: i, properties: { s: sid }, geometry: { type: 'LineString', coordinates: PCS.lines[i] } }; }) }, tolerance: 0.2 });
@@ -3457,6 +3463,7 @@
     var dt = Math.min(0.1, (now - last) / 1000); last = now;
     var v = t + dt * speed * (60 / meta.frame_min);
     if (v >= nf - 1) { setTime(nf - 1); setPlaying(false); return; }
+    if (!depth.readyAt(Math.floor(v) + 1)) { requestAnimationFrame(tick); return; }   // wait for the frame rather than show an old one
     setTime(v);
     followTick(false);
     requestAnimationFrame(tick);
