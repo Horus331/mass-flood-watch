@@ -76,6 +76,7 @@ def edge_points(xy, along=None, d0=0.0):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--box', required=True); ap.add_argument('--segments', required=True)
     ap.add_argument('--town', default=''); ap.add_argument('--out', required=True); ap.add_argument('--cache', default='')
+    ap.add_argument('--win_thr', type=float, default=11000.0)   # fixed v2 threshold, m2 (PREREG_RQ1_V2.md)
     a = ap.parse_args()
     from pyproj import Transformer
     from scipy.ndimage import maximum_filter
@@ -146,8 +147,9 @@ def main():
     allw = [v for m in win.values() for v in m.values()]; T2 = float(np.percentile(allw, 95)) if allw else None
     for k, m in win.items():
         if str(k) in out and m:
-            out[str(k)].update(windows=len(m), spi_window_max=round(max(m.values()), 2), spi_window_share=round(sum(v > T2 for v in m.values()) / len(m), 3))
-    json.dump(dict(made_by='proto/edge_spi.py', spec='docs/proto/paper2/RQ1_INDEX_SPEC.md (+ v2 fields: PREREG_RQ1_V2_DRAFT.md)', v2_window_p95=round(T2, 2) if T2 else None, box=[X0, Y0, X1, Y1], town=a.town,
+            out[str(k)].update(windows=len(m), spi_window_max=round(max(m.values()), 2), spi_window_share=round(sum(v > T2 for v in m.values()) / len(m), 3),
+                               spi_window_share_fixed=round(sum(v > a.win_thr for v in m.values()) / len(m), 3))
+    json.dump(dict(made_by='proto/edge_spi.py', spec='docs/proto/paper2/RQ1_INDEX_SPEC.md (+ v2 fields: PREREG_RQ1_V2_DRAFT.md)', v2_window_p95=round(T2, 2) if T2 else None, v2_fixed_thr_m2=a.win_thr, box=[X0, Y0, X1, Y1], town=a.town,
                    step_m=STEP, offsets_m=list(OFFS), spi_p95_all_points=round(T, 2), tiles=meta, segments=out), open(a.out, 'w'), indent=0)
     print('wrote', a.out, len(out), 'segments; p95 SPI', round(T, 2))
 
