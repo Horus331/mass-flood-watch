@@ -166,4 +166,63 @@ stream-crossing surveys (Beaman Road, Commercial Street and Route 2 at Dewey Str
 | Negative control: model closures | 2.68 | 1.46 – 4.91 |
 <!-- src: groundwater/PREREG_A_RESULT.md -->
 
-**Table 3.** Culvert inspection list: `paper2/RQ3_INSPECTION_LIST.md` (to be condensed to the seven locations).
+**Table 3. Culvert locations whose blockage closes roads in the September 2023 run (Leominster).** Pool rise = rise upstream of the
+crossing with the culvert fully blocked; condition from NAACC surveys.
+
+| Location (stream) | Roads that close only when blocked | Pool rise | Survey rating |
+|---|---|---|---|
+| Route 2 / Dewey St / Columbia Ave | Route 2 and ramp, Dewey St, Columbia Ave, Minneapolis Ave | +0.4 to +2.0 m | OK; one inlet Poor |
+| Commercial St / Putnam St / railroad (North Nashua River) | Boulder Dr, Putnam St | +2.1 to +4.0 m | Commercial St: **Poor** |
+| Meadow Pond Dr | Meadowbrook Acres | +2.6 m | not surveyed |
+| Bathrick Rd | Bathrick Rd | +2.1 m | OK / Poor |
+| Justice Hill Rd (Rocky Brook) | Justice Hill Rd | +0.3 to +1.1 m | OK |
+| Beaman Rd (Wilder Brook) | Tanglewood Rd | +0.7 m | **Poor; inlet Critical** |
+| Pierce Ave / Olin Ave | Harvard Ave, Route 2 | +0.5 to +0.6 m | OK; one inlet Poor |
+<!-- src: phase1/PARAMETRIC_T2.md §3; paper2/RQ3_INSPECTION_LIST.md -->
+
+## 5. Discussion
+
+**Two failure modes, two indicators.** Flood depth predicts where water closes a road; it does not predict where the road is damaged. In
+Leominster most damage was edge washout on segments with almost no modelled water, and a measure of how much water runs along the road
+edge, and how steeply, finds those segments where depth does not. A screen for road agencies therefore needs both lists: one of roads
+likely to close, for warnings and detours, and one of road edges likely to wash out, for inspection after the storm.
+<!-- src: §4.1; paper/MANUSCRIPT.md -->
+
+**What the index measures.** Much of the raw signal of version 1 is length and stream crossings: long segments and segments next to
+crossings are where damage was recorded. That is not only an artefact. Crossings are where road and stream meet and where flow
+concentrates, and the culvert results show that blockage there floods nearby roads. But a useful index must say something beyond "long
+road near a stream", and the evidence that it does is modest (p = 0.016 once both are controlled). Version 2 separates the two mechanisms
+by design, scoring curb-line flow away from crossings and leaving crossings to the culvert readout.
+<!-- src: RQ1_RESULT.md post-hoc; PREREG_RQ1_V2_DRAFT.md; §4.3 -->
+
+**Groundwater as the slow link.** The association of damage with a shallow water table is real in the data but indistinguishable from the
+association of flooding with low, wet ground. The wells show why a same-storm signal is unlikely: the water table peaks days after the
+rain. The mechanism that would matter for the road is the saturated base and subgrade that pavement studies describe (Mallick et al.;
+Tao and Mallick, 2020); testing it needs pavement condition and deflection data, not more flood runs.
+<!-- src: §4.2; LITERATURE.md -->
+
+**For practice.** A town or district could compute the index for every road from public lidar in minutes per town, and use it with the
+closure list and the culvert list after a storm: inspect first the road edges with high index values, the culverts at the seven listed
+locations, and the closed roads.
+<!-- src: RQ1_RESULT.md (16 min, 712 segments); RQ1_V2_CHECK.md -->
+
+## 6. Limitations
+- **One storm, one town, in-sample.** Every Leominster result uses the closure model's calibration storm and 21 damaged segments. The
+  index has not yet been tested out of sample; version 2 is ready for four towns and waits for a second damage inventory.
+- **Damage labels.** A municipal list of 54 points, assigned to segments within 30 m; points cluster on a few streets.
+- **Terrain.** Lidar shows no storm drains or inlets, so the index describes flow along the edge if inlets are full or absent; D8 on a
+  filled surface; the acquisition date is the service's best available.
+- **Groundwater.** The seasonal water table comes from a soil survey of natural soils, not road fill; wells are 10–30 km apart; no
+  pavement or subgrade observations.
+- **Culverts.** Blockage scenarios are uniform what-ifs, not observed blockage; survey ratings are partial and may be dated.
+
+## Abstract (draft, ≤ 200 words)
+Road-flood models predict where water closes roads, but road agencies repair damage, and damage does not need deep water. After the
+11 September 2023 flash flood in Leominster, Massachusetts, 50 of 54 recorded damage points were washouts, many on roads a closure model
+left almost dry. We test, with pre-registered analyses, three links that follow flooding: flow along road edges, groundwater under the
+road, and blocked culverts. A road-edge stream-power index from 1 m lidar separates the 21 damaged segments from 691 undamaged ones
+(AUC 0.85 [0.78, 0.92]) and adds to modelled depth and traffic, but segment length and stream crossings explain much of it, and it still
+adds only modestly once they are controlled. Damage is more common where the seasonal water table is shallow (odds ratio 2.7 with terrain
+held constant), but surface flooding shows the same association, and wells show the water table peaking days after the storm. Blocked
+culverts flood nearby roads but explain none of the missed damage; seven locations form an inspection list. All results are in-sample;
+a revised index is ready for an out-of-sample test when a second damage inventory becomes available.
