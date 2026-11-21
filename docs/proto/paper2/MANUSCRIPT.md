@@ -44,7 +44,7 @@ rain), which also supplies modelled peak depth and road traffic for each segment
 
 **Damage inventory.** The City of Leominster Department of Public Works listed 54 damage points after the storm: 50 washouts, 2 culvert
 failures and 2 others. A point is assigned to the nearest road segment within 30 m; the unit of analysis is the segment, so clusters of
-points on one street count once.
+points on one street count once. Fifty-two of the 54 points lie within 30 m of a segment with all the data used here.
 <!-- src: proto/data/labels_sep2023_leominster_dpw.csv; groundwater/SCOUT.md §6; groundwater/PREREG_A.md (30 m, unit = segment) -->
 
 **Elevation.** Bare-earth elevation at 1 m from the USGS 3D Elevation Program image service (best available lidar), fetched in 4 km tiles
@@ -167,7 +167,7 @@ stream-crossing surveys (Beaman Road, Commercial Street and Route 2 at Dewey Str
 <!-- src: groundwater/PREREG_A_RESULT.md -->
 
 **Table 3. Culvert locations whose blockage closes roads in the September 2023 run (Leominster).** Pool rise = rise upstream of the
-crossing with the culvert fully blocked; condition from NAACC surveys.
+crossing with the culvert fully blocked (range over the structures at the location); condition from NAACC surveys.
 
 | Location (stream) | Roads that close only when blocked | Pool rise | Survey rating |
 |---|---|---|---|
@@ -201,10 +201,10 @@ rain. The mechanism that would matter for the road is the saturated base and sub
 Tao and Mallick, 2020); testing it needs pavement condition and deflection data, not more flood runs.
 <!-- src: §4.2; LITERATURE.md -->
 
-**For practice.** A town or district could compute the index for every road from public lidar in minutes per town, and use it with the
+**For practice.** A town or district could compute the index for every road from public lidar in 15–20 minutes per town on a free cloud runner (six runs, 600–4,400 segments), and use it with the
 closure list and the culvert list after a storm: inspect first the road edges with high index values, the culverts at the seven listed
 locations, and the closed roads.
-<!-- src: RQ1_RESULT.md (16 min, 712 segments); RQ1_V2_CHECK.md -->
+<!-- src: GitHub runs 44734954765, 44742669478, 44843535809–44843554476 (14–20 min); RQ1_V2_CHECK.md -->
 
 ## 6. Limitations
 - **One storm, one town, in-sample.** Every Leominster result uses the closure model's calibration storm and 21 damaged segments. The
