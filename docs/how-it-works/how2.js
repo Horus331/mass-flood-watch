@@ -70,6 +70,45 @@
     document.addEventListener('click', function () { if (tip) { tip.remove(); tip = null; } });
   }
 
+
+  // ---------- zoom and pan inside a step picture (buttons, double-click, drag, pinch; the wheel once zoomed or with Ctrl) ----------
+  function zoomify(fig) {
+    var img = fig.querySelector('img'); if (!img || fig._z) return;
+    var Z = fig._z = { s: 1, x: 0, y: 0 }, items = [];
+    function collect() { items = Array.prototype.filter.call(fig.children, function (e) { return e !== img && !e.classList.contains('zbar') && e.style.left; })
+      .map(function (e) { if (e.dataset.bx == null) { e.dataset.bx = parseFloat(e.style.left); e.dataset.by = parseFloat(e.style.top); } return e; }); }
+    function clamp() { Z.s = Math.max(1, Math.min(6, Z.s)); var lo = 100 - 100 * Z.s; Z.x = Math.min(0, Math.max(lo, Z.x)); Z.y = Math.min(0, Math.max(lo, Z.y)); }
+    function apply() {
+      clamp(); img.style.transformOrigin = '0 0'; img.style.transform = 'translate(' + Z.x + '%,' + Z.y + '%) scale(' + Z.s + ')';
+      if (!items.length) collect();
+      items.forEach(function (e) { var x = +e.dataset.bx * Z.s + Z.x, y = +e.dataset.by * Z.s + Z.y; e.style.left = x + '%'; e.style.top = y + '%'; e.style.display = (x < -2 || x > 102 || y < -2 || y > 102) ? 'none' : ''; });
+      fig.classList.toggle('zoomed', Z.s > 1.01); rs.disabled = Z.s <= 1.01;
+    }
+    function zoomAt(f, px, py) { var r = fig.getBoundingClientRect(), u = (px - r.left) / r.width * 100, v = (py - r.top) / r.height * 100, s0 = Z.s; Z.s *= f; clamp(); var k = Z.s / s0; Z.x = u - (u - Z.x) * k; Z.y = v - (v - Z.y) * k; apply(); }
+    var bar = document.createElement('div'); bar.className = 'zbar';
+    bar.innerHTML = '<button type="button" aria-label="Zoom in">+</button><button type="button" aria-label="Zoom out">−</button><button type="button" aria-label="Reset zoom">⤢</button>';
+    fig.appendChild(bar); var bs = bar.querySelectorAll('button'), rs = bs[2];
+    var mid = function () { var r = fig.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+    bs[0].onclick = function (e) { e.stopPropagation(); var m = mid(); zoomAt(1.6, m[0], m[1]); };
+    bs[1].onclick = function (e) { e.stopPropagation(); var m = mid(); zoomAt(1 / 1.6, m[0], m[1]); };
+    rs.onclick = function (e) { e.stopPropagation(); Z.s = 1; Z.x = Z.y = 0; apply(); };
+    fig.addEventListener('dblclick', function (e) { if (e.target.closest('.zbar,.rep')) return; zoomAt(e.shiftKey ? 1 / 2 : 2, e.clientX, e.clientY); });
+    fig.addEventListener('wheel', function (e) { if (Z.s <= 1.01 && !e.ctrlKey) return; e.preventDefault(); zoomAt(Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY); }, { passive: false });
+    var drag = null, pts = {};
+    fig.addEventListener('pointerdown', function (e) { if (e.target.closest('.zbar,.rep')) return; pts[e.pointerId] = [e.clientX, e.clientY];
+      if (Object.keys(pts).length === 1 && Z.s > 1.01) { drag = [e.clientX, e.clientY, Z.x, Z.y]; fig.setPointerCapture(e.pointerId); } });
+    fig.addEventListener('pointermove', function (e) {
+      if (!pts[e.pointerId]) return; var prev = pts[e.pointerId]; pts[e.pointerId] = [e.clientX, e.clientY]; var ks = Object.keys(pts);
+      if (ks.length === 2) { var a = pts[ks[0]], b = pts[ks[1]], pa = ks[0] == e.pointerId ? prev : a, pb = ks[1] == e.pointerId ? prev : b;
+        var d0 = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]), d1 = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d0 > 0) zoomAt(d1 / d0, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); drag = null; return; }
+      if (drag) { var r = fig.getBoundingClientRect(); Z.x = drag[2] + (e.clientX - drag[0]) / r.width * 100; Z.y = drag[3] + (e.clientY - drag[1]) / r.height * 100; apply(); } });
+    var up = function (e) { delete pts[e.pointerId]; drag = null; };
+    fig.addEventListener('pointerup', up); fig.addEventListener('pointercancel', up);
+    var hint = document.createElement('p'); hint.className = 'zhint'; hint.textContent = 'Double-click or press + to zoom in; drag to move around.'; fig.after(hint);
+    fig._zreset = function () { items = []; Z.s = 1; Z.x = Z.y = 0; apply(); };
+    apply();
+  }
+
   // ---------- legends and numbers ----------
   function legends() {
     $('#lg-rain').innerHTML = [['#9ee08c', '0.5'], ['#3eb34e', '2.5'], ['#f7d320', '10'], ['#ff8c00', '25'], ['#de1e2d', '50+']].map(function (c) { return '<span><i class="sw" style="background:' + c[0] + '"></i>' + c[1] + '</span>'; }).join('') + '<span style="color:var(--s-mut)">mm per hour</span>';
@@ -214,7 +253,7 @@
   }
 
   fetch(BASE + 'anchors.json').then(function (r) { return r.json(); }).then(function (j) {
-    A = j; buildMaps(); legends(); numbers('fire_station'); accessToggle(); stack(); stepbar();
+    A = j; buildMaps(); document.querySelectorAll('.mapfig').forEach(zoomify); legends(); numbers('fire_station'); accessToggle(); stack(); stepbar();
   }).catch(function (e) { console.error('how it works', e); });
   fetch('model-tree/tree.json').then(function (r) { return r.json(); }).then(tree).catch(function (e) { console.error('tree', e); });
 })();

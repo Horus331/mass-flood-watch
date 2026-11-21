@@ -14,7 +14,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); D = f'{ROOT}/docs/how-it-works/sketch'
-W, H, MPP = 1200, 1080, 5.0                     # layer pixels, metres per pixel
+W, H, MPP = 2400, 2160, 2.5                     # layer pixels (2.5 m each): sharp enough to see buildings on the aerial photo
+SW, SH = 1200, 1080                              # the tilted stack is drawn from half-size layers
 J = json.load(open(f'{D}/sketch.json'))
 X0, Y0, X1, Y1 = J['box_epsg26986']
 
@@ -35,6 +36,19 @@ def hillshade():
     az, alt = math.radians(315), math.radians(42)
     hs = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - asp)
     return z, np.clip(hs, 0, 1)
+
+
+AER = None
+
+
+def aerial(grey=0.0, veil=0.22):
+    """MassGIS 2023 orthophoto (proto/howit_aerial.py) at layer size, optionally partly greyed and veiled so overlays stay readable."""
+    global AER
+    if AER is None:
+        AER = np.asarray(Image.open(f'{D}/aerial2m.jpg').convert('RGB').resize((W, H), Image.LANCZOS), np.float32)
+    a = AER.copy()
+    if grey: g = a.mean(axis=2, keepdims=True); a = a * (1 - grey) + g * grey
+    return np.clip(a * (1 - veil) + 255 * veil, 0, 255).astype(np.uint8)
 
 
 def up(a, mode=Image.BILINEAR):
@@ -66,11 +80,11 @@ def water_overlay(rgb, dep):
     return (rgb * (1 - al[..., None]) + col * al[..., None]).astype(np.uint8)
 
 
-def road_lines(draw, roads, color_fn, width_fn, scale=1.0):
+def road_lines(draw, roads, color_fn, width_fn, scale=1.0, wmul=1.5):
     for r in roads:
         c = color_fn(r)
         if c is None: continue
-        w = max(1, int(round(width_fn(r) * scale)))
+        w = max(1, int(round(width_fn(r) * scale * wmul)))
         for part in r['parts']:
             pts = [(x / MPP * scale, y / MPP * scale) for x, y in part]
             if len(pts) > 1: draw.line(pts, fill=c, width=w, joint='curve')
@@ -82,7 +96,8 @@ def base_w(r): return {0: 2, 1: 3, 2: 4}.get(min(r['cls'], 2), 2)
 def layer_roads(rgb, roads, mode='status', service=None, ss=2):
     """Roads drawn at ss x then reduced (anti-aliasing). mode: 'grey' all grey; 'status' grey + coloured status; 'access' lost coverage."""
     im = Image.fromarray(rgb).resize((W * ss, H * ss), Image.BILINEAR); dr = ImageDraw.Draw(im)
-    grey = (150, 158, 166) if mode != 'grey' else (120, 128, 136)
+    grey = (255, 255, 255) if mode != 'grey' else (250, 250, 250)
+    road_lines(dr, roads, lambda r: (60, 64, 70), lambda r: base_w(r) + 1.2, ss)   # dark casing so streets read on the photo
     road_lines(dr, roads, lambda r: grey, base_w, ss)
     if mode == 'status':
         for st in ('wet', 'risk', 'closed'):
@@ -96,11 +111,11 @@ def layer_roads(rgb, roads, mode='status', service=None, ss=2):
 
 
 def rain_layer(z, hs):
-    g = ground_rgb(z, hs, tint=False, light=0.55).astype(float)
+    g = aerial(grey=0.5, veil=0.35).astype(float)
     R = np.load(f'{D}/rain.npy'); rr = np.asarray(Image.fromarray(R).resize((W, H), Image.NEAREST))
     col = np.zeros(rr.shape + (3,)); al = np.zeros(rr.shape)
     for t, c in RAIN:
-        m = rr >= t; col[m] = c; al[m] = 0.66
+        m = rr >= t; col[m] = c; al[m] = 0.55
     return (g * (1 - al[..., None]) + col * al[..., None]).astype(np.uint8), R
 
 
@@ -126,7 +141,7 @@ SX, SHX, SY, SS = 0.62, 0.30, 0.25, 2          # u scale, shear per v, v scale, 
 
 
 def stack(layers, gap=0.95, thick=12):
-    sw, sh = W * SX + H * SHX, H * SY                       # slab footprint (1x)
+    sw, sh = SW * SX + SH * SHX, SH * SY                       # slab footprint (1x)
     step = sh * gap; mx, my = 30, 24
     CW = int((sw + 2 * mx) * SS); CH = int((sh + step * (len(layers) - 1) + thick + 2 * my + 16) * SS)
     can = Image.new('RGBA', (CW, CH), (0, 0, 0, 0)); geo = []
@@ -138,19 +153,19 @@ def stack(layers, gap=0.95, thick=12):
         P = lambda u, v: (ox + sx * u + shx * v, oy + sy * v)
         # shadow and edge first, then the face
         sh_ = Image.new('RGBA', can.size, (0, 0, 0, 0)); ds = ImageDraw.Draw(sh_)
-        q = [P(0, 0), P(W, 0), P(W, H), P(0, H)]
+        q = [P(0, 0), P(SW, 0), P(SW, SH), P(0, SH)]
         ds.polygon([(x + 6 * SS, y + (thick + 10) * SS) for x, y in q], fill=(20, 40, 60, 70))
         can.alpha_composite(sh_.filter(ImageFilter.GaussianBlur(9 * SS)))
         de = ImageDraw.Draw(can)
-        de.polygon([P(0, H), P(W, H), (P(W, H)[0], P(W, H)[1] + thick * SS), (P(0, H)[0], P(0, H)[1] + thick * SS)], fill=(150, 160, 170, 255))
-        de.polygon([P(0, 0), P(0, H), (P(0, H)[0], P(0, H)[1] + thick * SS), (P(0, 0)[0], P(0, 0)[1] + thick * SS)], fill=(176, 184, 192, 255))
+        de.polygon([P(0, SH), P(SW, SH), (P(SW, SH)[0], P(SW, SH)[1] + thick * SS), (P(0, SH)[0], P(0, SH)[1] + thick * SS)], fill=(150, 160, 170, 255))
+        de.polygon([P(0, 0), P(0, SH), (P(0, SH)[0], P(0, SH)[1] + thick * SS), (P(0, 0)[0], P(0, 0)[1] + thick * SS)], fill=(176, 184, 192, 255))
         face = src.transform(can.size, Image.AFFINE, (a, b, c, d, e, f), resample=Image.BICUBIC, fillcolor=(0, 0, 0, 0))
         can.alpha_composite(face)
         de.line(q + [q[0]], fill=(255, 255, 255, 200), width=2 * SS)
         geo.append(dict(k=k, ox=ox, oy=oy))
     geo.sort(key=lambda g: g['k'])
     def proj(k, xm, ym):          # metres in the box -> % of the stack image
-        g = geo[k]; u, v = xm / MPP, ym / MPP
+        g = geo[k]; u, v = xm / (MPP * W / SW), ym / (MPP * H / SH)
         return [round(100 * (g['ox'] + SX * SS * u + SHX * SS * v) / CW, 2), round(100 * (g['oy'] + SY * SS * v) / CH, 2)]
     return can, proj, (CW, CH)
 
@@ -160,18 +175,23 @@ def closeup(dep, r, z, hs, pad=170, out=900):
     P = np.vstack([np.array(p) for p in r['parts']]); cx, cy = P[:, 0].mean(), P[:, 1].mean()
     half = max(np.ptp(P[:, 0]), np.ptp(P[:, 1])) / 2 + pad
     bx0, by0 = cx - half, cy - half; s = out / (2 * half)          # px per metre
-    im = Image.new('RGB', (out, out), PAPER); dr = ImageDraw.Draw(im)
+    A0 = aerial(grey=0.45, veil=0.12); k = W / (W * MPP)            # aerial px per metre
+    crop = Image.fromarray(A0).crop((int(bx0 * k), int(by0 * k), int((bx0 + 2 * half) * k), int((by0 + 2 * half) * k))).resize((out, out), Image.LANCZOS)
+    im = crop.convert('RGBA'); ov = Image.new('RGBA', (out, out), (0, 0, 0, 0)); dr0 = ImageDraw.Draw(ov)
     c0, c1 = int(bx0 // 20), int((bx0 + 2 * half) // 20) + 1; r0, r1 = int(by0 // 20), int((by0 + 2 * half) // 20) + 1
     for rr in range(max(r0, 0), min(r1, dep.shape[0])):
         for cc in range(max(c0, 0), min(c1, dep.shape[1])):
             v = float(dep[rr, cc]); x = (cc * 20 - bx0) * s; y = (rr * 20 - by0) * s
-            g = int(228 + 22 * hs[min(rr, hs.shape[0] - 1), min(cc, hs.shape[1] - 1)] - 12)
-            col = tuple(int(t) for t in lerp_ramp(np.array([v]), DEPTH)[0]) if v >= 0.01 else (g, g, g - 6)
-            dr.rectangle([x, y, x + 20 * s, y + 20 * s], fill=col, outline=(255, 255, 255), width=1)
+            if v >= 0.01:
+                col = tuple(int(t) for t in lerp_ramp(np.array([v]), DEPTH)[0])
+                dr0.rectangle([x, y, x + 20 * s, y + 20 * s], fill=col + (int(150 + 90 * min(v / 0.3, 1)),), outline=(255, 255, 255, 120), width=1)
+            else:
+                dr0.rectangle([x, y, x + 20 * s, y + 20 * s], outline=(255, 255, 255, 70), width=1)
+    im = Image.alpha_composite(im, ov).convert('RGB'); dr = ImageDraw.Draw(im)
     for q in J['roads']:
         for part in q['parts']:
             pts = [((x - bx0) * s, (y - by0) * s) for x, y in part]
-            if len(pts) > 1: dr.line(pts, fill=(90, 98, 106), width=3 if q['id'] != r['id'] else 10)
+            if len(pts) > 1: dr.line(pts, fill=(255, 255, 255), width=3 if q['id'] != r['id'] else 10)
     dots = []
     for part in r['parts']:
         Pp = np.array(part)
@@ -196,14 +216,13 @@ def main():
     A = dict(made_by='proto/howit_sketch_render.py', time=J['time_local'], layers={}, counts=J['counts'])
     meta = json.load(open(f'{ROOT}/docs/site/data/leominster_sep2023/meta.json'))
     rain, R = rain_layer(z, hs); save(rain, 'L_rain.png')
-    ground = ground_rgb(z, hs); g_roads = layer_roads(ground, roads, 'grey'); save(g_roads, 'L_ground.png')
-    pale = ground_rgb(z, hs, light=0.35)
-    water = water_overlay(pale, dep); save(water, 'L_water.png')
-    st = layer_roads(ground_rgb(z, hs, tint=False, light=0.45), roads, 'status'); save(st, 'L_roads.png')
+    ground = ground_rgb(z, hs); g_roads = layer_roads((ground * 0.78 + aerial(grey=0.6, veil=0.0) * 0.22).astype(np.uint8), roads, 'grey'); save(g_roads, 'L_ground.png')
+    water = water_overlay(aerial(grey=0.35, veil=0.18), dep); save(water, 'L_water.png')
+    st = layer_roads(aerial(grey=0.7, veil=0.25), roads, 'status'); save(st, 'L_roads.png')
     acc = {}
     for s in ('fire_station', 'hospital', 'police'):
-        acc[s] = layer_roads(ground_rgb(z, hs, tint=False, light=0.5), roads, 'access', s); save(acc[s], f'L_access_{s}.png')
-    chk = layer_roads(ground_rgb(z, hs, tint=False, light=0.5), roads, 'check'); save(chk, 'L_check.png')
+        acc[s] = layer_roads(aerial(grey=0.75, veil=0.28), roads, 'access', s); save(acc[s], f'L_access_{s}.png')
+    chk = layer_roads(aerial(grey=0.75, veil=0.28), roads, 'check'); save(chk, 'L_check.png')
 
     # ---- anchors (metres in the box)
     km = lambda rs: round(sum(sum(np.hypot(*np.diff(np.array(p), axis=0).T).sum() for p in r['parts']) for r in rs) / 1000, 1)
@@ -261,7 +280,8 @@ def main():
                         m_per_px=round(1 / s, 3))
 
     # ---- the stack (top to bottom: rain, ground, water, roads, access)
-    can, proj, size = stack([rain, g_roads, water, st, acc['fire_station']])
+    half = lambda a: np.asarray(Image.fromarray(a).resize((SW, SH), Image.LANCZOS))
+    can, proj, size = stack([half(x) for x in (rain, g_roads, water, st, acc['fire_station'])])
     can.save(f'{D}/stack.webp', quality=90, method=6)
     def P(k, pos): return proj(k, pos[0] / 100 * W * MPP, pos[1] / 100 * H * MPP)
     A['stack'] = dict(size=size, corners=[[proj(k, 0, 0), proj(k, W * MPP, 0), proj(k, W * MPP, H * MPP), proj(k, 0, H * MPP)] for k in range(5)],
