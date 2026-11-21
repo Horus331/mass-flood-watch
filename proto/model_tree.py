@@ -494,7 +494,7 @@ def public_copy(T):
     import re
     def scrub(o):
         if isinstance(o, dict): return {k: ([] if k == 'code' else scrub(v)) for k, v in o.items()}
-        if isinstance(o, list): return [scrub(x) for x in o if not (isinstance(x, dict) and 'github.com/Horus331' in json.dumps(x))]
+        if isinstance(o, list): return [scrub(x) for x in o if not (isinstance(x, dict) and 'github.com/Horus331' in str(x.get('url', '')))]
         if isinstance(o, str): return re.sub(r'https://github\.com/Horus331/mass-flood-watch\S*', '', o)
         return o
     return scrub(T)
