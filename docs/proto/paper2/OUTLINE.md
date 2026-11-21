@@ -10,6 +10,9 @@ Every number below has its source file; all Leominster results are in-sample (Se
 - Gap: road-flood models score inundation; road agencies repair erosion. Cascade framing (Yanites et al. 2025; Gill & Malamud 2014):
   rain → surface flow along the road → edge erosion / subgrade weakening → road failure.
 
+- Key prior work (`paper2/LITERATURE.md`): Anderson et al. 2017 (stream power vs Irene bridge damage, Vermont); Tao & Mallick 2020
+  (LTRC 615, flooded-pavement assessment); Mallick, Tao et al. 2014/15 (time to base saturation and surface failure).
+
 ## 2. Study area and data
 - Leominster, Sept 2023 (calibration storm, 54 DPW points, 21 damaged segments of 712 with lidar coverage).
 - 1 m 3DEP lidar (USGS image service); the Paper 1 flood run on the T2 terrain; SSURGO seasonal high water table; 23 USGS 15-minute wells;
@@ -26,10 +29,14 @@ Every number below has its source file; all Leominster results are in-sample (Se
 ## 4. Results
 4.1 Edge index vs damage (in-sample, `paper2/RQ1_RESULT.md`): AUC 0.85 [0.78, 0.92]; adds over depth + traffic (p = 0.0001); 5 of 8
     missed washout segments in the top 10 %. Post-hoc: length (AUC 0.87) and crossings (0.83) explain much of it; with both controlled
-    the index still adds (p = 0.016). v2 is length-neutral (rank correlation with length 0.36 vs 0.65; `RQ1_V2_CHECK.md`).
+    the index still adds (p = 0.016). Fragility view: damage rate 0.3 % in the bottom half of segments, 22 % in the 90–95th percentile band,
+    11 % in the top 5 % (crossing values) (`RQ1_RESULT.md`, `fig/fragility_spi.png`). v2 is length-neutral (rank correlation with length
+    0.36 vs 0.65) and is computed, unseen against damage, for Leominster, Fitchburg, Worcester and Northbridge (`RQ1_V2_CHECK.md`).
 4.2 Groundwater (`groundwater/PREREG_A_RESULT.md`): odds ratio 2.70 [1.02, 7.12] for damage on a water table ≤ 50 cm with terrain held
     constant, but surface-water closures show the same association (2.68): not separable from wet low ground with this data.
     Wells: water tables peak 4–7 days after storms; 36 % of District road length sits on a water table within 50 cm (`groundwater/SCOUT.md`).
+    Antecedent wetness before 25 storms (median percentile 80) does not track the model's gauge bias or recall (rank correlations
+    −0.35 to +0.05; `groundwater/ANTECEDENT_DESCRIPTIVE.md`): groundwater acts on the subgrade over days, not on same-storm runoff.
 4.3 Culverts: blockage raises pools 0.6–2.3 m and closes 8–82 more segments near crossings, but explains none of the missed damage;
     robust top-9 inspection list (`phase1/PARAMETRIC_T2.md`).
 4.4 Out-of-sample test of index v2 on the second inventory [pending data].
