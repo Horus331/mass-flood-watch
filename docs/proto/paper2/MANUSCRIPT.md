@@ -17,12 +17,12 @@ and shoulders and erodes them; water that stays in the ground raises the water t
 The distinction between a hazard that triggers the next one and hazards that merely coincide is central to the cascading-hazard
 literature (Gill and Malamud, 2014; Pescaroli and Alexander, 2015; Yanites et al., 2025), but road-flood studies rarely follow the chain
 past inundation.
-<!-- src: PROJECT_LOG §4 (14 Nov, cascading framing); RESEARCH_LOG 3.3 -->
+<!-- src: PROJECT_LOG §4 (14 Nov, cascading framing); RESEARCH_LOG 3.3 (Gill & Malamud 2014, Rev. Geophys. 52:680–722; Pescaroli & Alexander 2015, Planet@Risk 3(1); Yanites et al. 2025, Science 388, eadp9559) -->
 
 Two strands of work point to the missing link. For bridges, stream power separates structures damaged by Tropical Storm Irene in
 Vermont from undamaged ones (313 damaged against 951 undamaged; Anderson et al., 2017), and has been turned into damage-probability
 curves; but the analysis works at the scale of stream reaches, with design flows rather than the storm's own, and reports no predictive
-test. For pavements, the time a flooded base takes to saturate and the surface to fail has been modelled (Mallick et al., 2015), and
+test. For pavements, the time a flooded base takes to saturate and the surface to fail has been modelled (Mallick et al., 2015 [year to confirm: 2014 or 2015]), and
 practice for assessing flood damage to roads has been reviewed, showing that water in the unbound layers does the most structural damage
 (Tao and Mallick, 2020). Neither has been applied to the road edges of an ordinary town network, or tested against a recorded damage list.
 <!-- src: paper2/LITERATURE.md (Anderson et al. 2017 VTrans report, ch. 3–4; Tao & Mallick 2020 LTRC 615; Mallick, Tao et al. 2014/15) -->
