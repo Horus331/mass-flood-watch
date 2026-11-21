@@ -6,6 +6,7 @@ Fig. 5  held-out District 3: site recall against flagged share, with 90 % CI and
 Fig. 6  benchmark v3: top-3 % site recall of the model, the π ranking and six baselines, District 3 held-out 23 and Districts 4-6 (81)
         (scoring/benchmark_v3.json), with the paired-bootstrap verdict of model minus each baseline
 Fig. 4  CN-scale calibration (scoring/leo48_cn0*/score.json if present, else parity/BASELINE.md table)
+Fig. S1 District 3 vulnerability layer, High / Medium / Low (arcgis/d3_road_flood_vulnerability.geojson)
 Fig. 11 Leominster deep dive (re-uses proto/phase1_figure.py)
 """
 import glob, json, os, subprocess, sys
@@ -258,9 +259,40 @@ def fig8():
     fig.tight_layout(); fig.savefig(f'{OUT}/fig8_forecast_rules.png'); plt.close(fig)
 
 
+def figS1():
+    """Supplement Fig. S1: District 3 static vulnerability layer, High / Medium / Low (docs/proto/arcgis, rule in README.md §7).
+    The GeoJSON holds every High and Medium segment and only the Low segments with >= 5 cm of modelled water; Low totals come from build_stats.json."""
+    from matplotlib.collections import LineCollection
+    from matplotlib.lines import Line2D
+    G = json.load(open(f'{P}/arcgis/d3_road_flood_vulnerability.geojson'))['features']
+    sty = {'Low': ('#c9c9c9', 0.35, 1), 'Medium': ('#e08a1e', 0.8, 2), 'High': ('#b3001b', 1.6, 3)}
+    segs = {k: [] for k in sty}; km = {k: 0.0 for k in sty}; n = {k: 0 for k in sty}
+    for f in G:
+        p = f['properties']; c = p['vuln']; n[c] += 1; km[c] += (p.get('len_m') or 0) / 1000
+        g = f['geometry']; parts = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]
+        segs[c] += [np.asarray(q)[:, :2] for q in parts if len(q) > 1]
+    lat0 = np.mean([s[:, 1].mean() for s in segs['High']])
+    fig, ax = plt.subplots(figsize=(7.2, 6.4), dpi=200)
+    for c, (col, lw, z) in sty.items():
+        ax.add_collection(LineCollection(segs[c], colors=col, linewidths=lw, zorder=z, capstyle='round'))
+    ax.autoscale(); ax.set_aspect(1 / np.cos(np.radians(lat0))); ax.set_xticks([]); ax.set_yticks([])
+    for s in ax.spines.values(): s.set_color(GRID)
+    full = {'High': (152, 102), 'Medium': (1267, 793), 'Low': (47526, None)}
+    lab = {c: f"{c}: {full[c][0]:,} segments" + (f", {full[c][1]:,} km" if full[c][1] else " (shown only where modelled water ≥ 5 cm)") for c in sty}
+    ax.legend([Line2D([], [], color=sty[c][0], lw=2.2) for c in ('High', 'Medium', 'Low')], [lab[c] for c in ('High', 'Medium', 'Low')],
+              loc='upper center', bbox_to_anchor=(0.5, -0.01), ncol=1, frameon=False, fontsize=7.5)
+    x0, x1 = ax.get_xlim(); y0, y1 = ax.get_ylim(); dx = 10 / (111.32 * np.cos(np.radians(lat0)))
+    bx, by = x1 - dx - 0.03 * (x1 - x0), y0 + 0.03 * (y1 - y0)
+    ax.plot([bx, bx + dx], [by, by], color=INK, lw=1.6, solid_capstyle='butt'); ax.text(bx + dx / 2, by + 0.012 * (y1 - y0), '10 km', ha='center', fontsize=7.5, color=INK)
+    ax.text(x1 - 0.03 * (x1 - x0), y1 - 0.04 * (y1 - y0), 'N ↑', ha='right', fontsize=8, color=INK)
+    fig.tight_layout(); fig.savefig(f'{OUT}/figS1_vulnerability.png', bbox_inches='tight'); plt.close(fig)
+    NUM['figS1'] = dict(source='docs/proto/arcgis/d3_road_flood_vulnerability.geojson; class totals README.md',
+                        drawn=n, drawn_km={k: round(v, 1) for k, v in km.items()}, totals={k: v[0] for k, v in full.items()})
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for f in (fig1, fig2, fig3, fig5, fig6, fig4, fig7, fig8):
+    for f in (fig1, fig2, fig3, fig5, fig6, fig4, fig7, fig8, figS1):
         try: f()
         except Exception as e: print(f.__name__, 'failed:', repr(e)[:300])
     subprocess.run([sys.executable, f'{ROOT}/proto/phase1_figure.py'], check=False)
