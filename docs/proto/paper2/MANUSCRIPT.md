@@ -97,3 +97,73 @@ upstream of each crossing is recorded. Crossings are ranked by the number of seg
 Each analysis was written down and committed to the project repository before it was run, with its reading rules; results are reported
 whatever they show, and analyses added after seeing a result are labelled post-hoc.
 <!-- src: paper/SUPPLEMENT.md S1 -->
+
+## 4. Results
+
+### 4.1 Road-edge stream power separates damaged segments, but length and crossings carry much of it
+The index was computed for 712 of the 716 Leominster segments in the storm box (540,000 edge points), 21 of them damaged. As
+pre-registered it reads **promising** (Table 1): the AUC of the segment maximum is 0.85 [0.78, 0.92]; adding it to modelled depth and
+traffic improves the model (likelihood-ratio p = 0.0001; AUC 0.90 → 0.92); and 5 of the 8 washout segments the closure rule missed are in
+the top 10 % of segments by the index. The result holds for washouts alone (AUC 0.86), without the most clustered street (0.84) and for
+the other summaries (0.80–0.86).
+<!-- src: paper2/RQ1_RESULT.md (pre-registered table); rq1_eval.json -->
+
+The post-hoc checks temper this. Segment length alone separates damaged segments almost as well (AUC 0.87), because a long segment has
+more chances to contain one of 54 points, and the maximum of more edge points is higher (rank correlation with length 0.65). Eighteen of
+the 21 damaged segments lie within 60 m of a road–stream crossing, and proximity to a crossing alone gives AUC 0.83. With depth, traffic,
+log length and distance to the nearest crossing all in the model, the index still adds information (p = 0.016; AUC 0.937 → 0.941), and
+among segments near crossings it separates damaged ones with AUC 0.74. The empirical damage rate rises from 0.3 % in the lower half of
+segments to 22 % in the 90–95th percentile band, then falls to 11 % in the top 5 %, where the largest values are edge points sitting on
+streams at crossings (Fig. 1). Version 2 of the index, built to remove both effects, is much less tied to length (rank correlation 0.36)
+and has been computed for Leominster, Fitchburg, Worcester and Northbridge without being compared with any damage.
+<!-- src: paper2/RQ1_RESULT.md (post-hoc and fragility sections); fragility_spi.json; RQ1_V2_CHECK.md -->
+
+### 4.2 A shallow water table goes with damage, but just as much with flooding
+Twenty-one damaged segments among 1,517 Leominster segments with a water-table value; 646 segments have a seasonal water table within 50 cm.
+Holding height above drainage and slope constant, damage is more likely on a shallow water table: Mantel–Haenszel odds ratio 2.70 [1.02,
+7.12], which meets the pre-registered rule (Table 2). It weakens without Wachusett Street (2.00 [0.72, 5.54]) and for washouts alone
+(2.49 [0.85, 7.29]), and strengthens when road class is also held constant (3.19 [1.14, 8.90]). The negative control decides the reading:
+the model's surface-water closures show the same association (2.68 [1.46, 4.91]). With this data a groundwater effect on the road
+structure cannot be told apart from wet, low ground flooding.
+<!-- src: groundwater/PREREG_A_RESULT.md; prereg_a.json -->
+
+The wells explain why. Around the district the water table rises a median 0.09 m within a week of a large storm, up to 0.93 m at shallow
+wells, and peaks 4–7 days after the rain, long after roads reopen. Across the 25 catalogue storms the ground was usually already wet
+(median wetness percentile 80), but pre-storm wetness does not track how well the flood model reproduced the storm (rank correlations
+−0.35 to +0.05). In a normal year 36 % of the district's road length lies where the water table comes within 50 cm of the surface.
+Groundwater therefore acts on the road over days, through the base and subgrade, not through same-storm runoff.
+<!-- src: groundwater/SCOUT.md §2–3, §5; ANTECEDENT_DESCRIPTIVE.md -->
+
+### 4.3 Blocked culverts close nearby roads but do not explain the damage
+Fully blocking every culvert raises the median pool upstream of a crossing by 2.3 m and closes 80 more segments near crossings; half
+blockage closes 8 more and 20 % blockage none. No blockage scenario reaches any of the 33 damage points the closure model missed. The
+crossings whose blockage would close roads come down to seven locations; three combine a large model effect with a Poor rating in the
+stream-crossing surveys (Beaman Road, Commercial Street and Route 2 at Dewey Street) and head the inspection list (Table 3).
+<!-- src: phase1/PARAMETRIC_T2.md §1–3; paper2/RQ3_INSPECTION_LIST.md -->
+
+**Table 1. Road-edge stream-power index (version 1) against damage, Leominster, September 2023 (in-sample).**
+
+| Outcome / variant | Segments (damaged) | AUC [95 %] | Added to depth + traffic: LR p (AUC before → after) |
+|---|---|---|---|
+| Any damage, segment maximum | 712 (21) | 0.85 [0.78, 0.92] | 0.0001 (0.90 → 0.92) |
+| Washouts only | 712 (17) | 0.86 [0.77, 0.93] | 0.0001 (0.89 → 0.93) |
+| Without Wachusett Street | (17) | 0.84 [0.75, 0.92] | 0.0007 |
+| 90th percentile instead of maximum | 712 (21) | 0.80 [0.72, 0.87] | 0.0008 |
+| Post-hoc: also length and crossing distance | 712 (21) | — | 0.016 (0.937 → 0.941) |
+| Post-hoc: segment length alone | 712 (21) | 0.87 | — |
+| Post-hoc: crossing proximity alone | 712 (21) | 0.83 | — |
+<!-- src: paper2/RQ1_RESULT.md; rq1_eval.json -->
+
+**Table 2. Seasonal water table within 50 cm vs damage, height above drainage × slope held constant (Mantel–Haenszel).**
+
+| Analysis | Odds ratio | 95 % interval |
+|---|---|---|
+| Main: any damage | 2.70 | 1.02 – 7.12 |
+| Without Wachusett Street | 2.00 | 0.72 – 5.54 |
+| Cut-off 25 cm | 2.62 | 1.02 – 6.73 |
+| Road class also held constant | 3.19 | 1.14 – 8.90 |
+| Washouts only | 2.49 | 0.85 – 7.29 |
+| Negative control: model closures | 2.68 | 1.46 – 4.91 |
+<!-- src: groundwater/PREREG_A_RESULT.md -->
+
+**Table 3.** Culvert inspection list: `paper2/RQ3_INSPECTION_LIST.md` (to be condensed to the seven locations).
