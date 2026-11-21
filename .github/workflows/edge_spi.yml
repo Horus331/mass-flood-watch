@@ -5,6 +5,7 @@ on:
       box: {description: 'x0,y0,x1,y1 EPSG:26986 (core area)', default: '171400,913700,183100,925000'}
       town: {description: 'town filter on segments', default: 'LEOMINSTER'}
       name: {description: 'output name', default: 'leominster'}
+      segments: {description: "segments file, or 'graph' for the full District road graph", default: 'docs/proto/phase1/parametric_t2/t2_base/segments.geojson'}
 permissions:
   contents: write
 jobs:
@@ -14,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q numpy scipy requests pyproj tifffile pysheds affine
-      - run: python proto/edge_spi.py --box "${{ inputs.box }}" --town "${{ inputs.town }}" --segments docs/proto/phase1/parametric_t2/t2_base/segments.geojson --out docs/proto/paper2/edge_spi_${{ inputs.name }}.json --cache /tmp/dem
+      - run: python proto/edge_spi.py --box "${{ inputs.box }}" --town "${{ inputs.town }}" --segments "${{ inputs.segments }}" --out docs/proto/paper2/edge_spi_${{ inputs.name }}.json --cache /tmp/dem
       - run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
           git add docs/proto/paper2/edge_spi_*.json; git commit -qm "edge SPI ${{ inputs.name }}" || exit 0

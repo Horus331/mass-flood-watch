@@ -81,7 +81,21 @@ def main():
     from scipy.ndimage import maximum_filter
     tr = Transformer.from_crs(4326, 26986, always_xy=True)
     X0, Y0, X1, Y1 = map(float, a.box.split(','))
-    G = json.load(open(a.segments)); segs = {}
+    segs = {}
+    if a.segments == 'graph':                      # full District road graph (docs/graph_segments.json), filtered by town and box
+        R0 = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0, f'{R0}/sim/infra'); import impacts as IM
+        S = json.load(open(f'{R0}/docs/graph_segments.json')); Pp = S['props']; byseg = {}
+        for i, lo, la in IM.decode_segments(S):
+            if a.town and a.town.upper() not in str(Pp['town'][i]).upper(): continue
+            x, y = tr.transform(lo, la)
+            if x.max() < X0 or x.min() > X1 or y.max() < Y0 or y.min() > Y1: continue
+            byseg.setdefault(i, []).append(list(zip(x, y)))
+        for i, parts in byseg.items():
+            al = []; chunks = []; d0 = 0.0
+            for xy in parts:
+                chunks.append(edge_points(xy, al, d0)); d0 += sum(math.hypot(b[0] - a_[0], b[1] - a_[1]) for a_, b in zip(xy, xy[1:]))
+            segs[i] = dict(pts=np.vstack(chunks), along=np.array(al), road=Pp['road'][i], length_m=Pp['len'][i])
+    G = json.load(open(a.segments)) if a.segments != 'graph' else dict(features=[])
     for f in G['features']:
         p = f['properties']
         if a.town and a.town.upper() not in (p.get('town') or '').upper(): continue
