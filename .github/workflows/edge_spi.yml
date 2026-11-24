@@ -16,7 +16,17 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install -q numpy scipy requests pyproj tifffile pysheds affine
       - run: python proto/edge_spi.py --box "${{ inputs.box }}" --town "${{ inputs.town }}" --segments "${{ inputs.segments }}" --out papers/paper2/edge_spi_${{ inputs.name }}.json --cache /tmp/dem
-      - run: |
-          git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add papers/paper2/edge_spi_*.json; git commit -qm "edge SPI ${{ inputs.name }}" || exit 0
+      # Paper outputs never go into this public repository (Mo, 24 Nov 2026): they go to the private papers repository
+      # when the PAPERS_TOKEN secret exists (fine-grained, contents read/write on Horus331/mass-flood-watch-papers only),
+      # otherwise they stay as a run artifact.
+      - name: send to the private papers repository
+        env: { T: "${{ secrets.PAPERS_TOKEN }}" }
+        run: |
+          if [ -z "$T" ]; then echo "PAPERS_TOKEN not set: output kept as artifact only"; exit 0; fi
+          git clone -q --depth 1 "https://x-access-token:$T@github.com/Horus331/mass-flood-watch-papers.git" /tmp/pp
+          mkdir -p /tmp/pp/papers/paper2 && cp papers/paper2/edge_spi_${{ inputs.name }}.json /tmp/pp/papers/paper2/
+          cd /tmp/pp && git config user.name 'Mohab Eldokla' && git config user.email 'Horus331@users.noreply.github.com'
+          git add -A && git commit -qm "edge SPI ${{ inputs.name }}" || exit 0
           for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep 10; done
+      - uses: actions/upload-artifact@v4
+        with: { name: 'edge_spi_${{ inputs.name }}', path: 'papers/paper2/edge_spi_${{ inputs.name }}.json' }
