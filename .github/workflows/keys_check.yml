@@ -4,6 +4,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: proto/bench }
       - name: USGS Water Data API key
         env: { K: "${{ secrets.USGS_API_KEY }}" }
         run: |
@@ -16,20 +18,12 @@ jobs:
         env: { K: "${{ secrets.MASSDOT_WZDX_KEY }}" }
         run: |
           if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY not set"; exit 0; fi
-          U=https://api.massdot-swzm.com/api/v1/cwz/work-zone-feed
-          curl -s -m 30 -o /tmp/st.json -w "staging server, bearer form: HTTP %{http_code}\n" -H "Authorization: Bearer $(printf %s "$K" | tr -d ' \r\n')" https://staging-api.massdot-swzm.com/api/v1/cwz/work-zone-feed || true
-          python3 -c "import json;d=json.load(open('/tmp/st.json'));print('staging features',len(d.get('features',[])))" 2>/dev/null || head -c 200 /tmp/st.json; echo
-          python3 -c "import os;k=os.environ['K'];print('key length',len(k),'| outer spaces/newlines:',k!=k.strip(),'| quotes:',any(c in k for c in '\"\''),'| inner spaces:',' ' in k.strip())"
-          python3 -c "import os;k=os.environ['K'].strip();print('starts with wz_:',k.startswith('wz_'),'| 4th-7th chars match portal hint:',k[3:7]=='AmDL')"
-          K=$(printf %s "$K" | tr -d ' \r\n"'"'"); echo "trimmed length ${#K}"
-          for H in "apiKey" "x-api-key"; do curl -s -o /dev/null -w "header $H: HTTP %{http_code}\n" -H "$H: $K" "$U"; done
-          curl -s -m 20 -o /tmp/sw.json -w "swagger json HTTP %{http_code}\n" https://api.massdot-swzm.com/swagger/v1/swagger.json && python3 -c "import json;d=json.load(open('/tmp/sw.json'));print('servers',d.get('servers'));print('schemes',json.dumps(d.get('components',{}).get('securitySchemes'))[:400])" || true
-          curl -s -o /tmp/q.json -w "query-parameter form: HTTP %{http_code}\n" "$U?apiKey=$K"
-          head -c 200 /tmp/q.json | sed "s/$K/***/g"; echo
-          curl -s -o /tmp/w.json -w "bearer form: HTTP %{http_code}\n" -H "Authorization: Bearer $K" "$U"
-          head -c 200 /tmp/w.json | sed "s/$K/***/g"; echo
-          [ "$(python3 -c "import json;print(bool(json.load(open('/tmp/w.json')).get('features')))" 2>/dev/null)" = True ] || cp /tmp/q.json /tmp/w.json
-          python3 -c "import json;d=json.load(open('/tmp/w.json'));f=d.get('features',[]);print('work zones in feed:',len(f));print('District 3 box:',sum(1 for x in f if (lambda c: c and -72.4<c[0]<-71.4 and 41.9<c[1]<42.8)((x.get('geometry') or {}).get('coordinates',[[None]])[0] if (x.get('geometry') or {}).get('type')=='LineString' else (x.get('geometry') or {}).get('coordinates'))))" || head -c 300 /tmp/w.json
+          K=$(printf %s "$K" | tr -d ' \r\n')
+          # The key comes from the (STAGING) portal, so it works on the staging server only; the production server returns 401.
+          for H in staging-api api; do
+            curl -s -m 30 -o /tmp/$H.json -w "$H.massdot-swzm.com: HTTP %{http_code}\n" -H "Authorization: Bearer $K" https://$H.massdot-swzm.com/api/v1/cwz/work-zone-feed || true
+          done
+          python3 proto/bench/wz_summary.py /tmp/staging-api.json || head -c 300 /tmp/staging-api.json
       - name: MassDOT GoTime key
         env: { K: "${{ secrets.MASSDOT_GOTIME_KEY }}" }
         run: |
