@@ -5,6 +5,8 @@ on:
       script: {description: 'proto script', default: 'gw_scout.py'}
 permissions:
   contents: write
+env:
+  API_USGS_PAT: ${{ secrets.USGS_API_KEY }}   # free USGS Water Data key (higher rate limit); never printed
 jobs:
   scout:
     runs-on: ubuntu-latest

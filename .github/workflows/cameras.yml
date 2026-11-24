@@ -17,6 +17,8 @@ on:
       publish: {description: 'commit the camera list / summaries', type: boolean, default: false}
 permissions:
   contents: write
+env:
+  API_USGS_PAT: ${{ secrets.USGS_API_KEY }}   # free USGS Water Data key (higher rate limit); never printed
 jobs:
   cams:
     runs-on: ubuntu-latest
@@ -26,7 +28,7 @@ jobs:
       - run: pip install -q requests shapely pyproj numpy pillow huggingface_hub
       - name: cameras
         env:
-          API_USGS_PAT: ${{ secrets.API_USGS_PAT }}
+          API_USGS_PAT: ${{ secrets.API_USGS_PAT || secrets.USGS_API_KEY }}
         run: |
           set -o pipefail
           python proto/cameras.py list 2>&1 | tee cams.log | head -60

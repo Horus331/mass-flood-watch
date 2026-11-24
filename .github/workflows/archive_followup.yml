@@ -25,6 +25,7 @@ concurrency:
   group: storm-archive-${{ github.ref }}
   cancel-in-progress: false
 env:
+  API_USGS_PAT: ${{ secrets.USGS_API_KEY }}
   AROOT: ${{ inputs.root || 'docs/proto/archive' }}
   LDIR: ${{ inputs.labels_dir || 'proto/data' }}
 jobs:
@@ -138,7 +139,7 @@ jobs:
         continue-on-error: true
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          API_USGS_PAT: ${{ secrets.API_USGS_PAT }}
+          API_USGS_PAT: ${{ secrets.API_USGS_PAT || secrets.USGS_API_KEY }}
         run: |
           pip install -q pillow huggingface_hub
           for s in $(python -c "import json; print(' '.join(json.load(open('arts/plan/plan.json'))['labels']))"); do

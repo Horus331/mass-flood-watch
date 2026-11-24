@@ -1,5 +1,7 @@
 name: USGS gauge flows for each storm to Hugging Face (run by hand)
 on: workflow_dispatch
+env:
+  API_USGS_PAT: ${{ secrets.USGS_API_KEY }}   # free USGS Water Data key (higher rate limit); never printed
 jobs:
   gauges:
     runs-on: ubuntu-latest

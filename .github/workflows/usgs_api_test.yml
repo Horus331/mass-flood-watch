@@ -12,6 +12,8 @@ on:
 permissions:
   contents: write
 concurrency: {group: usgs-api-test, cancel-in-progress: false}
+env:
+  API_USGS_PAT: ${{ secrets.USGS_API_KEY }}   # free USGS Water Data key (higher rate limit); never printed
 jobs:
   test:
     runs-on: ubuntu-latest
