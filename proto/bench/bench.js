@@ -8,7 +8,7 @@ async function bench(url, opts) {
   const W = () => f.contentWindow, sleep = ms => new Promise(r => setTimeout(r, ms));
   const until = async (fn, max) => { const s = performance.now(); while (performance.now() - s < max) { try { if (fn()) return performance.now() - t0; } catch (e) {} await sleep(50); } return null; };
   const out = {};
-  out.map_ready_ms = await until(() => W().__mfwMap && W().__mfwMap.loaded(), 60000);
+  out.map_ready_ms = await until(() => W().__mfwMap && W().__mfwMap.isStyleLoaded(), 60000);
   out.play_ready_ms = await until(() => { const b = W().document.getElementById('play'); return b && !b.disabled; }, 90000);
   await sleep(1500);
   const net = W().performance.getEntriesByType('resource'); out.requests = net.length; out.MB = +(net.reduce((a, r) => a + (r.transferSize || r.encodedBodySize || 0), 0) / 1e6).toFixed(1);
