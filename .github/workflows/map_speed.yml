@@ -18,6 +18,7 @@ jobs:
           sleep 3
           mkdir -p docs/proto/mapspeed
           node proto/bench/ci_bench.js http://localhost:8080 docs/proto/mapspeed/latest.json
+          node proto/bench/ci_zoom.js http://localhost:8080 docs/proto/mapspeed/zoom.json || true
       - name: budget (test page only)
         run: |
           python3 - <<'PY'
