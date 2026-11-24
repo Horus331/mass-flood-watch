@@ -1,0 +1,17 @@
+name: Aerial tiles for the map (MassGIS 2023, District 3, z8-16)
+on:
+  workflow_dispatch:
+    inputs:
+      zmax: { description: 'highest zoom', default: '16' }
+jobs:
+  tiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: proto/tiles }
+      - run: pip install -q pillow
+      - run: python proto/tiles/aerial_tiles.py aerial --zmax ${{ inputs.zmax }} --workers 12
+      - run: du -sh aerial; find aerial -name '*.webp' | wc -l
+      - uses: actions/upload-artifact@v4
+        with: { name: aerial, path: aerial, retention-days: 5, compression-level: 0 }
