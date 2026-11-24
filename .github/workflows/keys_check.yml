@@ -16,7 +16,12 @@ jobs:
         env: { K: "${{ secrets.MASSDOT_WZDX_KEY }}" }
         run: |
           if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY not set"; exit 0; fi
-          curl -s -o /tmp/w.json -w "work-zone feed HTTP %{http_code}\n" -H "Authorization: Bearer $K" https://api.massdot-swzm.com/api/v1/cwz/work-zone-feed
+          U=https://api.massdot-swzm.com/api/v1/cwz/work-zone-feed
+          curl -s -o /tmp/q.json -w "query-parameter form: HTTP %{http_code}\n" "$U?apiKey=$K"
+          head -c 200 /tmp/q.json | sed "s/$K/***/g"; echo
+          curl -s -o /tmp/w.json -w "bearer form: HTTP %{http_code}\n" -H "Authorization: Bearer $K" "$U"
+          head -c 200 /tmp/w.json | sed "s/$K/***/g"; echo
+          [ "$(python3 -c "import json;print(bool(json.load(open('/tmp/w.json')).get('features')))" 2>/dev/null)" = True ] || cp /tmp/q.json /tmp/w.json
           python3 -c "import json;d=json.load(open('/tmp/w.json'));f=d.get('features',[]);print('work zones in feed:',len(f));print('District 3 box:',sum(1 for x in f if (lambda c: c and -72.4<c[0]<-71.4 and 41.9<c[1]<42.8)((x.get('geometry') or {}).get('coordinates',[[None]])[0] if (x.get('geometry') or {}).get('type')=='LineString' else (x.get('geometry') or {}).get('coordinates'))))" || head -c 300 /tmp/w.json
       - name: MassDOT GoTime key
         env: { K: "${{ secrets.MASSDOT_GOTIME_KEY }}" }
