@@ -1,0 +1,36 @@
+name: Map speed check (bytes and time to ready, live map vs test page)
+on:
+  workflow_dispatch:
+  push:
+    paths: ['docs/next.html', 'docs/site/viewer-next.js', 'docs/site/viewer-next.css', 'docs/index.html', 'docs/site/viewer.js']
+permissions:
+  contents: write
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -s playwright@1.47.2 http-server@14.1.1 && npx playwright install --with-deps chromium >/dev/null
+      - name: serve docs (byte ranges supported) and measure
+        run: |
+          npx http-server docs -p 8080 -s -c-1 &
+          sleep 3
+          mkdir -p docs/proto/mapspeed
+          node proto/bench/ci_bench.js http://localhost:8080 docs/proto/mapspeed/latest.json
+      - name: budget (test page only)
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          J = json.load(open('docs/proto/mapspeed/latest.json'))['pages']; bad = []
+          f = J.get('next_forecast', {})
+          if f.get('ready_ms') is None or f['ready_ms'] > 8000: bad.append(f"forecast ready {f.get('ready_ms')} ms > 8000")
+          if (f.get('MB_until_ready') or 99) > 6: bad.append(f"forecast {f.get('MB_until_ready')} MB to open > 6")
+          print('budget:', 'FAIL ' + '; '.join(bad) if bad else 'ok')
+          PY
+      - name: commit
+        if: always()
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/proto/mapspeed; git commit -qm "map speed check" || exit 0
+          for i in 1 2 3 4 5; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
