@@ -1,0 +1,37 @@
+name: Map tiles (PMTiles) for the fast map
+# Builds vector tiles with tippecanoe so the browser only fetches what is on screen (map speed plan, 24 Nov 2026).
+on:
+  workflow_dispatch:
+    inputs:
+      what: {description: 'streets', default: 'streets'}
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: tippecanoe (from source)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q build-essential libsqlite3-dev zlib1g-dev
+          git clone -q https://github.com/felt/tippecanoe.git /tmp/tc && git -C /tmp/tc log -1 --format=%H && make -C /tmp/tc -j4 >/dev/null && sudo make -C /tmp/tc install >/dev/null
+          tippecanoe --version
+      - run: pip install -q numpy pyproj shapely
+      - name: streets
+        if: inputs.what == 'streets'
+        run: |
+          python proto/tiles/build_streets_seq.py /tmp/streets.geojsonl
+          mkdir -p docs/site/tiles
+          tippecanoe -o docs/site/tiles/d3_streets.pmtiles -l streets -Z8 -z15 \
+            --no-feature-limit --no-tile-size-limit --simplification=6 --simplify-only-low-zooms --no-tiny-polygon-reduction \
+            --force -P /tmp/streets.geojsonl 2>&1 | tail -5
+          ls -la docs/site/tiles
+          python - <<'PY'
+          import os; print('pmtiles MB', round(os.path.getsize('docs/site/tiles/d3_streets.pmtiles')/1e6, 2))
+          PY
+      - name: commit
+        run: |
+          git config user.name 'github-actions'; git config user.email 'actions@github.com'
+          git add docs/site/tiles; git commit -qm "map tiles: ${{ inputs.what }}" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
