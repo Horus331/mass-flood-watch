@@ -71,7 +71,7 @@ def inspection(G, rid, tr, town_of):
         if p['blocked'] is None: continue
         ob = max((p['base'] or -1e9) - p['crest_m'], 0.0); bb = max(p['blocked'] - p['crest_m'], 0.0)
         L.append(dict(id=r['id'], lon=round(r['lon'], 5), lat=round(r['lat'], 5), road=r.get('road') or '', stream=r.get('stream') or '',
-                      town=town_of(x, y), naacc_condition=(r.get('condition') if r.get('condition') not in (None, 'nan', 'No data') else 'not assessed'),
+                      town=town_of(x, y), naacc_condition=(r.get('condition') if r.get('condition') not in (None, 'nan', 'No data', 'Unknown') else 'not assessed'),
                       inlet_blockage=(r.get('inlet_blockage') if r.get('inlet_blockage') not in (None, 'nan') else None),
                       span_m=r.get('span_m'), rise_m=r.get('rise_m'), crest_m=p['crest_m'],
                       over_crest_base_m=round(ob, 2), over_crest_blocked_m=round(bb, 2), added_over_crest_m=round(bb - ob, 2),
