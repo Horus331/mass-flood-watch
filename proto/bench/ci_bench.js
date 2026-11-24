@@ -14,8 +14,8 @@ const PAGES = [['next_forecast', '/next.html?debug=1'], ['next_replay', '/next.h
     await p.goto(BASE + path, { waitUntil: 'load' });
     let ready = null;
     for (let i = 0; i < 1200; i++) {
-      const ok = await p.evaluate(() => { const m = window.__mfwMap; const pl = document.getElementById('play'), fp = document.getElementById('fplayer');
-        return !!(m && m.isStyleLoaded() && ((pl && !pl.disabled) || (fp && !fp.hidden))); }).catch(() => false);
+      const ok = await p.evaluate(() => { const m = window.__mfwMap, ld = document.getElementById('loading');
+        return !!(m && m.isStyleLoaded() && ld && ld.classList.contains('done')); }).catch(() => false);
       if (ok) { ready = Date.now() - t0; readyBytes = bytes; readyReqs = reqs; break; }
       await p.waitForTimeout(100);
     }

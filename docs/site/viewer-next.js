@@ -193,7 +193,8 @@
   // roads reported flooded in past storms (proto/known_sites.py): reports, not model output; shown on the map and on each road row
   // MassDOT Road Inventory attributes per segment (tools/road_attrs.py): owner, route number, speed limit, mile points
   var RA = null;
-  function raLoad() { if (RA) return Promise.resolve(RA); return getJson('site/data/road_attrs.json').then(function (j) { RA = j; return j; }).catch(function () { RA = false; return null; }); }
+  var raP = null;
+  function raLoad() { if (RA) return Promise.resolve(RA); if (raP) return raP; return (raP = getJson('site/data/road_attrs.json').then(function (j) { RA = j; return j; })).catch(function () { RA = false; return null; }); }
   function raOf(id) {
     if (!RA || id == null || RA.own[id] == null) return null;
     return { own: RA.own_names[RA.own[id]] || '', code: RA.own_codes[RA.own[id]] || '', rt: RA.rt[id] || '', spd: RA.spd[id] || 0, mi0: RA.mi0[id], mi1: RA.mi1[id] };
@@ -2204,7 +2205,7 @@
           gotC++; if (gotC <= NEED) progress('Loading the storm… ' + gotC + ' of ' + NEED); if (gotC === NEED) needRes();
         }).then(pump);
       };
-      for (var k = 0; k < 6; k++) pump();
+      for (var k = 0; k < NEED; k++) pump();   // four downloads at a time, so the first frames are not slowed by the rest
       jobs.push(needP);
     }
     if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) { IMP = p; IMPSEG = {}; p.seg.forEach(function (sid) { IMPSEG[sid] = 1; }); } return null; }).catch(function () { return null; })]).then(function (a) {
