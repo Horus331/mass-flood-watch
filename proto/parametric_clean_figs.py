@@ -49,6 +49,37 @@ def bars(J):
     fig.tight_layout(); fig.savefig(f'{FIG}/parametric_clean_bars.png'); plt.close(fig)
 
 
+def bars_slide(J):
+    """Dec 1 slide version of Fig. 1 (TAB_BOARD, Mo 24 Nov 14:20): left panel all scenarios; right panel only the soil and ground
+    scenarios (access under blockage is not robust). Labels never clipped: the axis leaves room for the longest value label."""
+    SOIL = ('FZ', 'ARC3', 'C50W', 'ARC1')
+    name = lambda r: r['scenario'].replace(' (ARC I)', '').replace(' (ARC III)', '')
+    B = next(r for r in J['rows'] if r['id'] == 'B')
+    panels = [('closed_any_km', [r for r in J['rows'] if r['id'] != 'B'], 'Change in closed road length (km)',
+               f"Base: {B['closed_any_km']:.0f} km of road closed at some time", 1),
+              ('pop_lost_any', [r for r in J['rows'] if r['id'] in SOIL],
+               'Change in residents losing timely access\n(hospital 30 min, fire 8 min, police 4 min)',
+               f"Base: {B['pop_lost_any']:,} residents at the peak · ground condition scenarios only", 0)]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), gridspec_kw={'width_ratios': [1, 1]})
+    for ax, (k, R, xl, note, dec) in zip(axes, panels):
+        d = sorted(((r[k] - B[k], name(r)) for r in R if r.get(k) is not None), key=lambda t: t[0])
+        v = [a for a, _ in d]; lab = [b for _, b in d]; y = np.arange(len(v))
+        ax.barh(y, v, height=0.62 if len(v) > 4 else 0.5, color=[UP if a > 0 else DOWN for a in v], edgecolor=SURF, linewidth=2)
+        ax.axvline(0, color=INK2, lw=1); ax.set_yticks(y, lab); ax.set_xlabel(xl)
+        span = max(abs(min(v + [0])), abs(max(v + [0]))) or 1
+        for yi, a in zip(y, v):
+            s = (f'{a:+.1f}' if dec else f'{a:+,.0f}').replace('-', '−')
+            ax.text((0.02 * span) if a < 0 else a + 0.02 * span, yi, s, va='center', ha='left', fontsize=10, color=INK)
+        ax.set_xlim(min(v + [0]) - 0.12 * span, max(v + [0]) + 0.40 * span)
+        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5, steps=[1, 2, 5, 10]))
+        ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f'{x:,.0f}'.replace('-', '−')))
+        ax.grid(axis='x', color=GRID, lw=0.6); ax.set_axisbelow(True)
+        for s in ('top', 'right', 'left'): ax.spines[s].set_visible(False)
+        ax.set_title(note, fontsize=9, color=INK2, loc='left')
+    fig.suptitle('Leominster, 11 September 2023: effect of each condition compared with the base model', x=0.01, ha='left', fontsize=12, color=INK)
+    fig.tight_layout(); fig.savefig(f'{FIG}/parametric_clean_bars_slide.png', dpi=300); plt.close(fig)
+
+
 def culverts(J, key='C100'):
     from pyproj import Transformer
     T = J['inspection'][key]['top']; tr = Transformer.from_crs(4326, 26986, always_xy=True)
@@ -111,6 +142,6 @@ def culverts(J, key='C100'):
 
 if __name__ == '__main__':
     J = json.load(open(f'{PH}/parametric_clean.json')); os.makedirs(FIG, exist_ok=True)
-    bars(J)
+    bars(J); bars_slide(J)
     if os.path.exists(f'{FIG}/aerial_leominster_box_5m.jpg') and 'inspection' in J: culverts(J)
     print('figures written')
