@@ -126,6 +126,35 @@
   }
 
   // ---------- basemaps and the palette that reads on each ----------
+  var AERIAL_BOX = [-72.14721, 42.00805, -71.30292, 42.71323];   // static aerial tiles cover this box (proto/tiles/aerial_tiles.py)
+  // one photo server at a time: inside the box only our tiles (and MassGIS above zoom 16); Esri only for the far view; the box edge
+  // falls back to MassGIS/Esri so the photo never ends in a blank
+  var ownOK = false;   // our tiles are used only once their index is found on the data site; until then MassGIS/Esri as before
+  try { fetch('https://horus331.github.io/mfw-data-d3/aerial/meta.json').then(function (r) { if (r.ok) { ownOK = true; aerialFill(); } }).catch(function () { }); } catch (e) { }
+  function aerialFill() {
+    if (!map || !map.getLayer('b-mgis') || basemap() !== 'satellite') return;
+    if (map.getLayer('b-own')) map.setLayoutProperty('b-own', 'visibility', ownOK ? 'visible' : 'none');
+    var B = map.getBounds(), inside = ownOK && B.getWest() >= AERIAL_BOX[0] && B.getSouth() >= AERIAL_BOX[1] && B.getEast() <= AERIAL_BOX[2] && B.getNorth() <= AERIAL_BOX[3];
+    map.setLayoutProperty('b-mgis', 'visibility', inside ? 'none' : 'visible');
+    map.setLayoutProperty('b-sat', 'visibility', inside && map.getZoom() >= 10 ? 'none' : 'visible');
+  }
+  // while the map is still, quietly load the photo one zoom level closer around the centre, so the next zoom-in is already there
+  var preT = null, preDone = {};
+  function aerialPrefetch() {
+    if (!map || basemap() !== 'satellite' || preT) return;
+    preT = setTimeout(function () {
+      preT = null; var z = Math.floor(map.getZoom()) + 1; if (z < 9 || z > 17) return;
+      var c = map.getCenter(), n = Math.pow(2, z), cx = (c.lng + 180) / 360 * n, la = c.lat * Math.PI / 180,
+        cy = (1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2 * n, cv = map.getCanvas(), r = Math.ceil(Math.max(cv.clientWidth, cv.clientHeight) / 512) + 1;
+      var own = ownOK && c.lng > AERIAL_BOX[0] && c.lng < AERIAL_BOX[2] && c.lat > AERIAL_BOX[1] && c.lat < AERIAL_BOX[3] && z <= 16, k = 0;
+      for (var dx = -r; dx <= r; dx++) for (var dy = -r; dy <= r; dy++) {
+        var x = Math.floor(cx) + dx, y = Math.floor(cy) + dy, u = own ? 'https://horus331.github.io/mfw-data-d3/aerial/' + z + '/' + x + '/' + y + '.webp'
+          : 'https://tiles.arcgis.com/tiles/hGdibHYSPO59RG1h/arcgis/rest/services/orthos2023/MapServer/tile/' + z + '/' + y + '/' + x;
+        if (preDone[u] || k > 48) continue; preDone[u] = 1; k++;
+        try { fetch(u, { mode: 'cors', priority: 'low' }).catch(function () { }); } catch (e) { }
+      }
+    }, 400);
+  }
   var CARTO = function (style) {
     return { type: 'raster', tileSize: 256, maxzoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
       tiles: ['a', 'b', 'c', 'd'].map(function (s) { return 'https://' + s + '.basemaps.cartocdn.com/rastertiles/' + style + '/{z}/{x}/{y}@2x.png'; }) };
@@ -138,14 +167,14 @@
     map: { layers: {} },   // the land-cover map (bmv-* layers, landLayers / roadLayers)
     streets: { layers: {} },
     terrain: { layers: { 'b-hill': 0.5 } },
-    satellite: { layers: { 'b-sat': 1, 'b-mgis': 1 } },
+    satellite: { layers: { 'b-sat': 1, 'b-mgis': 1, 'b-own': 1, 'b-mgis-hi': 1 } },
     dark: { layers: { 'b-hshade': 1 } },
     night: { layers: { 'b-hshade': 1 } }
   } : {
     map: { layers: {} },
     streets: { layers: { 'b-lgt': 1, 'l-voy': 1 } },
     terrain: { layers: { 'b-hill': 1, 'b-lgt': 0.5, 'l-voy': 1 } },
-    satellite: { layers: { 'b-sat': 1, 'b-mgis': 1, 'l-dark': 1 } },
+    satellite: { layers: { 'b-sat': 1, 'b-mgis': 1, 'b-own': 1, 'b-mgis-hi': 1, 'l-dark': 1 } },
     dark: { layers: { 'b-dark': 1, 'l-dark': 1 } },
     night: { layers: { 'b-dark': 1, 'l-dark': 1 } }
   };
@@ -1955,13 +1984,19 @@
         // which then only fills the map outside Massachusetts
         mgis: { type: 'raster', tileSize: 256, minzoom: 7, maxzoom: 20, attribution: 'Imagery: <a href="https://www.mass.gov/info-details/massgis-data-2023-aerial-imagery">MassGIS 2023 orthos (15 cm)</a>',
           tiles: ['https://tiles.arcgis.com/tiles/hGdibHYSPO59RG1h/arcgis/rest/services/orthos2023/MapServer/tile/{z}/{y}/{x}'] },
+        // District 3 box: the same MassGIS 2023 photo copied to static tiles on the data site (zoom 8-16), so zooming does not wait on
+        // the ArcGIS server; above zoom 16 MassGIS itself adds the finer detail over it (map speed plan, 24 Nov 2026)
+        own: { type: 'raster', tileSize: 256, minzoom: 8, maxzoom: 16, bounds: AERIAL_BOX, attribution: 'Imagery: <a href="https://www.mass.gov/info-details/massgis-data-2023-aerial-imagery">MassGIS 2023 orthos</a>',
+          tiles: ['https://horus331.github.io/mfw-data-d3/aerial/{z}/{x}/{y}.webp'] },
         hill: ESRI('Elevation/World_Hillshade', 16, 'Hillshade © Esri, USGS, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap')
       },
       layers: [
         { id: 'b-hill', type: 'raster', source: 'hill', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
         { id: 'b-lgt', type: 'raster', source: 'lgt', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
-        { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
-        { id: 'b-mgis', type: 'raster', source: 'mgis', minzoom: 7, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },   // natural colour, no veil
+        { id: 'b-sat', type: 'raster', source: 'sat', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+        { id: 'b-mgis', type: 'raster', source: 'mgis', minzoom: 7, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },   // natural colour, no veil
+        { id: 'b-own', type: 'raster', source: 'own', minzoom: 8, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+        { id: 'b-mgis-hi', type: 'raster', source: 'mgis', minzoom: 16, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
         { id: 'b-dark', type: 'raster', source: 'drk', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150, 'raster-brightness-min': 0.04 } }
       ].concat(landLayers(), hydroLayers(), mapWaterLayers(), roadLayers(), netLayers(), [
         { id: 'l-voy', type: 'raster', source: 'voyl', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 150 } },
@@ -2173,7 +2208,7 @@
       styleReady();
     });
     map.on('movestart', function () { mapMoving = true; });
-    map.on('moveend', function () { mapMoving = false; flowLayer.reset(); map.triggerRepaint(); });
+    map.on('moveend', function () { mapMoving = false; flowLayer.reset(); map.triggerRepaint(); aerialFill(); aerialPrefetch(); });
     map.on('movestart', function (e) { if (e.originalEvent) { userMoved = true; if (follow) setFollow(false); } });
     var at = document.querySelector('.maplibregl-ctrl-attrib');
     if (at && small()) at.classList.remove('maplibregl-compact-show');
@@ -2196,7 +2231,7 @@
       var s0 = Math.min(CS.length - 1, Math.floor(Math.max(0, t) / 3)), order = [];
       for (var q = 0; q < CS.length; q++) order.push(q);
       order.sort(function (a_, b_) { var da = a_ >= s0 ? (a_ - s0) * 2 : (s0 - a_) * 2 + 1, db = b_ >= s0 ? (b_ - s0) * 2 : (s0 - b_) * 2 + 1; return da - db; });
-      var NEED = Math.min(4, CS.length), nextC = 0, gotC = 0, needRes, needP = new Promise(function (r) { needRes = r; });
+      var NEED = Math.min(2, CS.length), nextC = 0, gotC = 0, needRes, needP = new Promise(function (r) { needRes = r; });
       total = total - CS.length + NEED;
       var pump = function () {
         if (nextC >= order.length) return Promise.resolve();
@@ -2205,15 +2240,16 @@
           gotC++; if (gotC <= NEED) progress('Loading the storm… ' + gotC + ' of ' + NEED); if (gotC === NEED) needRes();
         }).then(pump);
       };
-      for (var k = 0; k < NEED; k++) pump();   // four downloads at a time, so the first frames are not slowed by the rest
+      for (var k = 0; k < 4; k++) pump();   // four downloads at a time, so the first frames are not slowed by the rest
       jobs.push(needP);
     }
+    var later = [];   // map speed plan: the rain, water-flow and terrain pictures load after the map opens (not needed for the first frame)
     if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) { IMP = p; IMPSEG = {}; p.seg.forEach(function (sid) { IMPSEG[sid] = 1; }); } return null; }).catch(function () { return null; })]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
       return new Promise(function (res) { whenStyle(function () { addRoads(a[0]); progress(); res(); }); });
     }));
     // optional layers: a missing file only hides that layer
-    jobs.push((frP ? frP : Promise.resolve(null)).then(function (fr) {   // Forecast tab: the two-day-back, two-day-ahead rain replaces the run's own
+    later.push((frP ? frP : Promise.resolve(null)).then(function (fr) {   // Forecast tab: the two-day-back, two-day-ahead rain replaces the run's own
       if (fr) { frInit(fr); progress(); return null; }
       return getJson(base + 'rain.json');
     }).then(function (r) {
@@ -2255,11 +2291,11 @@
     jobs.push(getJson(base + 'network.json').then(function (N) { var fc = netFeats(N); whenStyle(function () { if (!netBig) addNet(fc); }); }).catch(function () { }));
     if (!window.pmtiles) jobs.push(getJson(D3NET).then(function (D) { var fc = netFeats(D); netBig = true; whenStyle(function () { addNet(fc); }); progress(); }).catch(function () { progress(); }));   // tiles draw the district streets when available
     else total--;
-    if (!WHATIF && runKey === 'leominster_sep2023') jobs.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
+    if (!WHATIF && runKey === 'leominster_sep2023') later.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
       return getBitmap(WI + ix.terrain.sheet).then(function (im) { flowLayer.setChannels(im); });
     }).catch(function () {}));
     if (WION) { /* flow comes with each scenario (wiLoadJobs) */ } else if (meta.flow) {
-      jobs.push(getJson(base + meta.flow).then(function (fi) {
+      later.push(getJson(base + meta.flow).then(function (fi) {
         return getBitmap(dbase() + (fi.sheets ? fi.sheets[0] : fi.sheet)).then(function (img) {
           flowLayer.set(fi, img, dbase());
           whenStyle(function () { map.addLayer(flowLayer.layer, 'l-voy'); vis('flow', $('lyFlow').checked); });
@@ -3109,7 +3145,7 @@
   function applyTheme() {
     if (!map || !map.getLayer('b-lgt')) return;
     var b = basemap(), L = BASEMAPS[b].layers, P = pal();
-    ['b-hill', 'b-lgt', 'b-sat', 'b-mgis', 'b-dark', 'l-voy', 'l-dark', 'b-hshade'].forEach(function (id) {
+    ['b-hill', 'b-lgt', 'b-sat', 'b-mgis', 'b-own', 'b-mgis-hi', 'b-dark', 'l-voy', 'l-dark', 'b-hshade'].forEach(function (id) {
       if (!map.getLayer(id)) return;
       var on = L[id] && !(/^l-/.test(id) && map.getLayer('lb-place')); // vector street, water and place labels replace the raster ones
       map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
@@ -3119,7 +3155,7 @@
     // the land-cover map: its own layers on, the generic street network (net-*) off, since the map draws every street itself
     map.getStyle().layers.forEach(function (l) { if (/^bmv-/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', b === 'map' ? 'visible' : 'none'); });
     ['net-case', 'net-fill'].forEach(function (id) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', b === 'map' ? 'none' : 'visible'); });
-    wiTheme(b); covTheme();
+    wiTheme(b); covTheme(); aerialFill();
     document.querySelectorAll('#basemaps button').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.bm === b ? 'true' : 'false'); });
     var root = document.documentElement.style;
     ['d1', 'd2', 'd3', 'd4'].forEach(function (k, i) { root.setProperty('--' + k, P.d[i]); });
