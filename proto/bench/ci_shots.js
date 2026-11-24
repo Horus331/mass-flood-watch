@@ -6,7 +6,7 @@ const BASE = process.argv[2], OUT = process.argv[3]; fs.mkdirSync(OUT, { recursi
   const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   for (const [name, z, lon, lat] of [['z9', 9.5, -71.75, 42.35], ['z11', 11.5, -71.80, 42.27], ['z13', 13, -71.80, 42.27]]) {
     const p = await b.newPage({ viewport: { width: 1000, height: 650 } });
-    await p.goto(BASE + '/next.html', { waitUntil: 'load' });
+    await p.goto(BASE + '/next.html?debug=1', { waitUntil: 'load' });
     await p.waitForFunction(() => window.__mfwMap && window.__mfwMap.loaded(), null, { timeout: 120000 });
     await p.evaluate(([z, lon, lat]) => window.__mfwMap.jumpTo({ zoom: z, center: [lon, lat] }), [z, lon, lat]);
     await p.waitForTimeout(1000);
