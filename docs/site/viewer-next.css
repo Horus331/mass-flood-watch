@@ -1,0 +1,45 @@
+/* Map redesign (Mo approved the mockups 24 Nov 2026): Google-Maps-like light look on top of viewer.css. Test page next.html only. */
+:root{
+  --bg:#e8eaed;--map-bg:#eef1f3;--surface:#ffffff;--solid:#ffffff;--surface-2:#f1f3f4;--sunk:#e8eaed;
+  --ink:#1f1f1f;--ink-2:#3c4043;--muted:#5f6368;--rule:#dadce0;--rule-2:#e8eaed;
+  --accent:#1a73e8;--accent-ink:#1765cc;--on-accent:#ffffff;--accent-soft:rgba(26,115,232,.10);--plate:#1a73e8;
+  --glass:rgba(255,255,255,.92);
+  --shadow-1:0 1px 2px rgba(60,64,67,.3),0 1px 3px 1px rgba(60,64,67,.15);
+  --shadow:0 1px 3px rgba(60,64,67,.3),0 4px 8px 3px rgba(60,64,67,.15);
+  --r-lg:12px;--r-md:10px;--r-sm:8px;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --side-w:380px;
+}
+body,.app{font-family:var(--font)}
+/* side panel docked to the left edge, full height, like a maps side sheet */
+@media (min-width:761px){
+  .card{top:0;left:0;bottom:0;border-radius:0;border:0;border-right:1px solid var(--rule);box-shadow:2px 0 6px rgba(60,64,67,.15);padding:16px 18px 12px}
+  .side-toggle{top:16px;left:calc(var(--side-w) + 10px)}
+  .player{left:calc(var(--side-w) + 16px);right:16px;bottom:16px;border-radius:14px;border:0;padding:8px 16px 4px}
+  .soon-card{left:calc(50% + var(--side-w) / 2)}
+}
+/* the site header already carries the name: the panel starts with the controls */
+.card .hd .brand{display:none}
+.card .hd{justify-content:flex-end;margin:0 0 10px}
+.hlinks a{border-radius:18px;font-weight:500}
+/* mode tabs as chips (desktop; the phone keeps its bottom bar) */
+@media (min-width:761px){
+.tabs{display:flex;gap:8px;background:none;padding:0;margin:0 0 14px}
+.tabs a{min-height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--rule);background:#fff;color:var(--ink-2);font-weight:500;font-size:13px}
+.tabs a:hover{background:var(--surface-2);color:var(--ink)}
+.tabs a[aria-current="page"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:none}
+}
+/* floating controls: white, small, Google-like */
+.card,.legend,.player,.fplayer,.story,.place,.hsheet,.toast,.side-toggle,.fabs .fgrp{border:0}
+.legend{width:236px;padding:10px 12px;border-radius:12px;font-size:12px}
+.fabs .fgrp{border-radius:8px}
+/* road details: a compact card instead of a large window */
+.place,.hsheet{width:320px;padding:12px 14px 10px;border-radius:12px}
+.place .pp h3{font-size:17px}
+.maplibregl-popup{max-width:260px!important}
+.maplibregl-popup-content{border:0;border-radius:10px;box-shadow:var(--shadow)}
+/* compact key: only the road colours until the layer panel is opened */
+@media (min-width:761px){
+  .legend[data-collapsed="true"] .key .k:not(:nth-child(3)){display:none}
+  .legend[data-collapsed="true"] .legend-toggle{margin-top:8px}
+}
