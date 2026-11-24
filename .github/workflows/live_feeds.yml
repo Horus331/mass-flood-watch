@@ -17,6 +17,7 @@ permissions:
 concurrency: {group: live-feeds, cancel-in-progress: false}
 env:
   API_USGS_PAT: ${{ secrets.USGS_API_KEY }}   # free USGS Water Data key (higher rate limit); never printed
+  MASSDOT_WZDX_KEY: ${{ secrets.MASSDOT_WZDX_KEY }}   # MassDOT Work Zones API key (staging server); never printed
 jobs:
   live:
     runs-on: ubuntu-latest
@@ -43,7 +44,7 @@ jobs:
       - id: run
         run: |
           set -o pipefail
-          python -u proto/live_feeds.py run --feeds "${{ inputs.feeds || 'rain,nowcast,flash,nwm,snow,validation' }}" ${{ inputs.force && '--force' || '' }} \
+          python -u proto/live_feeds.py run --feeds "${{ inputs.feeds || 'rain,nowcast,flash,nwm,snow,validation,workzones' }}" ${{ inputs.force && '--force' || '' }} \
             --github-output $GITHUB_OUTPUT 2>&1 | tee live.log
           python - <<'EOF'
           import json; S = json.load(open('docs/site/data/live/status.json'))

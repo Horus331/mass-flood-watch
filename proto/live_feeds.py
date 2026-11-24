@@ -6,6 +6,7 @@
     python proto/live_feeds.py nwm         # NWM short-range (18 h) streamflow at mapped culverts vs their HDS-5 capacity at the road crest
     python proto/live_feeds.py snow        # NOHRSC SNODAS daily snow depth / SWE (NSIDC G02158)
     python proto/live_feeds.py validation  # MassDOT roadway events + SeeClickFix flood-type issues -> docs/proto/live/archive/YYYY-MM.jsonl
+    python proto/live_feeds.py workzones   # MassDOT work zones (CWZ GeoJSON; key MASSDOT_WZDX_KEY; staging server) inside District 3
     python proto/live_feeds.py run [--feeds rain,nowcast,...] [--force] [--github-output $GITHUB_OUTPUT]   # all feeds + commit decision
     python proto/live_feeds.py map-comids  # one-off: culverts -> NHDPlus v2 COMID (= NWM feature_id) via USGS NLDI -> docs/proto/live/crossing_comids.json
     python proto/live_feeds.py nowcast-check --at 2023-09-11T20:00Z,...   # nowcast vs the radar rain that followed -> docs/proto/live/nowcast_check.json
@@ -32,7 +33,10 @@ NLDI = ['https://api.water.usgs.gov/nldi/linked-data', 'https://labs.waterdata.u
 SNODAS = 'https://noaadata.apps.nsidc.org/NOAA/G02158/masked/{d:%Y}/{d:%m_%b}/SNODAS_{d:%Y%m%d}.tar'
 EVENTS = 'http://events.massdot.evbg.net/'
 SCF = 'https://seeclickfix.com/api/v2/issues'
-FEEDS = ('rain', 'nowcast', 'flash', 'nwm', 'snow', 'validation')
+FEEDS = ('rain', 'nowcast', 'flash', 'nwm', 'snow', 'validation', 'workzones')
+# MassDOT Work Zones API (CWZ v01.00). The key from the developer portal (marked STAGING) works on the staging server only
+# (production answers 401, checked 24 Nov 2026); the staging feed carries current District 3 work zones, updated daily.
+WZ_URL = 'https://staging-api.massdot-swzm.com/api/v1/cwz/work-zone-feed'
 # Alert levels (fixed in advance, not tuned): 1 h rain max >= 10 / 25 / 50 mm (NWS heavy-rain rates ~ 0.4 / 1 / 2 in/h)
 RAIN_LEVELS = (10.0, 25.0, 50.0)
 FLASH_UNITQ = 2.0      # m3 s-1 km-2 (CREST max unit streamflow; flash-flood guidance in the FLASH literature: > 2 likely, > 5 significant)
@@ -682,6 +686,47 @@ def feed_validation(now=None):
     return out, material, {}
 
 
+# ------------------------------------------------------------------------------------------------ work zones (context: lanes already reduced)
+def _wz_coords(g):
+    """GeoJSON geometry -> list of (lon, lat) points (LineString, MultiLineString or Point)."""
+    t, c = (g or {}).get('type'), (g or {}).get('coordinates')
+    if not c: return []
+    if t == 'Point': return [tuple(c[:2])]
+    if t == 'LineString': return [tuple(p[:2]) for p in c]
+    if t == 'MultiLineString': return [tuple(p[:2]) for l in c for p in l]
+    return []
+
+
+def feed_workzones(now=None):
+    now = now or utcnow(); key = (os.environ.get('MASSDOT_WZDX_KEY') or '').strip()
+    if not key: raise RuntimeError('MASSDOT_WZDX_KEY not set')
+    J = http_get(WZ_URL, timeout=90, headers={'Authorization': f'Bearer {key}', 'Accept': 'application/json'}).json()
+    F = J.get('features') or []; zones = []
+    for f in F:
+        pts = _wz_coords(f.get('geometry'))
+        inside = [(lo, la) for lo, la in pts if LON[0] <= lo <= LON[1] and LAT[0] <= la <= LAT[1]]
+        if not inside: continue
+        P = f.get('properties') or {}; C = P.get('core_details') or {}
+        step = max(1, len(pts) // 20)                       # keep the line light: about 20 points
+        line = [[round(lo, 5), round(la, 5)] for lo, la in pts[::step]] + ([[round(pts[-1][0], 5), round(pts[-1][1], 5)]] if (len(pts) - 1) % step else [])
+        T = town_of_points([inside[0][0]], [inside[0][1]])
+        zones.append(dict(id=str(f.get('id') or C.get('name') or len(zones)), road=', '.join(C.get('road_names') or []), direction=C.get('direction'),
+                          town=T[0] if T else None, start=P.get('start_date'), end=P.get('end_date'), impact=P.get('vehicle_impact'),
+                          description=(C.get('description') or '')[:200], updated=C.get('update_date'), line=line))
+    zones.sort(key=lambda z: (z['road'] or '', z['start'] or ''))
+    def t(x):
+        try: return dt.datetime.fromisoformat(str(x).replace('Z', '+00:00')).astimezone(dt.timezone.utc).replace(tzinfo=None)
+        except Exception: return None
+    active = [z for z in zones if (t(z['start']) or now) <= now and (t(z['end']) is None or t(z['end']) >= now)]
+    info = J.get('feed_info') or {}
+    out = dict(made=iso(now), made_by='proto/live_feeds.py workzones', source='MassDOT Work Zones API (CWZ v01.00), staging server',
+               publisher=info.get('publisher'), feed_updated=info.get('update_date'), in_feed=len(F), in_district3=len(zones), active_now=len(active),
+               note='Context layer: roads whose lanes are already reduced or closed for work. Not part of the flood model.',
+               attribution='Work zone data: Massachusetts Department of Transportation', zones=zones)
+    log(f'  workzones feed {len(F)}, District 3 {len(zones)}, active now {len(active)}')
+    return out, dict(ids=sorted(z['id'] for z in zones)), {}
+
+
 # ------------------------------------------------------------------------------------------------ nowcast spot check (past rain)
 def nowcast_check(times):
     """Nowcast issued at each past time vs the RadarOnly 1 h QPE that followed (0-1 h and 1-2 h), per-town mean rain, for every available
@@ -724,7 +769,7 @@ def nowcast_check(times):
 
 
 # ------------------------------------------------------------------------------------------------ run + commit decision
-FN = dict(rain=feed_rain, nowcast=feed_nowcast, flash=feed_flash, nwm=feed_nwm, snow=feed_snow, validation=feed_validation)
+FN = dict(rain=feed_rain, nowcast=feed_nowcast, flash=feed_flash, nwm=feed_nwm, snow=feed_snow, validation=feed_validation, workzones=feed_workzones)
 
 
 def digest(x): return hashlib.sha1(json.dumps(x, sort_keys=True, default=str).encode()).hexdigest()[:12]

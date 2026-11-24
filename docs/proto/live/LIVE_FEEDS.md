@@ -121,3 +121,12 @@ python proto/live_feeds.py selftest                       # offline: phase corre
 python proto/live_feeds.py run --feeds rain,flash         # what the workflow runs (all feeds by default)
 gh api -X POST repos/Horus331/mass-flood-watch/actions/workflows/live_feeds.yml/dispatches -f ref=main -f 'inputs[force]=true'
 ```
+
+## Work zones (added 24 Nov 2026)
+
+`python proto/live_feeds.py workzones` → `docs/site/data/live/workzones.json`. MassDOT Work Zones API (Connected Work Zones standard
+v01.00, GeoJSON), key in the GitHub secret `MASSDOT_WZDX_KEY`. The key comes from MassDOT's developer portal, which is marked STAGING:
+it works on `staging-api.massdot-swzm.com` and is refused by the production server (401, checked 24 Nov 2026). The staging feed carries
+current work zones updated daily (24 Nov: 114 in the feed, 60 in the District 3 box). Kept: work zones with any point in the District 3
+box, road, direction, town, start and end, vehicle impact, a short description and a light line (about 20 points). Context only: it marks
+roads whose lanes are already reduced or closed, where a flood closure would hurt traffic more. It does not change the flood model.
