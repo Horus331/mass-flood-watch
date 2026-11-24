@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.ticker, matplotlib.transforms
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); PH = f'{ROOT}/docs/proto/phase1'; FIG = f'{PH}/fig'
@@ -34,9 +35,13 @@ def bars(J):
         ax.axvline(0, color=INK2, lw=1); ax.set_yticks(y, lab); ax.set_xlabel(xl)
         span = max(abs(min(v + [0])), abs(max(v + [0]))) or 1
         for yi, a in zip(y, v):
-            s = (f'{a:+.1f}' if dec else f'{a:+,.0f}')
-            ax.text(a + (0.02 * span if a >= 0 else -0.02 * span), yi, s, va='center', ha='left' if a >= 0 else 'right', fontsize=9, color=INK)
-        ax.set_xlim(min(v + [0]) - 0.25 * span, max(v + [0]) + 0.25 * span)
+            s = (f'{a:+.1f}' if dec else f'{a:+,.0f}').replace('-', '−')
+            if a < 0:   # bars to the left: the value sits just right of the zero line, so it never meets the row label
+                ax.text(0.02 * span, yi, s, va='center', ha='left', fontsize=9, color=INK)
+            else:
+                ax.text(a + (0.02 * span if a >= 0 else -0.02 * span), yi, s, va='center', ha='left' if a >= 0 else 'right', fontsize=9, color=INK)
+        ax.set_xlim(min(v + [0]) - 0.12 * span, max(v + [0]) + 0.25 * span)
+        ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f'{x:,.0f}'.replace('-', '−')))
         ax.grid(axis='x', color=GRID, lw=0.6); ax.set_axisbelow(True)
         for s in ('top', 'right', 'left'): ax.spines[s].set_visible(False)
         ax.set_title(note, fontsize=9, color=INK2, loc='left')
@@ -49,24 +54,43 @@ def culverts(J, key='C100'):
     T = J['inspection'][key]['top']; tr = Transformer.from_crs(4326, 26986, always_xy=True)
     xy = np.array([tr.transform(d['lon'], d['lat']) for d in T])
     img = Image.open(f'{FIG}/aerial_leominster_box_5m.jpg'); X0, Y1, PX = 162000, 928000, 5.0
-    pad = 900; x0, x1 = xy[:, 0].min() - pad, xy[:, 0].max() + pad; y0, y1 = xy[:, 1].min() - pad, xy[:, 1].max() + pad
-    w, h = x1 - x0, y1 - y0
-    if w / h < 1.2: c = (x0 + x1) / 2; x0, x1 = c - 0.6 * h, c + 0.6 * h
+    med = np.median(xy, 0); far = np.hypot(*(xy - med).T) > 10000          # a culvert far from the rest is listed, with an arrow at the edge
+    core = xy[~far] if (~far).sum() >= 2 else xy
+    pad = 700; x0, x1 = core[:, 0].min() - pad, core[:, 0].max() + pad; y0, y1 = core[:, 1].min() - pad, core[:, 1].max() + pad
+    side = max(x1 - x0, y1 - y0); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2   # square crop: the map panel is square
+    x0, x1, y0, y1 = cx - side / 2, cx + side / 2, cy - side / 2, cy + side / 2
+    XE, YB = X0 + img.width * PX, Y1 - img.height * PX           # keep the square inside the photo (shift, do not shrink)
+    sx = max(0, X0 - x0) - max(0, x1 - XE); sy = max(0, YB - y0) - max(0, y1 - Y1)
+    x0, x1, y0, y1 = x0 + sx, x1 + sx, y0 + sy, y1 + sy; cx, cy = cx + sx, cy + sy
     crop = img.crop((int((x0 - X0) / PX), int((Y1 - y1) / PX), int((x1 - X0) / PX), int((Y1 - y0) / PX)))
     a = np.asarray(crop).astype(float) / 255; a = 0.55 + 0.45 * a    # lighten so markers read
-    fig = plt.figure(figsize=(12, 7.2)); ax = fig.add_axes([0.0, 0.0, 0.62, 1.0])
-    ax.imshow(a, extent=(x0, x1, y0, y1)); ax.set_xlim(x0, x1); ax.set_ylim(y0, y1); ax.set_xticks([]); ax.set_yticks([])
+    fig = plt.figure(figsize=(12, 7.5)); ax = fig.add_axes([0.01, 0.02, 0.6, 0.96])
+    ax.imshow(a, extent=(x0, x1, y0, y1), aspect='auto'); ax.set_xlim(x0, x1); ax.set_ylim(y0, y1); ax.set_xticks([]); ax.set_yticks([])
     for s in ax.spines.values(): s.set_color(GRID)
-    for i, (d, (x, y)) in enumerate(zip(T, xy), 1):
+    # markers closer than ~250 m are fanned out on short leader lines so every number stays readable
+    pos = xy.copy(); R = 0.035 * side
+    for i in range(len(pos)):
+        for j in range(i):
+            if not far[i] and not far[j] and np.hypot(*(pos[i] - pos[j])) < R:
+                ang = np.pi / 4 + j * 0.9; pos[i] = xy[i] + 1.1 * R * np.array([np.cos(ang), np.sin(ang)])
+    for i, (d, (x, y), (px, py)) in enumerate(zip(T, xy, pos), 1):
         col = COND.get(str(d['naacc_condition']), NA)
-        ax.scatter([x], [y], s=330, color=col, edgecolor='white', linewidth=2, zorder=3)
-        ax.text(x, y, str(i), ha='center', va='center', fontsize=9, color='white', fontweight='bold', zorder=4)
+        if far[i - 1]:   # off the map: arrow on the edge pointing to it, with its distance
+            dx, dy = x - cx, y - cy; k = 0.46 * side / max(abs(dx), abs(dy)); ex, ey = cx + dx * k, cy + dy * k
+            ax.annotate('', xy=(cx + dx * k * 1.06, cy + dy * k * 1.06), xytext=(ex, ey), arrowprops=dict(arrowstyle='-|>', color=INK, lw=1.5))
+            ax.scatter([ex], [ey], s=330, color=col, edgecolor='white', linewidth=2, zorder=3)
+            ax.text(ex, ey, str(i), ha='center', va='center', fontsize=9, color='white', fontweight='bold', zorder=4)
+            ax.text(ex, ey + 0.035 * side, f"{np.hypot(dx, dy) / 1000:.0f} km", ha='center', fontsize=8.5, color=INK, zorder=4)
+            continue
+        if (px, py) != (x, y): ax.plot([x, px], [y, py], color='white', lw=1.6, zorder=2); ax.scatter([x], [y], s=18, color=INK, zorder=2)
+        ax.scatter([px], [py], s=330, color=col, edgecolor='white', linewidth=2, zorder=3)
+        ax.text(px, py, str(i), ha='center', va='center', fontsize=9, color='white', fontweight='bold', zorder=4)
     sb = 1000; bx, by = x1 - sb - 0.04 * (x1 - x0), y0 + 0.04 * (y1 - y0)
     ax.plot([bx, bx + sb], [by, by], color=INK, lw=3, solid_capstyle='butt'); ax.text(bx + sb / 2, by + 0.015 * (y1 - y0), '1 km', ha='center', fontsize=9)
     ax.text(x1 - 0.03 * (x1 - x0), y1 - 0.05 * (y1 - y0), 'N ↑', ha='right', fontsize=10, color=INK)
     tx = fig.add_axes([0.64, 0.0, 0.36, 1.0]); tx.axis('off')
-    tx.text(0, 0.97, 'Culverts to inspect first', fontsize=12, color=INK, va='top')
-    tx.text(0, 0.925, 'Ranked by added water above the road crest\nwhen the culvert is fully blocked', fontsize=9, color=INK2, va='top')
+    fig.text(0.64, 0.965, 'Culverts to inspect first', fontsize=13, color=INK, va='top')
+    fig.text(0.64, 0.925, 'Ranked by added water above the road when the culvert\nis fully blocked (Leominster, 11 September 2023 storm)', fontsize=9, color=INK2, va='top')
     yy = 0.84
     for i, d in enumerate(T, 1):
         col = COND.get(str(d['naacc_condition']), NA)
@@ -82,7 +106,7 @@ def culverts(J, key='C100'):
         tx.scatter([0.03 + 0.33 * (j % 3)], [0.075 - 0.03 * (j // 3)], s=60, color=c, transform=tx.transAxes, clip_on=False)
         tx.text(0.06 + 0.33 * (j % 3), 0.075 - 0.03 * (j // 3), n, fontsize=8, va='center', color=INK2, transform=tx.transAxes)
     tx.text(0, 0.015, 'Condition: NAACC field assessment. Photo: MassGIS 2023.', fontsize=7.5, color=INK2, transform=tx.transAxes)
-    fig.savefig(f'{FIG}/parametric_clean_culverts.png'); plt.close(fig)
+    fig.savefig(f'{FIG}/parametric_clean_culverts.png', bbox_inches=matplotlib.transforms.Bbox([[0, 0], [12, 7.5]])); plt.close(fig)
 
 
 if __name__ == '__main__':
