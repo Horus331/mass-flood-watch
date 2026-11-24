@@ -1,0 +1,20 @@
+name: Check data API keys (status only, never prints keys)
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: USGS Water Data API key
+        env: { K: "${{ secrets.USGS_API_KEY }}" }
+        run: |
+          if [ -z "$K" ]; then echo "USGS_API_KEY: not set"; exit 0; fi
+          U='https://api.waterdata.usgs.gov/ogcapi/v0/collections/monitoring-locations/items?f=json&limit=1&state_code=25'
+          echo "without key:"; curl -s -o /dev/null -D - "$U" | grep -iE '^(HTTP|x-ratelimit-limit)' || true
+          echo "with key:";    curl -s -o /tmp/r.json -D - -H "X-Api-Key: $K" "$U" | grep -iE '^(HTTP|x-ratelimit-limit|x-ratelimit-remaining)' || true
+          python3 -c "import json;d=json.load(open('/tmp/r.json'));print('features returned:',len(d.get('features',[])))"
+      - name: MassDOT Work Zones key
+        env: { K: "${{ secrets.MASSDOT_WZDX_KEY }}" }
+        run: if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY: not set"; else echo "MASSDOT_WZDX_KEY: set (length ${#K})"; fi
+      - name: MassDOT GoTime key
+        env: { K: "${{ secrets.MASSDOT_GOTIME_KEY }}" }
+        run: if [ -z "$K" ]; then echo "MASSDOT_GOTIME_KEY: not set"; else echo "MASSDOT_GOTIME_KEY: set (length ${#K})"; fi
