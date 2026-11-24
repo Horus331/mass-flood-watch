@@ -17,6 +17,10 @@ jobs:
         run: |
           if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY not set"; exit 0; fi
           U=https://api.massdot-swzm.com/api/v1/cwz/work-zone-feed
+          python3 -c "import os;k=os.environ['K'];print('key length',len(k),'| outer spaces/newlines:',k!=k.strip(),'| quotes:',any(c in k for c in '\"\''),'| inner spaces:',' ' in k.strip())"
+          K=$(printf %s "$K" | tr -d ' \r\n"'"'"); echo "trimmed length ${#K}"
+          for H in "apiKey" "x-api-key"; do curl -s -o /dev/null -w "header $H: HTTP %{http_code}\n" -H "$H: $K" "$U"; done
+          curl -s -m 20 -o /tmp/sw.json -w "swagger json HTTP %{http_code}\n" https://api.massdot-swzm.com/swagger/v1/swagger.json && python3 -c "import json;d=json.load(open('/tmp/sw.json'));print('servers',d.get('servers'));print('schemes',json.dumps(d.get('components',{}).get('securitySchemes'))[:400])" || true
           curl -s -o /tmp/q.json -w "query-parameter form: HTTP %{http_code}\n" "$U?apiKey=$K"
           head -c 200 /tmp/q.json | sed "s/$K/***/g"; echo
           curl -s -o /tmp/w.json -w "bearer form: HTTP %{http_code}\n" -H "Authorization: Bearer $K" "$U"
