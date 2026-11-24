@@ -121,7 +121,7 @@
     $('#hourly').innerHTML = H.map(function (v, i) { var hr = (12 + i) % 12 || 12, ap = (12 + i) % 24 < 12 ? 'AM' : 'PM';
       return '<i class="' + (i === 6 ? 'now' : '') + '" style="height:' + Math.max(2, 100 * v / mx) + '%" title="' + hr + ' ' + ap + ': ' + v + ' mm"><em>' + (i % 3 === 0 || i === 6 ? hr + (i === 6 ? ' ' + ap : '') : '') + '</em></i>'; }).join('');
   }
-  var ACC = { fire_station: 'a fire truck can no longer reach within 8 minutes', hospital: 'no longer within 30 minutes of a hospital', police: 'police can no longer reach within 10 minutes' };
+  var ACC = { fire_station: 'a fire truck can no longer reach within 8 minutes', hospital: 'no longer within 30 minutes of a hospital', police: 'police can no longer reach within 4 minutes' };
   function numbers(service) {
     A.acc = { km: A.access.lost_km[service || 'fire_station'] }; A.check.n = A.check.reports.length;
     document.querySelectorAll('[data-k]').forEach(function (e) { var v = get(e.dataset.k); if (v != null) e.textContent = fmt(v); });

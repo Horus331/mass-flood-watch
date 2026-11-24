@@ -27,3 +27,8 @@ closures are an upper bound), single shortest-path detours, flat daily traffic, 
 consequences against. The model under-predicts this storm at the gauges (e.g. Quinapoxet River rise 0.72 m vs 1.55 m observed; Gates Brook
 0 vs 0.77 m), consistent with the known light-storm bias. Labels for this storm cover only the Worcester catalogue box (8 matched), so
 item 5 is indicative only.
+
+**Update 24 Nov 2026 (police standard 10 → 4 min, Chung et al. 2024; Mo approved):** `cascade.json` recomputed with `proto/cascade.py outdir`
+on the current District graph (45,099 segments; 44,338 in the 18 Nov run). Peak: 351,939 residents lose timely access (police 109,990,
+was 221,041; hospital 70,788; fire 234,286); 27,904 cut off from every service; 342,301 (97.3 %) on roads that stay dry (rule ≥ 80 %: still
+holds); 97 % of lost-access person-hours on dry roads. Closures and delay unchanged.
