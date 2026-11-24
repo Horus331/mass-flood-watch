@@ -87,7 +87,7 @@
   };
   var D3_BOUNDS = [[-72.38, 41.95], [-71.43, 42.765]];
   var params = new URLSearchParams(location.search);
-  var runKey = RUNS[params.get('run')] ? params.get('run') : /^[a-z0-9_]{3,60}$/.test(params.get('run') || '') ? params.get('run') : 'leominster_sep2023';
+  var runKey = RUNS[params.get('run')] ? params.get('run') : /^[a-z0-9_]{3,60}$/.test(params.get('run') || '') ? params.get('run') : 'forecast';   // opens on the light live-forecast map; replays load only when chosen (map speed plan)
   if (!RUNS[runKey]) RUNS[runKey] = { title: runKey.replace(/_/g, ' '), kind: '' }; // any other published run folder, e.g. a 5-minute rerun
   var base = 'site/data/' + runKey + '/';
   var WHATIF = runKey === 'whatif', WI = 'site/data/whatif/', wi = null, WION = false; // WION: the scenario runs are published
