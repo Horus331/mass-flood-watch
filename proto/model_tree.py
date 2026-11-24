@@ -54,6 +54,7 @@ SRC = {
     'latora2001': ('Latora V., Marchiori M. (2001) Efficient behavior of small-world networks. Physical Review Letters 87', 'https://doi.org/10.1103/PhysRevLett.87.198701'),
     'dijkstra1959': ('Dijkstra E.W. (1959) A note on two problems in connexion with graphs. Numerische Mathematik 1', 'https://doi.org/10.1007/BF01386390'),
     'nfpa1710': ('NFPA 1710 (2020) Standard for the Organization and Deployment of Fire Suppression Operations… (§4.1.2.1.1: 480 s travel, full first alarm)', 'https://www.nfpa.org/codes-and-standards/nfpa-1710-standard-development/1710'),
+    'chung2024': ('Chung S. et al. (2024) Access to emergency services: a New York City case study. Transportation Research Interdisciplinary Perspectives 25, 101111', 'https://doi.org/10.1016/j.trip.2024.101111'),
     'carr2009': ('Carr B.G. et al. (2009) Access to emergency care in the United States. Annals of Emergency Medicine 54(2)', 'https://doi.org/10.1016/j.annemergmed.2009.01.025'),
     'schwartz2017': ('Schwartz C.S., Sobash R.A. (2017) Generating probabilistic forecasts from convection-allowing ensembles using neighborhood approaches: a review and recommendations. Monthly Weather Review 145', 'https://doi.org/10.1175/MWR-D-16-0400.1'),
     'knisel1980': ('Knisel W.G. (ed.) (1980) CREAMS: A Field-Scale Model for Chemicals, Runoff and Erosion from Agricultural Management Systems. USDA Conservation Research Report 26 (frozen-soil curve number)', None),
@@ -293,12 +294,12 @@ node(id='pregnolato', stage=6, title='Slower on wet roads (Pregnolato curve)', p
 node(id='dijkstra', stage=6, title='Shortest routes and detours', plain='The computer finds the quickest way around closed roads, like a navigation app.',
      what='Dijkstra shortest paths on the wet graph (node-weighted by travel time); detours capped at 30 min; vehicle-hours from AADT.', source=['dijkstra1959'],
      output='detour minutes, vehicle-hours of delay', code=[code(CS, 'cascade'), code(RS, 'closure_detours')], limits='No congestion feedback (no equilibrium assignment).')
-node(id='access', stage=6, title='Emergency access standards', plain='We count people who can no longer reach a hospital in 30 min, a fire station in 8 min or police in 10 min.',
+node(id='access', stage=6, title='Emergency access standards', plain='We count people who can no longer reach a hospital in 30 min, a fire station in 8 min or police in 4 min.',
      what='Residents within the standard of an open facility, now vs dry; isolated = no route to any open hospital, fire or police station.',
      parameters=[P('hospital', f'dict:{RS}:ACCESS_MIN:hospital', unit='min', origin='Carr et al. 2009 (share within 30 min of an emergency department)'),
                  P('fire station', f'dict:{RS}:ACCESS_MIN:fire_station', unit='min', origin='NFPA 1710 (2020) §4.1.2.1.1: 480 s travel'),
-                 P('police', f'dict:{RS}:ACCESS_MIN:police', unit='min', origin='set by us (no national standard; planning assumption)')],
-     source=['carr2009', 'nfpa1710', 'census', 'osm'], output='people losing access (per service), person-hours', code=[code(RS, 'access'), code(CS, 'connectivity')],
+                 P('police', f'dict:{RS}:ACCESS_MIN:police', unit='min', origin='Chung et al. 2024 (4-min travel benchmark for emergency services, New York City)')],
+     source=['carr2009', 'nfpa1710', 'chung2024', 'census', 'osm'], output='people losing access (per service), person-hours', code=[code(RS, 'access'), code(CS, 'connectivity')],
      limits='Night-time population; facilities from OSM.')
 node(id='efficiency', stage=6, title='Network resilience (efficiency)', plain='One number for how well the whole road network still moves people during the storm.',
      what='Global efficiency of the network over time, as used for road-network resilience by Ganin et al. 2017.', source=['latora2001', 'ganin2017'],

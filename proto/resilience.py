@@ -26,7 +26,7 @@ Functionality Q(t), % of the dry network (three variants, each defensible on its
   Q_access   critical-access share, population-weighted: residents of the box within the response-time standard of the nearest open
              facility, now / dry, averaged over hospital (30 min; Carr et al. 2009 report access to emergency departments as share of the
              population within 30 / 60 min), fire station (8 min travel = NFPA 1710 (2020) 4.1.2.1.1 full first-alarm 480 s) and police
-             (10 min; no national standard, a planning assumption).  Facility routing uses the whole MA graph, so hospitals outside the box
+             (4 min travel; Chung et al. 2024, Transp. Res. Interdiscip. Perspect. 25:101111; was an unsourced 10 min until 24 Nov 2026).  Facility routing uses the whole MA graph, so hospitals outside the box
              count; a facility whose own segment is closed is not a source.
              Population: 2020 Census blocks (docs/network/census_blocks_ma.npz from proto/census_blocks.py: POP20 at the block's internal
              point).  Each populated block whose internal point is in the box is assigned to the in-box segment with the nearest road
@@ -66,7 +66,7 @@ import impacts as IM
 
 CLOSE_CM = 30          # closure depth (prototype FAIL_M)
 CLOSE_CM_SENS = 15     # sensitivity: impacts.py network cut
-ACCESS_MIN = {'hospital': 30.0, 'fire_station': 8.0, 'police': 10.0}
+ACCESS_MIN = {'hospital': 30.0, 'fire_station': 8.0, 'police': 4.0}   # police: Chung et al. 2024 (4-min benchmark), Mo 24 Nov 2026
 DETOUR_CAP_MIN = 30.0
 _trapz = getattr(np, 'trapezoid', None) or getattr(np, 'trapz')
 SNAP_M = 3000.0        # facility snapped to the nearest segment midpoint within 3 km (as impacts.py)
@@ -332,9 +332,9 @@ def run(out, segments=None, facilities=None, eff_sources=0, close_cm=CLOSE_CM, s
                                  'counted unserved; shared over the stretch by AADT x length; slowed: t_dry (1/f - 1); no traffic assignment (lower bound)'),
                definitions=dict(
                    Q_eff='E(t) / E_dry x 100, E = global efficiency (Latora & Marchiori 2001) of the in-box segment graph, travel-time weighted; N fixed at the dry count',
-                   Q_access=('mean over hospital (30 min), fire station (8 min), police (10 min) of in-box residents (2020 Census blocks) within the standard of an open facility, now / dry x 100'
+                   Q_access=('mean over hospital (30 min), fire station (8 min), police (4 min) of in-box residents (2020 Census blocks) within the standard of an open facility, now / dry x 100'
                              if pop is not None else 'road-km version (no census file): see Q_access_km'),
-                   Q_access_km='mean over hospital (30 min), fire station (8 min), police (10 min) of in-box road-km within the standard of an open facility, now / dry x 100',
+                   Q_access_km='mean over hospital (30 min), fire station (8 min), police (4 min) of in-box road-km within the standard of an open facility, now / dry x 100',
                    Q_traffic='sum AADT L f(t) / sum AADT L x 100, f = Pregnolato speed ratio, 0 when closed',
                    resilience_loss_pct_h='integral (100 - Q) dt over the window (Bruneau et al. 2003)', resilience_index='integral Q dt / (100 T) (Cimellaro et al. 2010; Ouyang et al. 2012)',
                    robustness_pct='min Q', recovery_to_90_h='hours from the minimum until Q >= 90 % (null: not inside the window)',

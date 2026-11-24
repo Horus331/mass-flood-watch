@@ -18,7 +18,7 @@ Per output frame k (every 30 min of model time; the 5-min packs are sampled ever
   overload      every detour path carries its stretch's daytime volume H x AADT (H = 0.06 of AADT per daytime hour); per segment
                 V/C = H (AADT_j + sum of detour AADT through j) / CAP[class]; overloaded when V/C > 1 and it carries detour traffic
   connectivity  2020 Census blocks (pop > 0) in the box on their nearest road segment; a block loses a service when it was within the standard
-                dry (hospital 30 min, fire 8 min (NFPA 1710 travel), police 10 min) and is not now (its own segment closed, or no open
+                dry (hospital 30 min, fire 8 min (NFPA 1710 travel), police 4 min, Chung et al. 2024) and is not now (its own segment closed, or no open
                 facility within the standard); isolated = no route to any open hospital / fire / police (resilience.isolated_mask)
   culverts      road-stream crossings (docs/network/crossings_all.json) within 30 m of an in-box road: overtopped from the first frame the
                 road there carries >= 15 cm (risk.py's 'water on the road within 30 m' rule, P = Phi((d - 0.15) / 0.10) >= 0.5).  Repair-cost

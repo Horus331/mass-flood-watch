@@ -1,8 +1,8 @@
-# Model tree check (2026-11-21 16:46Z)
+# Model tree check (2026-11-24 12:03Z)
 
 `python proto/model_tree.py check`: every parameter on the tree re-read from the code and the live forecast workflow (`.github/workflows/forecast.yml`) and compared with `docs/model-tree/tree.json`.
 
-**Result: PASS** — 51 parameters match the code, 4 are stated values (not code settings), 0 differ; 0 code links point to missing files; 41 source links listed.
+**Result: PASS** — 51 parameters match the code, 4 are stated values (not code settings), 0 differ; 0 code links point to missing files; 42 source links listed.
 
 | node | parameter | on the tree | in the code (where) | |
 |---|---|---|---|---|
@@ -49,7 +49,7 @@
 | pregnolato | closed at | 30.0 | 30.0 (proto/cascade.py CLOSE_CM) | OK |
 | access | hospital | 30.0 | 30.0 (proto/resilience.py ACCESS_MIN['hospital']) | OK |
 | access | fire station | 8.0 | 8.0 (proto/resilience.py ACCESS_MIN['fire_station']) | OK |
-| access | police | 10.0 | 10.0 (proto/resilience.py ACCESS_MIN['police']) | OK |
+| access | police | 4.0 | 4.0 (proto/resilience.py ACCESS_MIN['police']) | OK |
 | gate | 6 h threshold G₆ | 25 | 25 (proto/forecast.py default of GATE_6H_MM) | OK |
 | gate | 24 h threshold G₂₄ | 40 | 40 (proto/forecast.py default of GATE_24H_MM) | OK |
 | gate | water-mode threshold | 8 | 8 (proto/forecast.py default of WATER_MM) | OK |
