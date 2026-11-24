@@ -2,7 +2,7 @@ name: Map speed check (bytes and time to ready, live map vs test page)
 on:
   workflow_dispatch:
   push:
-    paths: ['docs/next.html', 'docs/site/viewer-next.js', 'docs/site/viewer-next.css', 'docs/index.html', 'docs/site/viewer.js']
+    paths: ['docs/site/tiles/**', 'docs/next.html', 'docs/site/viewer-next.js', 'docs/site/viewer-next.css', 'docs/index.html', 'docs/site/viewer.js']
 permissions:
   contents: write
 jobs:
@@ -19,6 +19,7 @@ jobs:
           mkdir -p docs/proto/mapspeed
           node proto/bench/ci_bench.js http://localhost:8080 docs/proto/mapspeed/latest.json
           node proto/bench/ci_zoom.js http://localhost:8080 docs/proto/mapspeed/zoom.json || true
+          node proto/bench/ci_shots.js http://localhost:8080 docs/proto/mapspeed/shots || true
       - name: budget (test page only)
         run: |
           python3 - <<'PY'

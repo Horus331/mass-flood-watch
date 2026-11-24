@@ -24,7 +24,7 @@ jobs:
           python proto/tiles/build_streets_seq.py /tmp/streets.geojsonl
           mkdir -p docs/site/tiles
           tippecanoe -o docs/site/tiles/d3_streets.pmtiles -l streets -Z8 -z15 \
-            --no-feature-limit --no-tile-size-limit --simplification=6 --simplify-only-low-zooms --no-tiny-polygon-reduction \
+            --no-feature-limit --no-tile-size-limit --simplification=10 --simplify-only-low-zooms --low-detail=10 --coalesce --reorder \
             --force -P /tmp/streets.geojsonl 2>&1 | tail -5
           ls -la docs/site/tiles
           python - <<'PY'
