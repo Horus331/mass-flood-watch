@@ -45,8 +45,8 @@ vehicle-hours over the storm. Change vs base in brackets.
 - **Matters for roads** (closed length ±10 % or more): 100 % blockage, smallest third, dry soil, wet soil, frozen ground, 50 % + wet.
   Little effect: 20 % and 50 % blockage.
 - **Matters for access** (±10 % or more): dry soil, wet soil, frozen ground, 50 % + wet. Little effect: all blockage scenarios.
-- **Robust:** soil and frozen ground (peak and any-time closures move the same way, all well over 3 segments); blockage for roads at
-  50 % and above (crest readout and any-time closures both up). **Not robust:** the small *decrease* in access under 20–100 % blockage.
+- **Robust:** soil and frozen ground (peak and any-time closures move the same way, all well over 3 segments); blockage for roads under 100 % and
+  smallest-third blockage (crest readout and any-time closures both up). **Not robust:** the small *decrease* in access under 20–100 % blockage.
   It comes from the known notch-water effect in the deployed readout near crossings (21 base closures near crossings disappear at
   100 % blockage; PROJECT_LOG §6), not from a real improvement. Report blockage through the crest readout and delay, not access.
 - **Inspection list robust:** 6 of the top 10 under 100 % blockage are also in the top 10 under the smallest third, 50 % + wet soil, or
