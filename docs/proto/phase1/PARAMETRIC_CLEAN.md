@@ -9,7 +9,7 @@ MRMS rain, catalogue box, deployed model settings and closure rule. In-sample by
 1. **Ground condition before the storm matters most.** Frozen ground almost triples the closed road length; wet soil adds two thirds;
    dry soil removes about two fifths. Residents losing timely emergency access move the same way (+47 %, +25 %, −32 %).
 2. **A fully blocked culvert raises the water at the crossing by about 2 m (median)** and puts water over the road at 24 crossings
-   that stay dry when open; across the area, closed road length rises 12–14 % and network delay 51–79 %.
+   that stay dry when open; across the area, closed road length rises 12–14 %.
 3. **Partial blockage (20–50 %) changes little on its own**, but 50 % blockage on wet soil is close to wet soil alone: the soil drives it.
 4. **Inspection list:** ten culverts where blockage puts the most water over the road (Fig. 2), led by Dewey Street (Fitchburg) and
    Meadow Pond Drive (Leominster); the list holds across scenarios (6 of 10 confirmed).
@@ -76,6 +76,6 @@ missing. Only #6 carries a Poor rating.
   soil and frozen ground change them little (DPW 20–22). Internal check only.
 - Under 50 % + wet soil, the largest pool rises (8–11 m) are at the Route 2 / I-190 interchange: the chained-notch pit already found in
   the terrain study (TERRAIN.md). They add no water over the road crest, so they do not enter the inspection list.
-- The smallest-third scenario overtops no crossing yet gives the largest delay increase (+79 %): blocked small culverts close a few
-  well-used local roads early in the storm. Worth a closer look before it is presented.
+- The smallest-third scenario overtops no crossing yet gives the largest delay increase (+79 %, more than full blockage of every
+  culvert). The cause is not checked yet; until it is, treat the delay numbers of the blockage scenarios as not robust.
 - Base here (70 segments, 49 km) is lower than the 16 Nov T2 base (85) because the deployed closure rule now subtracts start-up water.
