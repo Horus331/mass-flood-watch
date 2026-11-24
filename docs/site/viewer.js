@@ -2148,7 +2148,7 @@
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: ' + (meta && meta.kofn ? 'NOAA HRRR forecast' : 'NOAA MRMS') + ' · Roads: MassDOT' }));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.touchZoomRotate.disableRotation();
-    if (params.get('debug') === '1') { window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { depth: depth.stat(), wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
+    if (params.get('debug') === '1') { window.__mfwMap = map; window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { depth: depth.stat(), wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
     map.once('style.load', function () {
       map.addLayer(WION ? wdepth.layer : depth.layer, 'l-voy');
       addCoverage();
