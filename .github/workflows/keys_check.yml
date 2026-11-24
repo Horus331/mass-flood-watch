@@ -14,7 +14,9 @@ jobs:
           python3 -c "import json;d=json.load(open('/tmp/r.json'));print('features returned:',len(d.get('features',[])))"
       - name: MassDOT Work Zones key
         env: { K: "${{ secrets.MASSDOT_WZDX_KEY }}" }
-        run: if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY: not set"; else echo "MASSDOT_WZDX_KEY: set (length ${#K})"; fi
+        run: |
+          if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY not set"; else echo "MASSDOT_WZDX_KEY set (length ${#K})"; fi
       - name: MassDOT GoTime key
         env: { K: "${{ secrets.MASSDOT_GOTIME_KEY }}" }
-        run: if [ -z "$K" ]; then echo "MASSDOT_GOTIME_KEY: not set"; else echo "MASSDOT_GOTIME_KEY: set (length ${#K})"; fi
+        run: |
+          if [ -z "$K" ]; then echo "MASSDOT_GOTIME_KEY not set"; else echo "MASSDOT_GOTIME_KEY set (length ${#K})"; fi
