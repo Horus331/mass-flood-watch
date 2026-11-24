@@ -2190,14 +2190,22 @@
     });
     if (CS) {   // continuous depth: every compressed sheet fetched before the replay opens (6 at a time, in time order); decoded on the GPU near the replay time
       depth.setCCount(CS.length);
-      var nextC = 0, firstC = [];
+      // streaming (map speed plan, 24 Nov 2026): the sheets around the opening time come first and the map opens as soon as they are in;
+      // the rest keep loading in the background, forward of that time first. Playback still never shows an old frame (depth.readyAt).
+      var s0 = Math.min(CS.length - 1, Math.floor(Math.max(0, t) / 3)), order = [];
+      for (var q = 0; q < CS.length; q++) order.push(q);
+      order.sort(function (a_, b_) { var da = a_ >= s0 ? (a_ - s0) * 2 : (s0 - a_) * 2 + 1, db = b_ >= s0 ? (b_ - s0) * 2 : (s0 - b_) * 2 + 1; return da - db; });
+      var NEED = Math.min(4, CS.length), nextC = 0, gotC = 0, needRes, needP = new Promise(function (r) { needRes = r; });
+      total = total - CS.length + NEED;
       var pump = function () {
-        if (nextC >= CS.length) return Promise.resolve();
-        var i = nextC++;
-        return getBlob(dbase() + CS[i]).then(function (b) { depth.addCBlob(i, b); progress('Loading the whole storm… ' + (done + 1) + ' of ' + total); }, function () { progress(); }).then(pump);
+        if (nextC >= order.length) return Promise.resolve();
+        var i = order[nextC++];
+        return getBlob(dbase() + CS[i]).then(function (b) { depth.addCBlob(i, b); }, function () { }).then(function () {
+          gotC++; if (gotC <= NEED) progress('Loading the storm… ' + gotC + ' of ' + NEED); if (gotC === NEED) needRes();
+        }).then(pump);
       };
-      for (var k = 0; k < 6; k++) firstC.push(pump());
-      jobs.push(Promise.all(firstC));
+      for (var k = 0; k < 6; k++) pump();
+      jobs.push(needP);
     }
     if (!WION) jobs.push(Promise.all([getJson(base + 'roads.json'), getJson(base + 'pieces.json').then(function (p) { if (p && p.w30) { IMP = p; IMPSEG = {}; p.seg.forEach(function (sid) { IMPSEG[sid] = 1; }); } return null; }).catch(function () { return null; })]).then(function (a) {
       // road state on whole segments (the unit that is closed); pieces.json is no longer drawn
@@ -2244,7 +2252,8 @@
     // District 3 network (every MassDOT segment) so the street pattern shows from district zoom in every replay
     var netBig = false;
     jobs.push(getJson(base + 'network.json').then(function (N) { var fc = netFeats(N); whenStyle(function () { if (!netBig) addNet(fc); }); }).catch(function () { }));
-    jobs.push(getJson(D3NET).then(function (D) { var fc = netFeats(D); netBig = true; whenStyle(function () { addNet(fc); }); progress(); }).catch(function () { progress(); }));
+    if (!window.pmtiles) jobs.push(getJson(D3NET).then(function (D) { var fc = netFeats(D); netBig = true; whenStyle(function () { addNet(fc); }); progress(); }).catch(function () { progress(); }));   // tiles draw the district streets when available
+    else total--;
     if (!WHATIF && runKey === 'leominster_sep2023') jobs.push(getJson(WI + 'index.json').then(function (ix) {   // same 20 km box as the what-if runs
       return getBitmap(WI + ix.terrain.sheet).then(function (im) { flowLayer.setChannels(im); });
     }).catch(function () {}));
