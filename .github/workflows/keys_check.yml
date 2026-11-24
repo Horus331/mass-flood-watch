@@ -17,6 +17,8 @@ jobs:
         run: |
           if [ -z "$K" ]; then echo "MASSDOT_WZDX_KEY not set"; exit 0; fi
           U=https://api.massdot-swzm.com/api/v1/cwz/work-zone-feed
+          curl -s -m 30 -o /tmp/st.json -w "staging server, bearer form: HTTP %{http_code}\n" -H "Authorization: Bearer $(printf %s "$K" | tr -d ' \r\n')" https://staging-api.massdot-swzm.com/api/v1/cwz/work-zone-feed || true
+          python3 -c "import json;d=json.load(open('/tmp/st.json'));print('staging features',len(d.get('features',[])))" 2>/dev/null || head -c 200 /tmp/st.json; echo
           python3 -c "import os;k=os.environ['K'];print('key length',len(k),'| outer spaces/newlines:',k!=k.strip(),'| quotes:',any(c in k for c in '\"\''),'| inner spaces:',' ' in k.strip())"
           python3 -c "import os;k=os.environ['K'].strip();print('starts with wz_:',k.startswith('wz_'),'| 4th-7th chars match portal hint:',k[3:7]=='AmDL')"
           K=$(printf %s "$K" | tr -d ' \r\n"'"'"); echo "trimmed length ${#K}"
