@@ -1955,6 +1955,7 @@
     $('forecastCard').hidden = false;   // no replay: the layer panel keeps only the background choice and the coverage key
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
     map.addControl(new maplibregl.AttributionControl({ compact: true })); keepCanvasFitted();
+    if (params.get('debug') === '1') window.__mfwMap = map;   // screenshot checks (forecast view too)
     var at = document.querySelector('.maplibregl-ctrl-attrib'); if (at && small()) at.classList.remove('maplibregl-compact-show');
     map.once('style.load', function () { addCoverage(); addReportLayers(); addStreets(); applyTheme(); styleReady(); });
     // phones: the credits stay folded behind their (i) button (MapLibre unfolds them whenever the credit text changes) until it is tapped
