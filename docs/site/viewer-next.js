@@ -1911,8 +1911,10 @@
       if (!map.getSource('wz') || !L.length) return; WZ = L; $('wzRow').hidden = false;
       map.getSource('wz').setData({ type: 'FeatureCollection', features: L.map(function (z, i) { return { type: 'Feature', properties: { i: i }, geometry: { type: 'LineString', coordinates: z.line } }; }) });
     }).catch(function () { });
-    map.addLayer({ id: 'wz', type: 'line', source: 'wz', minzoom: 9, layout: { 'line-cap': 'butt', visibility: 'visible' },
-      paint: { 'line-color': '#5B3A8C', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 15, 5], 'line-dasharray': [1.2, 1], 'line-opacity': 0.85 } });
+    map.addLayer({ id: 'wz-case', type: 'line', source: 'wz', minzoom: 9, layout: { 'line-cap': 'round', 'line-join': 'round' },   // white casing: readable on the aerial photo
+      paint: { 'line-color': '#fff', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 15, 10], 'line-opacity': 0.9 } });
+    map.addLayer({ id: 'wz', type: 'line', source: 'wz', minzoom: 9, layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: { 'line-color': '#7A3FC4', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2.5, 15, 6], 'line-dasharray': [1.4, 0.8] } });
     map.on('mouseenter', 'wz', function () { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'wz', function () { map.getCanvas().style.cursor = ''; });
     map.on('click', 'wz', function (e) {
@@ -3648,7 +3650,7 @@
   $('lyClosed').addEventListener('change', function (e) { ['wet', 'wetcase', 'halo', 'bar'].forEach(function (l) { vis(l, e.target.checked); }); });
   $('lyPeak').addEventListener('change', function (e) { vis('peak', e.target.checked); });
   $('lyMay').addEventListener('change', function (e) { vis('may', e.target.checked); });
-  $('lyWz').addEventListener('change', function (e) { vis('wz', e.target.checked); });
+  $('lyWz').addEventListener('change', function (e) { vis('wz', e.target.checked); vis('wz-case', e.target.checked); });
   $('lyRisk').addEventListener('change', function (e) {
     var on = e.target.checked;
     vis('risk', on); $('riskKey').hidden = !on;
