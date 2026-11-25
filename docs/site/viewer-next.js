@@ -130,7 +130,24 @@
   // one photo server at a time: inside the box only our tiles (and MassGIS above zoom 16); Esri only for the far view; the box edge
   // falls back to MassGIS/Esri so the photo never ends in a blank
   var ownOK = false;   // our tiles are used only once their index is found on the data site; until then MassGIS/Esri as before
-  try { fetch('https://horus331.github.io/mfw-data-d3/aerial/meta.json').then(function (r) { if (r.ok) { ownOK = true; aerialFill(); } }).catch(function () { }); } catch (e) { }
+  try { fetch('https://horus331.github.io/mfw-data-d3/aerial/meta.json').then(function (r) { if (r.ok) { ownOK = true; aerialFill(); aerialWarm(); } }).catch(function () { }); } catch (e) { }
+  // the zoomed-out photo of the whole district is only 79 small tiles (zoom 8-11, ~2 MB): fetch them quietly once the page is idle, so
+  // the first zoom out is as quick as a revisit (first visit measured 0.8-1.7 s at zoom 9-11 in Mo's Chrome, 25 Nov 2026)
+  function aerialWarm() {
+    var go = function () {
+      if (basemap() !== 'satellite') return;
+      for (var z = 8; z <= 11; z++) {
+        var n = Math.pow(2, z), tx = function (lon) { return Math.floor((lon + 180) / 360 * n); },
+          ty = function (lat) { var r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); };
+        for (var x = tx(AERIAL_BOX[0]); x <= tx(AERIAL_BOX[2]); x++) for (var y = ty(AERIAL_BOX[3]); y <= ty(AERIAL_BOX[1]); y++) {
+          var u = 'https://horus331.github.io/mfw-data-d3/aerial/' + z + '/' + x + '/' + y + '.webp';
+          if (preDone[u]) continue; preDone[u] = 1;
+          try { fetch(u, { mode: 'cors', priority: 'low' }).catch(function () { }); } catch (e) { }
+        }
+      }
+    };
+    if (window.requestIdleCallback) setTimeout(function () { requestIdleCallback(go, { timeout: 8000 }); }, 4000); else setTimeout(go, 6000);
+  }
   function aerialFill() {
     if (!map || !map.getLayer('b-mgis') || basemap() !== 'satellite') return;
     if (map.getLayer('b-own')) map.setLayoutProperty('b-own', 'visibility', ownOK ? 'visible' : 'none');
