@@ -1,0 +1,28 @@
+name: Papers guard (alert if the paper drafts come back into this public repository)
+# After the 24 Nov 2026 history rewrite, an old clone (e.g. on Turing) that rebases and pushes could bring papers/, docs/proto/paper/ or
+# docs/proto/paper2/ back. Any push that adds them fails this check and opens an issue (GitHub notifies Mo by email). Nothing is changed.
+on:
+  push:
+    branches: ['**']
+permissions:
+  contents: read
+  issues: write
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: check the pushed commits
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          B='${{ github.event.before }}'; A='${{ github.sha }}'
+          if git cat-file -e "$B^{commit}" 2>/dev/null; then RANGE="$B..$A"; else RANGE="$A"; fi
+          N=$(git log --format=%H $RANGE -- papers docs/proto/paper docs/proto/paper2 | wc -l)
+          T=$(git ls-tree -r --name-only $A | grep -cE '^(papers|docs/proto/paper2?)/' || true)
+          echo "commits touching paper paths: $N, paper files in the tree: $T"
+          if [ "$N" -gt 0 ] || [ "$T" -gt 0 ]; then
+            gh issue create -R ${{ github.repository }} -t "Paper drafts pushed back into the public repository (${{ github.ref_name }})" \
+              -b "A push by ${{ github.actor }} (before $B, after $A) touched papers/ or docs/proto/paper*/. Check the pushing clone (Turing?) and remove them." || true
+            exit 1
+          fi
