@@ -73,14 +73,14 @@ def main():
             async def shot(url, name, vp=(1600, 1000), wait=20000, el=None, js=None, phone=False):
                 ctx = await (b.new_context(**p.devices['iPhone 13']) if phone else b.new_context(viewport={'width': vp[0], 'height': vp[1]}, device_scale_factor=1.5))
                 pg = await ctx.new_page(); errs = []
-                pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
+                pg.on('console', lambda m: errs.append(m.text + (f" @ {m.location.get('url','').split('/')[-1]}:{m.location.get('lineNumber')}" if m.location else '')) if m.type == 'error' else None)
                 pg.on('pageerror', lambda e: errs.append('page error: ' + str(e)))   # an uncaught exception stops the page (8 Nov: the map never loaded)
                 await pg.goto(BASE + url, wait_until='load'); await pg.wait_for_timeout(wait)
                 if js: await pg.evaluate(js); await pg.wait_for_timeout(4000)
                 if el and await pg.query_selector(el): await (await pg.query_selector(el)).screenshot(path=f'{OUT}/{name}', timeout=180000)
                 else: await pg.screenshot(path=f'{OUT}/{name}', timeout=180000)
-                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist'),lt=document.getElementById('loadText');return {stuck:!!(lt&&lt.offsetParent&&(/did not load/.test(lt.innerText)||(/Loading/.test(lt.innerText)&&!/100%/.test(lt.innerText)))), loadtext:lt?lt.innerText:'',fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
-                report['shots'].append(dict(name=name, url=url, **txt)); report['errors'] += [e[:200] for e in errs if '404' not in e][:5]
+                txt = await pg.evaluate("(()=>{var h=document.getElementById('fhist'),lt=document.getElementById('loadText');return {stuck:!!(lt&&lt.offsetParent&&!(document.getElementById('loading')||{classList:{contains:function(){return false}}}).classList.contains('done')&&(/did not load/.test(lt.innerText)||(/Loading/.test(lt.innerText)&&!/100%/.test(lt.innerText)))), loadtext:lt?lt.innerText:'',fhist:h&&!h.hidden?h.innerText.slice(0,1500):null, rank:[...document.querySelectorAll('.rank li, #rankList li')].slice(0,8).map(e=>e.innerText.replace(/\\s+/g,' ').slice(0,200)), body:document.body.innerText.slice(0,6000)}})()")
+                report['shots'].append(dict(name=name, url=url, **txt)); report['errors'] += [f'{name}: ' + e[:200] for e in errs if '404' not in e][:5]   # the page name, so an error can be traced
                 print('wrote', name); await ctx.close()
             _shot = shot
             async def shot(*a, **k):   # one slow page (software WebGL on the runner) must not lose the other images
