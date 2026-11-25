@@ -48,7 +48,7 @@ def nearest(product, t, tol_min=10):
 
 
 def grid(product, t):
-    b = nearest(product, t)
+    b = nearest(product, t, 70 if product == Q3 else 10)   # the 3 h radar total is published hourly (execution fix, 25 Nov: 10 min missed it)
     if not b: return None
     V, la, lo = LF.mrms_box(b[1]); return b[0], np.nan_to_num(V, nan=0.0), la, lo
 
