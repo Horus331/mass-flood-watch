@@ -1,10 +1,10 @@
 # Commit map after the 24 Nov 2026 history rewrite
 
-On 24 Nov 2026 the history of this repository was rewritten to remove the paper drafts (, ,
-, now in a private repository). Every commit from 28 Oct 2026 on received a new hash; author and commit dates and
+On 24 Nov 2026 the history of this repository was rewritten to remove the paper drafts (`papers/`, `docs/proto/paper/`,
+`docs/proto/paper2/`, now in a private repository). Every commit from 28 Oct 2026 on received a new hash; author and commit dates and
 messages are unchanged, so every pre-registration keeps its original timestamp. Earlier commits kept their hashes.
 
-Documents written before the rewrite (pre-registrations, results, , notes) cite the old hashes.
+Documents written before the rewrite (pre-registrations, results, `docs/proto/prospective/ledger.csv`, notes) cite the old hashes.
 This table maps every old hash cited in them to its new commit (matched on author date, commit date and message; 138 of 138 unique).
 Four other cited commits changed only paper files and are kept in the private repository.
 
