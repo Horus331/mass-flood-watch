@@ -1867,6 +1867,21 @@
   }
   // every street the model evaluates in District 3 (streets_d3.json, proto/build_streets_d3.py), drawn at every zoom on every tab: the
   // basemap tiles drop minor streets below street zoom, so a flooded side street would otherwise float on an empty map when zoomed out
+  // active MassDOT work zones (live/workzones.json) for the road list: a road the model floods where lanes are already reduced or closed
+  var WZ_ACTIVE = null;
+  function wzNear(f, m) {
+    if (!WZ_ACTIVE || !f || !f.geometry) return null;
+    var g = f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), k = Math.cos(42.4 * Math.PI / 180) * 111320, m2 = m * m;
+    function d2(p, a, b) {   // squared distance (m^2) from point p to segment ab, local flat approximation
+      var ax = (a[0] - p[0]) * k, ay = (a[1] - p[1]) * 111320, bx = (b[0] - p[0]) * k, by = (b[1] - p[1]) * 111320, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy,
+        t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0, x = ax + t * dx, y = ay + t * dy; return x * x + y * y;
+    }
+    for (var i = 0; i < WZ_ACTIVE.length; i++) {
+      var z = WZ_ACTIVE[i], ln = z.line;
+      for (var j = 0; j < cs.length; j++) for (var q = 1; q < ln.length; q++) if (d2(cs[j], ln[q - 1], ln[q]) <= m2) return z;
+    }
+    return null;
+  }
   var STREETS_V = '20261124b';   // bump whenever docs/site/tiles/d3_streets.pmtiles is rebuilt (.github/workflows/tiles.yml)
   function addStreets() {
     if (!map || map.getSource('d3streets') || addStreets.busy) return; addStreets.busy = true;
@@ -1925,7 +1940,7 @@
     map.addSource('wz', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }); var WZ = null;
     if (runKey === 'forecast') getJson('site/data/live/workzones.json').then(function (W) {
       var now = Date.now(), L = ((W && W.zones) || []).filter(function (z) { return z.line && z.line.length > 1 && (!z.start || Date.parse(z.start) <= now) && (!z.end || Date.parse(z.end) >= now); });
-      if (!map.getSource('wz') || !L.length) return; WZ = L; $('wzRow').hidden = false;
+      if (!map.getSource('wz') || !L.length) return; WZ = L; WZ_ACTIVE = L; $('wzRow').hidden = false; try { if (typeof rankBuild === 'function' && segs && segs.length) rankBuild(); } catch (e) { }
       map.getSource('wz').setData({ type: 'FeatureCollection', features: L.map(function (z, i) { return { type: 'Feature', properties: { i: i }, geometry: { type: 'LineString', coordinates: z.line } }; }) });
     }).catch(function () { });
     map.addLayer({ id: 'wz-case', type: 'line', source: 'wz', minzoom: 9, layout: { 'line-cap': 'round', 'line-join': 'round' },   // white casing: readable on the aerial photo
@@ -3501,6 +3516,8 @@
       if (sn) b.innerHTML += '<span class="rt fh-seen">' + (sn[0] ? 'Also in ' + sn[0] + ' of ' + sn[1] + ' earlier forecasts of this storm' : 'New in this forecast') + '</span>';
       var kn = ksNear(r.s.f, 120); r.known = kn;
       if (kn.length) b.innerHTML += '<span class="rt ks-seen">Reported flooded before: ' + esc(ksDates(kn)) + '</span>';
+      var wzz = runKey === 'forecast' ? wzNear(r.s.f, 60) : null;
+      if (wzz) b.innerHTML += '<span class="rt wz-t">Road work here now: ' + esc(String(wzz.impact || 'lanes affected').replace(/-/g, ' ')) + ' (MassDOT)</span>';
       b.addEventListener('click', function () {
         var g = r.s.f.geometry, cs = g.type === 'LineString' ? g.coordinates : [].concat.apply([], g.coordinates), bb = [[180, 90], [-180, -90]];
         cs.forEach(function (c) { bb[0][0] = Math.min(bb[0][0], c[0]); bb[0][1] = Math.min(bb[0][1], c[1]); bb[1][0] = Math.max(bb[1][0], c[0]); bb[1][1] = Math.max(bb[1][1], c[1]); });
