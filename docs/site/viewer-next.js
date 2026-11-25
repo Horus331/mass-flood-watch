@@ -1935,7 +1935,7 @@
     $('runStats').innerHTML = '<span class="tag-dev">Unavailable</span>';
     $('forecastCard').hidden = false;   // no replay: the layer panel keeps only the background choice and the coverage key
     map = new maplibregl.Map({ container: 'map', bounds: D3_BOUNDS, fitBoundsOptions: { padding: framePadding() }, attributionControl: false, dragRotate: false, style: baseStyle() });
-    map.addControl(new maplibregl.AttributionControl({ compact: true }));
+    map.addControl(new maplibregl.AttributionControl({ compact: true })); keepCanvasFitted();
     var at = document.querySelector('.maplibregl-ctrl-attrib'); if (at && small()) at.classList.remove('maplibregl-compact-show');
     map.once('style.load', function () { addCoverage(); addReportLayers(); addStreets(); applyTheme(); styleReady(); });
     // phones: the credits stay folded behind their (i) button (MapLibre unfolds them whenever the credit text changes) until it is tapped
@@ -2193,6 +2193,15 @@
     map.setPaintProperty('cov-test', 'fill-opacity', 0);
     map.setPaintProperty('cov-test-ol', 'line-color', dk ? 'rgba(241,245,247,.7)' : '#7A858D');
   }
+  // the map canvas must always fill its box: on 25 Nov in Mo's Chrome (page zoom below 100 %) the canvas kept the size it had at start
+  // (908 x 631 css px in a 1362 x 979 box) and the right and bottom of the map stayed empty until a manual resize
+  function keepCanvasFitted() {
+    if (!map || !window.ResizeObserver) return;
+    var box = map.getContainer(), raf = 0;
+    new ResizeObserver(function () { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; var c = map.getCanvas(); if (Math.abs(c.clientWidth - box.clientWidth) > 1 || Math.abs(c.clientHeight - box.clientHeight) > 1) map.resize(); }); }).observe(box);
+    window.addEventListener('load', function () { map.resize(); });
+    setTimeout(function () { var c = map.getCanvas(); if (Math.abs(c.clientWidth - box.clientWidth) > 1 || Math.abs(c.clientHeight - box.clientHeight) > 1) map.resize(); }, 1500);
+  }
   function initMap() {
     map = new maplibregl.Map({
       container: 'map', bounds: boxBounds(), maxZoom: 19, minZoom: 6, dragRotate: false, pitchWithRotate: false,
@@ -2200,7 +2209,7 @@
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Flood model: LISFLOOD-FP 8.2 · Rain: ' + (meta && meta.kofn ? 'NOAA HRRR forecast' : 'NOAA MRMS') + ' · Roads: MassDOT' }));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    map.touchZoomRotate.disableRotation();
+    map.touchZoomRotate.disableRotation(); keepCanvasFitted();
     if (params.get('debug') === '1') { window.__mfwMap = map; window.__mfwZoom = function (c, z) { map.jumpTo({ center: c, zoom: z }); }; window.__mfwState = function () { return { depth: depth.stat(), wi: wi && { key: wi.key, cxT: wi.cxT && Object.keys(wi.cxT).length, hasDj: !!wi.dj }, wcx: !!map.getLayer('wcx'), flow: flowLayer.stat(), flowVis: map.getLayer('flow') && map.getLayoutProperty('flow', 'visibility') }; }; } // screenshot checks
     map.once('style.load', function () {
       map.addLayer(WION ? wdepth.layer : depth.layer, 'l-voy');
