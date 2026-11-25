@@ -17,6 +17,9 @@
 <link rel="preload" href="site/fonts/overpass-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <link href="site/viewer.css?v=1115a" rel="stylesheet">
 <link href="site/shell.css?v=3" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="site/viewer-next.css?v=n1" rel="stylesheet">
 <script>try{var t=localStorage.getItem('mfw-theme');if(t)document.documentElement.dataset.theme=t;var pl=new URLSearchParams(location.search).get('pal');if(pl)document.documentElement.dataset.pal=pl}catch(e){}
 if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed');else document.documentElement.classList.add('has-sh');</script>
 </head>
@@ -157,6 +160,7 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
       <label class="row"><input type="checkbox" id="lyClosed" checked><span>Water on roads, closures</span></label>
       <label class="row"><input type="checkbox" id="lyPeak"><span><i class="sw peak"></i>Closes at some point</span></label>
       <label class="row"><input type="checkbox" id="lyMay"><span><i class="sw may"></i>May close <small>stream at road level</small></span></label>
+      <label class="row" id="wzRow" hidden><input type="checkbox" id="lyWz" checked><span><i class="sw wz"></i>Road work now <small>MassDOT</small></span></label>
       <label class="row" id="riskRow" hidden><input type="checkbox" id="lyRisk"><span>Risk class</span></label>
       <div class="riskkey" id="riskKey" hidden><span><i class="sw rx"></i>Extreme</span><span><i class="sw rh"></i>High</span><span><i class="sw rm"></i>Medium</span><span><i class="sw rl"></i>Low</span></div>
     </div>
@@ -273,7 +277,8 @@ if(new URLSearchParams(location.search).get('embed')==='1')document.documentElem
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="site/viewer.js?v=1115s"></script>
+<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
+<script src="site/viewer-next.js?v=n6"></script>
 <script>if(document.documentElement.classList.contains('embed'))window.goatcounter={no_onload:true};</script>
 <script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 <script data-goatcounter="https://massfloodwatch.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
