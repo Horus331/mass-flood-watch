@@ -11,7 +11,7 @@ async function settle(p) {
   const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const views = [['desk_z9', 9.3, -71.75, 42.35], ['desk_z12', 12, -71.76, 42.53], ['desk_z15', 15, -71.765, 42.527]];
   for (const [name, z, lon, lat] of views) {
-    const p = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+    const p = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
     await p.goto(BASE + '/next.html?run=leominster_sep2023&debug=1', { waitUntil: 'load' }); await settle(p);
     await p.evaluate(([z, lon, lat]) => window.__mfwMap.jumpTo({ zoom: z, center: [lon, lat] }), [z, lon, lat]); await settle(p);
     await p.screenshot({ path: `${OUT}/${name}.png` }); await p.close(); console.log('shot', name);
