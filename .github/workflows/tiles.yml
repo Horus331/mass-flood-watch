@@ -33,5 +33,6 @@ jobs:
       - name: commit
         run: |
           git config user.name 'github-actions'; git config user.email 'actions@github.com'
-          git add docs/site/tiles; git commit -qm "map tiles: ${{ inputs.what }}" || exit 0
+          sed -i "s/var STREETS_V = '[^']*'/var STREETS_V = '$(date -u +%Y%m%d)-${{ github.run_id }}'/" docs/site/viewer-next.js   # new URL for the new file
+          git add docs/site/tiles docs/site/viewer-next.js; git commit -qm "map tiles: ${{ inputs.what }}" || exit 0
           for i in 1 2 3 4 5 6; do git pull --rebase -q && git push -q && break; sleep $((RANDOM % 20 + 5)); done
