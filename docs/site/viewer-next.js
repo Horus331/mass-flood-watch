@@ -1903,6 +1903,25 @@
       if (!map.getSource('known')) return;
       map.getSource('known').setData({ type: 'FeatureCollection', features: L.map(function (k, i) { return { type: 'Feature', id: i, properties: { i: i }, geometry: { type: 'Point', coordinates: [k[0], k[1]] } }; }) });
     });
+    // MassDOT work zones now (live/workzones.json, Work Zones API): roads whose lanes are already reduced or closed for work; forecast view
+    // only, a context layer (a flood closure there hurts traffic more), not model output
+    map.addSource('wz', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }); var WZ = null;
+    if (runKey === 'forecast') getJson('site/data/live/workzones.json').then(function (W) {
+      var now = Date.now(), L = ((W && W.zones) || []).filter(function (z) { return z.line && z.line.length > 1 && (!z.start || Date.parse(z.start) <= now) && (!z.end || Date.parse(z.end) >= now); });
+      if (!map.getSource('wz') || !L.length) return; WZ = L; $('wzRow').hidden = false;
+      map.getSource('wz').setData({ type: 'FeatureCollection', features: L.map(function (z, i) { return { type: 'Feature', properties: { i: i }, geometry: { type: 'LineString', coordinates: z.line } }; }) });
+    }).catch(function () { });
+    map.addLayer({ id: 'wz', type: 'line', source: 'wz', minzoom: 9, layout: { 'line-cap': 'butt', visibility: 'visible' },
+      paint: { 'line-color': '#5B3A8C', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 15, 5], 'line-dasharray': [1.2, 1], 'line-opacity': 0.85 } });
+    map.on('mouseenter', 'wz', function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'wz', function () { map.getCanvas().style.cursor = ''; });
+    map.on('click', 'wz', function (e) {
+      if (!e.features.length || !WZ) return; var z = WZ[e.features[0].properties.i]; if (!z) return;
+      var d = function (t) { return t ? esc(fmtShort.format(new Date(t))) : '?'; };
+      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat(e.lngLat).setHTML('<b>Road work: ' + esc(z.road || 'road') + (z.direction ? ' ' + esc(z.direction) : '') + '</b><br>' +
+        esc(z.description || '') + '<br><small>' + d(z.start) + ' to ' + d(z.end) + (z.impact ? ' · ' + esc(String(z.impact).replace(/-/g, ' ')) : '') +
+        '<br>Work zone data: Massachusetts Department of Transportation. Not model output.</small>').addTo(map);
+    });
     // live reports, last 48 h (live/validation.json): a red-orange dot with a white ring, above everything; tap for what was reported
     map.addLayer({ id: 'reports', type: 'circle', source: 'reports',
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 4, 15, 8], 'circle-color': '#D7301F', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
@@ -3628,6 +3647,7 @@
   $('lyClosed').addEventListener('change', function (e) { ['wet', 'wetcase', 'halo', 'bar'].forEach(function (l) { vis(l, e.target.checked); }); });
   $('lyPeak').addEventListener('change', function (e) { vis('peak', e.target.checked); });
   $('lyMay').addEventListener('change', function (e) { vis('may', e.target.checked); });
+  $('lyWz').addEventListener('change', function (e) { vis('wz', e.target.checked); });
   $('lyRisk').addEventListener('change', function (e) {
     var on = e.target.checked;
     vis('risk', on); $('riskKey').hidden = !on;
