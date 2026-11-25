@@ -1920,8 +1920,9 @@
     map.on('click', 'wz', function (e) {
       if (!e.features.length || !WZ) return; var z = WZ[e.features[0].properties.i]; if (!z) return;
       var d = function (t) { return t ? esc(fmtShort.format(new Date(t))) : '?'; };
-      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat(e.lngLat).setHTML('<b>Road work: ' + esc(z.road || 'road') + (z.direction ? ' ' + esc(z.direction) : '') + '</b><br>' +
-        esc(z.description || '') + '<br><small>' + d(z.start) + ' to ' + d(z.end) + (z.impact ? ' · ' + esc(String(z.impact).replace(/-/g, ' ')) : '') +
+      var dir = z.direction && !/\b(NB|SB|EB|WB)\b/.test(z.road || '') ? ' ' + esc(z.direction) : '';
+      new maplibregl.Popup({ maxWidth: '280px' }).setLngLat(e.lngLat).setHTML('<b>Road work: ' + esc(z.road || 'road') + dir + '</b><br>' +
+        (z.description ? esc(z.description) + '<br>' : '') + '<small>' + d(z.start) + ' to ' + d(z.end) + (z.impact ? ' · ' + esc(String(z.impact).replace(/-/g, ' ')) : '') +
         '<br>Work zone data: Massachusetts Department of Transportation. Not model output.</small>').addTo(map);
     });
     // live reports, last 48 h (live/validation.json): a red-orange dot with a white ring, above everything; tap for what was reported
