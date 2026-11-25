@@ -1850,11 +1850,12 @@
   }
   // every street the model evaluates in District 3 (streets_d3.json, proto/build_streets_d3.py), drawn at every zoom on every tab: the
   // basemap tiles drop minor streets below street zoom, so a flooded side street would otherwise float on an empty map when zoomed out
+  var STREETS_V = '20261124b';   // bump whenever docs/site/tiles/d3_streets.pmtiles is rebuilt (.github/workflows/tiles.yml)
   function addStreets() {
     if (!map || map.getSource('d3streets') || addStreets.busy) return; addStreets.busy = true;
     if (window.pmtiles) {   // vector tiles (docs/site/tiles/d3_streets.pmtiles, .github/workflows/tiles.yml): only the tiles on screen are fetched
       if (!addStreets.proto) { addStreets.proto = new pmtiles.Protocol(); maplibregl.addProtocol('pmtiles', addStreets.proto.tile); }
-      var url = 'pmtiles://' + new URL('site/tiles/d3_streets.pmtiles', location.href).href;
+      var url = 'pmtiles://' + new URL('site/tiles/d3_streets.pmtiles?v=' + STREETS_V, location.href).href;   // new version = new URL: a browser or CDN copy of the old file can never be mixed with byte ranges of the new one
       var goT = function () {
         if (map.getSource('d3streets')) return;
         map.addSource('d3streets', { type: 'vector', url: url });
