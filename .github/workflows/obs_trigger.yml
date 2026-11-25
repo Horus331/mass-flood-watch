@@ -1,7 +1,10 @@
 name: Observed-rain trigger test (pre-registered, docs/proto/forecast/OBS_TRIGGER_PREREG.md)
 # Run once as frozen. Storms: M1 timing + M2 placement (HRRR boxes for the 4 storms not in gate_calibration.json computed first,
 # same code as the gate). Scan: summer 2023 in four monthly jobs for M3 false-trigger days. Report: pass rule; commits the result.
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      storms_only: {description: 'rerun the storms job only and reuse the committed summer scans', type: boolean, default: false}
 permissions:
   contents: write
 jobs:
@@ -10,7 +13,7 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q numpy scipy pandas requests pygrib pyproj shapely
+      - run: pip install -q numpy scipy pandas requests pygrib pyproj shapely matplotlib
       - name: HRRR gate boxes for the storms missing from gate_calibration.json
         run: python proto/forecast.py calib --only jul2021b,jul2023b,jul2023c,jul2023d --no-mrms --out /tmp/calib_extra.json 2>&1 | tail -8
       - run: python -u proto/obs_trigger.py storms --calib-extra /tmp/calib_extra.json --out /tmp/storms.json
@@ -19,6 +22,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: calib_extra, path: '/tmp/calib_extra.json' }
   scan:
+    if: ${{ !inputs.storms_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
@@ -43,6 +47,7 @@ jobs:
       - run: |
           mkdir -p docs/proto/forecast/obs_trigger
           cp /tmp/a/*/*.json docs/proto/forecast/obs_trigger/
+          ls docs/proto/forecast/obs_trigger/
           python proto/obs_trigger.py report --storms docs/proto/forecast/obs_trigger/storms.json --scans docs/proto/forecast/obs_trigger/scan_*.json --out docs/proto/forecast/obs_trigger.json
       - name: commit
         run: |
