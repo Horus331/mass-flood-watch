@@ -1833,6 +1833,13 @@
         var note = document.createElement('span'); note.className = 'cov-note';
         note.textContent = ' The flood model ran on ' + feats.length + ' areas covering ' + share + ' % of District 3 (blue). Roads in the grey part of the district were not modelled for this storm, so they are not shown as safe. Tap another blue area to open it.';
         $('runKind').appendChild(note);
+        // open on all the model areas together (not one box), unless a view was asked for in the link or the person already moved the map
+        if (!params.get('c') && !params.get('box')) {
+          var moved = false, mark = function (e) { if (e.originalEvent) moved = true; };
+          map.on('movestart', mark);
+          var bb = [[180, 90], [-180, -90]]; feats.forEach(function (f) { f.geometry.coordinates[0].forEach(function (q) { bb[0][0] = Math.min(bb[0][0], q[0]); bb[0][1] = Math.min(bb[0][1], q[1]); bb[1][0] = Math.max(bb[1][0], q[0]); bb[1][1] = Math.max(bb[1][1], q[1]); }); });
+          setTimeout(function () { map.off('movestart', mark); if (!moved) map.fitBounds(bb, { padding: framePadding(), duration: 0 }); }, 2500);
+        }
       });
     }).catch(function (e) { console.warn('forecast coverage', e); });
   }
