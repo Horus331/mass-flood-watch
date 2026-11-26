@@ -1801,7 +1801,7 @@
   // All boxes of the cycle are drawn (the open one solid, the others dashed; tap one to open it) and the rest of District 3 gets a hatched
   // veil "not modelled for this storm", so roads outside the boxes never look safe. Box corners come from each box's meta.json.
   function fcCoverage(s) {
-    if (!/next\.html$/.test(location.pathname) && params.get('cov') !== '2') return;   // test page only until Mo approves
+    // live on the map since 26 Nov 2026 (Mo: "go" after the screenshots)
     var R = (s && s.runs) || [];
     if (!R.length) return;
     var lib = new Promise(function (res, rej) {
@@ -2471,7 +2471,7 @@
     }
     // the model box, a quiet dashed outline so the replayed area reads at regional zoom
     map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
-    map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', layout: { visibility: runKey === 'forecast' && (/next\.html$/.test(location.pathname) || params.get('cov') === '2') ? 'none' : 'visible' }, paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
+    map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', layout: { visibility: runKey === 'forecast' ? 'none' : 'visible' }, paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
     // legend: the dashed box is this replay's own flood-model run, not the area the model can cover. Whole-district runs (tiled packs: the
     // District 3 replay, the Turing shadow forecast) need no box label; the box forecast says the model ran only in its boxes
     var tiled = !!(meta.depthc && meta.depthc.tiles);
