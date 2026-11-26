@@ -135,6 +135,9 @@ jobs:
           for d in arts/radar_*; do [ -d "$d" ] && cp -r "$d"/. ./; done
           python proto/storm_archive.py finalize --plan arts/plan/plan.json --root $AROOT --labels-dir $LDIR
           git status --short | head -40
+      - name: after-storm check from the MassDOT events record (reporting only; MASSDOT_EVENTS_PREREG.md)
+        continue-on-error: true
+        run: python proto/massdot_check.py --root $AROOT
       - name: USGS stream-camera stills for the storms (proto/cameras.py; images -> HF dataset, summary + index in the storm folder)
         continue-on-error: true
         env:

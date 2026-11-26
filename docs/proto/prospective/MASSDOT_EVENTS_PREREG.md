@@ -62,3 +62,7 @@ The numbers are not used to tune anything. A change to any rule above is a new p
 
 Limits, stated now: the MassDOT feed covers state-maintained roads and the events its staff enter, so most local flooding never appears in
 it; an empty record is not evidence that nothing flooded. Since the archive began (Oct 2026), no class-F event has been logged in District 3.
+
+Execution note (26 Nov 2026, before any class-F event was scored): "road vertex" in §2 is implemented as the road points of
+`graph_segments.json` densified every 10 m (`massdot_import.road_points`), the points `score_v2`'s strict match uses; raw polyline
+vertices can be far apart on straight roads. Rules and radii unchanged.
