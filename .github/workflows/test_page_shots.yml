@@ -1,5 +1,8 @@
 name: Test map screenshots (desktop 3 zooms + phone), for Mo's review before the root switch
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      page: {description: 'page to shoot (next.html = test page, index.html = live map)', default: 'next.html'}
 permissions:
   contents: write
 jobs:
@@ -12,7 +15,7 @@ jobs:
       - run: |
           npx http-server docs -p 8080 -s -c-1 &
           sleep 3
-          timeout 1500 node proto/bench/ci_shots.js http://localhost:8080 /tmp/shots || true
+          PAGE=${{ inputs.page || 'next.html' }} timeout 1500 node proto/bench/ci_shots.js http://localhost:8080 /tmp/shots || true
           ls -la /tmp/shots
       - name: commit to branch test-shots (not deployed)
         run: |

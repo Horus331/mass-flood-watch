@@ -15,7 +15,7 @@ const SHOTS = [
     try {
       const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile });
       const p = await ctx.newPage(); p.on('crash', () => console.log('page crashed', name));
-      await p.goto(BASE + (view === 'fc' ? '/next.html?debug=1' : '/next.html?run=leominster_sep2023&debug=1'), { waitUntil: 'load', timeout: 120000 });
+      await p.goto(BASE + (view === 'fc' ? '/' + (process.env.PAGE || 'next.html') + '?debug=1' : '/' + (process.env.PAGE || 'next.html') + '?run=leominster_sep2023&debug=1'), { waitUntil: 'load', timeout: 120000 });
       await p.waitForFunction(() => !!window.__mfwMap, null, { timeout: 120000 });
       await p.waitForTimeout(15000);
       if (view && view !== 'fc') { await p.evaluate(([z, lon, lat]) => window.__mfwMap.jumpTo({ zoom: z, center: [lon, lat] }), view); await p.waitForTimeout(15000); }
