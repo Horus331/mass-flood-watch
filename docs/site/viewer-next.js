@@ -1823,15 +1823,15 @@
         map.addSource('fc-rest', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: rest } } });
         map.addSource('fc-boxes', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
         var before = map.getLayer('depth') ? 'depth' : 'l-voy';
-        map.addLayer({ id: 'fc-rest', type: 'fill', source: 'fc-rest', paint: { 'fill-color': '#55656F', 'fill-opacity': 0.22 } }, before);
-        map.addLayer({ id: 'fc-boxes', type: 'line', source: 'fc-boxes', paint: { 'line-color': '#1A73E8', 'line-width': ['case', ['==', ['get', 'open'], 1], 2.4, 1.6], 'line-dasharray': [2, 1.5], 'line-opacity': 0.9 } });
-        map.addLayer({ id: 'fc-boxes-hit', type: 'fill', source: 'fc-boxes', filter: ['==', ['get', 'open'], 0], paint: { 'fill-color': '#1A73E8', 'fill-opacity': 0.04 } });
+        // no box outlines (Mo, 26 Nov: "take the dashed box out"): the modelled area is the normal map, the rest of District 3 is greyed out
+        map.addLayer({ id: 'fc-rest', type: 'fill', source: 'fc-rest', paint: { 'fill-color': '#4A5860', 'fill-opacity': 0.38 } }, before);
+        map.addLayer({ id: 'fc-boxes-hit', type: 'fill', source: 'fc-boxes', filter: ['==', ['get', 'open'], 0], paint: { 'fill-color': '#000', 'fill-opacity': 0 } });
         map.on('click', 'fc-boxes-hit', function (e) { var k = e.features[0] && e.features[0].properties.key; if (k) location.search = '?box=' + encodeURIComponent(k) + (params.get('debug') ? '&debug=1' : ''); });
         map.on('mouseenter', 'fc-boxes-hit', function () { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', 'fc-boxes-hit', function () { map.getCanvas().style.cursor = ''; });
         if (map.getLayer('box')) map.setLayoutProperty('box', 'visibility', 'none');
         var note = document.createElement('span'); note.className = 'cov-note';
-        note.textContent = ' The flood model ran on ' + feats.length + ' areas covering ' + share + ' % of District 3 (blue). Roads in the grey part of the district were not modelled for this storm, so they are not shown as safe. Tap another blue area to open it.';
+        note.textContent = ' The flood model ran on ' + share + ' % of District 3 for this storm. Roads in the greyed-out part of the district were not modelled, so they are not shown as safe.';
         $('runKind').appendChild(note);
         // open on all the model areas together (not one box), unless a view was asked for in the link or the person already moved the map
         if (!params.get('c') && !params.get('box')) {
@@ -2471,7 +2471,7 @@
     }
     // the model box, a quiet dashed outline so the replayed area reads at regional zoom
     map.addSource('boxsrc', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: meta.corners.concat([meta.corners[0]]) } } });
-    map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
+    map.addLayer({ id: 'box', type: 'line', source: 'boxsrc', layout: { visibility: runKey === 'forecast' && (/next\.html$/.test(location.pathname) || params.get('cov') === '2') ? 'none' : 'visible' }, paint: { 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 13, 0.25] } });
     // legend: the dashed box is this replay's own flood-model run, not the area the model can cover. Whole-district runs (tiled packs: the
     // District 3 replay, the Turing shadow forecast) need no box label; the box forecast says the model ran only in its boxes
     var tiled = !!(meta.depthc && meta.depthc.tiles);
