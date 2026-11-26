@@ -1797,6 +1797,46 @@
     window.addEventListener('resize', function () { if (FR) { frDraw(); } });
   }
 
+  // ---------- forecast tab: which parts of District 3 the flood model ran on for this storm (26 Nov 2026, test page first) ----------
+  // All boxes of the cycle are drawn (the open one solid, the others dashed; tap one to open it) and the rest of District 3 gets a hatched
+  // veil "not modelled for this storm", so roads outside the boxes never look safe. Box corners come from each box's meta.json.
+  function fcCoverage(s) {
+    if (!/next\.html$/.test(location.pathname) && params.get('cov') !== '2') return;   // test page only until Mo approves
+    var R = (s && s.runs) || [];
+    if (!R.length) return;
+    var lib = new Promise(function (res, rej) {
+      if (window.polygonClipping) return res();
+      var sc = document.createElement('script'); sc.src = 'https://unpkg.com/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js'; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc);
+    });
+    Promise.all([lib, getJson('site/data/coverage.json')].concat(R.map(function (r) { return getJson('site/data/' + String(r.viewer).replace(/^(site\/)?data\//, '').replace(/\/?$/, '/') + 'meta.json').then(function (m) { return m && m.corners; }).catch(function () { return null; }); }))).then(function (a) {
+      var C = a[1], cs = a.slice(2), fc = C.features.filter(function (f) { return f.properties.k === 'forecast'; })[0]; if (!fc) return;
+      var d3 = fc.geometry.type === 'Polygon' ? [fc.geometry.coordinates] : fc.geometry.coordinates;
+      var boxes = [], feats = [];
+      cs.forEach(function (c, i) { if (!c) return; var ring = c.concat([c[0]]); boxes.push([ring]);
+        feats.push({ type: 'Feature', properties: { key: R[i].key, open: base.indexOf(String(R[i].viewer).replace(/^(site\/)?data\//, '').replace(/\/?$/, '/')) >= 0 ? 1 : 0, likely: R[i].likely_closed || 0 }, geometry: { type: 'Polygon', coordinates: [ring] } }); });
+      if (!boxes.length) return;
+      var rest = polygonClipping.difference(d3, boxes);
+      var area = function (mp) { var t = 0; mp.forEach(function (poly) { poly.forEach(function (ring, j) { var s2 = 0; for (var q = 1; q < ring.length; q++) s2 += (ring[q - 1][0] * ring[q][1] - ring[q][0] * ring[q - 1][1]); t += (j ? -1 : 1) * Math.abs(s2) / 2; }); }); return t; };
+      var inside = polygonClipping.intersection(d3, boxes), share = Math.round(100 * area(inside) / area(d3));
+      whenStyle(function () {
+        if (map.getSource('fc-rest')) return;
+        map.addSource('fc-rest', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: rest } } });
+        map.addSource('fc-boxes', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
+        var before = map.getLayer('depth') ? 'depth' : 'l-voy';
+        map.addLayer({ id: 'fc-rest', type: 'fill', source: 'fc-rest', paint: { 'fill-color': '#55656F', 'fill-opacity': 0.22 } }, before);
+        map.addLayer({ id: 'fc-boxes', type: 'line', source: 'fc-boxes', paint: { 'line-color': '#1A73E8', 'line-width': ['case', ['==', ['get', 'open'], 1], 2.4, 1.6], 'line-dasharray': [2, 1.5], 'line-opacity': 0.9 } });
+        map.addLayer({ id: 'fc-boxes-hit', type: 'fill', source: 'fc-boxes', filter: ['==', ['get', 'open'], 0], paint: { 'fill-color': '#1A73E8', 'fill-opacity': 0.04 } });
+        map.on('click', 'fc-boxes-hit', function (e) { var k = e.features[0] && e.features[0].properties.key; if (k) location.search = '?box=' + encodeURIComponent(k) + (params.get('debug') ? '&debug=1' : ''); });
+        map.on('mouseenter', 'fc-boxes-hit', function () { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'fc-boxes-hit', function () { map.getCanvas().style.cursor = ''; });
+        if (map.getLayer('box')) map.setLayoutProperty('box', 'visibility', 'none');
+        var note = document.createElement('span'); note.className = 'cov-note';
+        note.textContent = ' The flood model ran on ' + feats.length + ' areas covering ' + share + ' % of District 3 (blue). Roads in the grey part of the district were not modelled for this storm, so they are not shown as safe. Tap another blue area to open it.';
+        $('runKind').appendChild(note);
+      });
+    }).catch(function (e) { console.warn('forecast coverage', e); });
+  }
+
   // ---------- forecast tab ----------
   var fcStat = null;
   if (runKey === 'forecast') {
@@ -1826,7 +1866,7 @@
           (s.shadow.likely_closed != null ? ', ' + n(s.shadow.likely_closed) + ' segments likely closed' : '') + ') is not the forecast: it flags about 3 times too many roads.';
         $('runKind').appendChild(sa);
       }
-      start(); liveInit(s);
+      start(); liveInit(s); try { fcCoverage(s); } catch (e) { console.warn(e); }
     }).catch(function () { forecastPlaceholder(); liveInit(null); });
   } else if (WHATIF) {
     getJson(WI + 'index.json').then(function (ix) {
