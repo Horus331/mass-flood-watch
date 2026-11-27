@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-27T07:27:56Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-27T07:58:12Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -481,7 +481,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_jul2023_a_m1400z_solve | run_storm | completed | 2601096 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_jul2023_a_m1400z_post | run_storm | completed | 2601097 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1318z_solve | run_storm | completed | 2601098 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1318z_post | run_storm | running | 2601099 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1318z_post | run_storm | completed | 2601099 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2023_a_m0812z_solve | run_storm | completed | 2601100 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_aug2023_a_m0812z_post | run_storm | completed | 2601146 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0811z_solve | run_storm | completed | 2601147 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
@@ -491,13 +491,13 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_aug2023_a_m0809z_solve | run_storm | completed | 2601151 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
 | dm_aug2023_a_m0809z_post | run_storm | completed | 2601152 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0808z_solve | run_storm | completed | 2601153 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0808z_post | run_storm | running | 2601154 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
+| dm_aug2023_a_m0808z_post | run_storm | completed | 2601154 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2023_a_m0806z_solve | run_storm | completed | 2601155 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
 | dm_aug2023_a_m0806z_post | run_storm | completed | 2601156 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0800z_solve | run_storm | completed | 2601218 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0800z_post | run_storm | completed | 2601219 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0718z_solve | run_storm | completed | 2601220 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
-| dm_aug2023_a_m0718z_post | run_storm | running | 2601221 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023_a_m0718z_post | run_storm | completed | 2601221 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2023b_a_m1806z_solve | run_storm | completed | 2601222 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023b_a_m1806z_post | run_storm | completed | 2601223 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023b_a_m1805z_solve | run_storm | completed | 2601224 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
@@ -507,26 +507,26 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_aug2023b_a_m1803z_solve | run_storm | completed | 2601228 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
 | dm_aug2023b_a_m1803z_post | run_storm | completed | 2601229 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
 | dm_aug2023b_a_m1802z_solve | run_storm | completed | 2601230 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2023b_a_m1802z_post | run_storm | running | 2601231 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1802z_post | run_storm | completed | 2601231 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2023b_a_m1800z_solve | run_storm | completed | 2601232 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2023b_a_m1800z_post | run_storm | running | 2601233 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1800z_post | run_storm | completed | 2601233 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2023b_a_m1718z_solve | run_storm | completed | 2601234 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2023b_a_m1718z_post | run_storm | running | 2601235 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1718z_post | run_storm | completed | 2601235 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2023b_a_m1712z_solve | run_storm | completed | 2601236 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2023b_a_m1712z_post | run_storm | running | 2601237 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1712z_post | run_storm | completed | 2601237 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0306z_solve | run_storm | completed | 2601238 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0306z_post | run_storm | running | 2601239 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0306z_post | run_storm | completed | 2601239 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0305z_solve | run_storm | completed | 2601240 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0305z_post | run_storm | running | 2601241 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0305z_post | run_storm | completed | 2601241 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0304z_solve | run_storm | completed | 2601242 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0304z_post | run_storm | running | 2601243 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0304z_post | run_storm | completed | 2601243 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0303z_solve | run_storm | completed | 2601244 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0303z_post | run_storm | running | 2601245 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0303z_post | run_storm | completed | 2601245 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0302z_solve | run_storm | completed | 2601246 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0302z_post | run_storm | running | 2601247 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0302z_post | run_storm | completed | 2601247 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0300z_solve | run_storm | completed | 2601248 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0300z_post | run_storm | running | 2601249 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0300z_post | run_storm | completed | 2601249 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0218z_solve | run_storm | completed | 2601250 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0218z_post | run_storm | running | 2601251 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0218z_post | run_storm | completed | 2601251 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:58:12Z |  |
 | dm_aug2026_a_m0212z_solve | run_storm | completed | 2601283 | 1 / 0 | 2026-11-27T06:57:38Z | 2026-11-27T07:27:56Z |  |
-| dm_aug2026_a_m0212z_post | run_storm | running | 2601284 | 0 / 0 | 2026-11-27T06:57:38Z |  |  |
+| dm_aug2026_a_m0212z_post | run_storm | completed | 2601284 | 1 / 0 | 2026-11-27T06:57:38Z | 2026-11-27T07:58:12Z |  |
