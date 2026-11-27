@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-27T06:57:38Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-27T07:27:56Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -443,13 +443,13 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_sep2021_a_m0121z_solve | run_storm | completed | 2601058 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:27:13Z |  |
 | dm_sep2021_a_m0121z_post | run_storm | completed | 2601059 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:36Z |  |
 | dm_sep2021_a_m0120z_solve | run_storm | completed | 2601060 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:27:13Z |  |
-| dm_sep2021_a_m0120z_post | run_storm | running | 2601061 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_sep2021_a_m0120z_post | run_storm | completed | 2601061 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_sep2021_a_m0118z_solve | run_storm | completed | 2601062 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:27:13Z |  |
 | dm_sep2021_a_m0118z_post | run_storm | completed | 2601063 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:36Z |  |
 | dm_sep2021_a_m0112z_solve | run_storm | completed | 2601064 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:27:13Z |  |
 | dm_sep2021_a_m0112z_post | run_storm | completed | 2601065 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:36Z |  |
 | dm_sep2021_a_m0106z_solve | run_storm | completed | 2601066 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_sep2021_a_m0106z_post | run_storm | running | 2601067 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_sep2021_a_m0106z_post | run_storm | completed | 2601067 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_sep2022_a_m0506z_solve | run_storm | completed | 2601068 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_sep2022_a_m0506z_post | run_storm | completed | 2601069 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_sep2022_a_m0505z_solve | run_storm | completed | 2601070 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
@@ -459,74 +459,74 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_sep2022_a_m0503z_solve | run_storm | completed | 2601074 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_sep2022_a_m0503z_post | run_storm | completed | 2601075 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_sep2022_a_m0502z_solve | run_storm | completed | 2601076 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_sep2022_a_m0502z_post | run_storm | running | 2601077 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_sep2022_a_m0502z_post | run_storm | completed | 2601077 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_sep2022_a_m0500z_solve | run_storm | completed | 2601078 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_sep2022_a_m0500z_post | run_storm | running | 2601079 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_sep2022_a_m0500z_post | run_storm | completed | 2601079 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_sep2022_a_m0418z_solve | run_storm | completed | 2601080 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_sep2022_a_m0418z_post | run_storm | running | 2601081 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_sep2022_a_m0418z_post | run_storm | completed | 2601081 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_sep2022_a_m0412z_solve | run_storm | completed | 2601082 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_sep2022_a_m0412z_post | run_storm | running | 2601083 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_sep2022_a_m0412z_post | run_storm | completed | 2601083 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1412z_solve | run_storm | completed | 2601084 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1412z_post | run_storm | running | 2601085 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1412z_post | run_storm | completed | 2601085 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1411z_solve | run_storm | completed | 2601086 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1411z_post | run_storm | running | 2601087 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1411z_post | run_storm | completed | 2601087 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1410z_solve | run_storm | completed | 2601088 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1410z_post | run_storm | running | 2601089 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1410z_post | run_storm | completed | 2601089 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1409z_solve | run_storm | completed | 2601090 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1409z_post | run_storm | running | 2601091 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1409z_post | run_storm | completed | 2601091 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1408z_solve | run_storm | completed | 2601092 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1408z_post | run_storm | running | 2601093 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1408z_post | run_storm | completed | 2601093 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1406z_solve | run_storm | completed | 2601094 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1406z_post | run_storm | running | 2601095 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1406z_post | run_storm | completed | 2601095 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1400z_solve | run_storm | completed | 2601096 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_jul2023_a_m1400z_post | run_storm | running | 2601097 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
+| dm_jul2023_a_m1400z_post | run_storm | completed | 2601097 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T07:27:55Z |  |
 | dm_jul2023_a_m1318z_solve | run_storm | completed | 2601098 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
 | dm_jul2023_a_m1318z_post | run_storm | running | 2601099 | 0 / 0 | 2026-11-27T05:26:25Z |  |  |
 | dm_aug2023_a_m0812z_solve | run_storm | completed | 2601100 | 1 / 0 | 2026-11-27T05:26:25Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0812z_post | run_storm | running | 2601146 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
+| dm_aug2023_a_m0812z_post | run_storm | completed | 2601146 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0811z_solve | run_storm | completed | 2601147 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0811z_post | run_storm | running | 2601148 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
+| dm_aug2023_a_m0811z_post | run_storm | completed | 2601148 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0810z_solve | run_storm | completed | 2601149 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0810z_post | run_storm | running | 2601150 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
+| dm_aug2023_a_m0810z_post | run_storm | completed | 2601150 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0809z_solve | run_storm | completed | 2601151 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0809z_post | run_storm | running | 2601152 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
+| dm_aug2023_a_m0809z_post | run_storm | completed | 2601152 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
 | dm_aug2023_a_m0808z_solve | run_storm | completed | 2601153 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0808z_post | run_storm | pending | 2601154 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
+| dm_aug2023_a_m0808z_post | run_storm | running | 2601154 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
 | dm_aug2023_a_m0806z_solve | run_storm | completed | 2601155 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T06:57:37Z |  |
-| dm_aug2023_a_m0806z_post | run_storm | running | 2601156 | 0 / 0 | 2026-11-27T05:56:52Z |  |  |
-| dm_aug2023_a_m0800z_solve | run_storm | running | 2601218 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023_a_m0800z_post | run_storm | pending | 2601219 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023_a_m0718z_solve | run_storm | running | 2601220 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023_a_m0718z_post | run_storm | pending | 2601221 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1806z_solve | run_storm | running | 2601222 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1806z_post | run_storm | pending | 2601223 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1805z_solve | run_storm | running | 2601224 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1805z_post | run_storm | pending | 2601225 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1804z_solve | run_storm | running | 2601226 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1804z_post | run_storm | pending | 2601227 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1803z_solve | run_storm | running | 2601228 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1803z_post | run_storm | pending | 2601229 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1802z_solve | run_storm | pending | 2601230 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1802z_post | run_storm | pending | 2601231 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1800z_solve | run_storm | pending | 2601232 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1800z_post | run_storm | pending | 2601233 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1718z_solve | run_storm | pending | 2601234 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1718z_post | run_storm | pending | 2601235 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1712z_solve | run_storm | pending | 2601236 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2023b_a_m1712z_post | run_storm | pending | 2601237 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0306z_solve | run_storm | pending | 2601238 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0306z_post | run_storm | pending | 2601239 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0305z_solve | run_storm | pending | 2601240 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0305z_post | run_storm | pending | 2601241 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0304z_solve | run_storm | pending | 2601242 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0304z_post | run_storm | pending | 2601243 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0303z_solve | run_storm | pending | 2601244 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0303z_post | run_storm | pending | 2601245 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0302z_solve | run_storm | pending | 2601246 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0302z_post | run_storm | pending | 2601247 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0300z_solve | run_storm | pending | 2601248 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0300z_post | run_storm | pending | 2601249 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0218z_solve | run_storm | pending | 2601250 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0218z_post | run_storm | pending | 2601251 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
-| dm_aug2026_a_m0212z_solve | run_storm | submitted | 2601283 |  /  | 2026-11-27T06:57:38Z |  |  |
-| dm_aug2026_a_m0212z_post | run_storm | submitted | 2601284 |  /  | 2026-11-27T06:57:38Z |  |  |
+| dm_aug2023_a_m0806z_post | run_storm | completed | 2601156 | 1 / 0 | 2026-11-27T05:56:52Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023_a_m0800z_solve | run_storm | completed | 2601218 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023_a_m0800z_post | run_storm | completed | 2601219 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023_a_m0718z_solve | run_storm | completed | 2601220 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023_a_m0718z_post | run_storm | running | 2601221 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1806z_solve | run_storm | completed | 2601222 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023b_a_m1806z_post | run_storm | completed | 2601223 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023b_a_m1805z_solve | run_storm | completed | 2601224 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023b_a_m1805z_post | run_storm | completed | 2601225 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023b_a_m1804z_solve | run_storm | completed | 2601226 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:55Z |  |
+| dm_aug2023b_a_m1804z_post | run_storm | completed | 2601227 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1803z_solve | run_storm | completed | 2601228 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1803z_post | run_storm | completed | 2601229 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1802z_solve | run_storm | completed | 2601230 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1802z_post | run_storm | running | 2601231 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1800z_solve | run_storm | completed | 2601232 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1800z_post | run_storm | running | 2601233 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1718z_solve | run_storm | completed | 2601234 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1718z_post | run_storm | running | 2601235 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2023b_a_m1712z_solve | run_storm | completed | 2601236 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2023b_a_m1712z_post | run_storm | running | 2601237 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0306z_solve | run_storm | completed | 2601238 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0306z_post | run_storm | running | 2601239 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0305z_solve | run_storm | completed | 2601240 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0305z_post | run_storm | running | 2601241 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0304z_solve | run_storm | completed | 2601242 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0304z_post | run_storm | running | 2601243 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0303z_solve | run_storm | completed | 2601244 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0303z_post | run_storm | running | 2601245 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0302z_solve | run_storm | completed | 2601246 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0302z_post | run_storm | running | 2601247 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0300z_solve | run_storm | completed | 2601248 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0300z_post | run_storm | running | 2601249 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0218z_solve | run_storm | completed | 2601250 | 1 / 0 | 2026-11-27T06:27:14Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0218z_post | run_storm | running | 2601251 | 0 / 0 | 2026-11-27T06:27:14Z |  |  |
+| dm_aug2026_a_m0212z_solve | run_storm | completed | 2601283 | 1 / 0 | 2026-11-27T06:57:38Z | 2026-11-27T07:27:56Z |  |
+| dm_aug2026_a_m0212z_post | run_storm | running | 2601284 | 0 / 0 | 2026-11-27T06:57:38Z |  |  |
