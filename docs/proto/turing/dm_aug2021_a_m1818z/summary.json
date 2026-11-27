@@ -1,0 +1,1823 @@
+{
+ "run": "aug2021_proto_dm_aug2021_a_m1818z",
+ "model": "LISFLOOD-FP 8.2",
+ "storm_start": "2021-08-18T18:00Z",
+ "box_epsg26986": [
+  128000.0,
+  856000.0,
+  206000.0,
+  946000.0
+ ],
+ "resolution_m": 20.0,
+ "segments_in_box": 45099,
+ "closures_expected": 559.3,
+ "segments_p_ge_50": 297,
+ "segments_p_ge_90": 119,
+ "segments_may_close": 517,
+ "km_may_close": 292.5,
+ "may_close_rule": "water beside the road reaches the road crest: Phi((0 - f) / 0.15), f = lidar crest - peak water surface within 30 m; candidate, not in p_close until confirmed on a second storm",
+ "segments_sag": 56,
+ "sag_rule": "optional layer: road sag / underpass in a closed lidar depression whose drains (HEC-22 10-yr, 50-yr at underpasses) are exceeded by the peak-hour rain on its catchment, or where the model ponds 0.30 m; not in p_close or p_may_close",
+ "segments_edge": 41,
+ "edge_rule": "optional layer: fast shallow runoff beside / along the road above the permissible speed (Fortier & Scobey; ~1.0 m/s) AND shear (HEC-15 Table 2.3 gravel, 11 Pa) of a gravel / loam shoulder; in p_close only with --edge",
+ "segments_p_ge_50_depth_rule": 297,
+ "segments_p_ge_50_with_culverts": 435,
+ "km_p_ge_50": 194.9,
+ "culverts_overtopped": 927,
+ "culverts_surcharged": 8,
+ "crossings_assessed": 10736,
+ "cut_off_from_hospitals": 3716,
+ "worst_added_minutes": 48.9,
+ "rain_max_total_mm": 96,
+ "rain_peak1h_max_mm": 34.4,
+ "flood_model_runtime_s": 422,
+ "solver": "acceleration (local inertial, Bates et al. 2010) on GPU (cuda)",
+ "checks": {
+  "reports": {
+   "storm_days": [
+    "2021-08-18",
+    "2021-08-19",
+    "2021-08-20"
+   ],
+   "n_storm_day": 10,
+   "point_hit_rate": 0.5,
+   "point_any_day_rate": 0.482,
+   "n_storm_day_near_road": 10,
+   "segment_hit_rate": 0.1,
+   "segment_wet10_rate": 0.4,
+   "flagged_segments": 1487,
+   "flagged_with_report_200m": 0.009,
+   "all_segments_with_report_200m": 0.002,
+   "lift": 4.91
+  },
+  "massdot_repeat_sites": {
+   "in_box": 30,
+   "flagged_p05": 7,
+   "share_of_all_segments_flagged": 0.007,
+   "sites": [
+    {
+     "site": "Auburn, Rte 20 EB",
+     "max_p_close": 0.025,
+     "max_depth_m": 0.1,
+     "max_p_with_culverts": 0.025
+    },
+    {
+     "site": "Framingham, Rte 9 WB",
+     "max_p_close": 0.488,
+     "max_depth_m": 0.3,
+     "max_p_with_culverts": 0.488
+    },
+    {
+     "site": "Holliston, Rte 16 EB and WB",
+     "max_p_close": 0.655,
+     "max_depth_m": 0.34,
+     "max_p_with_culverts": 0.655
+    },
+    {
+     "site": "Leominster, Rt 12 SB",
+     "max_p_close": 0.067,
+     "max_depth_m": 0.15,
+     "max_p_with_culverts": 0.067
+    },
+    {
+     "site": "Marlborough, Rte 20 EB & WB",
+     "max_p_close": 0.548,
+     "max_depth_m": 0.31,
+     "max_p_with_culverts": 0.548
+    },
+    {
+     "site": "Northborough, Rte 20 EB & WB",
+     "max_p_close": 0.732,
+     "max_depth_m": 0.36,
+     "max_p_with_culverts": 0.732
+    },
+    {
+     "site": "Shrewsbury, Rte 9 WB",
+     "max_p_close": 0.23,
+     "max_depth_m": 0.23,
+     "max_p_with_culverts": 0.23
+    },
+    {
+     "site": "Uxbridge, Rte 146A SB",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.02,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Worcester, Rte 20 EB & WB",
+     "max_p_close": 0.999,
+     "max_depth_m": 0.63,
+     "max_p_with_culverts": 0.999
+    },
+    {
+     "site": "Pepperell, Rte 119",
+     "max_p_close": 0.003,
+     "max_depth_m": 0.02,
+     "max_p_with_culverts": 0.003
+    },
+    {
+     "site": "Uxbridge, Rte 146A SB",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.01,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Northbridge, Rte 122N",
+     "max_p_close": 0.006,
+     "max_depth_m": 0.05,
+     "max_p_with_culverts": 0.006
+    },
+    {
+     "site": "Ashland, downtown",
+     "max_p_close": 0.007,
+     "max_depth_m": 0.05,
+     "max_p_with_culverts": 0.007
+    },
+    {
+     "site": "Blackstone, Main St.",
+     "max_p_close": 0.063,
+     "max_depth_m": 0.15,
+     "max_p_with_culverts": 0.063
+    },
+    {
+     "site": "Blackstone, Market St.",
+     "max_p_close": 0.014,
+     "max_depth_m": 0.08,
+     "max_p_with_culverts": 0.014
+    },
+    {
+     "site": "Holden, Rte 31",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.01,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Leominster, Pleasant St., Adams St.",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.02,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Leominster, Commercial Dr.",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.0,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Westminster, Rte 140",
+     "max_p_close": 0.004,
+     "max_depth_m": 0.04,
+     "max_p_with_culverts": 0.004
+    },
+    {
+     "site": "Uxbridge, Blackstone St. and Lower Mendon St.",
+     "max_p_close": 0.001,
+     "max_depth_m": 0.0,
+     "max_p_with_culverts": 0.001
+    },
+    {
+     "site": "Blackstone, Champlain Ave.",
+     "max_p_close": 0.001,
+     "max_depth_m": 0.0,
+     "max_p_with_culverts": 0.001
+    },
+    {
+     "site": "Milford, Dilla St.",
+     "max_p_close": 0.012,
+     "max_depth_m": 0.07,
+     "max_p_with_culverts": 0.012
+    },
+    {
+     "site": "Worcester, May St.",
+     "max_p_close": 0.386,
+     "max_depth_m": 0.27,
+     "max_p_with_culverts": 0.386
+    },
+    {
+     "site": "Worcester, Flagg St.",
+     "max_p_close": 0.019,
+     "max_depth_m": 0.09,
+     "max_p_with_culverts": 0.019
+    },
+    {
+     "site": "Worcester, Richmond Ave.",
+     "max_p_close": 0.544,
+     "max_depth_m": 0.31,
+     "max_p_with_culverts": 0.544
+    },
+    {
+     "site": "Holden, Chapel St.",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.01,
+     "max_p_with_culverts": 0.002
+    },
+    {
+     "site": "Worcester, Southgate St.",
+     "max_p_close": 0.988,
+     "max_depth_m": 0.53,
+     "max_p_with_culverts": 0.988
+    },
+    {
+     "site": "Worcester, South St.",
+     "max_p_close": 0.082,
+     "max_depth_m": 0.16,
+     "max_p_with_culverts": 0.082
+    },
+    {
+     "site": "Spencer, Rte 31",
+     "max_p_close": 0.996,
+     "max_depth_m": 0.56,
+     "max_p_with_culverts": 0.996
+    },
+    {
+     "site": "Brookfield, Rte 148",
+     "max_p_close": 0.002,
+     "max_depth_m": 0.01,
+     "max_p_with_culverts": 0.002
+    }
+   ],
+   "flagged_p05_with_culverts": 7
+  },
+  "labels_segments": {
+   "note": "recall = share of documented sites with a matched segment at P >= 0.5; random_recall = the same for random flagging of the same share of segments; lift = recall / random_recall; lift_naive = recall / flagged share. strict: segments within 30 m of the site; loose: 100 m (exact) / 300 m + same-name segments within 1.5 km (approx). Line labels (.geojson): segments with >= 50 % of their points within 30 m (loose 100 m) of the closed stretch, or holding >= 50 % of it",
+   "labels": "labels_aug2021_worcester.csv",
+   "labels_in_file": 15,
+   "sites_matched": 14,
+   "depth_rule": {
+    "flagged_share": 0.0066,
+    "n_flagged": 297,
+    "all": {
+     "n": 14,
+     "recall": 0.357,
+     "random_recall": 0.014,
+     "lift_naive": 54.23,
+     "lift": 24.65
+    },
+    "flood_closure": {
+     "n": 14,
+     "recall": 0.357,
+     "random_recall": 0.014,
+     "lift_naive": 54.23,
+     "lift": 24.65
+    }
+   },
+   "with_culverts": {
+    "flagged_share": 0.0096,
+    "n_flagged": 435,
+    "all": {
+     "n": 14,
+     "recall": 0.357,
+     "random_recall": 0.021,
+     "lift_naive": 37.03,
+     "lift": 16.88
+    },
+    "flood_closure": {
+     "n": 14,
+     "recall": 0.357,
+     "random_recall": 0.021,
+     "lift_naive": 37.03,
+     "lift": 16.88
+    }
+   },
+   "loose": {
+    "sites_matched": 14,
+    "depth_rule": {
+     "flagged_share": 0.0066,
+     "n_flagged": 297,
+     "all": {
+      "n": 14,
+      "recall": 0.643,
+      "random_recall": 0.087,
+      "lift_naive": 97.62,
+      "lift": 7.41
+     },
+     "flood_closure": {
+      "n": 14,
+      "recall": 0.643,
+      "random_recall": 0.087,
+      "lift_naive": 97.62,
+      "lift": 7.41
+     }
+    },
+    "with_culverts": {
+     "flagged_share": 0.0096,
+     "n_flagged": 435,
+     "all": {
+      "n": 14,
+      "recall": 0.643,
+      "random_recall": 0.123,
+      "lift_naive": 66.65,
+      "lift": 5.21
+     },
+     "flood_closure": {
+      "n": 14,
+      "recall": 0.643,
+      "random_recall": 0.123,
+      "lift_naive": 66.65,
+      "lift": 5.21
+     }
+    }
+   },
+   "variants": {
+    "depth": {
+     "strict": {
+      "flagged_share": 0.0066,
+      "n_flagged": 297,
+      "all": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.014,
+       "lift_naive": 54.23,
+       "lift": 24.65
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.014,
+       "lift_naive": 54.23,
+       "lift": 24.65
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0066,
+      "n_flagged": 297,
+      "all": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.087,
+       "lift_naive": 97.62,
+       "lift": 7.41
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.087,
+       "lift_naive": 97.62,
+       "lift": 7.41
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 55.38
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.143,
+       "lift": 7.66
+      }
+     }
+    },
+    "overtop": {
+     "strict": {
+      "flagged_share": 0.018,
+      "n_flagged": 814,
+      "all": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.039,
+       "lift_naive": 43.53,
+       "lift": 20.02
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.039,
+       "lift_naive": 43.53,
+       "lift": 20.02
+      }
+     },
+     "loose": {
+      "flagged_share": 0.018,
+      "n_flagged": 814,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.213,
+       "lift_naive": 51.45,
+       "lift": 4.36
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.213,
+       "lift_naive": 51.45,
+       "lift": 4.36
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 35.55
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 11.34
+      }
+     }
+    },
+    "freeboard": {
+     "strict": {
+      "flagged_share": 0.0264,
+      "n_flagged": 1190,
+      "all": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.057,
+       "lift_naive": 32.48,
+       "lift": 15.06
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.057,
+       "lift_naive": 32.48,
+       "lift": 15.06
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0264,
+      "n_flagged": 1190,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.289,
+       "lift_naive": 35.19,
+       "lift": 3.21
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.289,
+       "lift_naive": 35.19,
+       "lift": 3.21
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 24.41
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.714,
+       "lift": 9.8
+      }
+     }
+    },
+    "fastwater": {
+     "strict": {
+      "flagged_share": 0.0066,
+      "n_flagged": 299,
+      "all": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.015,
+       "lift_naive": 53.87,
+       "lift": 24.49
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.015,
+       "lift_naive": 53.87,
+       "lift": 24.49
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0066,
+      "n_flagged": 299,
+      "all": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.087,
+       "lift_naive": 96.96,
+       "lift": 7.37
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.087,
+       "lift_naive": 96.96,
+       "lift": 7.37
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 55.01
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.143,
+       "lift": 7.61
+      }
+     }
+    },
+    "both": {
+     "strict": {
+      "flagged_share": 0.0264,
+      "n_flagged": 1192,
+      "all": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.057,
+       "lift_naive": 32.43,
+       "lift": 15.04
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.057,
+       "lift_naive": 32.43,
+       "lift": 15.04
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0264,
+      "n_flagged": 1192,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.29,
+       "lift_naive": 35.13,
+       "lift": 3.21
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.29,
+       "lift_naive": 35.13,
+       "lift": 3.21
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 24.37
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.714,
+       "lift": 9.79
+      }
+     }
+    },
+    "sag": {
+     "strict": {
+      "flagged_share": 0.0078,
+      "n_flagged": 353,
+      "all": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.017,
+       "lift_naive": 54.75,
+       "lift": 24.92
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.017,
+       "lift_naive": 54.75,
+       "lift": 24.92
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0078,
+      "n_flagged": 353,
+      "all": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.102,
+       "lift_naive": 91.26,
+       "lift": 7.01
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.102,
+       "lift_naive": 91.26,
+       "lift": 7.01
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 46.62
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.286,
+       "lift": 12.91
+      }
+     }
+    },
+    "depth+edge": {
+     "strict": {
+      "flagged_share": 0.0078,
+      "n_flagged": 354,
+      "all": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.017,
+       "lift_naive": 54.6,
+       "lift": 24.85
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.017,
+       "lift_naive": 54.6,
+       "lift": 24.85
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0078,
+      "n_flagged": 354,
+      "all": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.102,
+       "lift_naive": 91.0,
+       "lift": 7.0
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.102,
+       "lift_naive": 91.0,
+       "lift": 7.0
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 46.49
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.286,
+       "lift": 12.87
+      }
+     }
+    },
+    "overtop+edge": {
+     "strict": {
+      "flagged_share": 0.0191,
+      "n_flagged": 860,
+      "all": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.041,
+       "lift_naive": 41.2,
+       "lift": 18.96
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.041,
+       "lift_naive": 41.2,
+       "lift": 18.96
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0191,
+      "n_flagged": 860,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.223,
+       "lift_naive": 48.69,
+       "lift": 4.16
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.223,
+       "lift_naive": 48.69,
+       "lift": 4.16
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 33.66
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 10.75
+      }
+     }
+    },
+    "depth+culvert": {
+     "strict": {
+      "flagged_share": 0.0096,
+      "n_flagged": 435,
+      "all": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.021,
+       "lift_naive": 37.03,
+       "lift": 16.88
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.021,
+       "lift_naive": 37.03,
+       "lift": 16.88
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0096,
+      "n_flagged": 435,
+      "all": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.123,
+       "lift_naive": 66.65,
+       "lift": 5.21
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.123,
+       "lift_naive": 66.65,
+       "lift": 5.21
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 37.87
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.143,
+       "lift": 5.25
+      }
+     }
+    },
+    "overtop+culvert": {
+     "strict": {
+      "flagged_share": 0.021,
+      "n_flagged": 946,
+      "all": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.045,
+       "lift_naive": 37.46,
+       "lift": 17.27
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.045,
+       "lift_naive": 37.46,
+       "lift": 17.27
+      }
+     },
+     "loose": {
+      "flagged_share": 0.021,
+      "n_flagged": 946,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.241,
+       "lift_naive": 44.27,
+       "lift": 3.85
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.241,
+       "lift_naive": 44.27,
+       "lift": 3.85
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 30.63
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 9.8
+      }
+     }
+    },
+    "freeboard+culvert": {
+     "strict": {
+      "flagged_share": 0.0291,
+      "n_flagged": 1311,
+      "all": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.063,
+       "lift_naive": 29.49,
+       "lift": 13.71
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.063,
+       "lift_naive": 29.49,
+       "lift": 13.71
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0291,
+      "n_flagged": 1311,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.311,
+       "lift_naive": 31.94,
+       "lift": 2.98
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.311,
+       "lift_naive": 31.94,
+       "lift": 2.98
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 22.18
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.714,
+       "lift": 8.93
+      }
+     }
+    },
+    "fastwater+culvert": {
+     "strict": {
+      "flagged_share": 0.0097,
+      "n_flagged": 437,
+      "all": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.021,
+       "lift_naive": 36.86,
+       "lift": 16.81
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.357,
+       "random_recall": 0.021,
+       "lift_naive": 36.86,
+       "lift": 16.81
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0097,
+      "n_flagged": 437,
+      "all": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.124,
+       "lift_naive": 66.34,
+       "lift": 5.19
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.643,
+       "random_recall": 0.124,
+       "lift_naive": 66.34,
+       "lift": 5.19
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 37.69
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.143,
+       "lift": 5.23
+      }
+     }
+    },
+    "both+culvert": {
+     "strict": {
+      "flagged_share": 0.0291,
+      "n_flagged": 1313,
+      "all": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.063,
+       "lift_naive": 29.44,
+       "lift": 13.69
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.857,
+       "random_recall": 0.063,
+       "lift_naive": 29.44,
+       "lift": 13.69
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0291,
+      "n_flagged": 1313,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.312,
+       "lift_naive": 31.89,
+       "lift": 2.98
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.312,
+       "lift_naive": 31.89,
+       "lift": 2.98
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 22.15
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.714,
+       "lift": 8.92
+      }
+     }
+    },
+    "sag+culvert": {
+     "strict": {
+      "flagged_share": 0.0109,
+      "n_flagged": 491,
+      "all": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.024,
+       "lift_naive": 39.36,
+       "lift": 17.97
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.024,
+       "lift_naive": 39.36,
+       "lift": 17.97
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0109,
+      "n_flagged": 491,
+      "all": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.137,
+       "lift_naive": 65.61,
+       "lift": 5.2
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.137,
+       "lift_naive": 65.61,
+       "lift": 5.2
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 33.57
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.286,
+       "lift": 9.32
+      }
+     }
+    },
+    "depth+edge+culvert": {
+     "strict": {
+      "flagged_share": 0.0109,
+      "n_flagged": 491,
+      "all": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.024,
+       "lift_naive": 39.36,
+       "lift": 17.97
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.429,
+       "random_recall": 0.024,
+       "lift_naive": 39.36,
+       "lift": 17.97
+      }
+     },
+     "loose": {
+      "flagged_share": 0.0109,
+      "n_flagged": 491,
+      "all": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.137,
+       "lift_naive": 65.61,
+       "lift": 5.2
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.714,
+       "random_recall": 0.137,
+       "lift_naive": 65.61,
+       "lift": 5.2
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 33.57
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.286,
+       "lift": 9.32
+      }
+     }
+    },
+    "overtop+edge+culvert": {
+     "strict": {
+      "flagged_share": 0.022,
+      "n_flagged": 990,
+      "all": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.048,
+       "lift_naive": 35.79,
+       "lift": 16.52
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.786,
+       "random_recall": 0.048,
+       "lift_naive": 35.79,
+       "lift": 16.52
+      }
+     },
+     "loose": {
+      "flagged_share": 0.022,
+      "n_flagged": 990,
+      "all": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.25,
+       "lift_naive": 42.3,
+       "lift": 3.71
+      },
+      "flood_closure": {
+       "n": 14,
+       "recall": 0.929,
+       "random_recall": 0.25,
+       "lift_naive": 42.3,
+       "lift": 3.71
+      }
+     },
+     "split_strict": {
+      "odd": {
+       "n": 7,
+       "recall": 1.0,
+       "lift": 29.28
+      },
+      "even": {
+       "n": 7,
+       "recall": 0.571,
+       "lift": 9.37
+      }
+     }
+    }
+   },
+   "applied": "depth",
+   "sites": [
+    {
+     "id": "W001",
+     "type": "impassable",
+     "name": "Route 20 under Grafton St (Route 122) underpass: four cars submerged",
+     "road": "Route 20",
+     "n_segments": 3,
+     "depth_m": 0.63,
+     "freeboard_m": -1.17,
+     "dv_m2s": 0.19,
+     "peak_speed_ms": 0.85,
+     "p_depth": 0.999,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.087,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.147,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W002",
+     "type": "closed",
+     "name": "Route 20 at Grafton St shut down for hours",
+     "road": "Route 20",
+     "n_segments": 3,
+     "depth_m": 0.63,
+     "freeboard_m": -1.17,
+     "dv_m2s": 0.19,
+     "peak_speed_ms": 0.85,
+     "p_depth": 0.999,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.087,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.147,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W003",
+     "type": "impassable",
+     "name": "Cambridge St at Kansas St (railroad bridge) car stuck",
+     "road": "Cambridge Street",
+     "n_segments": 2,
+     "depth_m": 1.5,
+     "freeboard_m": -1.36,
+     "dv_m2s": 0.15,
+     "peak_speed_ms": 0.46,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.023,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.085,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W004",
+     "type": "flooded",
+     "name": "Quinsigamond Ave at Lamartine St flooded",
+     "road": "Quinsigamond Avenue",
+     "n_segments": 2,
+     "depth_m": 0.23,
+     "freeboard_m": -0.17,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 0.3,
+     "p_depth": 0.245,
+     "p_freeboard": 0.999,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.071,
+     "p_edge": 0.005,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W005",
+     "type": "flooded",
+     "name": "Southbridge St flooded",
+     "road": "Southbridge Street",
+     "n_segments": 1,
+     "depth_m": 1.01,
+     "freeboard_m": -0.95,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 0.31,
+     "p_depth": 1.0,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.046,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W006",
+     "type": "flooded",
+     "name": "McKeon Rd flooded",
+     "road": "McKeon Road",
+     "n_segments": 1,
+     "depth_m": 0.02,
+     "freeboard_m": 1.88,
+     "dv_m2s": 0.0,
+     "peak_speed_ms": 0.62,
+     "p_depth": 0.002,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.0,
+     "hit": []
+    },
+    {
+     "id": "W007",
+     "type": "flooded",
+     "name": "William St at Somerset St flooded",
+     "road": "William Street",
+     "n_segments": 1,
+     "depth_m": 0.28,
+     "freeboard_m": -0.27,
+     "dv_m2s": 0.09,
+     "peak_speed_ms": 0.72,
+     "p_depth": 0.429,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.006,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W008",
+     "type": "flooded",
+     "name": "East Central St under the I-290 bridge flooded",
+     "road": "East Central Street",
+     "n_segments": 6,
+     "depth_m": 0.1,
+     "freeboard_m": -0.06,
+     "dv_m2s": 0.06,
+     "peak_speed_ms": 2.16,
+     "p_depth": 0.02,
+     "p_freeboard": 0.992,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.615,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W009",
+     "type": "flooded",
+     "name": "Glennie St flooded",
+     "road": "Glennie Street",
+     "n_segments": 1,
+     "depth_m": 0.61,
+     "freeboard_m": -0.6,
+     "dv_m2s": 0.16,
+     "peak_speed_ms": 0.55,
+     "p_depth": 0.999,
+     "p_freeboard": 1.0,
+     "p_fastwater": 0.043,
+     "p_culvert": 0.0,
+     "p_sag": 1.0,
+     "p_edge": 0.002,
+     "hit": [
+      "depth",
+      "overtop",
+      "freeboard",
+      "fastwater",
+      "both",
+      "sag",
+      "depth+edge",
+      "overtop+edge",
+      "depth+culvert",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "fastwater+culvert",
+      "both+culvert",
+      "sag+culvert",
+      "depth+edge+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W010",
+     "type": "flooded",
+     "name": "Millbrook St under the I-190 bridge flooded",
+     "road": "Millbrook Street",
+     "n_segments": 3,
+     "depth_m": 0.13,
+     "freeboard_m": -0.0,
+     "dv_m2s": 0.04,
+     "peak_speed_ms": 3.71,
+     "p_depth": 0.045,
+     "p_freeboard": 0.958,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.027,
+     "p_edge": 0.183,
+     "hit": [
+      "freeboard",
+      "both",
+      "freeboard+culvert",
+      "both+culvert"
+     ]
+    },
+    {
+     "id": "W011",
+     "type": "flooded",
+     "name": "Enid St at Commonwealth Ave flooded",
+     "road": "Enid Street",
+     "n_segments": 2,
+     "depth_m": 0.2,
+     "freeboard_m": -0.15,
+     "dv_m2s": 0.03,
+     "peak_speed_ms": 1.07,
+     "p_depth": 0.171,
+     "p_freeboard": 0.999,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.171,
+     "p_edge": 0.0,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W012",
+     "type": "flooded",
+     "name": "Oxford St North in front of Auburn Police Station flooded",
+     "road": "Oxford Street North",
+     "n_segments": 2,
+     "depth_m": 0.05,
+     "freeboard_m": null,
+     "dv_m2s": 0.01,
+     "peak_speed_ms": 0.95,
+     "p_depth": 0.007,
+     "p_freeboard": 0.0,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.005,
+     "hit": []
+    },
+    {
+     "id": "W014",
+     "type": "closed",
+     "name": "Route 30 at Route 9 closed",
+     "road": "Route 30",
+     "n_segments": 3,
+     "depth_m": 0.07,
+     "freeboard_m": -0.06,
+     "dv_m2s": 0.02,
+     "peak_speed_ms": 1.63,
+     "p_depth": 0.011,
+     "p_freeboard": 0.992,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.004,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    },
+    {
+     "id": "W101",
+     "type": "flooded",
+     "name": "Sever Street: flooded (kayaker in the street)",
+     "road": "Sever Street",
+     "n_segments": 1,
+     "depth_m": 0.25,
+     "freeboard_m": -0.06,
+     "dv_m2s": 0.07,
+     "peak_speed_ms": 0.29,
+     "p_depth": 0.298,
+     "p_freeboard": 0.992,
+     "p_fastwater": 0.0,
+     "p_culvert": 0.0,
+     "p_sag": 0.0,
+     "p_edge": 0.004,
+     "hit": [
+      "overtop",
+      "freeboard",
+      "both",
+      "overtop+edge",
+      "overtop+culvert",
+      "freeboard+culvert",
+      "both+culvert",
+      "overtop+edge+culvert"
+     ]
+    }
+   ]
+  },
+  "rules": {
+   "freeboard": {
+    "margin_m": 0.3,
+    "sigma_m": 0.15,
+    "radius_m": 30.0,
+    "wet_m": 0.1,
+    "crest": "z_raw_max10",
+    "road_points_with_water_near": 48582,
+    "road_points": 1378140,
+    "edited_cells": 879981
+   },
+   "fastwater": {
+    "dv0_m2s": 0.3,
+    "dv_sigma_ln": 0.35,
+    "v_erode_ms": 1.5,
+    "v_sigma_ln": 0.3,
+    "erode_min_h_m": 0.1,
+    "road_points_near_crossing": 1476,
+    "velocity_source": "max of snapshots",
+    "dv_source": "snapshot h x speed"
+   },
+   "edge": {
+    "v_ms": 1.0,
+    "v_sigma_ln": 0.46,
+    "tau_pa": 11.0,
+    "tau_sigma_ln": 0.61,
+    "v_cap_ms": 5.0,
+    "radius_m": 30.0,
+    "percentile": 90,
+    "min_h_m": 0.03,
+    "speed_source": "max of snapshots",
+    "duration": "peak only (no per-snapshot counts: w9 LF_VDUR)",
+    "cells_p_ge_50": 76689,
+    "road_points_p_ge_50": 194,
+    "note": "candidate layer, not in p_close unless --edge; variants depth+edge, overtop+edge = 1 - prod(1 - P)"
+   },
+   "sag": {
+    "sags": 2357,
+    "underpasses": 176,
+    "sags_p_ge_50": 104,
+    "from_rain": 0,
+    "from_model_ponding": 104,
+    "min_depth_m": 0.3,
+    "radius_m": 150.0,
+    "i10_mm": 43.0,
+    "i50_mm": 58.0,
+    "runoff_c": 0.6,
+    "sigma_ln": 0.5,
+    "note": "candidate layer, not in p_close; variant sag = max(p_depth, p_sag) (the ponding half re-reads the model water the depth rule reads)"
+   },
+   "bridges": {
+    "rule": "on",
+    "deck_gap_m": 2.0,
+    "deck_radius_m": 150.0,
+    "deck_nbi_m": 100.0,
+    "snap_crest": false,
+    "deck_points_dropped": 379,
+    "deck_segments": 105,
+    "approach": {
+     "rule": "on",
+     "approach_m": 50.0,
+     "deck_only_segments": 761,
+     "with_approach_points": 584
+    }
+   },
+   "res_consistent": {
+    "tol_m": 0.1,
+    "start_h": 11.0,
+    "min_len_m": 20.0,
+    "snapshots": 67,
+    "rain_onset_mm": 1.0,
+    "start_snapshot_h": 11.0,
+    "start_k": 22,
+    "cells_capped": 9442,
+    "cells_startup_wet_30cm": 32076,
+    "applied": "min(hmax, snapshot peak + tol) - start-up depth",
+    "k_points": 2,
+    "point_spacing_m": 10.0,
+    "rule": "on (PROTO_RES_CONSISTENT=1)"
+   },
+   "applied": "depth",
+   "segments_p_ge_50": {
+    "depth": 297,
+    "overtop": 814,
+    "freeboard": 1190,
+    "fastwater": 299,
+    "both": 1192,
+    "sag": 353,
+    "depth+edge": 354,
+    "overtop+edge": 860,
+    "depth+culvert": 435,
+    "overtop+culvert": 946,
+    "freeboard+culvert": 1311,
+    "fastwater+culvert": 437,
+    "both+culvert": 1313,
+    "sag+culvert": 491,
+    "depth+edge+culvert": 491,
+    "overtop+edge+culvert": 990
+   }
+  },
+  "culverts": {
+   "surveyed_in_box": 1846,
+   "with_model_flow": 1846,
+   "p_ge_50": 288,
+   "segments_raised_to_p_ge_50": 138,
+   "rule_applied_to_p_close": false,
+   "blockage_factors": {
+    "Poor": 0.25,
+    "Critical": 0.5
+   },
+   "probability": "Phi(ln(Q / Q_crest) / 0.30) = P(HDS-5 headwater > road crest)"
+  }
+ },
+ "method": {
+  "closure_depth_m": 0.3,
+  "sigma_m": 0.1,
+  "variant": "depth",
+  "probability": "Phi((peak depth - 0.30) / 0.10), physics prior v0",
+  "network": "segments >= 15 cm removed; Dijkstra to nearest hospital (sim/infra/impacts.py)",
+  "culverts": "FHWA HDS-5 (sim/infra/culvert.py)"
+ },
+ "frame_hours": [
+  0.0,
+  0.5,
+  1.0,
+  1.5,
+  2.0,
+  2.5,
+  3.0,
+  3.5,
+  4.0,
+  4.5,
+  5.0,
+  5.5,
+  6.0,
+  6.5,
+  7.0,
+  7.5,
+  8.0,
+  8.5,
+  9.0,
+  9.5,
+  10.0,
+  10.5,
+  11.0,
+  11.5,
+  12.0,
+  12.5,
+  13.0,
+  13.5,
+  14.0,
+  14.5,
+  15.0,
+  15.5,
+  16.0,
+  16.5,
+  17.0,
+  17.5,
+  18.0,
+  18.5,
+  19.0,
+  19.5,
+  20.0,
+  20.5,
+  21.0,
+  21.5,
+  22.0,
+  22.5,
+  23.0,
+  23.5,
+  24.0,
+  24.5,
+  25.0,
+  25.5,
+  26.0,
+  26.5,
+  27.0,
+  27.5,
+  28.0,
+  28.5,
+  29.0,
+  29.5,
+  30.0,
+  30.5,
+  31.0,
+  31.5,
+  32.0,
+  32.5,
+  33.0
+ ],
+ "closed_per_frame": [
+  0,
+  9,
+  5,
+  4,
+  4,
+  4,
+  1,
+  1,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  13,
+  58,
+  115,
+  154,
+  164,
+  167,
+  161,
+  146,
+  135,
+  123,
+  105,
+  96,
+  84,
+  82,
+  80,
+  78,
+  74,
+  75,
+  72,
+  70,
+  69,
+  65,
+  60
+ ],
+ "rain_hourly_mean_mm": [
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.2,
+  0.4,
+  0.6,
+  0.4,
+  0.6,
+  0.7,
+  0.6,
+  1.0,
+  1.3,
+  5.7,
+  8.6,
+  10.3,
+  12.1,
+  11.8,
+  6.1,
+  3.3,
+  1.7,
+  0.4,
+  0.9,
+  1.4,
+  1.7,
+  2.4,
+  0.6,
+  0.4
+ ],
+ "made": "2026-11-27 06:35",
+ "prototype_runtime_s": 452.8
+}
