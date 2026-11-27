@@ -92,8 +92,8 @@ jobs:
           python proto/forecast_kofn.py members --gate gate/gate.json $SINGLE --github-output $GITHUB_OUTPUT 2>&1 | tee -a gate.log
           echo "::notice title=gate::$(cut -c1-300 gate.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
       - name: Turing whole-District-3 shadow run (proto/forecast_turing.py; test only, the box jobs below stay the public forecast, DISTRICT.md)
-        # paused 25 Nov 2026 until Turing's clone is reset to the rewritten history (an old clone that pushes would bring the paper drafts back)
-        if: steps.g.outputs.trigger == 'true' && (inputs.turing || vars.FORECAST_TURING || '0') == '1'
+        # paused 25-27 Nov 2026 while Turing's clone still had the pre-rewrite history; reset 27 Nov 01:50 UTC (queue tick now fetch + reset)
+        if: steps.g.outputs.trigger == 'true' && (inputs.turing || vars.FORECAST_TURING || '1') == '1'
         continue-on-error: true
         env:
           PFX: ${{ inputs.prefix || 'forecast_latest' }}
