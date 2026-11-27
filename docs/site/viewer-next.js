@@ -2523,6 +2523,9 @@
     map.addLayer({ id: 'sel', type: 'line', source: 'roads', filter: ['==', ['id'], -1], layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-width': w(3.4, 6.5), 'line-color': '#1F2328', 'line-opacity': 0.85 } }, 'halo');
     map.addLayer({ id: 'hit', type: 'line', source: 'roads', paint: { 'line-width': 16, 'line-opacity': 0 } });
+    // forecast: the roads the forecast runs agree on stay drawn above the water of the time shown (Mo, 26 Nov: likely closures read as yellow
+    // at 'Now', before the peak); test page first
+    if (meta.kofn && map.getLayer('agree') && (/next\.html$/.test(location.pathname) || params.get('kofntop') === '1')) map.moveLayer('agree', 'hit');
     { // the flooded street's own name (MassDOT inventory) beside it, from z12: closed first, at risk from z13, water on road from z15
       [['rlab-w', ['all', ['>=', ['get', 'd'], 5], ['<', ['get', 'd'], 15]], 13], ['rlab-r', ['all', ['>=', ['get', 'd'], 15], ['<', ['get', 'd'], 30]], 11], ['rlab-c', ['>=', ['get', 'd'], 30], 9]].forEach(function (a) {
         map.addLayer({ id: a[0], type: 'symbol', source: 'rlab', filter: a[1], minzoom: a[2],
