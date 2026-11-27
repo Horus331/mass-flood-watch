@@ -51,3 +51,9 @@ tuned after the first number is seen; a changed rule is a new pre-registration.
 - **Site recall:** the 29 sites are the strict sites of the `ENSEMBLE.md` short-lead box runs (issue cycle, `forecast/ensemble/<member>/seg.json`),
   each matched district-wide in the candidate run (strict 30 m); a site is hit when any of its matched segments is at P ≥ 0.5.
 - Scoring code `proto/district_map_eval.py score` (committed with this note). Candidate (a) (8 members) is queued only after (b) is scored.
+
+## Execution note for candidate (a) (27 Nov 2026, after (b) was scored and before any (a) run; rules and pass line unchanged)
+- (b) failed (site recall 0.069, `DISTRICT_MAP_VP.md`), so (a) runs as planned: per storm, one district run per member of the
+  `ENSEMBLE.md` short-lead ensemble (8 HRRR cycles), each from its own cycle to the ensemble end (the box members' hours), live 20,90
+  spreading; flagged = at least 2 of the 8 runs at P >= 0.5. Compared with the same radar references as (b) (`dm_<storm>_ref`).
+  Runs `dm_<storm>_a_m<ddHH>z`; `proto/district_map_eval.py jobs|score --cand a`.

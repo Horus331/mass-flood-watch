@@ -31,7 +31,11 @@ REF_HOURS = {'sep2023': 36, 'aug2021': 18, 'jul2021': 18, 'sep2021': 24, 'sep202
 BOX_RECALL, N_SITES = 0.276, 29
 LIVE = dict(BOX=BOX, RES='20', LF_LOSS='cn', LF_CN_AMC='II', LF_CN_SCALE='0.88', LF_PARITY='1', LF_INFIL_MMH='2', LF_QOUT='1', LF_NOTCH_FIX='1',
             LF_CHAN_ENFORCE='1', PROTO_RES_CONSISTENT='1', PROTO_RC_START_H='rain', SEGDUMP='1')
-CANDS = {'vp': dict(LF_HRRR_NBHD='20,90', LF_HRRR_VOLPRES='1')}
+CANDS = {'vp': dict(LF_HRRR_NBHD='20,90', LF_HRRR_VOLPRES='1'), 'a': dict(LF_HRRR_NBHD='20,90')}
+K_OF_8 = 2   # candidate (a): likely = at least 2 of the 8 member runs at P >= 0.5 (the box rule)
+
+
+def mtag(init): return ts(init.replace('Z', '')).strftime('m%d%Hz')
 
 
 def ts(s): return dt.datetime.strptime(s.replace('Z', ''), '%Y-%m-%dT%H' if len(s.replace('Z', '')) == 13 else '%Y-%m-%dT%H:%M')
@@ -42,10 +46,15 @@ def jobs(cand):
     out = []
     for s in DEV + OOS:
         E = F.ENSEMBLES[SHORT[s]]; hrs = int((ts(E['end']) - ts(E['issue'])).total_seconds() // 3600)
-        runs = [(f'dm_{s}_ref', dict(STORM=s, HOURS=str(REF_HOURS[s]))),
-                (f'dm_{s}_{cand}', dict(STORM=s, HOURS=str(hrs), LF_RAIN='hrrr', LF_HRRR_INIT=E['issue'], LF_ALLOW_DRY='1', **CANDS[cand]))]
+        runs = [(f'dm_{s}_ref', dict(STORM=s, HOURS=str(REF_HOURS[s])))]
+        if cand == 'a':   # one district run per ensemble member, each from its own HRRR cycle to the ensemble end
+            for m in E['members']:
+                mh = int((ts(E['end']) - ts(m)).total_seconds() // 3600)
+                runs.append((f'dm_{s}_a_{mtag(m)}', dict(STORM=s, HOURS=str(mh), LF_RAIN='hrrr', LF_HRRR_INIT=m, LF_ALLOW_DRY='1', **CANDS[cand])))
+        else:
+            runs.append((f'dm_{s}_{cand}', dict(STORM=s, HOURS=str(hrs), LF_RAIN='hrrr', LF_HRRR_INIT=E['issue'], LF_ALLOW_DRY='1', **CANDS[cand])))
         for name, env in runs:
-            if cand != 'vp' and name.endswith('_ref'): continue
+            if cand != 'vp' and name.endswith('_ref'): continue   # the radar references were run with (b)
             e = dict(LIVE, NAME=name, **env)
             out.append(dict(id=f'{name}_solve', kind='run_storm', env=dict(e, STAGE='solve'),
                             sbatch=dict(partition='short', gres='gpu:1', constraint='A100|H100|H200', time='04:00:00', mem='160G')))
@@ -62,6 +71,16 @@ def load(name):
     return D, P >= 0.5, inb
 
 
+def load_cand(s, cand):
+    if cand != 'a': return load(f'dm_{s}_{cand}')
+    import forecast_ens as F
+    M = [load(f'dm_{s}_a_{mtag(m)}') for m in F.ENSEMBLES[SHORT[s]]['members']]
+    if any(x is None for x in M): return None
+    for x in M[1:]: assert (x[2] == M[0][2]).all(), 'members disagree on the domain'
+    k = np.sum([x[1] for x in M], axis=0)
+    return M[0][0], k >= K_OF_8, M[0][2]
+
+
 def oos_sites(storm):
     """The strict sites of the ENSEMBLE.md short-lead box run (issue cycle): label id -> None (the 29 sites)."""
     import forecast_ens as F
@@ -73,7 +92,7 @@ def score(cand):
     rows, pool = [], dict(F=0, R=0, inter=0, union=0, hits=0, sites=0, flagged=0, inb=0)
     for s in DEV + OOS:
         r = dict(storm=s, role='development (reported only)' if s in DEV else 'out-of-sample')
-        A, B = load(f'dm_{s}_{cand}'), load(f'dm_{s}_ref')
+        A, B = load_cand(s, cand), load(f'dm_{s}_ref')
         if A is None or B is None: r['status'] = 'missing ' + ', '.join(n for n, x in ((cand, A), ('ref', B)) if x is None); rows.append(r); continue
         (DA, FA, IA), (_, FB, IB) = A, B
         assert (IA == IB).all(), 'candidate and reference disagree on the domain'
@@ -107,7 +126,9 @@ def selftest():
     J = jobs('vp'); assert len(J) == 36 and all(j['kind'] == 'run_storm' for j in J)
     assert sum(len(oos_sites(s) or []) for s in OOS) == N_SITES, [len(oos_sites(s) or []) for s in OOS]
     v = [j for j in J if j['id'] == 'dm_jul2021_vp_solve'][0]['env']; assert v['LF_HRRR_INIT'] == '2021-07-09T12Z' and v['HOURS'] == '14' and v['LF_HRRR_VOLPRES'] == '1'
-    print('selftest ok:', len(J), 'requests;', N_SITES, 'out-of-sample sites')
+    A = jobs('a'); assert len(A) == 9 * 8 * 2 and not any(j['id'].startswith(tuple(f'dm_{s}_ref' for s in DEV + OOS)) for j in A)
+    assert len({j['id'] for j in A}) == len(A)
+    print('selftest ok:', len(A), 'requests for (a);', len(J), 'requests;', N_SITES, 'out-of-sample sites')
 
 
 def main():
