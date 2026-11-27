@@ -5,7 +5,7 @@ Turing has no `scrontab` (checked 29 Oct 2026: "scrontab is disabled on this clu
 (`proto/turing/queue_runner.slurm`, partition `short`, 1 core, 2 GB, under a minute of work). Each tick:
 
 1. submits the next tick first (`--dependency=singleton`, so there is never more than one waiting);
-2. pulls `main` (the code) and the branch **`turing-queue`** (the requests, `jobs.json`);
+2. brings `main` (the code) to GitHub exactly (fetch + reset since 27 Nov 2026; anything local is kept on a local backup branch first) and the branch **`turing-queue`** (the requests, `jobs.json`);
 3. submits every new request whose `kind` is in `proto/turing/queue_kinds.json` (`proto/turing/queue_runner.py`);
 4. polls Slurm (`sacct`) for the jobs it started and writes `status.json` + `STATUS.md` back to `turing-queue`, only when something changed.
 

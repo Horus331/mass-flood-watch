@@ -22,7 +22,16 @@ source proto/turing/env.sh >/dev/null 2>&1
 # compute nodes cannot fetch over https here ("could not read Username"); use the deploy-key ssh URL (the pushurl) for every fetch
 exec 8>"$HOME/.mfw_repo_git.lock"; flock -w 900 8 || { echo "repository busy (a pack is pushing): skip this tick"; exit 0; }
 R=$(git remote get-url --push origin)
-git pull -q --rebase --autostash "$R" main || echo "pull main failed"
+# keep this clone identical to GitHub main. Turing commits to main only inside jobs that push at once, so local-only commits here are left-overs;
+# since the 24 Nov 2026 history rewrite a plain `pull --rebase <url>` would replay the removed paper commits, so: fetch, keep a local backup of
+# anything not on GitHub (never pushed), reset.
+if git fetch -q "$R" main; then
+  if ! git merge-base --is-ancestor HEAD FETCH_HEAD 2>/dev/null || ! git diff --quiet HEAD 2>/dev/null; then
+    TS=$(date -u +%Y%m%dT%H%M%SZ); git branch -f "local-backup-$TS" HEAD >/dev/null 2>&1; git diff HEAD > $QDIR/local-changes-$TS.patch 2>/dev/null
+    echo "main differed from GitHub: backup branch local-backup-$TS (local only), patch $QDIR/local-changes-$TS.patch"
+  fi
+  git reset -q --hard FETCH_HEAD && echo "main = $(git rev-parse --short HEAD)"
+else echo "fetch main failed"; fi
 # 2. the request branch
 if [ ! -d $QDIR/repo/.git ]; then git clone -q -b turing-queue --single-branch "$R" $QDIR/repo || { echo "no turing-queue branch"; exit 0; }; fi
 git -C $QDIR/repo pull -q --rebase "$R" turing-queue || echo "pull turing-queue failed"
