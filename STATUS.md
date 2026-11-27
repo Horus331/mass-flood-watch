@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-27T03:55:53Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-27T04:26:02Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -351,7 +351,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_sep2023_ref_solve | run_storm | completed | 2600445 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T02:55:08Z |  |
 | dm_sep2023_ref_post | run_storm | completed | 2600446 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:55:52Z |  |
 | dm_sep2023_vp_solve | run_storm | completed | 2600447 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T02:55:09Z |  |
-| dm_sep2023_vp_post | run_storm | running | 2600448 | 0 / 0 | 2026-11-27T02:24:49Z |  |  |
+| dm_sep2023_vp_post | run_storm | completed | 2600448 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T04:26:02Z |  |
 | dm_aug2021_ref_solve | run_storm | completed | 2600449 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T02:55:09Z |  |
 | dm_aug2021_ref_post | run_storm | completed | 2600450 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_aug2021_vp_solve | run_storm | completed | 2600451 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
@@ -361,7 +361,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_jul2021_vp_solve | run_storm | completed | 2600455 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_jul2021_vp_post | run_storm | completed | 2600456 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_sep2021_ref_solve | run_storm | completed | 2600457 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
-| dm_sep2021_ref_post | run_storm | running | 2600458 | 0 / 0 | 2026-11-27T02:24:49Z |  |  |
+| dm_sep2021_ref_post | run_storm | completed | 2600458 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T04:26:02Z |  |
 | dm_sep2021_vp_solve | run_storm | completed | 2600459 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_sep2021_vp_post | run_storm | completed | 2600460 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_sep2022_ref_solve | run_storm | completed | 2600461 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
@@ -384,5 +384,5 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_aug2026_ref_post | run_storm | completed | 2600478 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:53Z |  |
 | dm_aug2026_vp_solve | run_storm | completed | 2600479 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
 | dm_aug2026_vp_post | run_storm | completed | 2600480 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:53Z |  |
-| dm_sep2022_vp_solve_r2 | run_storm | submitted | 2600723 |  /  | 2026-11-27T03:55:53Z |  |  |
-| dm_sep2022_vp_post_r2 | run_storm | submitted | 2600724 |  /  | 2026-11-27T03:55:53Z |  |  |
+| dm_sep2022_vp_solve_r2 | run_storm | completed | 2600723 | 1 / 0 | 2026-11-27T03:55:53Z | 2026-11-27T04:26:02Z |  |
+| dm_sep2022_vp_post_r2 | run_storm | running | 2600724 | 0 / 0 | 2026-11-27T03:55:53Z |  |  |
