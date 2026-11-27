@@ -1,6 +1,6 @@
 # Turing queue status
 
-Updated 2026-11-27T03:25:31Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
+Updated 2026-11-27T03:55:53Z by `proto/turing/queue_runner.py` on Turing. Requests: `jobs.json` on this branch.
 
 | request | kind | status | Slurm job | tasks done / failed | submitted | finished | note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -349,7 +349,7 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | fcd3_forecast_d3_2026112300 | forecast_d3 | completed | 2584711 | 8 / 0 | 2026-11-23T03:40:42Z | 2026-11-23T06:07:46Z |  |
 | fcd3_forecast_d3_2026112300_post | forecast_d3 | completed | 2584712 | 8 / 0 | 2026-11-23T03:40:42Z | 2026-11-23T07:38:54Z |  |
 | dm_sep2023_ref_solve | run_storm | completed | 2600445 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T02:55:08Z |  |
-| dm_sep2023_ref_post | run_storm | running | 2600446 | 0 / 0 | 2026-11-27T02:24:49Z |  |  |
+| dm_sep2023_ref_post | run_storm | completed | 2600446 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:55:52Z |  |
 | dm_sep2023_vp_solve | run_storm | completed | 2600447 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T02:55:09Z |  |
 | dm_sep2023_vp_post | run_storm | running | 2600448 | 0 / 0 | 2026-11-27T02:24:49Z |  |  |
 | dm_aug2021_ref_solve | run_storm | completed | 2600449 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T02:55:09Z |  |
@@ -361,26 +361,28 @@ sbatch: error: Batch job submission failed: Job violates accounting/QOS polic |
 | dm_jul2021_vp_solve | run_storm | completed | 2600455 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_jul2021_vp_post | run_storm | completed | 2600456 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_sep2021_ref_solve | run_storm | completed | 2600457 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
-| dm_sep2021_ref_post | run_storm | pending | 2600458 | 0 / 0 | 2026-11-27T02:24:49Z |  |  |
+| dm_sep2021_ref_post | run_storm | running | 2600458 | 0 / 0 | 2026-11-27T02:24:49Z |  |  |
 | dm_sep2021_vp_solve | run_storm | completed | 2600459 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_sep2021_vp_post | run_storm | completed | 2600460 | 1 / 0 | 2026-11-27T02:24:49Z | 2026-11-27T03:25:31Z |  |
 | dm_sep2022_ref_solve | run_storm | completed | 2600461 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_sep2022_ref_post | run_storm | running | 2600462 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_sep2022_ref_post | run_storm | completed | 2600462 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:52Z |  |
 | dm_sep2022_vp_solve | run_storm | failed | 2600463 | 0 / 1 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z | log: logs/dm_sep2022_vp_solve.txt |
 | dm_sep2022_vp_post | run_storm | pending | 2600464 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
 | dm_jul2023_ref_solve | run_storm | completed | 2600465 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_jul2023_ref_post | run_storm | running | 2600466 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_jul2023_ref_post | run_storm | completed | 2600466 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:52Z |  |
 | dm_jul2023_vp_solve | run_storm | completed | 2600467 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_jul2023_vp_post | run_storm | running | 2600468 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_jul2023_vp_post | run_storm | completed | 2600468 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:52Z |  |
 | dm_aug2023_ref_solve | run_storm | completed | 2600469 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_aug2023_ref_post | run_storm | running | 2600470 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_aug2023_ref_post | run_storm | completed | 2600470 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:52Z |  |
 | dm_aug2023_vp_solve | run_storm | completed | 2600471 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_aug2023_vp_post | run_storm | running | 2600472 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_aug2023_vp_post | run_storm | completed | 2600472 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:52Z |  |
 | dm_aug2023b_ref_solve | run_storm | completed | 2600473 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_aug2023b_ref_post | run_storm | running | 2600474 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_aug2023b_ref_post | run_storm | completed | 2600474 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:52Z |  |
 | dm_aug2023b_vp_solve | run_storm | completed | 2600475 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_aug2023b_vp_post | run_storm | running | 2600476 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_aug2023b_vp_post | run_storm | completed | 2600476 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:53Z |  |
 | dm_aug2026_ref_solve | run_storm | completed | 2600477 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_aug2026_ref_post | run_storm | running | 2600478 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_aug2026_ref_post | run_storm | completed | 2600478 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:53Z |  |
 | dm_aug2026_vp_solve | run_storm | completed | 2600479 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:25:31Z |  |
-| dm_aug2026_vp_post | run_storm | running | 2600480 | 0 / 0 | 2026-11-27T02:24:50Z |  |  |
+| dm_aug2026_vp_post | run_storm | completed | 2600480 | 1 / 0 | 2026-11-27T02:24:50Z | 2026-11-27T03:55:53Z |  |
+| dm_sep2022_vp_solve_r2 | run_storm | submitted | 2600723 |  /  | 2026-11-27T03:55:53Z |  |  |
+| dm_sep2022_vp_post_r2 | run_storm | submitted | 2600724 |  /  | 2026-11-27T03:55:53Z |  |  |
