@@ -130,13 +130,20 @@ class LccGrid:
         li, lj = (i0 - r0), (j0 - c0); W = (r1 - r0, c1 - c0)
         nb = neighbourhood()
 
-        def sample(msg):
-            v = values(msg)
-            if nb: v = nb(v, r0, r1, c0, c1)
-            else: v = v[r0:r1, c0:c1]
+        volpres = bool(nb) and os.environ.get('LF_HRRR_VOLPRES', '0') == '1'
+
+        def interp(v):
             out = (v[li, lj] * (1 - wi) * (1 - wj) + v[li + 1, lj] * wi * (1 - wj) + v[li, lj + 1] * (1 - wi) * wj + v[li + 1, lj + 1] * wi * wj)
-            return np.maximum(out, 0).reshape(shp).astype(np.float32)
-        sample.window = dict(rows=[r0, r1], cols=[c0, c1], shape=W, neighbourhood=os.environ.get('LF_HRRR_NBHD') or None)
+            return np.maximum(out, 0)
+
+        def sample(msg):
+            v0 = values(msg)
+            out = interp(nb(v0, r0, r1, c0, c1) if nb else v0[r0:r1, c0:c1])
+            if volpres:     # LF_HRRR_VOLPRES=1 (DISTRICT_MAP_PREREG.md candidate b): keep the spread field's placement, rescale this hour's total
+                raw = float(interp(v0[r0:r1, c0:c1]).sum(dtype=np.float64)); tot = float(out.sum(dtype=np.float64))   # over the model domain to the raw HRRR total
+                out = out * np.float32(raw / tot) if tot > 0 else out
+            return out.reshape(shp).astype(np.float32)
+        sample.window = dict(rows=[r0, r1], cols=[c0, c1], shape=W, neighbourhood=os.environ.get('LF_HRRR_NBHD') or None, volume_preserving=volpres)
         return sample
 
 

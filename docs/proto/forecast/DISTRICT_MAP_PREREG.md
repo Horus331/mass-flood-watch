@@ -40,3 +40,14 @@ screenshots and says yes**; the boxes stay as a fallback when Turing is not avai
 Runs on Turing only after Turing's clone is reset to the rewritten history (paused 25 Nov). (b) first: 9 storms × (1 candidate + 1 radar
 reference where it does not exist yet) ≈ 18 GPU runs. (a): 9 × 8 = 72 GPU runs (~4 GPU-hours per storm set, `DISTRICT.md`). Nothing is
 tuned after the first number is seen; a changed rule is a new pre-registration.
+
+## Execution note (27 Nov 2026, before any district run of this test; rules and pass line unchanged)
+- Turing's clone was reset to the rewritten history on 27 Nov 01:50 UTC; the runs go through the job queue (`proto/district_map_eval.py jobs`).
+- **Radar references:** all 9 storms are rerun on the radar rain with exactly the candidate's live settings (`forecast_d3.slurm`: CN × 0.88
+  AMC II, LF_PARITY=1, 2 mm/h, LF_QOUT=1, notch fix, channel enforcement, T2 terrain), storm windows of w9 `STORMS`, instead of reusing the
+  older `d3_*` runs, so candidate and reference differ only in the rain.
+- **Candidate (b)** = `LF_HRRR_NBHD=20,90` + `LF_HRRR_VOLPRES=1` (`sim/colab/hrrr_rain.py`: each hour's spread field multiplied by
+  raw domain total / spread domain total, the same model cells), HOURS = issue cycle to the ensemble end of `ENSEMBLE.md` (as the box runs).
+- **Site recall:** the 29 sites are the strict sites of the `ENSEMBLE.md` short-lead box runs (issue cycle, `forecast/ensemble/<member>/seg.json`),
+  each matched district-wide in the candidate run (strict 30 m); a site is hit when any of its matched segments is at P ≥ 0.5.
+- Scoring code `proto/district_map_eval.py score` (committed with this note). Candidate (a) (8 members) is queued only after (b) is scored.

@@ -29,6 +29,12 @@ time python sim/colab/w9_lisflood.py
 [ "${STAGE:-}" = solve ] && { echo "solve stage done; post-process with STAGE=post"; exit 0; }
 OUT=$(ls -d $LF_WORK/run_${STORM}_proto_${NAME}/out)
 mkdir -p results/$NAME
+if [ "${SEGDUMP:-0}" = 1 ]; then   # light post-processing for test runs (DISTRICT_MAP_PREREG.md): closures + per-segment P and strict label matches only
+  python proto/forecast_ens.py proto --run-dir "$OUT" --out results/$NAME --storm $STORM --dump results/$NAME/seg.json | tail -5
+  cp $OUT/meta.json results/$NAME/flood_meta.json 2>/dev/null || true
+  [ "${PUBLISH:-1}" = "1" ] && PUBLISH_SLIM=1 bash proto/turing/publish.sh "$NAME" || true
+  exit 0
+fi
 SCORE_WINDOWS=results/$NAME/gauge_windows.npz python proto/score.py --run-dir "$OUT" --storm $STORM --out results/$NAME/score.json | tail -30 || true
 python proto/parity_pack.py "$OUT" results/$NAME || true     # hmax + snapshot peak (cm), .mass: CPU/GPU parity (docs/proto/parity/PARITY.md)
 python proto/validate_points.py --run-dir "$OUT" --storm $STORM --out results/$NAME/points.json | tail -12 || true

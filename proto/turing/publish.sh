@@ -7,7 +7,9 @@ cd "$(dirname "$0")/../.."
 for NAME in "$@"; do
   SRC=results/$NAME; DST=docs/proto/turing/$NAME
   [ -d "$SRC" ] || { echo "no $SRC"; continue; }
-  mkdir -p "$DST"; rsync -a --delete --max-size=40m "$SRC"/ "$DST"/
+  mkdir -p "$DST"
+  if [ "${PUBLISH_SLIM:-0}" = 1 ]; then rsync -a --delete --max-size=10m --include='*.json' --include='*.md' --exclude='*' "$SRC"/ "$DST"/   # test runs: small JSON only
+  else rsync -a --delete --max-size=40m "$SRC"/ "$DST"/; fi
   git add -A "$DST"
 done
 for X in ${PUBLISH_EXTRA:-}; do git add -A "$X"; done     # extra paths written in place (run_forecast.slurm: viewer pack + status)
