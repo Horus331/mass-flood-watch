@@ -6248,6 +6248,1194 @@
     "PROTO_RES_CONSISTENT": "1",
     "PROTO_RC_START_H": "rain"
    }
+  },
+  {
+   "id": "dm_sep2023_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2023_ref",
+    "STORM": "sep2023",
+    "HOURS": "36",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2023_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2023_ref",
+    "STORM": "sep2023",
+    "HOURS": "36",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2023_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2023_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2023_vp",
+    "STORM": "sep2023",
+    "HOURS": "34",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-09-11T18Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2023_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2023_vp",
+    "STORM": "sep2023",
+    "HOURS": "34",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-09-11T18Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2023_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2021_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2021_ref",
+    "STORM": "aug2021",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2021_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2021_ref",
+    "STORM": "aug2021",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2021_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2021_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2021_vp",
+    "STORM": "aug2021",
+    "HOURS": "15",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2021-08-19T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2021_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2021_vp",
+    "STORM": "aug2021",
+    "HOURS": "15",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2021-08-19T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2021_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2021_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2021_ref",
+    "STORM": "jul2021",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2021_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2021_ref",
+    "STORM": "jul2021",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_jul2021_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2021_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2021_vp",
+    "STORM": "jul2021",
+    "HOURS": "14",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2021-07-09T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2021_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2021_vp",
+    "STORM": "jul2021",
+    "HOURS": "14",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2021-07-09T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_jul2021_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2021_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2021_ref",
+    "STORM": "sep2021",
+    "HOURS": "24",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2021_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2021_ref",
+    "STORM": "sep2021",
+    "HOURS": "24",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2021_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2021_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2021_vp",
+    "STORM": "sep2021",
+    "HOURS": "18",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2021-09-02T00Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2021_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2021_vp",
+    "STORM": "sep2021",
+    "HOURS": "18",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2021-09-02T00Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2021_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2022_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2022_ref",
+    "STORM": "sep2022",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2022_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2022_ref",
+    "STORM": "sep2022",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2022_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2022_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2022_vp",
+    "STORM": "sep2022",
+    "HOURS": "18",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2022-09-05T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2022_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2022_vp",
+    "STORM": "sep2022",
+    "HOURS": "18",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2022-09-05T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2022_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2023_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2023_ref",
+    "STORM": "jul2023",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2023_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2023_ref",
+    "STORM": "jul2023",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_jul2023_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2023_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2023_vp",
+    "STORM": "jul2023",
+    "HOURS": "14",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-07-14T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_jul2023_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_jul2023_vp",
+    "STORM": "jul2023",
+    "HOURS": "14",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-07-14T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_jul2023_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023_ref",
+    "STORM": "aug2023",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023_ref",
+    "STORM": "aug2023",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2023_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023_vp",
+    "STORM": "aug2023",
+    "HOURS": "13",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-08-08T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023_vp",
+    "STORM": "aug2023",
+    "HOURS": "13",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-08-08T12Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2023_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023b_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023b_ref",
+    "STORM": "aug2023b",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023b_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023b_ref",
+    "STORM": "aug2023b",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2023b_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023b_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023b_vp",
+    "STORM": "aug2023b",
+    "HOURS": "17",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-08-18T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2023b_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2023b_vp",
+    "STORM": "aug2023b",
+    "HOURS": "17",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2023-08-18T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2023b_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2026_ref_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2026_ref",
+    "STORM": "aug2026",
+    "HOURS": "18",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2026_ref_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2026_ref",
+    "STORM": "aug2026",
+    "HOURS": "18",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2026_ref_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2026_vp_solve",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2026_vp",
+    "STORM": "aug2026",
+    "HOURS": "16",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2026-08-03T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_aug2026_vp_post",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_aug2026_vp",
+    "STORM": "aug2026",
+    "HOURS": "16",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2026-08-03T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_aug2026_vp_solve"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
   }
  ],
  "cancel": [
