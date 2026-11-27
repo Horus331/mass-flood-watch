@@ -7436,6 +7436,77 @@
     "time": "06:00:00",
     "mem": "160G"
    }
+  },
+  {
+   "id": "dm_sep2022_vp_solve_r2",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2022_vp",
+    "STORM": "sep2022",
+    "HOURS": "18",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2022-09-05T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "solve"
+   },
+   "sbatch": {
+    "partition": "short",
+    "gres": "gpu:1",
+    "constraint": "A100|H100|H200",
+    "time": "04:00:00",
+    "mem": "160G"
+   }
+  },
+  {
+   "id": "dm_sep2022_vp_post_r2",
+   "kind": "run_storm",
+   "env": {
+    "BOX": "128000,856000,206000,946000",
+    "RES": "20",
+    "LF_LOSS": "cn",
+    "LF_CN_AMC": "II",
+    "LF_CN_SCALE": "0.88",
+    "LF_PARITY": "1",
+    "LF_INFIL_MMH": "2",
+    "LF_QOUT": "1",
+    "LF_NOTCH_FIX": "1",
+    "LF_CHAN_ENFORCE": "1",
+    "PROTO_RES_CONSISTENT": "1",
+    "PROTO_RC_START_H": "rain",
+    "SEGDUMP": "1",
+    "NAME": "dm_sep2022_vp",
+    "STORM": "sep2022",
+    "HOURS": "18",
+    "LF_RAIN": "hrrr",
+    "LF_HRRR_INIT": "2022-09-05T06Z",
+    "LF_ALLOW_DRY": "1",
+    "LF_HRRR_NBHD": "20,90",
+    "LF_HRRR_VOLPRES": "1",
+    "STAGE": "post"
+   },
+   "after": [
+    "dm_sep2022_vp_solve_r2"
+   ],
+   "sbatch": {
+    "partition": "short",
+    "time": "06:00:00",
+    "mem": "160G"
+   }
   }
  ],
  "cancel": [
