@@ -8,6 +8,7 @@ Reporting only (rules `MASSDOT_EVENTS_PREREG.md`, frozen in e82b274fb before any
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | arc20261105 | 2026-11-05T20:00Z – 2026-11-08T01:00Z | 0 (0 / 0 / 0) | 0 | - | - | - | - | no class-F events in the window |
 | arc20261122 | 2026-11-22T20:00Z – 2026-11-23T23:00Z | 0 (0 / 0 / 0) | 0 | - | - | - | - | no class-F events in the window |
+| arc20261126 | 2026-11-26T17:00Z – 2026-11-27T21:00Z | 0 (0 / 0 / 0) | 0 | - | - | - | - | no class-F events in the window |
 
 ## Pooled (primary: 30 m match, latest cycle issued at least 1 h before the first flood event)
 
